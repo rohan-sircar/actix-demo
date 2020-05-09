@@ -1,76 +1,82 @@
-use actix_web::{get, post, web, Error, HttpResponse};
+use actix_web::{get, post, web, HttpResponse};
 
 use crate::actions;
 use crate::models;
 use crate::types::DbPool;
+use actix_web::error::ResponseError;
+use std::rc::Rc;
 
 /// Finds user by UID.
 #[get("/api/authzd/users/get/{user_id}")]
 pub async fn get_user(
     pool: web::Data<DbPool>,
     user_uid: web::Path<i32>,
-) -> Result<HttpResponse, Error> {
+) -> Result<HttpResponse, impl ResponseError> {
     let user_uid = user_uid.into_inner();
     // use web::block to offload blocking Diesel code without blocking server thread
-    let maybe_user = web::block(move || {
-        let conn = pool.get().map_err(|e| e.to_string())?;
-        actions::find_user_by_uid(user_uid.into(), &conn).map_err(|e| e.to_string())
+    let res = web::block(move || {
+        let conn = pool.get()?;
+        actions::find_user_by_uid(user_uid, &conn)
     })
     .await
-    .map_err(|e| {
-        error!("{}", e);
-        HttpResponse::InternalServerError().finish()
-    })?;
-
-    if let Some(user) = maybe_user {
-        Ok(HttpResponse::Ok().json(user))
-    } else {
-        let res = HttpResponse::NotFound().body(format!("No user found with uid: {}", user_uid));
-        Ok(res)
-    }
+    .and_then(|maybe_user| {
+        if let Some(user) = maybe_user {
+            Ok(HttpResponse::Ok().json(user))
+        } else {
+            let res =
+                HttpResponse::NotFound().body(format!("No user found with uid: {}", user_uid));
+            Ok(res)
+        }
+    });
+    res
 }
 
 #[get("/api/authzd/users/get")]
-pub async fn get_all_users(pool: web::Data<DbPool>) -> Result<HttpResponse, Error> {
+pub async fn get_all_users(pool: web::Data<DbPool>) -> Result<HttpResponse, impl ResponseError> {
     // use web::block to offload blocking Diesel code without blocking server thread
-    let maybe_users = web::block(move || {
-        let conn = pool.get().map_err(|e| e.to_string())?;
-        actions::get_all(&conn).map_err(|e| e.to_string())
+    let res = web::block(move || {
+        let conn = pool.get()?;
+        actions::get_all(&conn)
     })
     .await
-    .map_err(|e| {
-        eprintln!("{}", e);
-        HttpResponse::InternalServerError().finish()
-    })?;
-
-    if let Some(users) = maybe_users {
-        Ok(HttpResponse::Ok().json(users))
-    } else {
-        let res = HttpResponse::NotFound().body(format!("No users available"));
-        Ok(res)
-    }
-    // Ok(HttpResponse::Ok().json(users))
+    .and_then(|maybe_users| {
+        debug!("{:?}", maybe_users);
+        if let Some(users) = maybe_users {
+            if users.is_empty() {
+                let res = HttpResponse::Ok().json(models::ErrorModel {
+                    status_code: 200,
+                    reason: "No users available".to_string(),
+                });
+                Ok(res)
+            } else {
+                Ok(HttpResponse::Ok().json(users))
+            }
+        } else {
+            let res = HttpResponse::Ok().json(models::ErrorModel {
+                status_code: 200,
+                reason: "No users available".to_string(),
+            });
+            Ok(res)
+        }
+    });
+    res
 }
 
 /// Inserts new user with name defined in form.
-#[post("/api/authzd/users/post")]
+#[post("/do_registration")]
 pub async fn add_user(
     pool: web::Data<DbPool>,
     form: web::Json<models::NewUser>,
-) -> Result<HttpResponse, Error> {
+) -> Result<HttpResponse, impl ResponseError> {
     // use web::block to offload blocking Diesel code without blocking server thread
     let user = web::block(move || {
-        let conn = pool.get().map_err(|e| e.to_string())?;
-        actions::insert_new_user(&form, &conn).map_err(|e| e.to_string())
+        let conn = pool.get()?;
+        actions::insert_new_user(Rc::new(form.0), &conn)
     })
     .await
-    .map(|user| {
+    .and_then(|user| {
         debug!("{:?}", user);
-        Ok(HttpResponse::Ok().json(user))
-    })
-    .map_err(|e| {
-        eprintln!("{}", e);
-        HttpResponse::InternalServerError().finish()
-    })?;
+        Ok(HttpResponse::Created().json(user))
+    });
     user
 }
