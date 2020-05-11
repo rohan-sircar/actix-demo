@@ -2,12 +2,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::schema::users;
 use crate::utils::regexs;
-use chrono;
 use validator::Validate;
 use validator_derive::*;
 use yarte::Template;
 
-#[derive(Debug, Clone, Serialize, Queryable, Identifiable, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Queryable, Identifiable, Deserialize)]
 pub struct User {
     pub id: i32,
     pub name: String,
@@ -15,7 +14,7 @@ pub struct User {
     pub created_at: chrono::NaiveDateTime,
 }
 
-#[derive(Debug, Clone, Serialize, Insertable, Deserialize, Validate)]
+#[derive(Debug, Clone, Insertable, Deserialize, Validate)]
 #[table_name = "users"]
 pub struct NewUser {
     #[validate(regex = "regexs::USERNAME_REG", length(min = 4, max = 10))]

@@ -1,13 +1,13 @@
 use serde::Serialize;
 
-#[derive(Debug, Clone, Serialize)]
-pub struct JsonErrorModel {
+#[derive(Debug, Clone, Serialize, new)]
+pub struct JsonErrorModel<'a> {
     status_code: i16,
     pub line: String,
-    pub reason: String,
+    pub reason: &'a str,
 }
-#[derive(Debug, Clone, Serialize)]
-pub struct ErrorModel {
-    pub status_code: i16,
-    pub reason: String,
+#[derive(Debug, Clone, Serialize, new)]
+pub struct ErrorModel<'a> {
+    pub error_code: i16,
+    pub reason: &'a str,
 }

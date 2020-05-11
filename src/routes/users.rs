@@ -23,8 +23,8 @@ pub async fn get_user(
         if let Some(user) = maybe_user {
             Ok(HttpResponse::Ok().json(user))
         } else {
-            let res =
-                HttpResponse::NotFound().body(format!("No user found with uid: {}", user_uid));
+            let res = HttpResponse::NotFound()
+                .body(format!("No user found with uid: {}", user_uid));
             Ok(res)
         }
     });
@@ -32,7 +32,9 @@ pub async fn get_user(
 }
 
 #[get("/api/authzd/users/get")]
-pub async fn get_all_users(pool: web::Data<DbPool>) -> Result<HttpResponse, impl ResponseError> {
+pub async fn get_all_users(
+    pool: web::Data<DbPool>,
+) -> Result<HttpResponse, impl ResponseError> {
     // use web::block to offload blocking Diesel code without blocking server thread
     let res = web::block(move || {
         let conn = pool.get()?;
@@ -43,19 +45,16 @@ pub async fn get_all_users(pool: web::Data<DbPool>) -> Result<HttpResponse, impl
         debug!("{:?}", maybe_users);
         if let Some(users) = maybe_users {
             if users.is_empty() {
-                let res = HttpResponse::Ok().json(models::ErrorModel {
-                    status_code: 200,
-                    reason: "No users available".to_string(),
-                });
+                let res = HttpResponse::NotFound()
+                    .json(models::ErrorModel::new(40, "No users available"));
+                // let res = crate::errors::DomainError::new_generic_error("".to_owned());
                 Ok(res)
             } else {
                 Ok(HttpResponse::Ok().json(users))
             }
         } else {
-            let res = HttpResponse::Ok().json(models::ErrorModel {
-                status_code: 200,
-                reason: "No users available".to_string(),
-            });
+            let res = HttpResponse::NotFound()
+                .json(models::ErrorModel::new(40, "No users available"));
             Ok(res)
         }
     });

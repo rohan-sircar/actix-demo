@@ -1,8 +1,9 @@
 use diesel::prelude::*;
+use diesel::sqlite::Sqlite;
 
 use crate::errors;
 use crate::models;
-use bcrypt::{hash, DEFAULT_COST};
+use bcrypt::{hash, verify, DEFAULT_COST};
 use std::rc::Rc;
 
 pub fn find_user_by_uid(
@@ -24,11 +25,7 @@ pub fn _find_user_by_name(
     user_name: String,
     conn: &SqliteConnection,
 ) -> Result<Option<models::UserDTO>, errors::DomainError> {
-    use crate::schema::users::dsl::*;
-
-    let maybe_user = users
-        .select((name, created_at))
-        .filter(name.eq(user_name))
+    let maybe_user = _get_user_by_name(user_name)
         .first::<models::UserDTO>(conn)
         .optional();
 
@@ -75,9 +72,33 @@ pub fn insert_new_user(
     diesel::insert_into(users)
         .values(nu.as_ref())
         .execute(conn)?;
-    let user = users
+    let user =
+        _get_user_by_name(nu.name.clone()).first::<models::UserDTO>(conn)?;
+    Ok(user)
+}
+
+pub fn verify_password(
+    user_name: String,
+    given_password: String,
+    conn: &SqliteConnection,
+) -> Result<bool, errors::DomainError> {
+    use crate::schema::users::dsl::*;
+    let password_hash = users
+        .select(password)
+        .filter(name.eq(user_name))
+        .first::<String>(conn)?;
+    Ok(verify(given_password.as_str(), password_hash.as_str())?)
+}
+fn _get_user_by_name(
+    user_name: String,
+) -> crate::schema::users::BoxedQuery<
+    'static,
+    Sqlite,
+    (diesel::sql_types::Text, diesel::sql_types::Timestamp),
+> {
+    use crate::schema::users::dsl::*;
+    users
         .select((name, created_at))
-        .filter(name.eq(nu.name.clone()))
-        .first::<models::UserDTO>(conn);
-    Ok(user?)
+        .filter(name.eq(user_name))
+        .into_boxed()
 }

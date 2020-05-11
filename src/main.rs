@@ -1,17 +1,17 @@
 #[macro_use]
 extern crate diesel;
 #[macro_use]
-extern crate comp;
-#[macro_use]
-extern crate validator_derive;
+extern crate derive_new;
+// #[macro_use]
+// extern crate comp;
+// #[macro_use]
+// extern crate validator_derive;
 extern crate bcrypt;
 extern crate custom_error;
 extern crate regex;
 extern crate validator;
 
-use actix_web::{
-    error, get, middleware, post, web, App, Error, HttpRequest, HttpResponse, HttpServer, Responder,
-};
+use actix_web::{error, get, middleware, post, web, App, Error, HttpResponse, HttpServer};
 
 use yarte::Template;
 
@@ -93,6 +93,9 @@ async fn main() -> std::io::Result<()> {
     let pool = r2d2::Pool::builder()
         .build(manager)
         .expect("Failed to create pool.");
+
+    diesel_migrations::run_pending_migrations(&pool.get().unwrap())
+        .expect("Error running migrations");
 
     let addr = std::env::var("BIND_ADDRESS").expect("BIND ADDRESS NOT FOUND");
     info!("Starting server {}", addr);
