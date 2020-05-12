@@ -1,5 +1,5 @@
 use crate::types::DbPool;
-use actix_threadpool::BlockingError;
+// use actix_threadpool::BlockingError;
 use actix_web::{web, ResponseError};
 use actix_web_httpauth::extractors::basic::BasicAuth;
 
@@ -29,10 +29,16 @@ pub async fn login(
                     id.remember(credentials.user_id().to_string());
                     Ok(HttpResponse::Found().header("location", "/").finish())
                 } else {
-                    Err(BlockingError::Error(
-                        errors::DomainError::new_password_error(
-                            "Wrong password or account does not exist"
-                                .to_string(),
+                    // Err(BlockingError::Error(
+                    //     errors::DomainError::new_password_error(
+                    //         "Wrong password or account does not exist"
+                    //             .to_string(),
+                    //     ),
+                    // ))
+                    Ok(HttpResponse::BadRequest().json(
+                        crate::models::errors::ErrorModel::new(
+                            20,
+                            "Wrong password or account does not exist",
                         ),
                     ))
                 }
@@ -78,8 +84,8 @@ fn validate_basic_auth(
         let conn = pool.get()?;
         let password = password_ref.clone().into_owned();
         let valid = users::verify_password(
-            credentials.user_id().clone().into_owned(),
-            password,
+            &credentials.user_id().clone().into_owned(),
+            &password,
             &conn,
         )?;
         Ok(valid)

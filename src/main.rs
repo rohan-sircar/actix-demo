@@ -11,7 +11,9 @@ extern crate custom_error;
 extern crate regex;
 extern crate validator;
 
-use actix_web::{error, get, middleware, post, web, App, Error, HttpResponse, HttpServer};
+use actix_web::{
+    error, get, middleware, post, web, App, Error, HttpResponse, HttpServer,
+};
 
 use yarte::Template;
 
@@ -61,7 +63,9 @@ async fn index(info: web::Path<(u32, String)>) -> Result<HttpResponse, Error> {
     template
         .call()
         .map(|body| HttpResponse::Ok().content_type("text/html").body(body))
-        .map_err(|_| error::ErrorInternalServerError("Error while parsing template"))
+        .map_err(|_| {
+            error::ErrorInternalServerError("Error while parsing template")
+        })
 }
 
 /// This handler uses json extractor
@@ -85,10 +89,12 @@ async fn main() -> std::io::Result<()> {
     env_logger::init();
     dotenv::dotenv().ok();
 
-    let basic_auth_middleware = HttpAuthentication::basic(utils::auth::validator);
+    let basic_auth_middleware =
+        HttpAuthentication::basic(utils::auth::validator);
 
     // set up database connection pool
-    let connspec = std::env::var("DATABASE_URL").expect("DATABASE_URL NOT FOUND");
+    let connspec =
+        std::env::var("DATABASE_URL").expect("DATABASE_URL NOT FOUND");
     let manager = ConnectionManager::<SqliteConnection>::new(connspec);
     let pool = r2d2::Pool::builder()
         .build(manager)
