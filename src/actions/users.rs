@@ -83,9 +83,9 @@ mod query {
     /// <'a, B, T> where a = lifetime, B = Backend, T = SQL data types
     type Query<'a, B, T> = crate::schema::users::BoxedQuery<'a, B, T>;
 
-    pub fn _get_user_by_name<'a>(
-        user_name: &'a String,
-    ) -> Query<'a, Sqlite, (Text, Timestamp)> {
+    pub fn _get_user_by_name(
+        user_name: &String,
+    ) -> Query<Sqlite, (Text, Timestamp)> {
         use crate::schema::users::dsl::*;
         users
             .select((name, created_at))

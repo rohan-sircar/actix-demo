@@ -5,18 +5,19 @@ use crate::models;
 use crate::types::DbPool;
 use actix_web::error::ResponseError;
 use std::rc::Rc;
+use validator::Validate;
 
 /// Finds user by UID.
-#[get("/api/authzd/users/get/{user_id}")]
+#[get("/get/users/{user_id}")]
 pub async fn get_user(
     pool: web::Data<DbPool>,
-    user_uid: web::Path<i32>,
+    user_id: web::Path<i32>,
 ) -> Result<HttpResponse, impl ResponseError> {
-    let user_uid = user_uid.into_inner();
+    let u_id = user_id.into_inner();
     // use web::block to offload blocking Diesel code without blocking server thread
     let res = web::block(move || {
         let conn = pool.get()?;
-        actions::find_user_by_uid(user_uid, &conn)
+        actions::find_user_by_uid(u_id, &conn)
     })
     .await
     .and_then(|maybe_user| {
@@ -24,14 +25,14 @@ pub async fn get_user(
             Ok(HttpResponse::Ok().json(user))
         } else {
             let res = HttpResponse::NotFound()
-                .body(format!("No user found with uid: {}", user_uid));
+                .body(format!("No user found with uid: {}", u_id));
             Ok(res)
         }
     });
     res
 }
 
-#[get("/api/authzd/users/get")]
+#[get("/get/users")]
 pub async fn get_all_users(
     pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, impl ResponseError> {
@@ -68,14 +69,39 @@ pub async fn add_user(
     form: web::Json<models::NewUser>,
 ) -> Result<HttpResponse, impl ResponseError> {
     // use web::block to offload blocking Diesel code without blocking server thread
-    let user = web::block(move || {
-        let conn = pool.get()?;
-        actions::insert_new_user(Rc::new(form.0), &conn)
-    })
-    .await
-    .and_then(|user| {
-        debug!("{:?}", user);
-        Ok(HttpResponse::Created().json(user))
-    });
-    user
+    let res = match form.0.validate() {
+        Ok(_) => web::block(move || {
+            let conn = pool.get()?;
+            actions::insert_new_user(Rc::new(form.0), &conn)
+        })
+        .await
+        .and_then(|user| {
+            debug!("{:?}", user);
+            Ok(HttpResponse::Created().json(user))
+        }),
+
+        Err(e) => {
+            // let err = e.to_string();
+            // web::block(move || {
+            //     Err(crate::errors::DomainError::new_generic_error(err))
+            // })
+            // .await
+
+            // let res2 =
+            //     crate::errors::DomainError::new_generic_error(e.to_string());
+            // Err(res2)
+            // let res2 = crate::errors::DomainError::GenericError {
+            //     cause: e.to_string(),
+            // };
+            // Err(res2)
+            let res = HttpResponse::BadRequest().body(e.to_string());
+            // .json(models::ErrorModel::new(
+            //     40,
+            //     "Error registering user due to validation errors",
+            // ));
+            Ok(res)
+        }
+    };
+
+    res
 }

@@ -75,14 +75,6 @@ async fn extract_my_obj(item: web::Json<MyObj>) -> HttpResponse {
     HttpResponse::Ok().json(item.0) // <- send response
 }
 
-pub struct UserServiceImpl;
-
-impl UserServiceImpl {
-    pub fn new() -> Self {
-        UserServiceImpl {}
-    }
-}
-
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "debug");
@@ -116,15 +108,28 @@ async fn main() -> std::io::Result<()> {
                     .same_site(SameSite::Lax),
             ))
             .wrap(middleware::Logger::default())
-            .service(web::scope("/chat").wrap(basic_auth_middleware.clone()))
+            // .wrap(basic_auth_middleware.clone())
             // .service(extract_my_obj)
             // .service(index)
-            .service(routes::users::get_user)
-            .service(routes::users::add_user)
-            .service(routes::users::get_all_users)
+            // .service(
+            //     web::scope("/api/users").wrap(basic_auth_middleware.clone()),
+            // )
+            // .service(routes::users::get_user)
+            // .service(routes::users::get_all_users)
+            // .service(routes::users::add_user)
+            .service(
+                web::scope("/api/authzd") // endpoint requiring authentication
+                    .wrap(basic_auth_middleware.clone())
+                    // .route("/get/{user_id}", web::to(routes::users::get_user))
+                    // .route("/get", web::to(routes::users::get_all_users))
+                    .service(routes::users::get_user)
+                    .service(routes::users::get_all_users),
+            )
+            .service(web::scope("/api/public")) // public endpoint - not implemented yet
             .service(routes::auth::login)
             .service(routes::auth::logout)
             .service(routes::auth::index)
+            .service(routes::users::add_user)
             .service(fs::Files::new("/", "./static"))
     };
     HttpServer::new(app).bind(addr)?.run().await

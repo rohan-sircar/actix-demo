@@ -76,7 +76,8 @@ pub async fn index(id: Identity) -> String {
     )
 }
 
-fn validate_basic_auth(
+/// basic auth middleware function
+pub fn validate_basic_auth(
     credentials: BasicAuth,
     pool: &web::Data<DbPool>,
 ) -> Result<bool, errors::DomainError> {
