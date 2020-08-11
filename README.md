@@ -46,7 +46,24 @@ curl -H "content-type: application/json" \
 ```
 
 ``` 
-[{"name":"user1","registration_date":"2020-05-09T06:17:26"},{"name":"user2","registration_date":"2020-05-12T12:43:13"},{"name":"user3","registration_date":"2020-05-15T07:47:50"},{"name":"user4","registration_date":"2020-08-01T05:04:05"}]
+[
+  {
+    "name": "user1",
+    "registration_date": "2020-05-09T06:17:26"
+  },
+  {
+    "name": "user2",
+    "registration_date": "2020-05-12T12:43:13"
+  },
+  {
+    "name": "user3",
+    "registration_date": "2020-05-15T07:47:50"
+  },
+  {
+    "name": "user4",
+    "registration_date": "2020-08-01T05:04:05"
+  }
+]
 ```
 
 ### DTO Validation
