@@ -2,20 +2,15 @@
 extern crate diesel;
 #[macro_use]
 extern crate derive_new;
-// #[macro_use]
-// extern crate comp;
-// #[macro_use]
-// extern crate validator_derive;
 extern crate bcrypt;
 extern crate custom_error;
 extern crate regex;
 extern crate validator;
 
 use actix_web::{
-    error, get, middleware, post, web, App, Error, HttpResponse, HttpServer,
+    middleware, web, App, HttpServer,
 };
 
-use yarte::Template;
 
 use actix_web_httpauth::middleware::HttpAuthentication;
 
@@ -27,10 +22,6 @@ use actix_files as fs;
 
 use diesel::prelude::*;
 use diesel::r2d2::{self, ConnectionManager};
-// use middlewares::csrf;
-// use routes;
-// use routes::users;
-// use utils;
 
 mod actions;
 mod errors;
@@ -44,36 +35,6 @@ mod utils;
 #[macro_use]
 extern crate log;
 
-use serde::{Deserialize, Serialize};
-
-#[derive(Debug, Serialize, Deserialize)]
-struct MyObj {
-    name: String,
-    // number: i32,
-}
-
-#[get("/{id}/{name}")]
-async fn index(info: web::Path<(u32, String)>) -> Result<HttpResponse, Error> {
-    let (id, name) = (info.0, info.1.clone());
-    let template = models::CardTemplate {
-        title: "My Title",
-        body: name,
-        num: id,
-    };
-    template
-        .call()
-        .map(|body| HttpResponse::Ok().content_type("text/html").body(body))
-        .map_err(|_| {
-            error::ErrorInternalServerError("Error while parsing template")
-        })
-}
-
-/// This handler uses json extractor
-#[post("/extractor")]
-async fn extract_my_obj(item: web::Json<MyObj>) -> HttpResponse {
-    debug!("model: {:?}", item);
-    HttpResponse::Ok().json(item.0) // <- send response
-}
 
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {
@@ -108,20 +69,9 @@ async fn main() -> std::io::Result<()> {
                     .same_site(SameSite::Lax),
             ))
             .wrap(middleware::Logger::default())
-            // .wrap(basic_auth_middleware.clone())
-            // .service(extract_my_obj)
-            // .service(index)
-            // .service(
-            //     web::scope("/api/users").wrap(basic_auth_middleware.clone()),
-            // )
-            // .service(routes::users::get_user)
-            // .service(routes::users::get_all_users)
-            // .service(routes::users::add_user)
             .service(
                 web::scope("/api/authzd") // endpoint requiring authentication
                     .wrap(basic_auth_middleware.clone())
-                    // .route("/get/{user_id}", web::to(routes::users::get_user))
-                    // .route("/get", web::to(routes::users::get_all_users))
                     .service(routes::users::get_user)
                     .service(routes::users::get_all_users),
             )
