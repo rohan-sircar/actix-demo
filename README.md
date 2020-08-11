@@ -9,7 +9,10 @@ curl -X GET http://localhost:7800/api/users/get/1
 ```
 
 ``` 
-{"name":"user1","registration_date":"2020-05-09T06:17:26"}
+{
+  "name": "user1",
+  "registration_date": "2020-05-09T06:17:26"
+}
 ```
 
 ``` 
@@ -17,13 +20,29 @@ curl -X GET http://localhost:7800/api/users/get
 ```
 
 ``` 
-[{"name":"user1","registration_date":"2020-05-09T06:17:26"},{"name":"user2","registration_date":"2020-05-12T12:43:13"},{"name":"user3","registration_date":"2020-05-15T07:47:50"}]
+[
+  {
+    "name": "user1",
+    "registration_date": "2020-05-09T06:17:26"
+  },
+  {
+    "name": "user2",
+    "registration_date": "2020-05-12T12:43:13"
+  },
+  {
+    "name": "user3",
+    "registration_date": "2020-05-15T07:47:50"
+  }
+]
 ```
 
 ### Create User
 
 ``` 
-curl -H "content-type: application/json" -X POST http://localhost:7800/do_registration --data '{"name":"user4","password":"test"}'
+curl -H "content-type: application/json" \
+-X POST \
+-i http://localhost:7800/do_registration \
+--data '{"name":"user4","password":"test"}'
 ```
 
 ``` 
@@ -33,7 +52,10 @@ curl -H "content-type: application/json" -X POST http://localhost:7800/do_regist
 ### DTO Validation
 
 ``` 
-curl -H "content-type: application/json" -X POST http://localhost:7800/do_registration --data '{"name":"abc","password":"test"}'
+curl -H "content-type: application/json" \
+-X POST \
+-i http://localhost:7800/do_registration \
+--data '{"name":"abc","password":"test"}' # min length for name is 4
 ```
 
 ``` 
@@ -42,4 +64,4 @@ ValidationErrors({"name": Field([ValidationError { code: "length", message: None
 
 ## Memory Usage
 
-Memory usage as compared to interpreted language was my primary motivation for looking into rust as a backend language. As of writing, the demo app uses only 1.3MB of memory.
+Memory usage as compared to interpreted languages was my primary motivation for looking into rust as a backend language. As of writing, the demo app uses only 1.3MB of memory.
