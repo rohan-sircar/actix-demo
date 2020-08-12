@@ -1,8 +1,8 @@
-use actix_web_httpauth::extractors::basic::{BasicAuth, Config};
+use actix_web_httpauth::extractors::basic::BasicAuth;
 
+use crate::AppConfig;
 // use actix_identity::Identity;
-use crate::{routes::validate_basic_auth, types::DbPool};
-use actix_http::ResponseError;
+use crate::routes::validate_basic_auth;
 use actix_threadpool::BlockingError;
 
 use actix_web::{dev::ServiceRequest, web, Error};
@@ -18,17 +18,15 @@ pub async fn validator(
     // verify credentials from db
     let credentials2 = credentials.clone();
     // let pool = req.app_data();
-    let pool = req
-        .app_data::<DbPool>()
-        .expect("Error getting db")
-        // .get_ref()
-        .clone();
+    let config = req.app_data::<AppConfig>().expect("Error getting db");
+    // .get_ref()
+    // .clone();
     // let _config = req
     //     .app_data::<Config>()
     //     .map(|data| data.get_ref().clone())
     //     .unwrap_or_else(Default::default);
 
-    let res = web::block(move || validate_basic_auth(credentials2, &pool))
+    let res = web::block(move || validate_basic_auth(credentials2, &config))
         .await
         .and_then(|valid| {
             if valid {

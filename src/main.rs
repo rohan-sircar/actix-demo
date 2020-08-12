@@ -7,10 +7,7 @@ extern crate custom_error;
 extern crate regex;
 extern crate validator;
 
-use actix_web::{
-    middleware, web, App, HttpServer,
-};
-
+use actix_web::{middleware, web, App, HttpServer};
 
 use actix_web_httpauth::middleware::HttpAuthentication;
 
@@ -22,6 +19,8 @@ use actix_files as fs;
 
 use diesel::prelude::*;
 use diesel::r2d2::{self, ConnectionManager};
+use listenfd::ListenFd;
+use types::DbPool;
 
 mod actions;
 mod errors;
@@ -35,6 +34,11 @@ mod utils;
 #[macro_use]
 extern crate log;
 
+#[derive(Clone)]
+pub struct AppConfig {
+    hash_cost: u32,
+    pool: DbPool,
+}
 
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {
@@ -56,12 +60,22 @@ async fn main() -> std::io::Result<()> {
     diesel_migrations::run_pending_migrations(&pool.get().unwrap())
         .expect("Error running migrations");
 
+    let hash_cost = std::env::var("HASH_COST")
+        .map_err(|e| e.to_string())
+        .and_then(|x| x.parse::<u32>().map_err(|e| e.to_string()))
+        .unwrap_or_else(|_| {
+            info!("Error parsing hash cost env variable, or it is not set. Using default cost of 8");
+            8
+        });
+
+    let config: AppConfig = AppConfig { pool, hash_cost };
+
     let addr = std::env::var("BIND_ADDRESS").expect("BIND ADDRESS NOT FOUND");
     info!("Starting server {}", addr);
     let private_key = rand::thread_rng().gen::<[u8; 32]>();
     let app = move || {
         App::new()
-            .data(pool.clone())
+            .data(config.clone())
             .wrap(IdentityService::new(
                 CookieIdentityPolicy::new(&private_key)
                     .name("my-app-auth")
@@ -82,5 +96,14 @@ async fn main() -> std::io::Result<()> {
             .service(routes::users::add_user)
             .service(fs::Files::new("/", "./static"))
     };
-    HttpServer::new(app).bind(addr)?.run().await
+    // HttpServer::new(app).bind(addr)?.run().await
+    let mut listenfd = ListenFd::from_env();
+    let mut server = HttpServer::new(app);
+    server = if let Some(l) = listenfd.take_tcp_listener(0).unwrap() {
+        server.listen(l)?
+    } else {
+        server.bind(addr)?
+    };
+
+    server.run().await
 }
