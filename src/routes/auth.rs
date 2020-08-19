@@ -1,4 +1,4 @@
-use actix_web::{web, ResponseError};
+use actix_web::web;
 use actix_web_httpauth::extractors::basic::BasicAuth;
 
 use crate::actions::users;
@@ -11,7 +11,7 @@ pub async fn login(
     id: Identity,
     credentials: BasicAuth,
     config: web::Data<AppConfig>,
-) -> Result<HttpResponse, impl ResponseError> {
+) -> Result<HttpResponse, Error> {
     let maybe_identity = id.identity();
     let response = if let Some(identity) = maybe_identity {
         Ok(HttpResponse::Found()
@@ -20,30 +20,21 @@ pub async fn login(
             .json(format!("Already logged in as {}", identity)))
     } else {
         let credentials2 = credentials.clone();
-        web::block(move || validate_basic_auth(credentials2, &config))
-            .await
-            .and_then(|valid| {
-                if valid {
-                    id.remember(credentials.user_id().to_string());
-                    Ok(HttpResponse::Found().header("location", "/").finish())
-                } else {
-                    // Err(BlockingError::Error(
-                    //     errors::DomainError::new_password_error(
-                    //         "Wrong password or account does not exist"
-                    //             .to_string(),
-                    //     ),
-                    // ))
-                    Ok(HttpResponse::BadRequest().json(
-                        crate::models::errors::ErrorModel::new(
-                            20,
-                            "Wrong password or account does not exist",
-                        ),
-                    ))
-                }
-            })
+        let valid =
+            web::block(move || validate_basic_auth(credentials2, &config))
+                .await?;
+        if valid {
+            id.remember(credentials.user_id().to_string());
+            Ok(HttpResponse::Found().header("location", "/").finish())
+        } else {
+            Ok(HttpResponse::BadRequest().json(
+                crate::models::errors::ErrorModel::new(
+                    20,
+                    "Wrong password or account does not exist",
+                ),
+            ))
+        }
     };
-    // println!("{}", credentials.user_id());
-    // println!("{:?}", credentials.password());
     response
 }
 

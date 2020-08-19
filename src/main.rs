@@ -7,11 +7,10 @@ extern crate custom_error;
 extern crate regex;
 extern crate validator;
 
-use actix_web::{middleware, web, App, HttpServer};
+use actix_web::{middleware, web, App, HttpServer, cookie::SameSite};
 
 use actix_web_httpauth::middleware::HttpAuthentication;
 
-use actix_http::cookie::SameSite;
 use actix_identity::{CookieIdentityPolicy, IdentityService};
 use rand::Rng;
 
@@ -80,7 +79,7 @@ async fn main() -> std::io::Result<()> {
                 CookieIdentityPolicy::new(&private_key)
                     .name("my-app-auth")
                     .secure(false)
-                    .same_site(SameSite::Lax),
+                    .same_site(SameSite::Lax)
             ))
             .wrap(middleware::Logger::default())
             .service(

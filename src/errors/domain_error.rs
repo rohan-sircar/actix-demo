@@ -24,7 +24,7 @@ use std::convert::From;
 // }
 
 custom_error! { #[derive(new)] pub DomainError
-    PwdHashError {source: BcryptError} = "Failed to has password",
+    PwdHashError {source: BcryptError} = "Failed to hash password",
     DbError {source: diesel::result::Error} = "Database error",
     DbPoolError {source: r2d2::Error} = "Failed to get connection from pool",
     PasswordError {cause: String} = "Failed to validate password - {cause}",
@@ -53,10 +53,10 @@ impl ResponseError for DomainError {
                     reason: format!("{} {}", err.to_string(), source).as_str(),
                 })
             }
-            DomainError::PasswordError { cause } => HttpResponse::BadRequest()
+            DomainError::PasswordError { cause: _ } => HttpResponse::BadRequest()
                 .json(ErrorModel {
                     error_code: 400,
-                    reason: format!("{} {}, ", err.to_string(), cause.clone())
+                    reason: format!("{}", err.to_string())
                         .as_str(),
                 }),
             DomainError::GenericError { cause } => HttpResponse::BadRequest()

@@ -23,7 +23,6 @@ validator_derive = '0.10'
 jsonwebtoken = '7'
 actix-identity = '0.2.1'
 actix-web-httpauth = '0.4.1'
-actix-http = '1.0.1'
 rand = '0.7.3'
 nanoid = '0.3.0'
 bcrypt = '0.7'
@@ -41,9 +40,9 @@ actix-threadpool = '0.3.1'
 version = '1.0.106'
 features = ['derive']
 
-[dependencies.yarte]
-version = '0.9.0'
-features = ['html-min']
+# [dependencies.yarte]
+# version = '0.9.0'
+# features = ['html-min']
 
 [dependencies.diesel]
 version = '1.4.4'
@@ -67,7 +66,7 @@ features = ['bundled']
 [dependencies.chrono]
 version = '0.4.11'
 features = ['serde']
-[build-dependencies.yarte_helpers]
-version = '0.9.0'
-default-features = false
-features = ['config']
+# [build-dependencies.yarte_helpers]
+# version = '0.9.0'
+# default-features = false
+# features = ['config']

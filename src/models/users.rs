@@ -4,7 +4,6 @@ use crate::schema::users;
 use crate::utils::regexs;
 use validator::Validate;
 use validator_derive::*;
-use yarte::Template;
 
 #[derive(Debug, Clone, Queryable, Identifiable, Deserialize)]
 pub struct User {
@@ -28,10 +27,3 @@ pub struct UserDTO {
     pub registration_date: chrono::NaiveDateTime,
 }
 
-#[derive(Template)]
-#[template(path = "hello.hbs")]
-pub struct CardTemplate<'a> {
-    pub title: &'a str,
-    pub body: String,
-    pub num: u32,
-}
