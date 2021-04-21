@@ -3,7 +3,6 @@ use diesel::prelude::*;
 use crate::errors;
 use crate::models;
 use bcrypt::{hash, verify, DEFAULT_COST};
-use std::rc::Rc;
 
 pub fn find_user_by_uid(
     uid: i32,

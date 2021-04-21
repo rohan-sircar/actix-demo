@@ -9,12 +9,9 @@ extern crate validator;
 
 use actix_web::{cookie::SameSite, middleware, web, App, HttpServer};
 
-use actix_web_httpauth::middleware::HttpAuthentication;
-
 use actix_files as fs;
 use actix_identity::{CookieIdentityPolicy, IdentityService};
 use rand::Rng;
-use services::UserServiceImpl;
 
 use diesel::prelude::*;
 use diesel::r2d2::{self, ConnectionManager};

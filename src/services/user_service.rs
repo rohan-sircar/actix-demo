@@ -1,7 +1,3 @@
-use std::rc::Rc;
-
-use diesel::SqliteConnection;
-
 use crate::{actions, errors, models, types::DbPool};
 
 pub trait UserService {

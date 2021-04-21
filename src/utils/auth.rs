@@ -1,10 +1,3 @@
-use actix_web_httpauth::extractors::basic::BasicAuth;
-
-use crate::routes::validate_basic_auth;
-use crate::AppConfig;
-
-use actix_web::{dev::ServiceRequest, web, Error};
-
 // pub async fn validator(
 //     req: ServiceRequest,
 //     credentials: BasicAuth,

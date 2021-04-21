@@ -2,7 +2,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::schema::users;
 use crate::utils::regexs;
-use validator::Validate;
 use validator_derive::*;
 
 #[derive(Debug, Clone, Queryable, Identifiable, Deserialize)]
@@ -26,4 +25,3 @@ pub struct UserDTO {
     pub name: String,
     pub registration_date: chrono::NaiveDateTime,
 }
-

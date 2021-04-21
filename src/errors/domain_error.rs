@@ -53,12 +53,12 @@ impl ResponseError for DomainError {
                     reason: format!("{} {}", err.to_string(), source).as_str(),
                 })
             }
-            DomainError::PasswordError { cause: _ } => HttpResponse::BadRequest()
-                .json(ErrorModel {
+            DomainError::PasswordError { cause: _ } => {
+                HttpResponse::BadRequest().json(ErrorModel {
                     error_code: 400,
-                    reason: format!("{}", err.to_string())
-                        .as_str(),
-                }),
+                    reason: format!("{}", err.to_string()).as_str(),
+                })
+            }
             DomainError::GenericError { cause } => HttpResponse::BadRequest()
                 .json(ErrorModel {
                     error_code: 400,

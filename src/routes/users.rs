@@ -21,7 +21,7 @@ pub async fn get_user(
         actions::find_user_by_uid(u_id, &conn)
     })
     .await
-    .map_err(|err| {
+    .map_err(|_err| {
         let res = DomainError::new_generic_error(format!(
             "No user found with uid: {}",
             u_id
