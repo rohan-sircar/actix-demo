@@ -83,14 +83,14 @@ jobs:
           args: -- -D warnings
 
   build:
-    name: Build Application
+    name: Build Binaries
     runs-on: ubuntu-latest
     needs: [check, test, lints]
     strategy:
       matrix:
         target:
           - x86_64-unknown-linux-gnu
-          - aarch64-unknown-linux-gnu
+          # - aarch64-unknown-linux-gnu
           # - powerpc64-unknown-linux-gnu
     steps:
       - uses: actions/checkout@v2
@@ -106,3 +106,15 @@ jobs:
           use-cross: true
           command: build
           args: --release --target=${{ matrix.target }}
+
+  build-docker:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    needs: [check, test, lints]
+    steps:
+      - uses: actions/checkout@v2
+      - name: Docker layer cache
+        uses: satackey/action-docker-layer-caching@v0.0.11
+        continue-on-error: true
+      - name: Build Image
+        run: docker build -t rohansircar/actix-demo:latest .

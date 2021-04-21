@@ -1,4 +1,4 @@
-FROM rust:1.45 as builder
+FROM rust:1.51 as builder
 
 # ENV CARGO_HOME=/actix-demo/.cargo
 RUN USER=root cargo new --bin actix-demo
