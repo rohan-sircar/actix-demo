@@ -7,14 +7,14 @@ extern crate custom_error;
 extern crate regex;
 extern crate validator;
 
-use actix_web::{middleware, web, App, HttpServer, cookie::SameSite};
+use actix_web::{cookie::SameSite, middleware, web, App, HttpServer};
 
 use actix_web_httpauth::middleware::HttpAuthentication;
 
+use actix_files as fs;
 use actix_identity::{CookieIdentityPolicy, IdentityService};
 use rand::Rng;
-
-use actix_files as fs;
+use services::UserServiceImpl;
 
 use diesel::prelude::*;
 use diesel::r2d2::{self, ConnectionManager};
@@ -27,6 +27,7 @@ mod middlewares;
 mod models;
 mod routes;
 mod schema;
+mod services;
 mod types;
 mod utils;
 
@@ -39,14 +40,14 @@ pub struct AppConfig {
     pool: DbPool,
 }
 
-#[actix_rt::main]
+#[actix_web::main]
 async fn main() -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "debug");
     env_logger::init();
     dotenv::dotenv().ok();
 
-    let basic_auth_middleware =
-        HttpAuthentication::basic(utils::auth::validator);
+    // let _basic_auth_middleware =
+    //     HttpAuthentication::basic(utils::auth::validator);
 
     // set up database connection pool
     let connspec =
@@ -67,7 +68,14 @@ async fn main() -> std::io::Result<()> {
             8
         });
 
-    let config: AppConfig = AppConfig { pool, hash_cost };
+    let config: AppConfig = AppConfig {
+        pool: pool.clone(),
+        hash_cost,
+    };
+
+    // let user_controller = UserController {
+    //     user_service: &user_service,
+    // };
 
     let addr = std::env::var("BIND_ADDRESS").expect("BIND ADDRESS NOT FOUND");
     info!("Starting server {}", addr);
@@ -79,15 +87,16 @@ async fn main() -> std::io::Result<()> {
                 CookieIdentityPolicy::new(&private_key)
                     .name("my-app-auth")
                     .secure(false)
-                    .same_site(SameSite::Lax)
+                    .same_site(SameSite::Lax),
             ))
             .wrap(middleware::Logger::default())
             .service(
                 web::scope("/api/authzd") // endpoint requiring authentication
-                    .wrap(basic_auth_middleware.clone())
+                    // .wrap(_basic_auth_middleware.clone())
                     .service(routes::users::get_user)
                     .service(routes::users::get_all_users),
             )
+            // .route("/api/users/get", web::get().to(user_controller.get_user.into()))
             .service(web::scope("/api/public")) // public endpoint - not implemented yet
             .service(routes::auth::login)
             .service(routes::auth::logout)

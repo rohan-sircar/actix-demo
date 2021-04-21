@@ -1,10 +1,10 @@
 use actix_web::{get, post, web, HttpResponse};
 
-use crate::actions;
-use crate::models;
+use crate::errors::DomainError;
+use crate::services::UserService;
 use crate::AppConfig;
+use crate::{actions, models};
 use actix_web::error::ResponseError;
-use std::rc::Rc;
 use validator::Validate;
 
 /// Finds user by UID.
@@ -12,7 +12,7 @@ use validator::Validate;
 pub async fn get_user(
     config: web::Data<AppConfig>,
     user_id: web::Path<i32>,
-) -> Result<HttpResponse, impl ResponseError> {
+) -> Result<HttpResponse, DomainError> {
     let u_id = user_id.into_inner();
     // use web::block to offload blocking Diesel code without blocking server thread
     let res = web::block(move || {
@@ -21,16 +21,36 @@ pub async fn get_user(
         actions::find_user_by_uid(u_id, &conn)
     })
     .await
-    .and_then(|maybe_user| {
-        if let Some(user) = maybe_user {
-            Ok(HttpResponse::Ok().json(user))
-        } else {
-            let res = HttpResponse::NotFound()
-                .body(format!("No user found with uid: {}", u_id));
-            Ok(res)
-        }
-    });
-    res
+    .map_err(|err| {
+        let res = DomainError::new_generic_error(format!(
+            "No user found with uid: {}",
+            u_id
+        ));
+        res
+    })?;
+    if let Some(user) = res {
+        Ok(HttpResponse::Ok().json(user))
+    } else {
+        let res = HttpResponse::NotFound()
+            .body(format!("No user found with uid: {}", u_id));
+        Ok(res)
+    }
+}
+
+#[get("/get/users/{user_id}")]
+pub async fn get_user2(
+    user_service: web::Data<dyn UserService>,
+    user_id: web::Path<i32>,
+) -> Result<HttpResponse, DomainError> {
+    let u_id = user_id.into_inner();
+    let user = user_service.find_user_by_uid(u_id)?;
+    if let Some(user) = user {
+        Ok(HttpResponse::Ok().json(user))
+    } else {
+        let res = HttpResponse::NotFound()
+            .body(format!("No user found with uid: {}", u_id));
+        Ok(res)
+    }
 }
 
 #[get("/get/users")]
@@ -75,7 +95,7 @@ pub async fn add_user(
         Ok(_) => web::block(move || {
             let pool = &config.pool;
             let conn = pool.get()?;
-            actions::insert_new_user(Rc::new(form.0), &conn)
+            actions::insert_new_user(form.0, &conn)
         })
         .await
         .and_then(|user| {

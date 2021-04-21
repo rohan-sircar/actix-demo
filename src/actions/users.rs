@@ -43,19 +43,20 @@ pub fn get_all(
 
 /// Run query using Diesel to insert a new database row and return the result.
 pub fn insert_new_user(
-    mut nu: Rc<models::NewUser>,
+    nu: models::NewUser,
     conn: &SqliteConnection,
 ) -> Result<models::UserDTO, errors::DomainError> {
     // It is common when using Diesel with Actix web to import schema-related
     // modules inside a function's scope (rather than the normal module's scope)
     // to prevent import collisions and namespace pollution.
     use crate::schema::users::dsl::*;
-    let mut nu2 = Rc::make_mut(&mut nu);
-    nu2.password = hash(&nu2.password, DEFAULT_COST)?;
+    let nu = {
+        let mut nu2 = nu.clone();
+        nu2.password = hash(&nu2.password, DEFAULT_COST)?;
+        nu2
+    };
 
-    diesel::insert_into(users)
-        .values(nu.as_ref())
-        .execute(conn)?;
+    diesel::insert_into(users).values(&nu).execute(conn)?;
     let user =
         query::_get_user_by_name(&nu.name).first::<models::UserDTO>(conn)?;
     Ok(user)

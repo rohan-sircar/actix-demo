@@ -68,7 +68,7 @@ pub async fn index(id: Identity) -> String {
 /// basic auth middleware function
 pub fn validate_basic_auth(
     credentials: BasicAuth,
-    config: &web::Data<AppConfig>,
+    config: &AppConfig,
 ) -> Result<bool, errors::DomainError> {
     let result = if let Some(password_ref) = credentials.password() {
         let pool = &config.pool;
