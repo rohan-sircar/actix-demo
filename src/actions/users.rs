@@ -7,13 +7,13 @@ use bcrypt::{hash, verify, DEFAULT_COST};
 pub fn find_user_by_uid(
     uid: i32,
     conn: &SqliteConnection,
-) -> Result<Option<models::UserDTO>, errors::DomainError> {
+) -> Result<Option<models::UserDto>, errors::DomainError> {
     use crate::schema::users::dsl::*;
 
     let maybe_user = users
         .select((name, created_at))
         .find(uid)
-        .first::<models::UserDTO>(conn)
+        .first::<models::UserDto>(conn)
         .optional();
 
     Ok(maybe_user?)
@@ -22,9 +22,9 @@ pub fn find_user_by_uid(
 pub fn _find_user_by_name(
     user_name: String,
     conn: &SqliteConnection,
-) -> Result<Option<models::UserDTO>, errors::DomainError> {
+) -> Result<Option<models::UserDto>, errors::DomainError> {
     let maybe_user = query::_get_user_by_name(&user_name)
-        .first::<models::UserDTO>(conn)
+        .first::<models::UserDto>(conn)
         .optional();
 
     Ok(maybe_user?)
@@ -32,11 +32,11 @@ pub fn _find_user_by_name(
 
 pub fn get_all(
     conn: &SqliteConnection,
-) -> Result<Option<Vec<models::UserDTO>>, errors::DomainError> {
+) -> Result<Option<Vec<models::UserDto>>, errors::DomainError> {
     use crate::schema::users::dsl::*;
     Ok(users
         .select((name, created_at))
-        .load::<models::UserDTO>(conn)
+        .load::<models::UserDto>(conn)
         .optional()?)
 }
 
@@ -44,7 +44,7 @@ pub fn get_all(
 pub fn insert_new_user(
     nu: models::NewUser,
     conn: &SqliteConnection,
-) -> Result<models::UserDTO, errors::DomainError> {
+) -> Result<models::UserDto, errors::DomainError> {
     // It is common when using Diesel with Actix web to import schema-related
     // modules inside a function's scope (rather than the normal module's scope)
     // to prevent import collisions and namespace pollution.
@@ -57,7 +57,7 @@ pub fn insert_new_user(
 
     diesel::insert_into(users).values(&nu).execute(conn)?;
     let user =
-        query::_get_user_by_name(&nu.name).first::<models::UserDTO>(conn)?;
+        query::_get_user_by_name(&nu.name).first::<models::UserDto>(conn)?;
     Ok(user)
 }
 

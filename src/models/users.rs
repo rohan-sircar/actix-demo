@@ -21,7 +21,7 @@ pub struct NewUser {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Queryable)]
-pub struct UserDTO {
+pub struct UserDto {
     pub name: String,
     pub registration_date: chrono::NaiveDateTime,
 }

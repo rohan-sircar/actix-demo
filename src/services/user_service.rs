@@ -4,20 +4,20 @@ pub trait UserService {
     fn find_user_by_uid(
         &self,
         uid: i32,
-    ) -> Result<Option<models::UserDTO>, errors::DomainError>;
+    ) -> Result<Option<models::UserDto>, errors::DomainError>;
     fn _find_user_by_name(
         &self,
         user_name: String,
-    ) -> Result<Option<models::UserDTO>, errors::DomainError>;
+    ) -> Result<Option<models::UserDto>, errors::DomainError>;
 
     fn get_all(
         &self,
-    ) -> Result<Option<Vec<models::UserDTO>>, errors::DomainError>;
+    ) -> Result<Option<Vec<models::UserDto>>, errors::DomainError>;
 
     fn insert_new_user(
         &self,
         nu: models::NewUser,
-    ) -> Result<models::UserDTO, errors::DomainError>;
+    ) -> Result<models::UserDto, errors::DomainError>;
 
     // fn woot(&self) -> i32;
 
@@ -37,7 +37,7 @@ impl UserService for UserServiceImpl {
     fn find_user_by_uid(
         &self,
         uid: i32,
-    ) -> Result<Option<models::UserDTO>, errors::DomainError> {
+    ) -> Result<Option<models::UserDto>, errors::DomainError> {
         let conn = self.pool.get()?;
         actions::find_user_by_uid(uid, &conn)
     }
@@ -45,14 +45,14 @@ impl UserService for UserServiceImpl {
     fn _find_user_by_name(
         &self,
         user_name: String,
-    ) -> Result<Option<models::UserDTO>, errors::DomainError> {
+    ) -> Result<Option<models::UserDto>, errors::DomainError> {
         let conn = self.pool.get()?;
         actions::_find_user_by_name(user_name, &conn)
     }
 
     fn get_all(
         &self,
-    ) -> Result<Option<Vec<models::UserDTO>>, errors::DomainError> {
+    ) -> Result<Option<Vec<models::UserDto>>, errors::DomainError> {
         let conn = self.pool.get()?;
         actions::get_all(&conn)
     }
@@ -60,7 +60,7 @@ impl UserService for UserServiceImpl {
     fn insert_new_user(
         &self,
         nu: models::NewUser,
-    ) -> Result<models::UserDTO, errors::DomainError> {
+    ) -> Result<models::UserDto, errors::DomainError> {
         let conn = self.pool.get()?;
         actions::insert_new_user(nu, &conn)
     }
