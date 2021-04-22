@@ -77,7 +77,7 @@ jobs:
 
       - name: Run cargo clippy
         uses: actions-rs/cargo@v1
-        continue-on-error: true
+        # continue-on-error: true
         with:
           command: clippy
           args: -- -D warnings
