@@ -35,12 +35,11 @@ RUN groupadd $APP_USER \
 COPY ./.env ${APP}/.env
 COPY ./migrations ${APP}/migrations
 COPY ./static ${APP}/static
-COPY ./test.db ${APP}/test.db
+COPY ./db/test.db ${APP}/test.db
 COPY --from=builder /actix-demo/target/release/actix-demo ${APP}/actix-demo
 
 RUN chown -R $APP_USER:$APP_USER ${APP}
 
 USER $APP_USER
 WORKDIR ${APP}
-
 CMD ["./actix-demo"]

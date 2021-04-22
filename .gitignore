@@ -1,4 +1,4 @@
 /target
 .idea
 .vscode
-test.db
+/test.db
