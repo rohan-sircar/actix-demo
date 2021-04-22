@@ -102,6 +102,10 @@ jobs:
           override: true
       - name: Rust Cache
         uses: Swatinem/rust-cache@v1.2.0
+      - name: Install PowerPC GCC
+        if: ${{ matrix.target }} == 'powerpc64-unknown-linux-gnu'
+        run: |
+          apt-get install -y gcc-powerpc-linux-gnu
       - name: Compile
         uses: actions-rs/cargo@v1
         with:
