@@ -127,5 +127,4 @@ jobs:
       - name: Build Image
         run: docker build -t rohansircar/actix-demo:latest .
       - name: Publish Image
-      uses: elgohr/Publish-Docker-Github-Action@master
         run: docker push rohansircar/actix-demo:latest
