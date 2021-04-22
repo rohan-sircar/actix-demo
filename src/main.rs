@@ -110,5 +110,7 @@ async fn main() -> std::io::Result<()> {
         server.bind(addr)?
     };
 
+    println!("whoops");
+    
     server.run().await
 }
