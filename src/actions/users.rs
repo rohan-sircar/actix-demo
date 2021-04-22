@@ -50,7 +50,7 @@ pub fn insert_new_user(
     // to prevent import collisions and namespace pollution.
     use crate::schema::users::dsl::*;
     let nu = {
-        let mut nu2 = nu.clone();
+        let mut nu2 = nu;
         nu2.password = hash(&nu2.password, DEFAULT_COST)?;
         nu2
     };
@@ -61,9 +61,9 @@ pub fn insert_new_user(
     Ok(user)
 }
 
-pub fn verify_password<'a>(
-    user_name: &'a String,
-    given_password: &'a String,
+pub fn verify_password(
+    user_name: &str,
+    given_password: &str,
     conn: &SqliteConnection,
 ) -> Result<bool, errors::DomainError> {
     use crate::schema::users::dsl::*;
@@ -84,7 +84,7 @@ mod query {
     type Query<'a, B, T> = crate::schema::users::BoxedQuery<'a, B, T>;
 
     pub fn _get_user_by_name(
-        user_name: &String,
+        user_name: &str,
     ) -> Query<Sqlite, (Text, Timestamp)> {
         use crate::schema::users::dsl::*;
         users

@@ -64,21 +64,21 @@ pub async fn get_all_users(
         actions::get_all(&conn)
     })
     .await
-    .and_then(|maybe_users| {
+    .map(|maybe_users| {
         debug!("{:?}", maybe_users);
         if let Some(users) = maybe_users {
             if users.is_empty() {
                 let res = HttpResponse::NotFound()
                     .json(models::ErrorModel::new(40, "No users available"));
                 // let res = crate::errors::DomainError::new_generic_error("".to_owned());
-                Ok(res)
+                res
             } else {
-                Ok(HttpResponse::Ok().json(users))
+                HttpResponse::Ok().json(users)
             }
         } else {
             let res = HttpResponse::NotFound()
                 .json(models::ErrorModel::new(40, "No users available"));
-            Ok(res)
+            res
         }
     });
     res
@@ -98,9 +98,9 @@ pub async fn add_user(
             actions::insert_new_user(form.0, &conn)
         })
         .await
-        .and_then(|user| {
+        .map(|user| {
             debug!("{:?}", user);
-            Ok(HttpResponse::Created().json(user))
+            HttpResponse::Created().json(user)
         }),
 
         Err(e) => {

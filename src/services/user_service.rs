@@ -21,10 +21,10 @@ pub trait UserService {
 
     // fn woot(&self) -> i32;
 
-    fn verify_password<'a>(
+    fn verify_password(
         &self,
-        user_name: &'a String,
-        given_password: &'a String,
+        user_name: &str,
+        given_password: &str,
     ) -> Result<bool, errors::DomainError>;
 }
 
@@ -65,10 +65,10 @@ impl UserService for UserServiceImpl {
         actions::insert_new_user(nu, &conn)
     }
 
-    fn verify_password<'b>(
+    fn verify_password(
         &self,
-        user_name: &'b String,
-        given_password: &'b String,
+        user_name: &str,
+        given_password: &str,
     ) -> Result<bool, errors::DomainError> {
         let conn = self.pool.get()?;
         actions::verify_password(user_name, given_password, &conn)

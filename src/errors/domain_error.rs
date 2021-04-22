@@ -4,7 +4,6 @@ use custom_error::custom_error;
 // use derive_more::Display;
 // use diesel::result::DatabaseErrorKind;
 use crate::models::errors::*;
-use r2d2;
 use std::convert::From;
 
 // impl From<DBError> for DomainError {
@@ -56,7 +55,7 @@ impl ResponseError for DomainError {
             DomainError::PasswordError { cause: _ } => {
                 HttpResponse::BadRequest().json(ErrorModel {
                     error_code: 400,
-                    reason: format!("{}", err.to_string()).as_str(),
+                    reason: err.to_string().as_str(),
                 })
             }
             DomainError::GenericError { cause } => HttpResponse::BadRequest()
