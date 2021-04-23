@@ -109,6 +109,5 @@ async fn main() -> std::io::Result<()> {
     } else {
         server.bind(addr)?
     };
-    println!("whoops");
     server.run().await
 }

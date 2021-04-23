@@ -3,18 +3,16 @@ FROM rust:1.51 as builder
 # ENV CARGO_HOME=/actix-demo/.cargo
 RUN USER=root cargo new --bin actix-demo
 WORKDIR /actix-demo
+
 # COPY ./.cargo ./.cargo
 COPY ./Cargo.toml ./Cargo.toml
 COPY ./Cargo.lock ./Cargo.lock
 RUN cargo build --release
-RUN rm src/*.rs
+RUN rm -r src/*.rs
 
 COPY ./src ./src
-
-#RUN rm ./target/release/deps/actix-demo*
+RUN rm ./target/release/deps/actix_demo*
 RUN cargo build --release
-
-
 
 FROM debian:buster-slim
 ARG APP=/usr/src/app
