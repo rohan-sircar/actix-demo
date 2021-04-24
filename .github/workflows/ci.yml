@@ -123,6 +123,7 @@ jobs:
             ~/.cargo/.crates.toml
             target
           key: ${{ runner.os }}-powerpc64-unknown-linux-gnu-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Install PowerPC gcc
         run: sudo apt-get install -y gcc-powerpc-linux-gnu
       - name: Compile
         uses: actions-rs/cargo@v1
@@ -156,6 +157,7 @@ jobs:
           args: --release
       - name: Build Image
         run: docker build -f ci.Dockerfile -t rohansircar/actix-demo:latest .
-        env: DOCKER_BUILDKIT=1
+        env: 
+          DOCKER_BUILDKIT: 1
       - name: Publish Image
         run: docker push rohansircar/actix-demo:latest
