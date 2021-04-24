@@ -157,6 +157,7 @@ jobs:
           args: --release
       - name: Build Image
         run: docker build -f ci.Dockerfile -t rohansircar/actix-demo:latest .
-        env: DOCKER_BUILDKIT=1
+        env: 
+          DOCKER_BUILDKIT: 1
       - name: Publish Image
         run: docker push rohansircar/actix-demo:latest
