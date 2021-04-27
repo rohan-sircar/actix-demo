@@ -1,4 +1,5 @@
 /target
 .idea
 .vscode
-/app_db.db
+app.db
+/data

@@ -17,7 +17,7 @@ RUN groupadd $APP_USER \
 COPY ./.env ${APP}/.env
 COPY ./migrations ${APP}/migrations
 COPY ./static ${APP}/static
-COPY ./db/empty.db ${APP}/app.db
+COPY ./db/empty.db ${APP}/data/app.db
 COPY ./target/release/actix-demo ${APP}/actix-demo
 
 RUN chown -R $APP_USER:$APP_USER ${APP}
