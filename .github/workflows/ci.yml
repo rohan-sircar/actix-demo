@@ -124,7 +124,7 @@ jobs:
             target
           key: ${{ runner.os }}-powerpc64-unknown-linux-gnu-cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: Install PowerPC gcc
-        run: sudo apt-get install -y gcc-powerpc-linux-gnu
+        run: sudo apt-get install -y gcc-powerpc64-linux-gnu
       - name: Compile
         uses: actions-rs/cargo@v1
         with:
