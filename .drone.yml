@@ -6,20 +6,18 @@ steps:
   - name: check
     image: guangie88/rustfmt-clippy:1.51.0-stable
     commands:
+      - cargo fmt --all -- --check
       - cargo check --workspace
   - name: lint
     image: guangie88/rustfmt-clippy:1.51.0-stable
-    depends_on: [check]
     commands:
-      - cargo fmt --all -- --check
       - cargo clippy -- -D warnings
   - name: test
     image: guangie88/rustfmt-clippy:1.51.0-stable
-    depends_on: [check]
     commands:
-      - cargo test --verbose --all
+      - cargo test --all
   - name: package
     image: guangie88/rustfmt-clippy:1.51.0-stable
-    depends_on: [test, lint]
+    depends_on: [check, test, lint]
     commands:
-      - cargo build --verbose --all
+      - cargo build --release --all
