@@ -9,11 +9,13 @@ steps:
       - cargo check --workspace
   - name: lint
     image: guangie88/rustfmt-clippy:1.51.0-stable
+    depends_on: [check]
     commands:
       - cargo fmt --all -- --check
       - cargo clippy -- -D warnings
   - name: test
     image: guangie88/rustfmt-clippy:1.51.0-stable
+    depends_on: [check]
     commands:
       - cargo test --verbose --all
   - name: package
