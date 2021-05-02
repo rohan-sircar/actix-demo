@@ -10,9 +10,7 @@ pub trait UserService {
         user_name: String,
     ) -> Result<Option<models::UserDto>, errors::DomainError>;
 
-    fn get_all(
-        &self,
-    ) -> Result<Option<Vec<models::UserDto>>, errors::DomainError>;
+    fn get_all(&self) -> Result<Vec<models::UserDto>, errors::DomainError>;
 
     fn insert_new_user(
         &self,
@@ -50,9 +48,7 @@ impl UserService for UserServiceImpl {
         actions::_find_user_by_name(user_name, &conn)
     }
 
-    fn get_all(
-        &self,
-    ) -> Result<Option<Vec<models::UserDto>>, errors::DomainError> {
+    fn get_all(&self) -> Result<Vec<models::UserDto>, errors::DomainError> {
         let conn = self.pool.get()?;
         actions::get_all(&conn)
     }

@@ -2,7 +2,7 @@ use actix_web::web;
 use actix_web_httpauth::extractors::basic::BasicAuth;
 
 use crate::actions::users;
-use crate::{errors, AppConfig};
+use crate::{errors::DomainError, AppConfig};
 use actix_identity::Identity;
 use actix_web::{get, Error, HttpResponse};
 
@@ -11,7 +11,7 @@ pub async fn login(
     id: Identity,
     credentials: BasicAuth,
     config: web::Data<AppConfig>,
-) -> Result<HttpResponse, Error> {
+) -> Result<HttpResponse, DomainError> {
     let maybe_identity = id.identity();
     let response = if let Some(identity) = maybe_identity {
         Ok(HttpResponse::Found()
@@ -22,16 +22,16 @@ pub async fn login(
         let credentials2 = credentials.clone();
         let valid =
             web::block(move || validate_basic_auth(credentials2, &config))
-                .await?;
+                .await
+                .map_err(|_err| {
+                    DomainError::new_thread_pool_error(_err.to_string())
+                })?;
         if valid {
             id.remember(credentials.user_id().to_string());
             Ok(HttpResponse::Found().header("location", "/").finish())
         } else {
-            Ok(HttpResponse::BadRequest().json(
-                crate::models::errors::ErrorModel::new(
-                    20,
-                    "Wrong password or account does not exist",
-                ),
+            Err(DomainError::new_auth_error(
+                "Wrong password or account does not exist".to_owned(),
             ))
         }
     };
@@ -69,7 +69,7 @@ pub async fn index(id: Identity) -> String {
 pub fn validate_basic_auth(
     credentials: BasicAuth,
     config: &AppConfig,
-) -> Result<bool, errors::DomainError> {
+) -> Result<bool, DomainError> {
     let result = if let Some(password_ref) = credentials.password() {
         let pool = &config.pool;
         let conn = pool.get()?;
@@ -81,7 +81,7 @@ pub fn validate_basic_auth(
         )?;
         Ok(valid)
     } else {
-        Err(errors::DomainError::new_password_error(
+        Err(DomainError::new_password_error(
             "No password given".to_owned(),
         ))
     };

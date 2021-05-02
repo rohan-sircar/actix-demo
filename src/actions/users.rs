@@ -32,12 +32,11 @@ pub fn _find_user_by_name(
 
 pub fn get_all(
     conn: &SqliteConnection,
-) -> Result<Option<Vec<models::UserDto>>, errors::DomainError> {
+) -> Result<Vec<models::UserDto>, errors::DomainError> {
     use crate::schema::users::dsl::*;
     Ok(users
         .select((name, created_at))
-        .load::<models::UserDto>(conn)
-        .optional()?)
+        .load::<models::UserDto>(conn)?)
 }
 
 /// Run query using Diesel to insert a new database row and return the result.

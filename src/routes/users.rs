@@ -2,6 +2,7 @@ use actix_web::{get, post, web, HttpResponse};
 
 use crate::errors::DomainError;
 use crate::services::UserService;
+use crate::utils::LogErrorResult;
 use crate::AppConfig;
 use crate::{actions, models};
 use actix_web::error::ResponseError;
@@ -11,9 +12,9 @@ use validator::Validate;
 #[get("/get/users/{user_id}")]
 pub async fn get_user(
     config: web::Data<AppConfig>,
-    user_id: web::Path<i32>,
+    user_id_param: web::Path<i32>,
 ) -> Result<HttpResponse, DomainError> {
-    let u_id = user_id.into_inner();
+    let u_id = user_id_param.into_inner();
     // use web::block to offload blocking Diesel code without blocking server thread
     let res = web::block(move || {
         let pool = &config.pool;
@@ -21,19 +22,16 @@ pub async fn get_user(
         actions::find_user_by_uid(u_id, &conn)
     })
     .await
-    .map_err(|_err| {
-        let res = DomainError::new_generic_error(format!(
-            "No user found with uid: {}",
-            u_id
-        ));
-        res
-    })?;
+    .map_err(|err| DomainError::new_thread_pool_error(err.to_string()))
+    .log_err()?;
     if let Some(user) = res {
         Ok(HttpResponse::Ok().json(user))
     } else {
-        let res = HttpResponse::NotFound()
-            .body(format!("No user found with uid: {}", u_id));
-        Ok(res)
+        let err = DomainError::new_entity_does_not_exist_error(format!(
+            "No user found with uid: {}",
+            u_id
+        ));
+        Err(err)
     }
 }
 
@@ -47,43 +45,39 @@ pub async fn get_user2(
     if let Some(user) = user {
         Ok(HttpResponse::Ok().json(user))
     } else {
-        let res = HttpResponse::NotFound()
-            .body(format!("No user found with uid: {}", u_id));
-        Ok(res)
+        let err = DomainError::new_entity_does_not_exist_error(format!(
+            "No user found with uid: {}",
+            u_id
+        ));
+        Err(err)
     }
 }
 
 #[get("/get/users")]
 pub async fn get_all_users(
     config: web::Data<AppConfig>,
-) -> Result<HttpResponse, impl ResponseError> {
+) -> Result<HttpResponse, DomainError> {
     // use web::block to offload blocking Diesel code without blocking server thread
-    let res = web::block(move || {
+    let users = web::block(move || {
         let pool = &config.pool;
         let conn = pool.get()?;
         actions::get_all(&conn)
     })
     .await
-    .map(|maybe_users| {
-        debug!("{:?}", maybe_users);
-        if let Some(users) = maybe_users {
-            if users.is_empty() {
-                let res = HttpResponse::NotFound()
-                    .json(models::ErrorModel::new(40, "No users available"));
-                // let res = crate::errors::DomainError::new_generic_error("".to_owned());
-                res
-            } else {
-                HttpResponse::Ok().json(users)
-            }
-        } else {
-            let res = HttpResponse::NotFound()
-                .json(models::ErrorModel::new(40, "No users available"));
-            res
-        }
-    });
-    res
-}
+    .map_err(|err| DomainError::new_thread_pool_error(err.to_string()))
+    .log_err()?;
 
+    debug!("{:?}", users);
+
+    if !users.is_empty() {
+        Ok(HttpResponse::Ok().json(users))
+    } else {
+        Err(DomainError::new_entity_does_not_exist_error(
+            "No users available".to_owned(),
+        ))
+    }
+}
+//TODO: Add refinement here
 /// Inserts new user with name defined in form.
 #[post("/do_registration")]
 pub async fn add_user(

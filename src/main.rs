@@ -15,7 +15,6 @@ use rand::Rng;
 
 use diesel::prelude::*;
 use diesel::r2d2::{self, ConnectionManager};
-use listenfd::ListenFd;
 use std::io;
 use std::io::ErrorKind;
 use types::DbPool;
@@ -119,8 +118,7 @@ async fn main() -> std::io::Result<()> {
             ))
             .wrap(middleware::Logger::default())
             .service(
-                web::scope("/api/authzd") // endpoint requiring authentication
-                    // .wrap(_basic_auth_middleware.clone())
+                web::scope("/api")
                     .service(routes::users::get_user)
                     .service(routes::users::get_all_users),
             )
@@ -132,12 +130,5 @@ async fn main() -> std::io::Result<()> {
             .service(routes::users::add_user)
             .service(fs::Files::new("/", "./static"))
     };
-    // HttpServer::new(app).bind(addr)?.run().await
-    let mut listenfd = ListenFd::from_env();
-    let server = HttpServer::new(app);
-    let server = match listenfd.take_tcp_listener(0)? {
-        Some(l) => server.listen(l),
-        None => server.bind(addr),
-    }?;
-    server.run().await
+    HttpServer::new(app).bind(addr)?.run().await
 }

@@ -8,6 +8,7 @@ pub struct JsonErrorModel<'a> {
 }
 #[derive(Debug, Clone, Serialize, new)]
 pub struct ErrorModel<'a> {
-    pub error_code: i16,
+    // pub error_code: i16,
+    pub success: bool,
     pub reason: &'a str,
 }

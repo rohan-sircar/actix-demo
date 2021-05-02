@@ -27,43 +27,67 @@ custom_error! { #[derive(new)] pub DomainError
     DbError {source: diesel::result::Error} = "Database error",
     DbPoolError {source: r2d2::Error} = "Failed to get connection from pool",
     PasswordError {cause: String} = "Failed to validate password - {cause}",
-    GenericError {cause: String} = "Generic Error - Reason: {cause}"
+    EntityDoesNotExistError {message: String} = "Entity does not exist - {message}",
+    ThreadPoolError {message: String} = "Thread pool error - {message}",
+    AuthError {message: String} = "Authentication Error - {message}"
 }
 
 impl ResponseError for DomainError {
     fn error_response(&self) -> HttpResponse {
         let err = self;
         match self {
-            DomainError::PwdHashError { source } => {
+            DomainError::PwdHashError { source: _ } => {
                 HttpResponse::InternalServerError().json(ErrorModel {
-                    error_code: 500,
-                    reason: format!("{} {}", err.to_string(), source).as_str(),
+                    // error_code: 500,
+                    success: false,
+                    reason: err.to_string().as_str(),
                 })
             }
-            DomainError::DbError { source } => {
+            DomainError::DbError { source: _ } => {
+                error!("{}", err);
                 HttpResponse::InternalServerError().json(ErrorModel {
-                    error_code: 500,
-                    reason: format!("{} {}", err.to_string(), source).as_str(),
+                    // error_code: 500,
+                    success: false,
+                    reason: "Error in database",
                 })
             }
-            DomainError::DbPoolError { source } => {
+            DomainError::DbPoolError { source: _ } => {
+                error!("{}", err);
                 HttpResponse::InternalServerError().json(ErrorModel {
-                    error_code: 500,
-                    reason: format!("{} {}", err.to_string(), source).as_str(),
+                    // error_code: 500,
+                    success: false,
+                    reason: "Error getting database pool",
                 })
             }
             DomainError::PasswordError { cause: _ } => {
                 HttpResponse::BadRequest().json(ErrorModel {
-                    error_code: 400,
+                    // error_code: 400,
+                    success: false,
                     reason: err.to_string().as_str(),
                 })
             }
-            DomainError::GenericError { cause } => HttpResponse::BadRequest()
-                .json(ErrorModel {
-                    error_code: 400,
-                    reason: format!("{} {}, ", err.to_string(), cause.clone())
-                        .as_str(),
-                }),
+            DomainError::EntityDoesNotExistError { message: _ } => {
+                HttpResponse::Accepted().json(ErrorModel {
+                    // error_code: 400,
+                    success: false,
+                    reason: err.to_string().as_str(),
+                })
+            }
+            DomainError::ThreadPoolError { message: _ } => {
+                error!("{}", err);
+                HttpResponse::InternalServerError().json(ErrorModel {
+                    // error_code: 400,
+                    success: false,
+                    reason: "Thread pool error occurred",
+                })
+            }
+            DomainError::AuthError { message: _ } => {
+                HttpResponse::Accepted().json(ErrorModel {
+                    // error_code: 400,
+                    success: false,
+                    reason: err.to_string().as_str(),
+                })
+            }
         }
     }
 }
