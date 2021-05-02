@@ -16,6 +16,8 @@ use rand::Rng;
 use diesel::prelude::*;
 use diesel::r2d2::{self, ConnectionManager};
 use listenfd::ListenFd;
+use std::io;
+use std::io::ErrorKind;
 use types::DbPool;
 
 mod actions;
@@ -41,27 +43,55 @@ pub struct AppConfig {
 async fn main() -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "debug");
     env_logger::init();
-    dotenv::dotenv().ok();
+    dotenv::dotenv().map_err(|err| {
+        io::Error::new(
+            ErrorKind::Other,
+            format!("Failed to set up env: {:?}", err),
+        )
+    })?;
 
     // let _basic_auth_middleware =
     //     HttpAuthentication::basic(utils::auth::validator);
 
     // set up database connection pool
-    let connspec =
-        std::env::var("DATABASE_URL").expect("DATABASE_URL NOT FOUND");
+    let connspec = std::env::var("DATABASE_URL").map_err(|err| {
+        io::Error::new(
+            ErrorKind::Other,
+            format!("Database url is not set: {:?}", err),
+        )
+    })?;
     let manager = ConnectionManager::<SqliteConnection>::new(connspec);
-    let pool = r2d2::Pool::builder()
-        .build(manager)
-        .expect("Failed to create pool.");
+    let pool = r2d2::Pool::builder().build(manager).map_err(|err| {
+        io::Error::new(
+            ErrorKind::Other,
+            format!("Failed to create pool: {:?}", err),
+        )
+    })?;
 
-    diesel_migrations::run_pending_migrations(&pool.get().unwrap())
-        .expect("Error running migrations");
+    {
+        let conn = &pool.get().map_err(|err| {
+            io::Error::new(
+                ErrorKind::Other,
+                format!("Failed to get connection: {:?}", err),
+            )
+        })?;
+
+        diesel_migrations::run_pending_migrations(conn).map_err(|err| {
+            io::Error::new(
+                ErrorKind::Other,
+                format!("Error running migrations: {:?}", err),
+            )
+        })?;
+    }
 
     let hash_cost = std::env::var("HASH_COST")
         .map_err(|e| e.to_string())
         .and_then(|x| x.parse::<u32>().map_err(|e| e.to_string()))
-        .unwrap_or_else(|_| {
-            info!("Error parsing hash cost env variable, or it is not set. Using default cost of 8");
+        .unwrap_or_else(|err| {
+            info!(
+                "Error getting hash cost: {:?}. Using default cost of 8",
+                err
+            );
             8
         });
 
@@ -74,8 +104,9 @@ async fn main() -> std::io::Result<()> {
     //     user_service: &user_service,
     // };
 
-    let addr = std::env::var("BIND_ADDRESS").expect("BIND ADDRESS NOT FOUND");
-    info!("Starting server {}", addr);
+    let addr =
+        std::env::var("BIND_ADDRESS").unwrap_or("127.0.0.1:7800".to_owned());
+    info!("Starting server at {}", addr);
     let private_key = rand::thread_rng().gen::<[u8; 32]>();
     let app = move || {
         App::new()
@@ -103,11 +134,10 @@ async fn main() -> std::io::Result<()> {
     };
     // HttpServer::new(app).bind(addr)?.run().await
     let mut listenfd = ListenFd::from_env();
-    let mut server = HttpServer::new(app);
-    server = if let Some(l) = listenfd.take_tcp_listener(0).unwrap() {
-        server.listen(l)?
-    } else {
-        server.bind(addr)?
-    };
+    let server = HttpServer::new(app);
+    let server = match listenfd.take_tcp_listener(0)? {
+        Some(l) => server.listen(l),
+        None => server.bind(addr),
+    }?;
     server.run().await
 }
