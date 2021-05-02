@@ -1,9 +1,23 @@
+---
 kind: pipeline
 name: default
 
 steps:
-  - name: test
-    image: rust:1.51.0
+  - name: check
+    image: guangie88/rustfmt-clippy:1.51.0-stable
     commands:
-      - cargo build --verbose --all
-      - cargo test --verbose --all
+      - cargo fmt --all -- --check
+      - cargo check --workspace
+  - name: lint
+    image: guangie88/rustfmt-clippy:1.51.0-stable
+    commands:
+      - cargo clippy -- -D warnings
+  - name: test
+    image: guangie88/rustfmt-clippy:1.51.0-stable
+    commands:
+      - cargo test --all
+  - name: package
+    image: guangie88/rustfmt-clippy:1.51.0-stable
+    depends_on: [check, test, lint]
+    commands:
+      - cargo build --release --all
