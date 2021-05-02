@@ -104,8 +104,8 @@ async fn main() -> std::io::Result<()> {
     //     user_service: &user_service,
     // };
 
-    let addr =
-        std::env::var("BIND_ADDRESS").unwrap_or("127.0.0.1:7800".to_owned());
+    let addr = std::env::var("BIND_ADDRESS")
+        .unwrap_or_else(|_| "127.0.0.1:7800".to_owned());
     info!("Starting server at {}", addr);
     let private_key = rand::thread_rng().gen::<[u8; 32]>();
     let app = move || {
