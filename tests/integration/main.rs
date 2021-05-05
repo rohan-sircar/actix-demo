@@ -4,14 +4,13 @@ mod common;
 mod tests {
 
     use super::*;
-    extern crate actix_demo;
     use actix_demo::models::ErrorModel;
     use actix_web::dev::Service as _;
     use actix_web::http::StatusCode;
     use actix_web::test;
 
     #[actix_rt::test]
-    async fn get_users_api_should_succeed() {
+    async fn get_users_api_should_return_error_message_if_no_users_exist() {
         let req = test::TestRequest::get().uri("/api/get/users").to_request();
         let resp = common::test_app().await.call(req).await.unwrap();
         assert_eq!(resp.status(), StatusCode::ACCEPTED);
@@ -27,7 +26,8 @@ mod tests {
     }
 
     #[actix_rt::test]
-    async fn get_user_api_should_succeed() {
+    async fn get_user_api_should_return_error_message_if_user_with_id_does_not_exist(
+    ) {
         let req = test::TestRequest::get()
             .uri("/api/get/users/1")
             .to_request();
