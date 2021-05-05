@@ -1,8 +1,8 @@
 use actix_web::web;
 use actix_web_httpauth::extractors::basic::BasicAuth;
 
-use crate::actions::users;
-use crate::{errors::DomainError, AppConfig};
+use crate::errors::DomainError;
+use crate::{actions::users, AppData};
 use actix_identity::Identity;
 use actix_web::{get, Error, HttpResponse};
 
@@ -10,7 +10,7 @@ use actix_web::{get, Error, HttpResponse};
 pub async fn login(
     id: Identity,
     credentials: BasicAuth,
-    config: web::Data<AppConfig>,
+    app_data: web::Data<AppData>,
 ) -> Result<HttpResponse, DomainError> {
     let maybe_identity = id.identity();
     let response = if let Some(identity) = maybe_identity {
@@ -21,7 +21,7 @@ pub async fn login(
     } else {
         let credentials2 = credentials.clone();
         let valid =
-            web::block(move || validate_basic_auth(credentials2, &config))
+            web::block(move || validate_basic_auth(credentials2, &app_data))
                 .await
                 .map_err(|_err| {
                     DomainError::new_thread_pool_error(_err.to_string())
@@ -68,10 +68,10 @@ pub async fn index(id: Identity) -> String {
 /// basic auth middleware function
 pub fn validate_basic_auth(
     credentials: BasicAuth,
-    config: &AppConfig,
+    app_data: &AppData,
 ) -> Result<bool, DomainError> {
     let result = if let Some(password_ref) = credentials.password() {
-        let pool = &config.pool;
+        let pool = &app_data.pool;
         let conn = pool.get()?;
         let password = password_ref.clone().into_owned();
         let valid = users::verify_password(

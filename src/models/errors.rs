@@ -1,4 +1,4 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, new)]
 pub struct JsonErrorModel<'a> {
@@ -6,9 +6,9 @@ pub struct JsonErrorModel<'a> {
     pub line: String,
     pub reason: &'a str,
 }
-#[derive(Debug, Clone, Serialize, new)]
-pub struct ErrorModel<'a> {
+#[derive(PartialEq, Debug, Clone, Serialize, Deserialize, new)]
+pub struct ErrorModel {
     // pub error_code: i16,
     pub success: bool,
-    pub reason: &'a str,
+    pub reason: String,
 }

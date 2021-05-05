@@ -40,7 +40,7 @@ impl ResponseError for DomainError {
                 HttpResponse::InternalServerError().json(ErrorModel {
                     // error_code: 500,
                     success: false,
-                    reason: err.to_string().as_str(),
+                    reason: err.to_string(),
                 })
             }
             DomainError::DbError { source: _ } => {
@@ -48,7 +48,7 @@ impl ResponseError for DomainError {
                 HttpResponse::InternalServerError().json(ErrorModel {
                     // error_code: 500,
                     success: false,
-                    reason: "Error in database",
+                    reason: "Error in database".to_owned(),
                 })
             }
             DomainError::DbPoolError { source: _ } => {
@@ -56,21 +56,21 @@ impl ResponseError for DomainError {
                 HttpResponse::InternalServerError().json(ErrorModel {
                     // error_code: 500,
                     success: false,
-                    reason: "Error getting database pool",
+                    reason: "Error getting database pool".to_owned(),
                 })
             }
             DomainError::PasswordError { cause: _ } => {
                 HttpResponse::BadRequest().json(ErrorModel {
                     // error_code: 400,
                     success: false,
-                    reason: err.to_string().as_str(),
+                    reason: err.to_string(),
                 })
             }
             DomainError::EntityDoesNotExistError { message: _ } => {
                 HttpResponse::Accepted().json(ErrorModel {
                     // error_code: 400,
                     success: false,
-                    reason: err.to_string().as_str(),
+                    reason: err.to_string(),
                 })
             }
             DomainError::ThreadPoolError { message: _ } => {
@@ -78,14 +78,14 @@ impl ResponseError for DomainError {
                 HttpResponse::InternalServerError().json(ErrorModel {
                     // error_code: 400,
                     success: false,
-                    reason: "Thread pool error occurred",
+                    reason: "Thread pool error occurred".to_owned(),
                 })
             }
             DomainError::AuthError { message: _ } => {
                 HttpResponse::Accepted().json(ErrorModel {
                     // error_code: 400,
                     success: false,
-                    reason: err.to_string().as_str(),
+                    reason: err.to_string(),
                 })
             }
         }

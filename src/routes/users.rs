@@ -1,29 +1,26 @@
 use actix_web::{get, post, web, HttpResponse};
 
-use crate::errors::DomainError;
 use crate::services::UserService;
-use crate::utils::LogErrorResult;
-use crate::AppConfig;
 use crate::{actions, models};
+use crate::{errors::DomainError, AppData};
 use actix_web::error::ResponseError;
 use validator::Validate;
 
 /// Finds user by UID.
 #[get("/get/users/{user_id}")]
 pub async fn get_user(
-    config: web::Data<AppConfig>,
+    app_data: web::Data<AppData>,
     user_id_param: web::Path<i32>,
 ) -> Result<HttpResponse, DomainError> {
     let u_id = user_id_param.into_inner();
     // use web::block to offload blocking Diesel code without blocking server thread
     let res = web::block(move || {
-        let pool = &config.pool;
+        let pool = &app_data.pool;
         let conn = pool.get()?;
         actions::find_user_by_uid(u_id, &conn)
     })
     .await
-    .map_err(|err| DomainError::new_thread_pool_error(err.to_string()))
-    .log_err()?;
+    .map_err(|err| DomainError::new_thread_pool_error(err.to_string()))?;
     if let Some(user) = res {
         Ok(HttpResponse::Ok().json(user))
     } else {
@@ -55,17 +52,16 @@ pub async fn get_user2(
 
 #[get("/get/users")]
 pub async fn get_all_users(
-    config: web::Data<AppConfig>,
+    app_data: web::Data<AppData>,
 ) -> Result<HttpResponse, DomainError> {
     // use web::block to offload blocking Diesel code without blocking server thread
     let users = web::block(move || {
-        let pool = &config.pool;
+        let pool = &app_data.pool;
         let conn = pool.get()?;
         actions::get_all(&conn)
     })
     .await
-    .map_err(|err| DomainError::new_thread_pool_error(err.to_string()))
-    .log_err()?;
+    .map_err(|err| DomainError::new_thread_pool_error(err.to_string()))?;
 
     debug!("{:?}", users);
 
@@ -81,13 +77,13 @@ pub async fn get_all_users(
 /// Inserts new user with name defined in form.
 #[post("/do_registration")]
 pub async fn add_user(
-    config: web::Data<AppConfig>,
+    app_data: web::Data<AppData>,
     form: web::Json<models::NewUser>,
 ) -> Result<HttpResponse, impl ResponseError> {
     // use web::block to offload blocking Diesel code without blocking server thread
     let res = match form.0.validate() {
         Ok(_) => web::block(move || {
-            let pool = &config.pool;
+            let pool = &app_data.pool;
             let conn = pool.get()?;
             actions::insert_new_user(form.0, &conn)
         })
