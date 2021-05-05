@@ -37,6 +37,10 @@ diesel_migrations = "1.4.0"
 actix-threadpool = "0.3.3"
 envy = "0.4"
 
+[dependencies.build-info]
+version = "=0.0.23"
+features = ['runtime', 'serde']
+
 [dependencies.serde]
 version = "1.0.125"
 features = ['derive']
@@ -59,3 +63,6 @@ features = ['serde']
 
 [dev-dependencies]
 actix-rt = "1.1.1"
+
+[build-dependencies]
+build-info-build = "=0.0.23"

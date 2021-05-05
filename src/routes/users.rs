@@ -10,9 +10,9 @@ use validator::Validate;
 #[get("/get/users/{user_id}")]
 pub async fn get_user(
     app_data: web::Data<AppData>,
-    user_id_param: web::Path<i32>,
+    user_id: web::Path<i32>,
 ) -> Result<HttpResponse, DomainError> {
-    let u_id = user_id_param.into_inner();
+    let u_id = user_id.into_inner();
     // use web::block to offload blocking Diesel code without blocking server thread
     let res = web::block(move || {
         let pool = &app_data.pool;

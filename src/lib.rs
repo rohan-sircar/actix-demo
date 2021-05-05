@@ -1,13 +1,10 @@
+#![forbid(unsafe_code)]
 #[macro_use]
 extern crate diesel;
 #[macro_use]
 extern crate derive_new;
 #[macro_use]
 extern crate log;
-extern crate bcrypt;
-extern crate custom_error;
-extern crate regex;
-extern crate validator;
 
 mod actions;
 mod errors;
@@ -26,6 +23,8 @@ use actix_web::{middleware::Logger, web::ServiceConfig};
 use rand::Rng;
 use serde::Deserialize;
 use types::DbPool;
+
+build_info::build_info!(pub fn get_build_info);
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct EnvConfig {
@@ -56,7 +55,11 @@ pub fn configure_app(app_data: AppData) -> Box<dyn Fn(&mut ServiceConfig)> {
             .service(
                 web::scope("/api")
                     .service(routes::users::get_user)
-                    .service(routes::users::get_all_users),
+                    .service(routes::users::get_all_users)
+                    .service(web::scope("/get").route(
+                        "/build-info",
+                        web::get().to(routes::misc::build_info_req),
+                    )),
             )
             // .route("/api/users/get", web::get().to(user_controller.get_user.into()))
             .service(web::scope("/api/public")) // public endpoint - not implemented yet

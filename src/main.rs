@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 use actix_demo::{AppConfig, AppData, EnvConfig};
 use diesel::{r2d2::ConnectionManager, SqliteConnection};
 use env_logger::Env;
