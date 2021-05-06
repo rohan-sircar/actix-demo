@@ -7,7 +7,6 @@ use actix_web::error::ResponseError;
 use validator::Validate;
 
 /// Finds user by UID.
-#[get("/get/users/{user_id}")]
 pub async fn get_user(
     app_data: web::Data<AppData>,
     user_id: web::Path<i32>,
@@ -50,7 +49,6 @@ pub async fn get_user2(
     }
 }
 
-#[get("/get/users")]
 pub async fn get_all_users(
     app_data: web::Data<AppData>,
 ) -> Result<HttpResponse, DomainError> {
