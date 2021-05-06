@@ -22,6 +22,7 @@ use actix_web::{cookie::SameSite, middleware, web, App, HttpServer};
 use actix_web::{middleware::Logger, web::ServiceConfig};
 use rand::Rng;
 use serde::Deserialize;
+use std::io;
 use types::DbPool;
 
 build_info::build_info!(pub fn get_build_info);
@@ -80,6 +81,7 @@ pub fn configure_app(app_data: AppData) -> Box<dyn Fn(&mut ServiceConfig)> {
     })
 }
 
+//TODO: capture the panic in this method
 pub fn id_service(
     private_key: &[u8],
 ) -> actix_identity::IdentityService<CookieIdentityPolicy> {
@@ -95,8 +97,19 @@ pub fn app_logger() -> Logger {
     middleware::Logger::default()
 }
 
-pub async fn run(addr: String, app_data: AppData) -> std::io::Result<()> {
-    info!("Starting server at {}", addr);
+pub async fn run(addr: String, app_data: AppData) -> io::Result<()> {
+    let bi = get_build_info();
+    info!("Starting {} {}", bi.crate_info.name, bi.crate_info.version);
+    println!(
+        r#"
+                       __  .__                     .___                     
+        _____    _____/  |_|__|__  ___           __| _/____   _____   ____  
+        \__  \ _/ ___\   __\  \  \/  /  ______  / __ |/ __ \ /     \ /  _ \ 
+         / __ \\  \___|  | |  |>    <  /_____/ / /_/ \  ___/|  Y Y  (  <_> )
+        (____  /\___  >__| |__/__/\_ \         \____ |\___  >__|_|  /\____/ 
+             \/     \/              \/              \/    \/      \/        
+         "#
+    );
     let private_key = rand::thread_rng().gen::<[u8; 32]>();
     let app = move || {
         App::new()
