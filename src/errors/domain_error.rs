@@ -44,7 +44,7 @@ impl ResponseError for DomainError {
                 })
             }
             DomainError::DbError { source: _ } => {
-                error!("{}", err);
+                log::error!("{}", err);
                 HttpResponse::InternalServerError().json(ErrorModel {
                     // error_code: 500,
                     success: false,
@@ -52,7 +52,7 @@ impl ResponseError for DomainError {
                 })
             }
             DomainError::DbPoolError { source: _ } => {
-                error!("{}", err);
+                log::error!("{}", err);
                 HttpResponse::InternalServerError().json(ErrorModel {
                     // error_code: 500,
                     success: false,
@@ -74,7 +74,7 @@ impl ResponseError for DomainError {
                 })
             }
             DomainError::ThreadPoolError { message: _ } => {
-                error!("{}", err);
+                log::error!("{}", err);
                 HttpResponse::InternalServerError().json(ErrorModel {
                     // error_code: 400,
                     success: false,

@@ -6,7 +6,7 @@ pub trait LogErrorResult<T, E> {
 impl<T, E: Display> LogErrorResult<T, E> for Result<T, E> {
     fn log_err(self) -> Result<T, E> {
         self.map_err(|err| {
-            error!("{}", err.to_string());
+            log::error!("{}", err.to_string());
             err
         })
     }

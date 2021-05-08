@@ -61,7 +61,7 @@ pub async fn get_all_users(
     .await
     .map_err(|err| DomainError::new_thread_pool_error(err.to_string()))?;
 
-    debug!("{:?}", users);
+    log::debug!("{:?}", users);
 
     if !users.is_empty() {
         Ok(HttpResponse::Ok().json(users))
@@ -87,7 +87,7 @@ pub async fn add_user(
         })
         .await
         .map(|user| {
-            debug!("{:?}", user);
+            log::debug!("{:?}", user);
             HttpResponse::Created().json(user)
         }),
 

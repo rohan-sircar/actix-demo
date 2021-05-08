@@ -3,8 +3,6 @@
 extern crate diesel;
 #[macro_use]
 extern crate derive_new;
-#[macro_use]
-extern crate log;
 
 mod actions;
 mod errors;
@@ -99,7 +97,7 @@ pub fn app_logger() -> Logger {
 
 pub async fn run(addr: String, app_data: AppData) -> io::Result<()> {
     let bi = get_build_info();
-    info!("Starting {} {}", bi.crate_info.name, bi.crate_info.version);
+    log::info!("Starting {} {}", bi.crate_info.name, bi.crate_info.version);
     println!(
         r#"
                        __  .__                     .___                     
