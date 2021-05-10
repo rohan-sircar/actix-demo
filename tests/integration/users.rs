@@ -11,9 +11,10 @@ mod tests {
     #[actix_rt::test]
     async fn get_users_api_should_return_error_message_if_no_users_exist() {
         let req = test::TestRequest::get().uri("/api/users").to_request();
-        let resp = common::test_app().await.call(req).await.unwrap();
-        assert_eq!(resp.status(), StatusCode::ACCEPTED);
+        let resp = common::test_app().await.unwrap().call(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
         let body: ErrorModel = test::read_body_json(resp).await;
+        tracing::debug!("{:?}", body);
         assert_eq!(
             body,
             ErrorModel {
@@ -21,16 +22,16 @@ mod tests {
                 reason: "Entity does not exist - No users available".to_owned()
             }
         );
-        log::debug!("{:?}", body);
     }
 
     #[actix_rt::test]
     async fn get_user_api_should_return_error_message_if_user_with_id_does_not_exist(
     ) {
         let req = test::TestRequest::get().uri("/api/users/1").to_request();
-        let resp = common::test_app().await.call(req).await.unwrap();
-        assert_eq!(resp.status(), StatusCode::ACCEPTED);
+        let resp = common::test_app().await.unwrap().call(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
         let body: ErrorModel = test::read_body_json(resp).await;
+        tracing::debug!("{:?}", body);
         assert_eq!(
             body,
             ErrorModel {
@@ -39,6 +40,5 @@ mod tests {
                     .to_owned()
             }
         );
-        log::debug!("{:?}", body);
     }
 }

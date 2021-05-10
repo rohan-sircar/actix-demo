@@ -44,7 +44,7 @@ impl ResponseError for DomainError {
                 })
             }
             DomainError::DbError { source: _ } => {
-                log::error!("{}", err);
+                tracing::error!("{}", err);
                 HttpResponse::InternalServerError().json(ErrorModel {
                     // error_code: 500,
                     success: false,
@@ -52,7 +52,7 @@ impl ResponseError for DomainError {
                 })
             }
             DomainError::DbPoolError { source: _ } => {
-                log::error!("{}", err);
+                tracing::error!("{}", err);
                 HttpResponse::InternalServerError().json(ErrorModel {
                     // error_code: 500,
                     success: false,
@@ -67,14 +67,14 @@ impl ResponseError for DomainError {
                 })
             }
             DomainError::EntityDoesNotExistError { message: _ } => {
-                HttpResponse::Accepted().json(ErrorModel {
+                HttpResponse::NotFound().json(ErrorModel {
                     // error_code: 400,
                     success: false,
                     reason: err.to_string(),
                 })
             }
             DomainError::ThreadPoolError { message: _ } => {
-                log::error!("{}", err);
+                tracing::error!("{}", err);
                 HttpResponse::InternalServerError().json(ErrorModel {
                     // error_code: 400,
                     success: false,
@@ -82,7 +82,7 @@ impl ResponseError for DomainError {
                 })
             }
             DomainError::AuthError { message: _ } => {
-                HttpResponse::Accepted().json(ErrorModel {
+                HttpResponse::Forbidden().json(ErrorModel {
                     // error_code: 400,
                     success: false,
                     reason: err.to_string(),

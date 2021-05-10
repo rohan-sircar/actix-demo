@@ -16,14 +16,23 @@ mod utils;
 
 use actix_files as fs;
 use actix_identity::{CookieIdentityPolicy, IdentityService};
-use actix_web::{cookie::SameSite, middleware, web, App, HttpServer};
-use actix_web::{middleware::Logger, web::ServiceConfig};
+use actix_web::web::ServiceConfig;
+use actix_web::{cookie::SameSite, web, App, HttpServer};
 use rand::Rng;
 use serde::Deserialize;
 use std::io;
+use tracing_actix_web::TracingLogger;
+
 use types::DbPool;
 
 build_info::build_info!(pub fn get_build_info);
+
+#[derive(Deserialize, Debug, Clone)]
+#[serde(rename_all = "lowercase")]
+pub enum LoggerFormat {
+    Json,
+    Plain,
+}
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct EnvConfig {
@@ -31,6 +40,7 @@ pub struct EnvConfig {
     pub http_host: String,
     #[serde(default = "default_hash_cost")]
     pub hash_cost: u8,
+    pub logger_format: LoggerFormat,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -91,13 +101,9 @@ pub fn id_service(
     )
 }
 
-pub fn app_logger() -> Logger {
-    middleware::Logger::default()
-}
-
 pub async fn run(addr: String, app_data: AppData) -> io::Result<()> {
     let bi = get_build_info();
-    log::info!("Starting {} {}", bi.crate_info.name, bi.crate_info.version);
+    tracing::info!("Starting {} {}", bi.crate_info.name, bi.crate_info.version);
     println!(
         r#"
                        __  .__                     .___                     
@@ -113,7 +119,7 @@ pub async fn run(addr: String, app_data: AppData) -> io::Result<()> {
         App::new()
             .configure(configure_app(app_data.clone()))
             .wrap(id_service(&private_key))
-            .wrap(app_logger())
+            .wrap(TracingLogger)
     };
     HttpServer::new(app).bind(addr)?.run().await
 }

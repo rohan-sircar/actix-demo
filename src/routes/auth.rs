@@ -38,6 +38,7 @@ pub async fn login(
     response
 }
 
+//TODO: fix the response
 #[get("/logout")]
 pub async fn logout(
     id: Identity,
@@ -45,7 +46,7 @@ pub async fn logout(
 ) -> Result<HttpResponse, Error> {
     let maybe_identity = id.identity();
     let response = if let Some(identity) = maybe_identity {
-        log::info!("Logging out {user}", user = identity);
+        tracing::info!("Logging out {user}", user = identity);
         id.forget();
         HttpResponse::Found().header("location", "/").finish()
     } else {

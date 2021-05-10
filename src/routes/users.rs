@@ -7,11 +7,19 @@ use actix_web::error::ResponseError;
 use validator::Validate;
 
 /// Finds user by UID.
+#[tracing::instrument(
+    level = "debug",
+    skip(app_data),
+    fields(
+        user_id = %user_id.0
+    )
+)]
 pub async fn get_user(
     app_data: web::Data<AppData>,
     user_id: web::Path<i32>,
 ) -> Result<HttpResponse, DomainError> {
     let u_id = user_id.into_inner();
+    tracing::info!("Getting user with id {}", u_id);
     // use web::block to offload blocking Diesel code without blocking server thread
     let res = web::block(move || {
         let pool = &app_data.pool;
@@ -20,6 +28,7 @@ pub async fn get_user(
     })
     .await
     .map_err(|err| DomainError::new_thread_pool_error(err.to_string()))?;
+    tracing::trace!("{:?}", res);
     if let Some(user) = res {
         Ok(HttpResponse::Ok().json(user))
     } else {
@@ -61,7 +70,7 @@ pub async fn get_all_users(
     .await
     .map_err(|err| DomainError::new_thread_pool_error(err.to_string()))?;
 
-    log::debug!("{:?}", users);
+    tracing::debug!("{:?}", users);
 
     if !users.is_empty() {
         Ok(HttpResponse::Ok().json(users))
@@ -87,7 +96,7 @@ pub async fn add_user(
         })
         .await
         .map(|user| {
-            log::debug!("{:?}", user);
+            tracing::debug!("{:?}", user);
             HttpResponse::Created().json(user)
         }),
 

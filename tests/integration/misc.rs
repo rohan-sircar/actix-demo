@@ -12,10 +12,10 @@ mod tests {
     #[actix_rt::test]
     async fn get_build_info_should_succeed() {
         let req = test::TestRequest::get().uri("/api/build-info").to_request();
-        let resp = common::test_app().await.call(req).await.unwrap();
+        let resp = common::test_app().await.unwrap().call(req).await.unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
         let body: build_info::BuildInfo = test::read_body_json(resp).await;
+        tracing::debug!("{:?}", body);
         assert_eq!(body, *get_build_info());
-        log::debug!("{:?}", body);
     }
 }
