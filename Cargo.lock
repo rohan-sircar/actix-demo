@@ -55,6 +55,7 @@ dependencies = [
  "custom_error",
  "derive-new",
  "diesel",
+ "diesel-tracing",
  "diesel_migrations",
  "dotenv",
  "envy",
@@ -889,8 +890,21 @@ dependencies = [
  "byteorder",
  "chrono",
  "diesel_derives",
+ "ipnetwork",
+ "libc",
  "libsqlite3-sys",
  "r2d2",
+]
+
+[[package]]
+name = "diesel-tracing"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "528c21047ca2f10fa8978ee4f17acbeeae64acaf8912f5541a4741feb9db0ee4"
+dependencies = [
+ "diesel",
+ "ipnetwork",
+ "tracing",
 ]
 
 [[package]]
@@ -1364,6 +1378,15 @@ dependencies = [
  "widestring",
  "winapi 0.3.9",
  "winreg",
+]
+
+[[package]]
+name = "ipnetwork"
+version = "0.17.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "02c3eaab3ac0ede60ffa41add21970a7df7d91772c03383aac6c2c3d53cc716b"
+dependencies = [
+ "serde",
 ]
 
 [[package]]

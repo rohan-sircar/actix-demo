@@ -6,7 +6,7 @@ use bcrypt::{hash, verify, DEFAULT_COST};
 
 pub fn find_user_by_uid(
     uid: i32,
-    conn: &SqliteConnection,
+    conn: &impl diesel::Connection<Backend = diesel::sqlite::Sqlite>,
 ) -> Result<Option<models::UserDto>, errors::DomainError> {
     use crate::schema::users::dsl::*;
 
@@ -21,7 +21,7 @@ pub fn find_user_by_uid(
 
 pub fn _find_user_by_name(
     user_name: String,
-    conn: &SqliteConnection,
+    conn: &impl diesel::Connection<Backend = diesel::sqlite::Sqlite>,
 ) -> Result<Option<models::UserDto>, errors::DomainError> {
     let maybe_user = query::_get_user_by_name(&user_name)
         .first::<models::UserDto>(conn)
@@ -31,7 +31,7 @@ pub fn _find_user_by_name(
 }
 
 pub fn get_all(
-    conn: &SqliteConnection,
+    conn: &impl diesel::Connection<Backend = diesel::sqlite::Sqlite>,
 ) -> Result<Vec<models::UserDto>, errors::DomainError> {
     use crate::schema::users::dsl::*;
     Ok(users
@@ -42,7 +42,7 @@ pub fn get_all(
 /// Run query using Diesel to insert a new database row and return the result.
 pub fn insert_new_user(
     nu: models::NewUser,
-    conn: &SqliteConnection,
+    conn: &impl diesel::Connection<Backend = diesel::sqlite::Sqlite>,
 ) -> Result<models::UserDto, errors::DomainError> {
     // It is common when using Diesel with Actix web to import schema-related
     // modules inside a function's scope (rather than the normal module's scope)
@@ -63,7 +63,7 @@ pub fn insert_new_user(
 pub fn verify_password(
     user_name: &str,
     given_password: &str,
-    conn: &SqliteConnection,
+    conn: &impl diesel::Connection<Backend = diesel::sqlite::Sqlite>,
 ) -> Result<bool, errors::DomainError> {
     use crate::schema::users::dsl::*;
     let password_hash = users

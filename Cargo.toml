@@ -40,6 +40,7 @@ tracing-subscriber = { version = "0.2.18", features = ["fmt", "registry", "env-f
 tracing-futures = "0.2.5"
 tracing-actix-web = "0.2.1"
 tracing-bunyan-formatter = "0.2.4"
+diesel-tracing = { version = "0.1.4", features = ["sqlite"] }
 
 [dependencies.build-info]
 version = "=0.0.23"

@@ -2,7 +2,6 @@ extern crate actix_demo;
 use actix_demo::{AppConfig, AppData, EnvConfig};
 use actix_web::test;
 use actix_web::App;
-use diesel::SqliteConnection;
 
 use diesel::r2d2::{self, ConnectionManager};
 use std::io;
@@ -72,7 +71,9 @@ pub async fn test_app() -> io::Result<
     });
 
     let connspec = ":memory:";
-    let manager = ConnectionManager::<SqliteConnection>::new(connspec);
+    let manager = ConnectionManager::<
+        diesel_tracing::sqlite::InstrumentedSqliteConnection,
+    >::new(connspec);
     let pool = r2d2::Pool::builder().build(manager).map_err(|err| {
         io::Error::new(
             ErrorKind::Other,
