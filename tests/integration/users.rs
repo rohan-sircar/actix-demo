@@ -3,7 +3,7 @@ use crate::common;
 mod tests {
 
     use super::*;
-    use actix_demo::models::ErrorModel;
+    use actix_demo::models::ApiResponse;
     use actix_web::dev::Service as _;
     use actix_web::http::StatusCode;
     use actix_web::test;
@@ -13,14 +13,13 @@ mod tests {
         let req = test::TestRequest::get().uri("/api/users").to_request();
         let resp = common::test_app().await.unwrap().call(req).await.unwrap();
         assert_eq!(resp.status(), StatusCode::NOT_FOUND);
-        let body: ErrorModel = test::read_body_json(resp).await;
+        let body: ApiResponse<String> = test::read_body_json(resp).await;
         tracing::debug!("{:?}", body);
         assert_eq!(
             body,
-            ErrorModel {
-                success: false,
-                reason: "Entity does not exist - No users available".to_owned()
-            }
+            ApiResponse::failure(
+                "Entity does not exist - No users available".to_owned()
+            )
         );
     }
 
@@ -30,15 +29,13 @@ mod tests {
         let req = test::TestRequest::get().uri("/api/users/1").to_request();
         let resp = common::test_app().await.unwrap().call(req).await.unwrap();
         assert_eq!(resp.status(), StatusCode::NOT_FOUND);
-        let body: ErrorModel = test::read_body_json(resp).await;
+        let body: ApiResponse<String> = test::read_body_json(resp).await;
         tracing::debug!("{:?}", body);
         assert_eq!(
             body,
-            ErrorModel {
-                success: false,
-                reason: "Entity does not exist - No user found with uid: 1"
-                    .to_owned()
-            }
+            ApiResponse::failure(
+                "Entity does not exist - No user found with uid: 1".to_owned()
+            )
         );
     }
 }

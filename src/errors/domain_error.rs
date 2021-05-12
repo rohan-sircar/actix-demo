@@ -3,7 +3,7 @@ use bcrypt::BcryptError;
 use custom_error::custom_error;
 // use derive_more::Display;
 // use diesel::result::DatabaseErrorKind;
-use crate::models::errors::*;
+use crate::models::api_response::*;
 use std::convert::From;
 
 // impl From<DBError> for DomainError {
@@ -37,57 +37,36 @@ impl ResponseError for DomainError {
         let err = self;
         match self {
             DomainError::PwdHashError { source: _ } => {
-                HttpResponse::InternalServerError().json(ErrorModel {
-                    // error_code: 500,
-                    success: false,
-                    reason: err.to_string(),
-                })
+                HttpResponse::InternalServerError()
+                    .json(ApiResponse::failure(err.to_string()))
             }
             DomainError::DbError { source: _ } => {
                 tracing::error!("{}", err);
-                HttpResponse::InternalServerError().json(ErrorModel {
-                    // error_code: 500,
-                    success: false,
-                    reason: "Error in database".to_owned(),
-                })
+                HttpResponse::InternalServerError()
+                    .json(ApiResponse::failure("Error in database".to_owned()))
             }
             DomainError::DbPoolError { source: _ } => {
                 tracing::error!("{}", err);
-                HttpResponse::InternalServerError().json(ErrorModel {
-                    // error_code: 500,
-                    success: false,
-                    reason: "Error getting database pool".to_owned(),
-                })
+                HttpResponse::InternalServerError().json(ApiResponse::failure(
+                    "Error getting database pool".to_owned(),
+                ))
             }
             DomainError::PasswordError { cause: _ } => {
-                HttpResponse::BadRequest().json(ErrorModel {
-                    // error_code: 400,
-                    success: false,
-                    reason: err.to_string(),
-                })
+                HttpResponse::BadRequest()
+                    .json(ApiResponse::failure(err.to_string()))
             }
             DomainError::EntityDoesNotExistError { message: _ } => {
-                HttpResponse::NotFound().json(ErrorModel {
-                    // error_code: 400,
-                    success: false,
-                    reason: err.to_string(),
-                })
+                HttpResponse::NotFound()
+                    .json(ApiResponse::failure(err.to_string()))
             }
             DomainError::ThreadPoolError { message: _ } => {
                 tracing::error!("{}", err);
-                HttpResponse::InternalServerError().json(ErrorModel {
-                    // error_code: 400,
-                    success: false,
-                    reason: "Thread pool error occurred".to_owned(),
-                })
+                HttpResponse::InternalServerError().json(ApiResponse::failure(
+                    "Thread pool error occurred".to_owned(),
+                ))
             }
-            DomainError::AuthError { message: _ } => {
-                HttpResponse::Forbidden().json(ErrorModel {
-                    // error_code: 400,
-                    success: false,
-                    reason: err.to_string(),
-                })
-            }
+            DomainError::AuthError { message: _ } => HttpResponse::Forbidden()
+                .json(ApiResponse::failure(err.to_string())),
         }
     }
 }

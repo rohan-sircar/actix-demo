@@ -1,4 +1,4 @@
-use actix_web::{get, post, web, HttpResponse};
+use actix_web::{get, web, HttpResponse};
 
 use crate::services::UserService;
 use crate::{actions, models};
@@ -120,7 +120,7 @@ pub async fn add_user(
             //     cause: e.to_string(),
             // };
             // Err(res2)
-            let res = HttpResponse::BadRequest().body(e.to_string());
+            let res = HttpResponse::BadRequest().json(e);
             // .json(models::ErrorModel::new(
             //     40,
             //     "Error registering user due to validation errors",
