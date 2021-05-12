@@ -43,6 +43,7 @@ pub fn get_all(
 pub fn insert_new_user(
     nu: models::NewUser,
     conn: &impl diesel::Connection<Backend = diesel::sqlite::Sqlite>,
+    hash_cost: Option<u32>,
 ) -> Result<models::UserDto, errors::DomainError> {
     // It is common when using Diesel with Actix web to import schema-related
     // modules inside a function's scope (rather than the normal module's scope)
@@ -50,7 +51,7 @@ pub fn insert_new_user(
     use crate::schema::users::dsl::*;
     let nu = {
         let mut nu2 = nu;
-        nu2.password = hash(&nu2.password, DEFAULT_COST)?;
+        nu2.password = hash(&nu2.password, hash_cost.unwrap_or(DEFAULT_COST))?;
         nu2
     };
 

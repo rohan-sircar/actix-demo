@@ -58,6 +58,8 @@ pub async fn get_user2(
     }
 }
 
+///List all users
+#[tracing::instrument(level = "debug", skip(app_data))]
 pub async fn get_all_users(
     app_data: web::Data<AppData>,
 ) -> Result<HttpResponse, DomainError> {
@@ -70,7 +72,7 @@ pub async fn get_all_users(
     .await
     .map_err(|err| DomainError::new_thread_pool_error(err.to_string()))?;
 
-    tracing::debug!("{:?}", users);
+    tracing::trace!("{:?}", users);
 
     if !users.is_empty() {
         Ok(HttpResponse::Ok().json(users))
@@ -82,7 +84,7 @@ pub async fn get_all_users(
 }
 //TODO: Add refinement here
 /// Inserts new user with name defined in form.
-#[post("/do_registration")]
+#[tracing::instrument(level = "debug", skip(app_data))]
 pub async fn add_user(
     app_data: web::Data<AppData>,
     form: web::Json<models::NewUser>,
@@ -92,7 +94,11 @@ pub async fn add_user(
         Ok(_) => web::block(move || {
             let pool = &app_data.pool;
             let conn = pool.get()?;
-            actions::insert_new_user(form.0, &conn)
+            actions::insert_new_user(
+                form.0,
+                &conn,
+                Some(app_data.config.hash_cost),
+            )
         })
         .await
         .map(|user| {

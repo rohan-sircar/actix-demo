@@ -39,13 +39,13 @@ pub struct EnvConfig {
     pub database_url: String,
     pub http_host: String,
     #[serde(default = "default_hash_cost")]
-    pub hash_cost: u8,
+    pub hash_cost: u32,
     pub logger_format: LoggerFormat,
 }
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct AppConfig {
-    pub hash_cost: u8,
+    pub hash_cost: u32,
 }
 
 #[derive(Clone)]
@@ -54,7 +54,7 @@ pub struct AppData {
     pub pool: DbPool,
 }
 
-pub fn default_hash_cost() -> u8 {
+pub fn default_hash_cost() -> u32 {
     8
 }
 
@@ -72,7 +72,8 @@ pub fn configure_app(app_data: AppData) -> Box<dyn Fn(&mut ServiceConfig)> {
                             .route(
                                 "/{user_id}",
                                 web::get().to(routes::users::get_user),
-                            ),
+                            )
+                            .route("", web::post().to(routes::users::add_user)),
                     )
                     .route(
                         "/build-info",
@@ -84,7 +85,7 @@ pub fn configure_app(app_data: AppData) -> Box<dyn Fn(&mut ServiceConfig)> {
             .service(routes::auth::login)
             .service(routes::auth::logout)
             .service(routes::auth::index)
-            .service(routes::users::add_user)
+            // .service(routes::users::add_user)
             .service(fs::Files::new("/", "./static"));
     })
 }

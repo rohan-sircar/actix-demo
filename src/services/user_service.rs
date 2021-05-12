@@ -58,7 +58,7 @@ impl UserService for UserServiceImpl {
         nu: models::NewUser,
     ) -> Result<models::UserDto, errors::DomainError> {
         let conn = self.pool.get()?;
-        actions::insert_new_user(nu, &conn)
+        actions::insert_new_user(nu, &conn, Some(8))
     }
 
     fn verify_password(
