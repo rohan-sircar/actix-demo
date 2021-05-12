@@ -1,0 +1,37 @@
+[tasks.watch]
+install_crate = "watch"
+command = "cargo"
+args = ["watch", "-x", "run"]
+
+[tasks.format]
+install_crate = "rustfmt"
+command = "cargo"
+args = ["fmt", "--all"]
+
+[tasks.format-check]
+install_crate = "rustfmt"
+command = "cargo"
+args = ["fmt", "--all", "--", "--check"]
+
+[tasks.clippy-check]
+install_crate = "clippy"
+command = "cargo"
+args = ["clippy", "--all", "--", "-D", "warnings"]
+
+[tasks.lint-check]
+dependencies = ["format-check", "clippy-check"]
+
+[tasks.compile]
+command = "cargo"
+args = ["build"]
+
+[tasks.test]
+command = "cargo"
+args = ["test", "--lib"]
+
+[tasks.it-test]
+command = "cargo"
+args = ["test", "--test", "integration"]
+
+[tasks.stage]
+dependencies = ["lint-check", "compile", "test", "it-test"]
