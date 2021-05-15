@@ -6,8 +6,8 @@ pub struct ApiResponse<T> {
     response: T,
 }
 
-impl<T> ApiResponse<T> {
-    pub fn success(&self) -> bool {
+impl<T: Serialize> ApiResponse<T> {
+    pub fn is_success(&self) -> bool {
         self.success
     }
     pub fn response(&self) -> &T {

@@ -1,4 +1,4 @@
 pub mod auth;
-pub mod regexs;
+pub mod regex;
 pub use self::auth::*;
-pub use self::regexs::*;
+pub use self::regex::*;

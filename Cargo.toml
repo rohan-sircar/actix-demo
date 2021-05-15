@@ -16,8 +16,6 @@ serde_json = "1.0.64"
 # listenfd = "0.3.3"
 dotenv = "0.15.0"
 r2d2 = "0.8.9"
-validator = "0.13.0"
-validator_derive = "0.13.0"
 # jsonwebtoken = "7.2.0"
 actix-identity = "0.3.1"
 actix-web-httpauth = "0.5.1"
@@ -41,6 +39,13 @@ tracing-futures = "0.2.5"
 tracing-actix-web = "0.2.1"
 tracing-bunyan-formatter = "0.2.4"
 diesel-tracing = { version = "0.1.4", features = ["sqlite"] }
+validators = "0.22.5"
+diesel-derive-newtype = "0.1"
+derive_more = "0.99.13"
+
+[dependencies.validators-derive]
+version = "0.22.5"
+features = ["serde"]
 
 [dependencies.build-info]
 version = "=0.0.23"

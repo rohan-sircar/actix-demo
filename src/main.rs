@@ -106,7 +106,7 @@ pub fn setup_logger(format: LoggerFormat) -> io::Result<()> {
             })?;
         }
 
-        LoggerFormat::Plain => {
+        LoggerFormat::Pretty => {
             let subscriber = FmtSubscriber::builder()
                 .pretty()
                 .with_span_events(FmtSpan::NEW)

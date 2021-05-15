@@ -4,22 +4,22 @@ Testing out the Rust framework Actix-Web to create a JSON API CRUD Web App.
 
 ### Get Users
 
-``` 
+```
 curl -X GET http://localhost:7800/api/users
 ```
 
-``` 
+```
 {
   "name": "user1",
   "registration_date": "2020-05-09T06:17:26"
 }
 ```
 
-``` 
+```
 curl -X GET http://localhost:7800/api/users
 ```
 
-``` 
+```
 [
   {
     "name": "user1",
@@ -38,14 +38,14 @@ curl -X GET http://localhost:7800/api/users
 
 ### Create User
 
-``` 
+```
 curl -H "content-type: application/json" \
 -X POST \
--i http://localhost:7800/do_registration \
+-i http://localhost:7800/api/users \
 --data '{"name":"user4","password":"test"}'
 ```
 
-``` 
+```
 [
   {
     "name": "user1",
@@ -68,14 +68,14 @@ curl -H "content-type: application/json" \
 
 ### DTO Validation
 
-``` 
+```
 curl -H "content-type: application/json" \
 -X POST \
--i http://localhost:7800/do_registration \
+-i http://localhost:7800/api/users \
 --data '{"name":"abc","password":"test"}' # min length for name is 4
 ```
 
-``` 
+```
 ValidationErrors({"name": Field([ValidationError { code: "length", message: None, params: {"value": String("abc"), "min": Number(4), "max": Number(10)} }])})
 ```
 

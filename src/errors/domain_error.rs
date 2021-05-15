@@ -24,6 +24,7 @@ use std::convert::From;
 
 custom_error! { #[derive(new)] pub DomainError
     PwdHashError {source: BcryptError} = "Failed to hash password",
+    FieldValidationError {message: String} = "Failed to validate one or more fields",
     DbError {source: diesel::result::Error} = "Database error",
     DbPoolError {source: r2d2::Error} = "Failed to get connection from pool",
     PasswordError {cause: String} = "Failed to validate password - {cause}",
@@ -67,6 +68,11 @@ impl ResponseError for DomainError {
             }
             DomainError::AuthError { message: _ } => HttpResponse::Forbidden()
                 .json(ApiResponse::failure(err.to_string())),
+            DomainError::FieldValidationError { message: _ } => {
+                tracing::error!("{}", err);
+                HttpResponse::BadRequest()
+                    .json(ApiResponse::failure(err.to_string()))
+            }
         }
     }
 }

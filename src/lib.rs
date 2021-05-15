@@ -3,6 +3,10 @@
 extern crate diesel;
 #[macro_use]
 extern crate derive_new;
+#[macro_use]
+extern crate validators_derive;
+#[macro_use]
+extern crate diesel_derive_newtype;
 
 mod actions;
 mod errors;
@@ -31,7 +35,7 @@ build_info::build_info!(pub fn get_build_info);
 #[serde(rename_all = "lowercase")]
 pub enum LoggerFormat {
     Json,
-    Plain,
+    Pretty,
 }
 
 #[derive(Deserialize, Debug, Clone)]
