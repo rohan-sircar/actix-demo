@@ -78,6 +78,9 @@ pub fn setup_logger(format: LoggerFormat) -> io::Result<()> {
             )
         })?;
 
+    let (non_blocking, _guard) =
+        tracing_appender::non_blocking(std::io::stdout());
+
     let _ = LogTracer::init().map_err(|err| {
         io::Error::new(
             ErrorKind::Other,
@@ -91,8 +94,8 @@ pub fn setup_logger(format: LoggerFormat) -> io::Result<()> {
         LoggerFormat::Json => {
             let formatting_layer = BunyanFormattingLayer::new(
                 format!("actix-demo-{}", bi.crate_info.version),
-                // Output the formatted spans to stdout.
-                std::io::stdout,
+                // Output the formatted spans to non-blocking writer
+                non_blocking,
             );
             let subscriber = Registry::default()
                 .with(env_filter)

@@ -42,6 +42,7 @@ diesel-tracing = { version = "0.1.4", features = ["sqlite"] }
 validators = "0.22.5"
 diesel-derive-newtype = "0.1"
 derive_more = "0.99.13"
+tracing-appender = "0.1.2"
 
 [dependencies.validators-derive]
 version = "0.22.5"

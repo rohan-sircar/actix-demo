@@ -42,12 +42,12 @@ impl ResponseError for DomainError {
                     .json(ApiResponse::failure(err.to_string()))
             }
             DomainError::DbError { source: _ } => {
-                tracing::error!("{}", err);
+                let _ = tracing::error!("{}", err);
                 HttpResponse::InternalServerError()
                     .json(ApiResponse::failure("Error in database".to_owned()))
             }
             DomainError::DbPoolError { source: _ } => {
-                tracing::error!("{}", err);
+                let _ = tracing::error!("{}", err);
                 HttpResponse::InternalServerError().json(ApiResponse::failure(
                     "Error getting database pool".to_owned(),
                 ))
@@ -61,7 +61,7 @@ impl ResponseError for DomainError {
                     .json(ApiResponse::failure(err.to_string()))
             }
             DomainError::ThreadPoolError { message: _ } => {
-                tracing::error!("{}", err);
+                let _ = tracing::error!("{}", err);
                 HttpResponse::InternalServerError().json(ApiResponse::failure(
                     "Thread pool error occurred".to_owned(),
                 ))
@@ -69,7 +69,7 @@ impl ResponseError for DomainError {
             DomainError::AuthError { message: _ } => HttpResponse::Forbidden()
                 .json(ApiResponse::failure(err.to_string())),
             DomainError::FieldValidationError { message: _ } => {
-                tracing::error!("{}", err);
+                let _ = tracing::error!("{}", err);
                 HttpResponse::BadRequest()
                     .json(ApiResponse::failure(err.to_string()))
             }

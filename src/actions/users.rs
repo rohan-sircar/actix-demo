@@ -1,12 +1,12 @@
 use diesel::prelude::*;
 
-use crate::models;
+use crate::models::{self, Pagination, UserId};
 use crate::{errors, models::Password};
 use bcrypt::{hash, verify, DEFAULT_COST};
 use validators::prelude::*;
 
 pub fn find_user_by_uid(
-    uid: i32,
+    uid: &UserId,
     conn: &impl diesel::Connection<Backend = diesel::sqlite::Sqlite>,
 ) -> Result<Option<models::User>, errors::DomainError> {
     use crate::schema::users::dsl::*;
@@ -39,6 +39,46 @@ pub fn get_all(
     use crate::schema::users::dsl::*;
     Ok(users
         .select(users::all_columns())
+        .load::<models::User>(conn)?)
+}
+
+// def findAll(userId: Long, limit: Int, offset: Int) = db.run {
+//     for {
+//       comments <- query.filter(_.creatorId === userId)
+//                        .sortBy(_.createdAt)
+//                        .drop(offset).take(limit)
+//                        .result
+//       numberOfComments <- query.filter(_.creatorId === userId).length.result
+//     } yield PaginatedResult(
+//         totalCount = numberOfComments,
+//         entities = comments.toList,
+//         hasNextPage = numberOfComments - (offset + limit) > 0
+//     )
+//   }
+
+pub fn get_users_paginated(
+    // user_id: UserId,
+    pagination: &Pagination,
+    conn: &impl diesel::Connection<Backend = diesel::sqlite::Sqlite>,
+) -> Result<Vec<models::User>, errors::DomainError> {
+    // use crate::schema::users::dsl::*;
+    Ok(query::_paginate_result(&pagination).load::<models::User>(conn)?)
+}
+
+pub fn search_users(
+    query: &str,
+    pagination: &Pagination,
+    conn: &impl diesel::Connection<Backend = diesel::sqlite::Sqlite>,
+) -> Result<Vec<models::User>, errors::DomainError> {
+    use crate::schema::users::dsl::*;
+    // Ok(users
+    //     .filter(name.like(format!("%{}%", query)))
+    //     .order_by(created_at)
+    //     .offset(pagination.calc_offset().as_uint().into())
+    //     .limit(pagination.limit.as_uint().into())
+    //     .load::<models::User>(conn)?)
+    Ok(query::_paginate_result(&pagination)
+        .filter(name.like(format!("%{}%", query)))
         .load::<models::User>(conn)?)
 }
 
@@ -81,7 +121,7 @@ pub fn verify_password(
 }
 
 mod query {
-    use diesel::prelude::*;
+    use super::*;
     use diesel::sql_types::Integer;
     use diesel::sql_types::Text;
     use diesel::sql_types::Timestamp;
@@ -93,9 +133,17 @@ mod query {
     pub fn _get_user_by_name(
     ) -> Query<'static, Sqlite, (Integer, Text, Text, Timestamp)> {
         use crate::schema::users::dsl::*;
+        users.into_boxed()
+    }
+
+    pub fn _paginate_result(
+        pagination: &Pagination,
+    ) -> Query<'static, Sqlite, (Integer, Text, Text, Timestamp)> {
+        use crate::schema::users::dsl::*;
         users
-            .select(users::all_columns())
-            // .filter(name.eq(user_name))
+            .order_by(created_at)
+            .offset(pagination.calc_offset().as_uint().into())
+            .limit(pagination.limit.as_uint().into())
             .into_boxed()
     }
 }

@@ -15,7 +15,7 @@ mod tests {
         let resp = common::test_app().await.unwrap().call(req).await.unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
         let body: build_info::BuildInfo = test::read_body_json(resp).await;
-        tracing::debug!("{:?}", body);
+        let _ = tracing::debug!("{:?}", body);
         assert_eq!(body, *get_build_info());
     }
 }

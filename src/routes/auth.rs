@@ -46,7 +46,7 @@ pub async fn logout(
 ) -> Result<HttpResponse, Error> {
     let maybe_identity = id.identity();
     let response = if let Some(identity) = maybe_identity {
-        tracing::info!("Logging out {user}", user = identity);
+        let _ = tracing::info!("Logging out {user}", user = identity);
         id.forget();
         HttpResponse::Found().header("location", "/").finish()
     } else {

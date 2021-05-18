@@ -74,6 +74,7 @@ dependencies = [
  "timeago",
  "tracing",
  "tracing-actix-web",
+ "tracing-appender",
  "tracing-bunyan-formatter",
  "tracing-futures",
  "tracing-log",
@@ -835,6 +836,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "81156fece84ab6a9f2afdb109ce3ae577e42b1228441eded99bd77f627953b1a"
 dependencies = [
  "cfg-if 1.0.0",
+]
+
+[[package]]
+name = "crossbeam-channel"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "06ed27e177f16d65f0f0c22a213e17c696ace5dd64b14258b52f9417ccb52db4"
+dependencies = [
+ "cfg-if 1.0.0",
+ "crossbeam-utils",
+]
+
+[[package]]
+name = "crossbeam-utils"
+version = "0.8.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4feb231f0d4d6af81aed15928e58ecf5816aa62a2393e2c82f46973e92a9a278"
+dependencies = [
+ "autocfg 1.0.1",
+ "cfg-if 1.0.0",
+ "lazy_static",
 ]
 
 [[package]]
@@ -2859,6 +2881,17 @@ dependencies = [
  "tracing",
  "tracing-futures",
  "uuid",
+]
+
+[[package]]
+name = "tracing-appender"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9965507e507f12c8901432a33e31131222abac31edd90cabbcf85cf544b7127a"
+dependencies = [
+ "chrono",
+ "crossbeam-channel",
+ "tracing-subscriber",
 ]
 
 [[package]]
