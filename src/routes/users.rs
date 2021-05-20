@@ -2,10 +2,9 @@ use actix_web::{web, HttpResponse};
 
 use crate::{
     actions,
-    models::{self, ApiResponse, Pagination, UserId, UserSearchRequest},
+    models::{self, ApiResponse, Pagination, SearchQuery, UserId},
 };
 use crate::{errors::DomainError, AppData};
-use actix_web::error::ResponseError;
 
 /// Finds user by UID.
 #[tracing::instrument(
@@ -60,33 +59,8 @@ pub async fn get_user(
 //     }
 // }
 
-///List all users
 #[tracing::instrument(level = "debug", skip(app_data))]
-pub async fn get_all_users(
-    app_data: web::Data<AppData>,
-) -> Result<HttpResponse, DomainError> {
-    // use web::block to offload blocking Diesel code without blocking server thread
-    let users = web::block(move || {
-        let pool = &app_data.pool;
-        let conn = pool.get()?;
-        actions::get_all(&conn)
-    })
-    .await
-    .map_err(|err| DomainError::new_thread_pool_error(err.to_string()))?;
-
-    let _ = tracing::trace!("{:?}", users);
-
-    if !users.is_empty() {
-        Ok(HttpResponse::Ok().json(ApiResponse::successful(users)))
-    } else {
-        Err(DomainError::new_entity_does_not_exist_error(
-            "No users available".to_owned(),
-        ))
-    }
-}
-
-#[tracing::instrument(level = "debug", skip(app_data))]
-pub async fn get_users_paginated(
+pub async fn get_users(
     app_data: web::Data<AppData>,
     pagination: web::Query<Pagination>,
 ) -> Result<HttpResponse, DomainError> {
@@ -95,7 +69,7 @@ pub async fn get_users_paginated(
         let pool = &app_data.pool;
         let conn = pool.get()?;
         let p: Pagination = pagination.into_inner();
-        actions::get_users_paginated(&p, &conn)
+        actions::get_all_users(&p, &conn)
     })
     .await
     .map_err(|err| DomainError::new_thread_pool_error(err.to_string()))?;
@@ -108,7 +82,7 @@ pub async fn get_users_paginated(
 #[tracing::instrument(level = "debug", skip(app_data))]
 pub async fn search_users(
     app_data: web::Data<AppData>,
-    query: web::Query<UserSearchRequest>,
+    query: web::Query<SearchQuery>,
     pagination: web::Query<Pagination>,
 ) -> Result<HttpResponse, DomainError> {
     let _ = tracing::info!("Search users request");
@@ -126,21 +100,21 @@ pub async fn search_users(
     Ok(HttpResponse::Ok().json(ApiResponse::successful(users)))
 }
 
-/// Inserts new user with name defined in form.
+/// Inserts a new user
 #[tracing::instrument(level = "debug", skip(app_data))]
 pub async fn add_user(
     app_data: web::Data<AppData>,
     form: web::Json<models::NewUser>,
-) -> Result<HttpResponse, impl ResponseError> {
-    // use web::block to offload blocking Diesel code without blocking server thread
-    web::block(move || {
+) -> Result<HttpResponse, DomainError> {
+    let user = web::block(move || {
         let pool = &app_data.pool;
         let conn = pool.get()?;
         actions::insert_new_user(form.0, &conn, Some(app_data.config.hash_cost))
     })
     .await
-    .map(|user| {
-        let _ = tracing::trace!("{:?}", user);
-        HttpResponse::Created().json(ApiResponse::successful(user))
-    })
+    .map_err(|err| DomainError::new_thread_pool_error(err.to_string()))?;
+
+    let _ = tracing::trace!("{:?}", user);
+
+    Ok(HttpResponse::Created().json(ApiResponse::successful(user)))
 }

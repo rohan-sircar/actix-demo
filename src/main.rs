@@ -5,6 +5,7 @@ use diesel_tracing::sqlite::InstrumentedSqliteConnection;
 use io::ErrorKind;
 use std::io;
 use tracing::subscriber::set_global_default;
+use tracing_appender::non_blocking::WorkerGuard;
 use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer};
 use tracing_log::LogTracer;
 use tracing_subscriber::fmt::format::FmtSpan;
@@ -30,7 +31,8 @@ async fn main() -> io::Result<()> {
             )
         })?;
 
-    let _ = setup_logger(env_config.logger_format)?;
+    //bind guard to variable instead of _
+    let _guard = setup_logger(env_config.logger_format)?;
 
     let connspec = &env_config.database_url;
     let manager =
@@ -69,7 +71,7 @@ async fn main() -> io::Result<()> {
     actix_demo::run(format!("{}:7800", env_config.http_host), app_data).await
 }
 
-pub fn setup_logger(format: LoggerFormat) -> io::Result<()> {
+pub fn setup_logger(format: LoggerFormat) -> io::Result<WorkerGuard> {
     let env_filter =
         EnvFilter::try_from_env("ACTIX_DEMO_RUST_LOG").map_err(|err| {
             io::Error::new(
@@ -115,6 +117,8 @@ pub fn setup_logger(format: LoggerFormat) -> io::Result<()> {
                 .with_span_events(FmtSpan::NEW)
                 .with_span_events(FmtSpan::CLOSE)
                 .with_env_filter(env_filter)
+                .with_writer(non_blocking)
+                .with_thread_names(true)
                 .finish();
             let _ = set_global_default(subscriber).map_err(|err| {
                 io::Error::new(
@@ -124,5 +128,5 @@ pub fn setup_logger(format: LoggerFormat) -> io::Result<()> {
             })?;
         }
     };
-    Ok(())
+    Ok(_guard)
 }

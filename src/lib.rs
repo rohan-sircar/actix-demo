@@ -69,23 +69,16 @@ pub fn configure_app(app_data: AppData) -> Box<dyn Fn(&mut ServiceConfig)> {
                 web::scope("/api")
                     .service(
                         web::scope("/users")
-                            .route(
-                                "",
-                                web::get().to(routes::users::get_all_users),
-                            )
+                            .route("", web::get().to(routes::users::get_users))
                             .route(
                                 "/search",
                                 web::get().to(routes::users::search_users),
                             )
-                            .route("", web::post().to(routes::users::add_user))
+                            .route("", web::put().to(routes::users::add_user))
                             .route(
                                 "/{user_id}",
                                 web::get().to(routes::users::get_user),
                             ),
-                    )
-                    .route(
-                        "/pagination",
-                        web::get().to(routes::users::get_users_paginated),
                     )
                     .route(
                         "/build-info",

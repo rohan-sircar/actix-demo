@@ -12,19 +12,16 @@ mod tests {
         use super::*;
 
         #[actix_rt::test]
-        async fn should_return_error_message_if_no_users_exist() {
-            let req = test::TestRequest::get().uri("/api/users").to_request();
+        async fn should_return_empty_array_if_no_users_exist() {
+            let req = test::TestRequest::get()
+                .uri("/api/users?page=0&limit=2")
+                .to_request();
             let resp =
                 common::test_app().await.unwrap().call(req).await.unwrap();
-            assert_eq!(resp.status(), StatusCode::NOT_FOUND);
-            let body: ApiResponse<String> = test::read_body_json(resp).await;
+            assert_eq!(resp.status(), StatusCode::OK);
+            let body: ApiResponse<Vec<_>> = test::read_body_json(resp).await;
             let _ = tracing::debug!("{:?}", body);
-            assert_eq!(
-                body,
-                ApiResponse::failure(
-                    "Entity does not exist - No users available".to_owned()
-                )
-            );
+            assert_eq!(body, ApiResponse::successful(vec![1; 0]));
         }
 
         #[actix_rt::test]

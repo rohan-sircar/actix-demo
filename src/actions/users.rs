@@ -1,6 +1,6 @@
 use diesel::prelude::*;
 
-use crate::models::{self, Pagination, UserId};
+use crate::models::{self, Pagination, UserId, Username};
 use crate::{errors, models::Password};
 use bcrypt::{hash, verify, DEFAULT_COST};
 use validators::prelude::*;
@@ -21,7 +21,7 @@ pub fn find_user_by_uid(
 }
 
 pub fn _find_user_by_name(
-    user_name: String,
+    user_name: Username,
     conn: &impl diesel::Connection<Backend = diesel::sqlite::Sqlite>,
 ) -> Result<Option<models::User>, errors::DomainError> {
     use crate::schema::users::dsl::*;
@@ -31,15 +31,6 @@ pub fn _find_user_by_name(
         .optional();
 
     Ok(maybe_user?)
-}
-
-pub fn get_all(
-    conn: &impl diesel::Connection<Backend = diesel::sqlite::Sqlite>,
-) -> Result<Vec<models::User>, errors::DomainError> {
-    use crate::schema::users::dsl::*;
-    Ok(users
-        .select(users::all_columns())
-        .load::<models::User>(conn)?)
 }
 
 // def findAll(userId: Long, limit: Int, offset: Int) = db.run {
@@ -56,12 +47,10 @@ pub fn get_all(
 //     )
 //   }
 
-pub fn get_users_paginated(
-    // user_id: UserId,
+pub fn get_all_users(
     pagination: &Pagination,
     conn: &impl diesel::Connection<Backend = diesel::sqlite::Sqlite>,
 ) -> Result<Vec<models::User>, errors::DomainError> {
-    // use crate::schema::users::dsl::*;
     Ok(query::_paginate_result(&pagination).load::<models::User>(conn)?)
 }
 
@@ -71,12 +60,6 @@ pub fn search_users(
     conn: &impl diesel::Connection<Backend = diesel::sqlite::Sqlite>,
 ) -> Result<Vec<models::User>, errors::DomainError> {
     use crate::schema::users::dsl::*;
-    // Ok(users
-    //     .filter(name.like(format!("%{}%", query)))
-    //     .order_by(created_at)
-    //     .offset(pagination.calc_offset().as_uint().into())
-    //     .limit(pagination.limit.as_uint().into())
-    //     .load::<models::User>(conn)?)
     Ok(query::_paginate_result(&pagination)
         .filter(name.like(format!("%{}%", query)))
         .load::<models::User>(conn)?)

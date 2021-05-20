@@ -40,7 +40,7 @@ curl -X GET http://localhost:7800/api/users
 
 ```
 curl -H "content-type: application/json" \
--X POST \
+-X PUT \
 -i http://localhost:7800/api/users \
 --data '{"name":"user4","password":"test"}'
 ```
@@ -64,19 +64,6 @@ curl -H "content-type: application/json" \
     "registration_date": "2020-08-01T05:04:05"
   }
 ]
-```
-
-### DTO Validation
-
-```
-curl -H "content-type: application/json" \
--X POST \
--i http://localhost:7800/api/users \
---data '{"name":"abc","password":"test"}' # min length for name is 4
-```
-
-```
-ValidationErrors({"name": Field([ValidationError { code: "length", message: None, params: {"value": String("abc"), "min": Number(4), "max": Number(10)} }])})
 ```
 
 ## Memory Usage

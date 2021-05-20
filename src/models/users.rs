@@ -167,17 +167,17 @@ impl Pagination {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct SearchQuery(String);
+pub struct SearchQueryString(String);
 
-impl SearchQuery {
+impl SearchQueryString {
     pub fn as_str(&self) -> &str {
         &self.0
     }
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct UserSearchRequest {
-    pub q: SearchQuery,
+pub struct SearchQuery {
+    pub q: SearchQueryString,
     // pub pagination: Pagination
 }
 
