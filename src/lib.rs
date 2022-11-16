@@ -1,10 +1,11 @@
 #![forbid(unsafe_code)]
+#![allow(clippy::let_unit_value)]
 #[macro_use]
 extern crate diesel;
 #[macro_use]
 extern crate derive_new;
-#[macro_use]
-extern crate validators_derive;
+// #[macro_use]
+// extern crate validators_derive;
 #[macro_use]
 extern crate diesel_derive_newtype;
 
@@ -20,7 +21,7 @@ mod utils;
 
 use actix_files as fs;
 // use actix_identity::{CookieIdentityPolicy, IdentityService};
-use actix_web::web::ServiceConfig;
+use actix_web::web::{Data, ServiceConfig};
 use actix_web::{cookie::SameSite, web, App, HttpServer};
 use rand::Rng;
 use serde::Deserialize;
@@ -62,7 +63,9 @@ pub fn default_hash_cost() -> u32 {
     8
 }
 
-pub fn configure_app(app_data: AppData) -> Box<dyn Fn(&mut ServiceConfig)> {
+pub fn configure_app(
+    app_data: Data<AppData>,
+) -> Box<dyn Fn(&mut ServiceConfig)> {
     Box::new(move |cfg: &mut ServiceConfig| {
         cfg.app_data(app_data.clone())
             .service(
@@ -107,7 +110,7 @@ pub fn configure_app(app_data: AppData) -> Box<dyn Fn(&mut ServiceConfig)> {
 //     )
 // }
 
-pub async fn run(addr: String, app_data: AppData) -> io::Result<()> {
+pub async fn run(addr: String, app_data: Data<AppData>) -> io::Result<()> {
     let bi = get_build_info();
     let _ = tracing::info!(
         "Starting {} {}",

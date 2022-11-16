@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(PartialEq, Debug, Clone, Serialize, Deserialize, new)]
+#[derive(Eq, PartialEq, Debug, Clone, Serialize, Deserialize, new)]
 pub struct ApiResponse<T> {
     success: bool,
     response: T,

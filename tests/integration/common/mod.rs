@@ -3,6 +3,7 @@ use actix_demo::{AppConfig, AppData, EnvConfig};
 use actix_web::test;
 use actix_web::App;
 
+use actix_web::web::Data;
 use diesel::r2d2::{self, ConnectionManager};
 use std::io;
 use std::io::ErrorKind;
@@ -111,10 +112,10 @@ pub async fn test_app() -> io::Result<
 
     Ok(test::init_service(
         App::new()
-            .configure(configure_app(AppData {
+            .configure(configure_app(Data::new(AppData {
                 config: AppConfig { hash_cost: 8 },
                 pool,
-            }))
+            })))
             .wrap(TracingLogger::default()),
     )
     .await)

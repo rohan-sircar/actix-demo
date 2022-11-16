@@ -51,7 +51,7 @@ pub fn get_all_users(
     pagination: &Pagination,
     conn: &impl diesel::Connection<Backend = diesel::sqlite::Sqlite>,
 ) -> Result<Vec<models::User>, errors::DomainError> {
-    Ok(query::_paginate_result(&pagination).load::<models::User>(conn)?)
+    Ok(query::_paginate_result(pagination).load::<models::User>(conn)?)
 }
 
 pub fn search_users(
@@ -60,7 +60,7 @@ pub fn search_users(
     conn: &impl diesel::Connection<Backend = diesel::sqlite::Sqlite>,
 ) -> Result<Vec<models::User>, errors::DomainError> {
     use crate::schema::users::dsl::*;
-    Ok(query::_paginate_result(&pagination)
+    Ok(query::_paginate_result(pagination)
         .filter(name.like(format!("%{}%", query)))
         .load::<models::User>(conn)?)
 }
@@ -74,7 +74,7 @@ pub fn insert_new_user(
     let nu = {
         let mut nu2 = nu;
         let hash =
-            hash(&nu2.password.as_str(), hash_cost.unwrap_or(DEFAULT_COST))?;
+            hash(nu2.password.as_str(), hash_cost.unwrap_or(DEFAULT_COST))?;
         nu2.password = Password::parse_string(hash).map_err(|err| {
             errors::DomainError::new_field_validation_error(err.to_string())
         })?;

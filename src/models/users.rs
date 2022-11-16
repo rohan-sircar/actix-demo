@@ -191,31 +191,31 @@ mod test {
             r#"{"id":1,"name":"chewbacca","password":"aeqfq3fq","created_at":"2021-05-12T12:37:56"}"#,
         );
         // println!("{:?}", mb_user);
-        assert_eq!(mb_user.is_ok(), true);
+        assert!(mb_user.is_ok());
         let mb_user = serde_json::from_str::<User>(
             r#"{"id":1,"name":"chew-bacca","password":"aeqfq3fq","created_at":"2021-05-12T12:37:56"}"#,
         );
-        assert_eq!(mb_user.is_ok(), true);
+        assert!(mb_user.is_ok());
         let mb_user = serde_json::from_str::<User>(
             r#"{"id":1,"name":"chew.bacca","password":"aeqfq3fq","created_at":"2021-05-12T12:37:56"}"#,
         );
-        assert_eq!(mb_user.is_ok(), false);
+        assert!(mb_user.is_err());
         let mb_user = serde_json::from_str::<User>(
             r#"{"id":-1,"name":"chewbacca","password":"aeqfq3fq","created_at":"2021-05-12T12:37:56"}"#,
         );
-        assert_eq!(mb_user.is_ok(), false);
+        assert!(mb_user.is_err());
         let mb_user = serde_json::from_str::<User>(
             r#"{"id":1,"name":"ch","password":"aeqfq3fq","created_at":"2021-05-12T12:37:56"}"#,
         );
-        assert_eq!(mb_user.is_ok(), false);
+        assert!(mb_user.is_err());
         let mb_user = serde_json::from_str::<User>(
             r#"{"id":1,"name":"chaegw;eaef","password":"aeqfq3fq","created_at":"2021-05-12T12:37:56"}"#,
         );
-        assert_eq!(mb_user.is_ok(), false);
+        assert!(mb_user.is_err());
         let mb_user = serde_json::from_str::<User>(
             r#"{"id":1,"name":"chaegw_eaef","password":"aeqfq3fq","created_at":"2021-05-12T12:37:56"}"#,
         );
-        assert_eq!(mb_user.is_ok(), false);
+        assert!(mb_user.is_err());
     }
 
     #[test]
@@ -223,12 +223,12 @@ mod test {
         let mb_pag =
             serde_json::from_str::<Pagination>(r#"{"limit":5,"page":5}"#);
         // println!("{:?}", mb_pag);
-        assert_eq!(mb_pag.is_ok(), true);
+        assert!(mb_pag.is_ok());
         let mb_pag =
             serde_json::from_str::<Pagination>(r#"{"limit":51,"page":5}"#);
-        assert_eq!(mb_pag.is_ok(), false);
+        assert!(mb_pag.is_err());
         let mb_pag =
             serde_json::from_str::<Pagination>(r#"{"limit":5,"page":51}"#);
-        assert_eq!(mb_pag.is_ok(), false);
+        assert!(mb_pag.is_err());
     }
 }

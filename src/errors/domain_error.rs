@@ -22,7 +22,8 @@ use std::convert::From;
 //     }
 // }
 
-custom_error! { #[derive(new)] pub DomainError
+custom_error! { #[derive(new)] #[allow(clippy::enum_variant_names)]
+    pub DomainError
     PwdHashError {source: BcryptError} = "Failed to hash password",
     FieldValidationError {message: String} = "Failed to validate one or more fields",
     DbError {source: diesel::result::Error} = "Database error",

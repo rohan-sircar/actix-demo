@@ -1,9 +1,12 @@
 #![forbid(unsafe_code)]
+#![allow(clippy::let_unit_value)]
 use actix_demo::{AppConfig, AppData, EnvConfig, LoggerFormat};
+use actix_web::web::Data;
 use diesel::r2d2::ConnectionManager;
 use diesel_tracing::sqlite::InstrumentedSqliteConnection;
 use io::ErrorKind;
 use std::io;
+use tokio::sync::RwLock;
 use tracing::subscriber::set_global_default;
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer};
@@ -61,12 +64,12 @@ async fn main() -> io::Result<()> {
             })?;
     };
 
-    let app_data = AppData {
+    let app_data = Data::new(AppData {
         config: AppConfig {
             hash_cost: env_config.hash_cost,
         },
         pool: pool.clone(),
-    };
+    });
 
     actix_demo::run(format!("{}:7800", env_config.http_host), app_data).await
 }
