@@ -28,7 +28,7 @@ pub async fn get_user(
         actions::find_user_by_uid(&u_id2, &conn)
     })
     .await
-    .map_err(|err| DomainError::new_thread_pool_error(err.to_string()))?;
+    .map_err(|err| DomainError::new_thread_pool_error(err.to_string()))??;
     let _ = tracing::trace!("{:?}", res);
     if let Some(user) = res {
         Ok(HttpResponse::Ok().json(ApiResponse::successful(user)))
@@ -72,7 +72,7 @@ pub async fn get_users(
         actions::get_all_users(&p, &conn)
     })
     .await
-    .map_err(|err| DomainError::new_thread_pool_error(err.to_string()))?;
+    .map_err(|err| DomainError::new_thread_pool_error(err.to_string()))??;
 
     let _ = tracing::trace!("{:?}", users);
 
@@ -93,7 +93,7 @@ pub async fn search_users(
         actions::search_users(query.q.as_str(), &p, &conn)
     })
     .await
-    .map_err(|err| DomainError::new_thread_pool_error(err.to_string()))?;
+    .map_err(|err| DomainError::new_thread_pool_error(err.to_string()))??;
 
     let _ = tracing::trace!("{:?}", users);
 
@@ -112,7 +112,7 @@ pub async fn add_user(
         actions::insert_new_user(form.0, &conn, Some(app_data.config.hash_cost))
     })
     .await
-    .map_err(|err| DomainError::new_thread_pool_error(err.to_string()))?;
+    .map_err(|err| DomainError::new_thread_pool_error(err.to_string()))??;
 
     let _ = tracing::trace!("{:?}", user);
 

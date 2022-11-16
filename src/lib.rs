@@ -19,7 +19,7 @@ mod types;
 mod utils;
 
 use actix_files as fs;
-use actix_identity::{CookieIdentityPolicy, IdentityService};
+// use actix_identity::{CookieIdentityPolicy, IdentityService};
 use actix_web::web::ServiceConfig;
 use actix_web::{cookie::SameSite, web, App, HttpServer};
 use rand::Rng;
@@ -64,7 +64,7 @@ pub fn default_hash_cost() -> u32 {
 
 pub fn configure_app(app_data: AppData) -> Box<dyn Fn(&mut ServiceConfig)> {
     Box::new(move |cfg: &mut ServiceConfig| {
-        cfg.data(app_data.clone())
+        cfg.app_data(app_data.clone())
             .service(
                 web::scope("/api")
                     .service(
@@ -87,25 +87,25 @@ pub fn configure_app(app_data: AppData) -> Box<dyn Fn(&mut ServiceConfig)> {
             )
             // .route("/api/users/get", web::get().to(user_controller.get_user.into()))
             .service(web::scope("/api/public")) // public endpoint - not implemented yet
-            .service(routes::auth::login)
-            .service(routes::auth::logout)
-            .service(routes::auth::index)
+            // .service(routes::auth::login)
+            // .service(routes::auth::logout)
+            // .service(routes::auth::index)
             // .service(routes::users::add_user)
             .service(fs::Files::new("/", "./static"));
     })
 }
 
 //TODO: capture the panic in this method
-pub fn id_service(
-    private_key: &[u8],
-) -> actix_identity::IdentityService<CookieIdentityPolicy> {
-    IdentityService::new(
-        CookieIdentityPolicy::new(&private_key)
-            .name("my-app-auth")
-            .secure(false)
-            .same_site(SameSite::Lax),
-    )
-}
+// pub fn id_service(
+//     private_key: &[u8],
+// ) -> actix_identity::IdentityService<CookieIdentityPolicy> {
+//     IdentityService::new(
+//         CookieIdentityPolicy::new(&private_key)
+//             .name("my-app-auth")
+//             .secure(false)
+//             .same_site(SameSite::Lax),
+//     )
+// }
 
 pub async fn run(addr: String, app_data: AppData) -> io::Result<()> {
     let bi = get_build_info();
@@ -128,8 +128,8 @@ pub async fn run(addr: String, app_data: AppData) -> io::Result<()> {
     let app = move || {
         App::new()
             .configure(configure_app(app_data.clone()))
-            .wrap(id_service(&private_key))
-            .wrap(TracingLogger)
+            // .wrap(id_service(&private_key))
+            .wrap(TracingLogger::default())
     };
     HttpServer::new(app).bind(addr)?.run().await
 }

@@ -19,8 +19,8 @@ use actix_web::{dev as ax_dev, Error as AxError};
 
 pub async fn test_app() -> io::Result<
     impl ax_dev::Service<
-        Request = Request,
-        Response = ax_dev::ServiceResponse<impl ax_dev::MessageBody>,
+        Request,
+        Response = ax_dev::ServiceResponse<impl actix_web::body::MessageBody>,
         Error = AxError,
     >,
 > {
@@ -115,7 +115,7 @@ pub async fn test_app() -> io::Result<
                 config: AppConfig { hash_cost: 8 },
                 pool,
             }))
-            .wrap(TracingLogger),
+            .wrap(TracingLogger::default()),
     )
     .await)
 }

@@ -23,7 +23,7 @@ use validators::prelude::*;
     DieselNewType,
 )]
 #[serde(try_from = "u32", into = "u32")]
-pub struct UserId(i32);
+pub struct UserId(pub i32);
 impl From<UserId> for u32 {
     fn from(s: UserId) -> u32 {
         //this should be safe to unwrap since our newtype
