@@ -10,70 +10,50 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Install stable toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
           toolchain: stable
-          override: true
       - name: Rust Cache
-        uses: Swatinem/rust-cache@v1.2.0
+        uses: Swatinem/rust-cache@v2.2.0
       - name: Run Cargo Check
-        uses: actions-rs/cargo@v1
-        with:
-          command: check
+        run: cargo check
 
   test:
     name: Test Suite
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Install stable toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
           toolchain: stable
-          override: true
       - name: Rust Cache
-        uses: Swatinem/rust-cache@v1.2.0
+        uses: Swatinem/rust-cache@v2.2.0
       - name: Run Unit Tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --lib
+        run: cargo test --lib
       - name: Run Integration Tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --test integration
+        run: cargo test --test integration
 
   lints:
     name: Lints
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Install stable toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
           toolchain: stable
-          override: true
           components: rustfmt, clippy
       - name: Rust Cache
-        uses: Swatinem/rust-cache@v1.2.0
+        uses: Swatinem/rust-cache@v2.2.0
       - name: Run Cargo fmt
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
+        run: cargo fmt --all -- --check
       - name: Run Cargo clippy
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: -- -D warnings
+        run: cargo clippy -- -D warnings
 
   build-aarch64:
     name: Build ARM64 Binaries
@@ -81,20 +61,15 @@ jobs:
     runs-on: ubuntu-latest
     needs: [check, test, lints]
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-          target: ${{ matrix.target }}
-          override: true
+          targets: ${{ matrix.target }}
       - name: Rust Cache
-        uses: Swatinem/rust-cache@v1.2.0
+        uses: Swatinem/rust-cache@v2.2.0
       - name: Compile
-        uses: actions-rs/cargo@v1
-        with:
-          use-cross: true
-          command: build
-          args: --release --target=aarch64-unknown-linux-gnu
+        run: cargo build --release --target=aarch64-unknown-linux-gnu
 
   build-ppc:
     name: Build PowerPC Binaries
@@ -102,23 +77,20 @@ jobs:
     runs-on: ubuntu-18.04
     needs: [check, test, lints]
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-          target: powerpc64-unknown-linux-gnu
-          override: true
+          targets: powerpc64-unknown-linux-gnu
       - name: Rust Cache
-        uses: Swatinem/rust-cache@v1.2.0
+        uses: Swatinem/rust-cache@v2.2.0
       - name: Install PowerPC gcc
         run: |
           sudo apt-get install -y gcc-powerpc64-linux-gnu
           sudo ln -s /usr/bin/powerpc64-linux-gnu-gcc-7 /usr/bin/powerpc-linux-gnu-gcc
       - name: Compile
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release --target=powerpc64-unknown-linux-gnu
+        uses: dtolnay/rust-toolchain@stable
+        run: cargo build --release --target=powerpc64-unknown-linux-gnu
         env:
           RUSTFLAGS: "-C linker=powerpc64-linux-gnu-gcc-7"
 
@@ -128,24 +100,20 @@ jobs:
     runs-on: ubuntu-18.04
     needs: [check, test, lints]
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-          target: x86_64-unknown-linux-gnu
-          override: true
+          targets: x86_64-unknown-linux-gnu
       - name: Rust Cache
-        uses: Swatinem/rust-cache@v1.2.0
+        uses: Swatinem/rust-cache@v2.2.0
       - name: Login to Docker Hub
         uses: docker/login-action@v1
         with:
           username: rohansircar
           password: ${{ secrets.DOCKER_LOGIN_PASSWORD }}
       - name: Compile
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release
+        run: cargo build --release
       - name: Build Image
         run: docker build -f ci.Dockerfile -t rohansircar/actix-demo:latest .
         env:
