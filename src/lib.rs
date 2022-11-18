@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 #![allow(clippy::let_unit_value)]
+#![allow(deprecated)]
 #[macro_use]
 extern crate diesel;
 #[macro_use]
@@ -9,24 +10,28 @@ extern crate derive_new;
 #[macro_use]
 extern crate diesel_derive_newtype;
 
-mod actions;
-mod errors;
+pub mod actions;
+pub mod errors;
 mod middlewares;
 pub mod models;
 mod routes;
 mod schema;
 mod services;
 mod types;
-mod utils;
+pub mod utils;
 
 use actix_files as fs;
-// use actix_identity::{CookieIdentityPolicy, IdentityService};
+
 use actix_web::web::{Data, ServiceConfig};
-use actix_web::{cookie::SameSite, web, App, HttpServer};
-use rand::Rng;
+use actix_web::{web, App, HttpServer};
+use actix_web_httpauth::middleware::HttpAuthentication;
+use jwt_simple::prelude::HS256Key;
+use routes::validate_bearer_auth;
 use serde::Deserialize;
 use std::io;
+use std::sync::Arc;
 use tracing_actix_web::TracingLogger;
+use utils::CredentialsRepo;
 
 use types::DbPool;
 
@@ -46,6 +51,8 @@ pub struct EnvConfig {
     #[serde(default = "default_hash_cost")]
     pub hash_cost: u32,
     pub logger_format: LoggerFormat,
+    #[serde(skip_deserializing)]
+    pub jwt_key: String,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -57,6 +64,8 @@ pub struct AppConfig {
 pub struct AppData {
     pub config: AppConfig,
     pub pool: DbPool,
+    pub credentials_repo: Arc<dyn CredentialsRepo + Send + Sync>,
+    pub jwt_key: HS256Key,
 }
 
 pub fn default_hash_cost() -> u32 {
@@ -68,8 +77,16 @@ pub fn configure_app(
 ) -> Box<dyn Fn(&mut ServiceConfig)> {
     Box::new(move |cfg: &mut ServiceConfig| {
         cfg.app_data(app_data.clone())
+            .service(routes::auth::login)
+            // .service(routes::auth::logout)
+            // public endpoint - not implemented yet
+            .service(web::scope("/api/public").route(
+                "/build-info",
+                web::get().to(routes::misc::build_info_req),
+            ))
             .service(
                 web::scope("/api")
+                    .wrap(HttpAuthentication::bearer(validate_bearer_auth))
                     .service(
                         web::scope("/users")
                             .route("", web::get().to(routes::users::get_users))
@@ -82,33 +99,11 @@ pub fn configure_app(
                                 "/{user_id}",
                                 web::get().to(routes::users::get_user),
                             ),
-                    )
-                    .route(
-                        "/build-info",
-                        web::get().to(routes::misc::build_info_req),
                     ),
             )
-            // .route("/api/users/get", web::get().to(user_controller.get_user.into()))
-            .service(web::scope("/api/public")) // public endpoint - not implemented yet
-            // .service(routes::auth::login)
-            // .service(routes::auth::logout)
-            // .service(routes::auth::index)
-            // .service(routes::users::add_user)
             .service(fs::Files::new("/", "./static"));
     })
 }
-
-//TODO: capture the panic in this method
-// pub fn id_service(
-//     private_key: &[u8],
-// ) -> actix_identity::IdentityService<CookieIdentityPolicy> {
-//     IdentityService::new(
-//         CookieIdentityPolicy::new(&private_key)
-//             .name("my-app-auth")
-//             .secure(false)
-//             .same_site(SameSite::Lax),
-//     )
-// }
 
 pub async fn run(addr: String, app_data: Data<AppData>) -> io::Result<()> {
     let bi = get_build_info();
@@ -127,11 +122,9 @@ pub async fn run(addr: String, app_data: Data<AppData>) -> io::Result<()> {
              \/     \/              \/              \/    \/      \/        
          "#
     );
-    let private_key = rand::thread_rng().gen::<[u8; 32]>();
     let app = move || {
         App::new()
             .configure(configure_app(app_data.clone()))
-            // .wrap(id_service(&private_key))
             .wrap(TracingLogger::default())
     };
     HttpServer::new(app).bind(addr)?.run().await

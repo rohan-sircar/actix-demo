@@ -2,7 +2,7 @@ use diesel::prelude::*;
 
 use crate::models::{self, Pagination, UserId, Username};
 use crate::{errors, models::Password};
-use bcrypt::{hash, verify, DEFAULT_COST};
+use bcrypt::{hash, DEFAULT_COST};
 use validators::prelude::*;
 
 pub fn find_user_by_uid(
@@ -20,8 +20,8 @@ pub fn find_user_by_uid(
     Ok(maybe_user?)
 }
 
-pub fn _find_user_by_name(
-    user_name: Username,
+pub fn find_user_by_name(
+    user_name: &Username,
     conn: &impl diesel::Connection<Backend = diesel::sqlite::Sqlite>,
 ) -> Result<Option<models::User>, errors::DomainError> {
     use crate::schema::users::dsl::*;
@@ -87,20 +87,6 @@ pub fn insert_new_user(
         .first::<models::User>(conn)?;
 
     Ok(user)
-}
-
-//TODO: Add newtype here
-pub fn verify_password(
-    user_name: &str,
-    given_password: &str,
-    conn: &impl diesel::Connection<Backend = diesel::sqlite::Sqlite>,
-) -> Result<bool, errors::DomainError> {
-    use crate::schema::users::dsl::*;
-    let password_hash = users
-        .select(password)
-        .filter(name.eq(user_name))
-        .first::<String>(conn)?;
-    Ok(verify(given_password, password_hash.as_str())?)
 }
 
 mod query {

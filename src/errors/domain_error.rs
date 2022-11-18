@@ -31,7 +31,8 @@ custom_error! { #[derive(new)] #[allow(clippy::enum_variant_names)]
     PasswordError {cause: String} = "Failed to validate password - {cause}",
     EntityDoesNotExistError {message: String} = "Entity does not exist - {message}",
     ThreadPoolError {message: String} = "Thread pool error - {message}",
-    AuthError {message: String} = "Authentication Error - {message}"
+    AuthError {message: String} = "Authentication Error - {message}",
+    JwtError {message: String} = "Jwt Error - {message}"
 }
 
 impl ResponseError for DomainError {
@@ -39,6 +40,7 @@ impl ResponseError for DomainError {
         let err = self;
         match self {
             DomainError::PwdHashError { source: _ } => {
+                let _ = tracing::error!("{}", err);
                 HttpResponse::InternalServerError()
                     .json(ApiResponse::failure(err.to_string()))
             }
@@ -54,10 +56,12 @@ impl ResponseError for DomainError {
                 ))
             }
             DomainError::PasswordError { cause: _ } => {
+                let _ = tracing::error!("{}", err);
                 HttpResponse::BadRequest()
                     .json(ApiResponse::failure(err.to_string()))
             }
             DomainError::EntityDoesNotExistError { message: _ } => {
+                let _ = tracing::error!("{}", err);
                 HttpResponse::NotFound()
                     .json(ApiResponse::failure(err.to_string()))
             }
@@ -70,6 +74,11 @@ impl ResponseError for DomainError {
             DomainError::AuthError { message: _ } => HttpResponse::Forbidden()
                 .json(ApiResponse::failure(err.to_string())),
             DomainError::FieldValidationError { message: _ } => {
+                let _ = tracing::error!("{}", err);
+                HttpResponse::BadRequest()
+                    .json(ApiResponse::failure(err.to_string()))
+            }
+            DomainError::JwtError { message: _ } => {
                 let _ = tracing::error!("{}", err);
                 HttpResponse::BadRequest()
                     .json(ApiResponse::failure(err.to_string()))

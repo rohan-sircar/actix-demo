@@ -5,8 +5,9 @@ use actix_web::web::Data;
 use diesel::r2d2::ConnectionManager;
 use diesel_tracing::sqlite::InstrumentedSqliteConnection;
 use io::ErrorKind;
+use jwt_simple::prelude::HS256Key;
 use std::io;
-use tokio::sync::RwLock;
+use std::sync::Arc;
 use tracing::subscriber::set_global_default;
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer};
@@ -64,11 +65,17 @@ async fn main() -> io::Result<()> {
             })?;
     };
 
+    let credentials_repo =
+        Arc::new(actix_demo::utils::InMemoryCredentialsRepo::default());
+    let key = HS256Key::from_bytes(env_config.jwt_key.as_bytes());
+
     let app_data = Data::new(AppData {
         config: AppConfig {
             hash_cost: env_config.hash_cost,
         },
         pool: pool.clone(),
+        credentials_repo,
+        jwt_key: key,
     });
 
     actix_demo::run(format!("{}:7800", env_config.http_host), app_data).await

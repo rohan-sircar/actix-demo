@@ -1,17 +1,22 @@
 extern crate actix_demo;
+use actix_demo::models::{NewUser, Password, Username};
 use actix_demo::{AppConfig, AppData, EnvConfig};
-use actix_web::test;
+use actix_http::header::HeaderValue;
 use actix_web::App;
+use actix_web::{test, web};
 
 use actix_web::web::Data;
 use diesel::r2d2::{self, ConnectionManager};
+use jwt_simple::prelude::HS256Key;
 use std::io;
 use std::io::ErrorKind;
+use std::sync::Arc;
 use tracing::subscriber::set_global_default;
 use tracing_actix_web::TracingLogger;
 use tracing_log::LogTracer;
 use tracing_subscriber::fmt::{format::FmtSpan, Subscriber as FmtSubscriber};
 use tracing_subscriber::{layer::SubscriberExt, EnvFilter};
+use validators::prelude::*;
 
 use actix_demo::configure_app;
 
@@ -110,13 +115,60 @@ pub async fn test_app() -> io::Result<
         })?;
     };
 
+    let _ = {
+        let pool = pool.clone();
+        let _ = web::block(move || {
+            let conn = &pool.get()?;
+            actix_demo::actions::insert_new_user(
+                NewUser {
+                    name: Username::parse_str("user1").unwrap(),
+                    password: Password::parse_str("test").unwrap(),
+                },
+                conn,
+                Some(8),
+            )
+        })
+        .await
+        .map_err(|err| {
+            actix_demo::errors::DomainError::new_thread_pool_error(
+                err.to_string(),
+            )
+        })
+        .unwrap()
+        .unwrap();
+    };
+
+    let credentials_repo =
+        Arc::new(actix_demo::utils::InMemoryCredentialsRepo::default());
+    let key = HS256Key::from_bytes("test".as_bytes());
+
     Ok(test::init_service(
         App::new()
             .configure(configure_app(Data::new(AppData {
                 config: AppConfig { hash_cost: 8 },
                 pool,
+                credentials_repo,
+                jwt_key: key,
             })))
             .wrap(TracingLogger::default()),
     )
     .await)
+}
+
+pub async fn get_token(
+    test_app: &impl ax_dev::Service<
+        Request,
+        Response = ax_dev::ServiceResponse<impl actix_web::body::MessageBody>,
+        Error = AxError,
+    >,
+) -> HeaderValue {
+    let req = test::TestRequest::post()
+        .append_header(("content-type", "application/json"))
+        .set_payload(r#"{"name":"user1","password":"test"}"#)
+        .uri("/api/login")
+        .to_request();
+    let resp: ax_dev::ServiceResponse<_> = test_app.call(req).await.unwrap();
+    // let body: ApiResponse<String> = test::read_body_json(resp).await;
+    // println!("{:?}", body);
+    resp.headers().get("X-AUTH-TOKEN").unwrap().clone()
 }

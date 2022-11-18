@@ -94,6 +94,13 @@ pub struct NewUser {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+pub struct UserLogin {
+    pub name: Username,
+    #[serde(skip_serializing)]
+    pub password: Password,
+}
+
+#[derive(Debug, Clone, Deserialize)]
 #[serde(try_from = "u16")]
 pub struct PaginationOffset(u16);
 impl PaginationOffset {

@@ -1,89 +1,116 @@
-use actix_web::web;
-use actix_web_httpauth::extractors::basic::BasicAuth;
+use std::sync::Arc;
 
+use crate::actions::find_user_by_name;
 use crate::errors::DomainError;
-use crate::{actions::users, AppData};
-use actix_identity::Identity;
-use actix_web::{get, Error, HttpResponse};
+use crate::models::{UserId, UserLogin, Username};
+use crate::AppData;
+use actix_http::Payload;
+use actix_web::dev::ServiceRequest;
+use actix_web::web::{self, Data};
+use actix_web::{post, Error, HttpResponse};
+use actix_web_httpauth::extractors::bearer::BearerAuth;
+use bcrypt::verify;
+use jwt_simple::prelude::*;
 
-// #[get("/login")]
-// pub async fn login(
-//     id: Identity,
-//     credentials: BasicAuth,
-//     app_data: web::Data<AppData>,
-// ) -> Result<HttpResponse, DomainError> {
-//     let maybe_identity = id.id();
-//     let response = match maybe_identity {
-//         Ok(identity) => Ok(HttpResponse::Found()
-//             .header("location", "/")
-//             .content_type("text/plain")
-//             .json(format!("Already logged in as {}", identity))),
-//         Err(error) => {
-//             let credentials2 = credentials.clone();
-//             let valid = web::block(move || {
-//                 validate_basic_auth(credentials2, &app_data)
-//             })
-//             .await
-//             .map_err(|_err| {
-//                 DomainError::new_thread_pool_error(_err.to_string())
-//             })?;
-//             if valid {
-//                 // id.(credentials.user_id().to_string());
-//                 Ok(HttpResponse::Found().header("location", "/").finish())
-//             } else {
-//                 Err(DomainError::new_auth_error(
-//                     "Wrong password or account does not exist".to_owned(),
-//                 ))
-//             }
-//         }
-//     };
-//     response
-// }
+#[derive(Serialize, Deserialize)]
+struct AuthData {
+    user_id: UserId,
+    username: Username,
+}
 
-//TODO: fix the response
-// #[get("/logout")]
-// pub async fn logout(
-//     id: Identity,
-//     _credentials: BasicAuth,
-// ) -> Result<HttpResponse, Error> {
-//     let maybe_identity = id.identity();
-//     let response = if let Some(identity) = maybe_identity {
-//         let _ = tracing::info!("Logging out {user}", user = identity);
-//         id.forget();
-//         HttpResponse::Found().header("location", "/").finish()
-//     } else {
-//         HttpResponse::Found()
-//             .header("location", "/")
-//             .content_type("text/plain")
-//             .json("Not logged in")
-//     };
-//     Ok(response)
-// }
+//TODO - fix error messages
+#[tracing::instrument(level = "info", skip(req))]
+pub async fn validate_bearer_auth(
+    req: ServiceRequest,
+    credentials: BearerAuth,
+) -> Result<ServiceRequest, (Error, ServiceRequest)> {
+    let app_data = req.app_data::<Data<AppData>>().cloned().unwrap();
+    let token: String = credentials.token().into();
+    let (http_req, payload) = req.into_parts();
+    let claims = app_data
+        .jwt_key
+        .verify_token::<AuthData>(&token, None)
+        .map_err(|err| {
+            (
+                Error::from(DomainError::new_auth_error(format!(
+                    "Failed to verify token - {}",
+                    err
+                ))),
+                ServiceRequest::from_parts(http_req.clone(), Payload::None),
+            )
+        })?;
+    let user_id = claims.custom.user_id;
+    let credentials_repo = &app_data.credentials_repo;
 
-// #[get("/")]
-// pub async fn index(id: Identity) -> String {
-//     format!(
-//         "Hello {}",
-//         id.identity().unwrap_or_else(|| "Anonymous".to_owned())
-//     )
-// }
+    let session_token = credentials_repo
+        .load(&user_id)
+        .await
+        .map_err(|err| {
+            (
+                Error::from(DomainError::new_auth_error(format!(
+                    "Session does not exist for user id - {}, {}",
+                    &user_id, err
+                ))),
+                ServiceRequest::from_parts(http_req.clone(), Payload::None),
+            )
+        })?
+        .unwrap_or_default();
 
-/// basic auth middleware function
-pub fn validate_basic_auth(
-    credentials: BasicAuth,
-    app_data: &AppData,
-) -> Result<bool, DomainError> {
-    let result = if let Some(password_ref) = credentials.password() {
-        let pool = &app_data.pool;
-        let conn = pool.get()?;
-        let password = password_ref;
-        let valid =
-            users::verify_password(credentials.user_id(), &password, &conn)?;
-        Ok(valid)
+    if token.eq(&session_token) {
+        Ok(ServiceRequest::from_parts(http_req, payload))
     } else {
-        Err(DomainError::new_password_error(
-            "No password given".to_owned(),
+        Err((
+            Error::from(DomainError::new_auth_error(
+                "Invalid token".to_owned(),
+            )),
+            ServiceRequest::from_parts(http_req.clone(), Payload::None),
         ))
-    };
-    result
+    }
+}
+
+#[tracing::instrument(level = "info", skip(app_data))]
+#[post("/api/login")]
+pub async fn login(
+    user_login: web::Json<UserLogin>,
+    app_data: web::Data<AppData>,
+) -> Result<HttpResponse, DomainError> {
+    let user_login = Arc::new(user_login.into_inner());
+    let user_login2 = user_login.clone();
+    let credentials_repo = &app_data.credentials_repo;
+    let pool = app_data.pool.clone();
+    let mb_user = web::block(move || {
+        let conn = pool.get()?;
+        find_user_by_name(&user_login.name, &conn)
+    })
+    .await
+    .map_err(|err| DomainError::new_thread_pool_error(err.to_string()))??;
+    let token = match mb_user {
+        Some(user) => {
+            if verify(user_login2.password.as_str(), user.password.as_str())? {
+                let auth_data = AuthData {
+                    user_id: user.id.clone(),
+                    username: user.name,
+                };
+                let claims = Claims::with_custom_claims(
+                    auth_data,
+                    Duration::from_hours(2),
+                );
+                let token =
+                    app_data.jwt_key.authenticate(claims).map_err(|err| {
+                        DomainError::new_jwt_error(err.to_string())
+                    })?;
+                let _ = credentials_repo.save(&user.id, &token).await?;
+                Ok(token)
+            } else {
+                Err(DomainError::new_auth_error("Wrong password".to_owned()))
+            }
+        }
+        None => Err(DomainError::AuthError {
+            message: "User does not exist".to_owned(),
+        }),
+    }?;
+
+    Ok(HttpResponse::Ok()
+        .insert_header(("X-AUTH-TOKEN", token))
+        .finish())
 }
