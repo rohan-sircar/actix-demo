@@ -11,7 +11,9 @@ mod tests {
 
     #[actix_rt::test]
     async fn get_build_info_should_succeed() {
-        let req = test::TestRequest::get().uri("/api/public/build-info").to_request();
+        let req = test::TestRequest::get()
+            .uri("/api/public/build-info")
+            .to_request();
         let resp = common::test_app().await.unwrap().call(req).await.unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
         let body: build_info::BuildInfo = test::read_body_json(resp).await;
