@@ -1,4 +1,4 @@
-FROM debian:buster-slim
+FROM debian:bullseye-slim
 ARG APP=/usr/src/app
 
 RUN apt-get update \

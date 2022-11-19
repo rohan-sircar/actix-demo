@@ -1,4 +1,4 @@
-FROM rust:1.51 as builder
+FROM rust:1.65 as builder
 
 # ENV CARGO_HOME=/actix-demo/.cargo
 RUN USER=root cargo new --bin actix-demo
@@ -11,17 +11,18 @@ RUN cargo build --release
 RUN rm -r src/*.rs
 
 COPY ./src ./src
+COPY ./build.rs ./build.rs
 RUN rm ./target/release/deps/actix_demo*
 RUN cargo build --release
 
-FROM debian:buster-slim
+FROM debian:bullseye-slim
 ARG APP=/usr/src/app
 
 RUN apt-get update \
     && apt-get install -y ca-certificates tzdata \
     && rm -rf /var/lib/apt/lists/*
 
-EXPOSE 8000
+EXPOSE 7800
 
 ENV TZ=Etc/UTC \
     APP_USER=appuser
