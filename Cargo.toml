@@ -7,6 +7,8 @@ edition = '2018'
 [dependencies]
 tokio = { version = "1.21.2", features = ["sync"] }
 anyhow = "1.0.66"
+async-recursion = "1.0.0"
+actix-ws = "0.2.5"
 actix-web = "4.2.1"
 actix-service = "2.0.0"
 actix-files = "0.6.2"
@@ -47,6 +49,7 @@ diesel-tracing = { version = "0.1.6", features = ["sqlite"] }
 diesel-derive-newtype = "1.0.0"
 derive_more = "0.99.13"
 tracing-appender = "0.2.2"
+actix-rt = "2.7.0"
 
 [dependencies.validators]
 version = "0.24.3"
@@ -80,8 +83,6 @@ features = ['bundled']
 version = "0.4.19"
 features = ['serde']
 
-[dev-dependencies]
-actix-rt = "2.7.0"
 
 [build-dependencies]
 build-info-build = "0.0.28"

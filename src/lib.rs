@@ -26,7 +26,7 @@ use actix_web::web::{Data, ServiceConfig};
 use actix_web::{web, App, HttpServer};
 use actix_web_httpauth::middleware::HttpAuthentication;
 use jwt_simple::prelude::HS256Key;
-use routes::validate_bearer_auth;
+use routes::auth::validate_bearer_auth;
 use serde::Deserialize;
 use std::io;
 use std::sync::Arc;
@@ -78,6 +78,12 @@ pub fn configure_app(
     Box::new(move |cfg: &mut ServiceConfig| {
         cfg.app_data(app_data.clone())
             .service(routes::auth::login)
+            .service(routes::users::add_user)
+            .service(
+                web::scope("/ws")
+                    // .wrap(HttpAuthentication::bearer(validate_bearer_auth))
+                    .route("", web::get().to(routes::misc::ws)),
+            )
             // .service(routes::auth::logout)
             // public endpoint - not implemented yet
             .service(web::scope("/api/public").route(
@@ -94,14 +100,13 @@ pub fn configure_app(
                                 "/search",
                                 web::get().to(routes::users::search_users),
                             )
-                            .route("", web::put().to(routes::users::add_user))
                             .route(
                                 "/{user_id}",
                                 web::get().to(routes::users::get_user),
                             ),
                     ),
             )
-            .service(fs::Files::new("/", "./static"));
+            .service(fs::Files::new("/", "./static").index_file("index.html"));
     })
 }
 

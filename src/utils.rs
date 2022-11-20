@@ -1,3 +1,4 @@
+pub mod broadcast_demo;
 pub mod credentials_repo;
 pub mod in_memory_credentials_repo;
 pub mod regex;
