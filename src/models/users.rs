@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::schema::users;
+use crate::schema::users2;
 use crate::utils::regex;
 use derive_more::{Display, Into};
 use std::convert::TryFrom;
@@ -76,17 +76,18 @@ impl Password {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Queryable, Identifiable)]
-#[table_name = "users"]
+#[table_name = "users2"]
 pub struct User {
     pub id: UserId,
     pub name: Username,
     #[serde(skip_serializing)]
     pub password: Password,
+    pub role: i32,
     pub created_at: chrono::NaiveDateTime,
 }
 
 #[derive(Debug, Clone, Insertable, Deserialize)]
-#[table_name = "users"]
+#[table_name = "users2"]
 pub struct NewUser {
     pub name: Username,
     #[serde(skip_serializing)]

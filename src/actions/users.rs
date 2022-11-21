@@ -1,18 +1,27 @@
 use diesel::prelude::*;
 
+use crate::models::roles::Role;
 use crate::models::{self, Pagination, UserId, Username};
 use crate::{errors, models::Password};
 use bcrypt::{hash, DEFAULT_COST};
 use validators::prelude::*;
 
+pub fn find_role_by_id(
+    conn: &impl diesel::Connection<Backend = diesel::sqlite::Sqlite>,
+) -> Result<Vec<Role>, errors::DomainError> {
+    use crate::schema::roles::dsl::*;
+    let res = roles.load::<Role>(conn);
+    Ok(())
+}
+
 pub fn find_user_by_uid(
     uid: &UserId,
     conn: &impl diesel::Connection<Backend = diesel::sqlite::Sqlite>,
 ) -> Result<Option<models::User>, errors::DomainError> {
-    use crate::schema::users::dsl::*;
+    use crate::schema::users2::dsl::*;
 
-    let maybe_user = users
-        .select(users::all_columns())
+    let maybe_user = users2
+        .select(users2::all_columns())
         .find(uid)
         .first::<models::User>(conn)
         .optional();
@@ -24,7 +33,7 @@ pub fn find_user_by_name(
     user_name: &Username,
     conn: &impl diesel::Connection<Backend = diesel::sqlite::Sqlite>,
 ) -> Result<Option<models::User>, errors::DomainError> {
-    use crate::schema::users::dsl::*;
+    use crate::schema::users2::dsl::*;
     let maybe_user = query::_get_user_by_name()
         .filter(name.eq(user_name))
         .first::<models::User>(conn)
@@ -59,7 +68,7 @@ pub fn search_users(
     pagination: &Pagination,
     conn: &impl diesel::Connection<Backend = diesel::sqlite::Sqlite>,
 ) -> Result<Vec<models::User>, errors::DomainError> {
-    use crate::schema::users::dsl::*;
+    use crate::schema::users2::dsl::*;
     Ok(query::_paginate_result(pagination)
         .filter(name.like(format!("%{}%", query)))
         .load::<models::User>(conn)?)
@@ -70,7 +79,7 @@ pub fn insert_new_user(
     conn: &impl diesel::Connection<Backend = diesel::sqlite::Sqlite>,
     hash_cost: Option<u32>,
 ) -> Result<models::User, errors::DomainError> {
-    use crate::schema::users::dsl::*;
+    use crate::schema::users2::dsl::*;
     let nu = {
         let mut nu2 = nu;
         let hash =
@@ -81,7 +90,7 @@ pub fn insert_new_user(
         nu2
     };
 
-    diesel::insert_into(users).values(&nu).execute(conn)?;
+    diesel::insert_into(users2).values(&nu).execute(conn)?;
     let user = query::_get_user_by_name()
         .filter(name.eq(nu.name.as_str()))
         .first::<models::User>(conn)?;
@@ -97,19 +106,19 @@ mod query {
     use diesel::sqlite::Sqlite;
 
     /// <'a, B, T> where a = lifetime, B = Backend, T = SQL data types
-    type Query<'a, B, T> = crate::schema::users::BoxedQuery<'a, B, T>;
+    type Query<'a, B, T> = crate::schema::users2::BoxedQuery<'a, B, T>;
 
     pub fn _get_user_by_name(
-    ) -> Query<'static, Sqlite, (Integer, Text, Text, Timestamp)> {
-        use crate::schema::users::dsl::*;
-        users.into_boxed()
+    ) -> Query<'static, Sqlite, (Integer, Text, Text, Integer, Timestamp)> {
+        use crate::schema::users2::dsl::*;
+        users2.into_boxed()
     }
 
     pub fn _paginate_result(
         pagination: &Pagination,
-    ) -> Query<'static, Sqlite, (Integer, Text, Text, Timestamp)> {
-        use crate::schema::users::dsl::*;
-        users
+    ) -> Query<'static, Sqlite, (Integer, Text, Text, Integer, Timestamp)> {
+        use crate::schema::users2::dsl::*;
+        users2
             .order_by(created_at)
             .offset(pagination.calc_offset().as_uint().into())
             .limit(pagination.limit.as_uint().into())
