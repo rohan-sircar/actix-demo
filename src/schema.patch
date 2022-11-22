@@ -1,29 +1,12 @@
 diff --git a/src/schema.rs b/src/schema.rs
-index 5955903..5563a8e 100644
+index 6b1de4a..0a9446d 100644
 --- a/src/schema.rs
 +++ b/src/schema.rs
-@@ -7,23 +7,19 @@ table! {
-         name -> Role_name,
-     }
- }
- 
+@@ -1,6 +1,7 @@
++#![allow(unused_imports)]
  table! {
      use diesel::sql_types::*;
--    use crate::models::roles::*;
+     use crate::models::roles::*;
  
-     users (id) {
+     roles (id) {
          id -> Int4,
-         name -> Varchar,
-         password -> Varchar,
-         created_at -> Timestamp,
-         role_id -> Int4,
-     }
- }
- 
- joinable!(users -> roles (role_id));
- 
--allow_tables_to_appear_in_same_query!(
--    roles,
--    users,
--);
-+allow_tables_to_appear_in_same_query!(roles, users,);

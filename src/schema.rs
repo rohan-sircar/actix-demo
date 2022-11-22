@@ -1,3 +1,4 @@
+#![allow(unused_imports)]
 table! {
     use diesel::sql_types::*;
     use crate::models::roles::*;
