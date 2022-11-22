@@ -1,10 +1,8 @@
 FROM rust:1.65 as builder
 
-# ENV CARGO_HOME=/actix-demo/.cargo
 RUN USER=root cargo new --bin actix-demo
 WORKDIR /actix-demo
 
-# COPY ./.cargo ./.cargo
 COPY ./Cargo.toml ./Cargo.toml
 COPY ./Cargo.lock ./Cargo.lock
 RUN cargo build --release
@@ -19,7 +17,7 @@ FROM debian:bullseye-slim
 ARG APP=/usr/src/app
 
 RUN apt-get update \
-    && apt-get install -y ca-certificates tzdata \
+    && apt-get install -y ca-certificates tzdata libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
 EXPOSE 7800
@@ -34,7 +32,6 @@ RUN groupadd $APP_USER \
 COPY ./.env ${APP}/.env
 COPY ./migrations ${APP}/migrations
 COPY ./static ${APP}/static
-COPY ./db/empty.db ${APP}/data/app.db
 COPY --from=builder /actix-demo/target/release/actix-demo ${APP}/actix-demo
 
 RUN chown -R $APP_USER:$APP_USER ${APP}

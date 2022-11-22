@@ -44,7 +44,7 @@ tracing-subscriber = { version = "0.3.16", features = [
 tracing-futures = "0.2.5"
 tracing-actix-web = "0.6.2"
 tracing-bunyan-formatter = "0.3.4"
-diesel-tracing = { version = "0.1.6", features = ["sqlite"] }
+diesel-tracing = { version = "0.1.6", features = ["postgres"] }
 
 diesel-derive-newtype = "1.0.0"
 derive_more = "0.99.13"
@@ -82,6 +82,10 @@ features = ['bundled']
 [dependencies.chrono]
 version = "0.4.19"
 features = ['serde']
+
+[dev-dependencies]
+testcontainers = { git = "https://github.com/testcontainers/testcontainers-rs/" } # testcontainers = "0.14.0"
+tokio-postgres = "0.7.7"
 
 
 [build-dependencies]

@@ -3,7 +3,7 @@
 use actix_demo::{AppConfig, AppData, EnvConfig, LoggerFormat};
 use actix_web::web::Data;
 use diesel::r2d2::ConnectionManager;
-use diesel_tracing::sqlite::InstrumentedSqliteConnection;
+use diesel_tracing::pg::InstrumentedPgConnection;
 use io::ErrorKind;
 use jwt_simple::prelude::HS256Key;
 use std::io;
@@ -39,8 +39,7 @@ async fn main() -> io::Result<()> {
     let _guard = setup_logger(env_config.logger_format)?;
 
     let connspec = &env_config.database_url;
-    let manager =
-        ConnectionManager::<InstrumentedSqliteConnection>::new(connspec);
+    let manager = ConnectionManager::<InstrumentedPgConnection>::new(connspec);
     let pool = r2d2::Pool::builder().build(manager).map_err(|err| {
         io::Error::new(
             ErrorKind::Other,

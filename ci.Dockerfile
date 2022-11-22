@@ -2,7 +2,7 @@ FROM debian:bullseye-slim
 ARG APP=/usr/src/app
 
 RUN apt-get update \
-    && apt-get install -y ca-certificates tzdata \
+    && apt-get install -y ca-certificates tzdata libpq-dev\
     && rm -rf /var/lib/apt/lists/*
 
 EXPOSE 8000
@@ -17,8 +17,7 @@ RUN groupadd $APP_USER \
 COPY ./.env ${APP}/.env
 COPY ./migrations ${APP}/migrations
 COPY ./static ${APP}/static
-COPY ./db/empty.db ${APP}/data/app.db
-COPY ./target/release/actix-demo ${APP}/actix-demo
+COPY ./target/debug/actix-demo ${APP}/actix-demo
 
 RUN chown -R $APP_USER:$APP_USER ${APP}
 

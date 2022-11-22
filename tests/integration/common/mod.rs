@@ -11,6 +11,9 @@ use jwt_simple::prelude::HS256Key;
 use std::io;
 use std::io::ErrorKind;
 use std::sync::Arc;
+use testcontainers::core::WaitFor;
+use testcontainers::images::generic::GenericImage;
+use testcontainers::*;
 use tracing::subscriber::set_global_default;
 use tracing_actix_web::TracingLogger;
 use tracing_log::LogTracer;
@@ -23,7 +26,9 @@ use actix_demo::configure_app;
 use actix_http::Request;
 use actix_web::{dev as ax_dev, Error as AxError};
 
-pub async fn test_app() -> io::Result<
+pub async fn test_app(
+    connspec: &str,
+) -> io::Result<
     impl ax_dev::Service<
         Request,
         Response = ax_dev::ServiceResponse<impl actix_web::body::MessageBody>,
@@ -76,9 +81,8 @@ pub async fn test_app() -> io::Result<
         )
     });
 
-    let connspec = ":memory:";
     let manager = ConnectionManager::<
-        diesel_tracing::sqlite::InstrumentedSqliteConnection,
+        diesel_tracing::pg::InstrumentedPgConnection,
     >::new(connspec);
     let pool = r2d2::Pool::builder().build(manager).map_err(|err| {
         io::Error::new(
@@ -142,7 +146,7 @@ pub async fn test_app() -> io::Result<
         Arc::new(actix_demo::utils::InMemoryCredentialsRepo::default());
     let key = HS256Key::from_bytes("test".as_bytes());
 
-    Ok(test::init_service(
+    let test_app = test::init_service(
         App::new()
             .configure(configure_app(Data::new(AppData {
                 config: AppConfig { hash_cost: 8 },
@@ -152,7 +156,8 @@ pub async fn test_app() -> io::Result<
             })))
             .wrap(TracingLogger::default()),
     )
-    .await)
+    .await;
+    Ok(test_app)
 }
 
 pub async fn get_token(
@@ -171,4 +176,30 @@ pub async fn get_token(
     // let body: ApiResponse<String> = test::read_body_json(resp).await;
     // println!("{:?}", body);
     resp.headers().get("X-AUTH-TOKEN").unwrap().clone()
+}
+
+pub fn start_pg_container(
+    docker: &'_ clients::Cli,
+) -> (String, u16, Container<'_, GenericImage>) {
+    let db = "postgres-db-test";
+    let user = "postgres-user-test";
+    let password = "postgres-password-test";
+
+    let generic_postgres =
+        images::generic::GenericImage::new("postgres", "15-alpine")
+            .with_wait_for(WaitFor::message_on_stderr(
+                "database system is ready to accept connections",
+            ))
+            .with_env_var("POSTGRES_DB", db)
+            .with_env_var("POSTGRES_USER", user)
+            .with_env_var("POSTGRES_PASSWORD", password);
+    // .with_exposed_port(port);
+
+    let node = docker.run(generic_postgres);
+    let port = node.get_host_port_ipv4(5432);
+
+    let connection_string =
+        format!("postgres://{}:{}@127.0.0.1:{}/{}", user, password, port, db);
+
+    (connection_string, port, node)
 }

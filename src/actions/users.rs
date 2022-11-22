@@ -7,7 +7,7 @@ use validators::prelude::*;
 
 pub fn find_user_by_uid(
     uid: &UserId,
-    conn: &impl diesel::Connection<Backend = diesel::sqlite::Sqlite>,
+    conn: &impl diesel::Connection<Backend = diesel::pg::Pg>,
 ) -> Result<Option<models::User>, errors::DomainError> {
     use crate::schema::users::dsl::*;
 
@@ -22,7 +22,7 @@ pub fn find_user_by_uid(
 
 pub fn find_user_by_name(
     user_name: &Username,
-    conn: &impl diesel::Connection<Backend = diesel::sqlite::Sqlite>,
+    conn: &impl diesel::Connection<Backend = diesel::pg::Pg>,
 ) -> Result<Option<models::User>, errors::DomainError> {
     use crate::schema::users::dsl::*;
     let maybe_user = query::_get_user_by_name()
@@ -49,7 +49,7 @@ pub fn find_user_by_name(
 
 pub fn get_all_users(
     pagination: &Pagination,
-    conn: &impl diesel::Connection<Backend = diesel::sqlite::Sqlite>,
+    conn: &impl diesel::Connection<Backend = diesel::pg::Pg>,
 ) -> Result<Vec<models::User>, errors::DomainError> {
     Ok(query::_paginate_result(pagination).load::<models::User>(conn)?)
 }
@@ -57,7 +57,7 @@ pub fn get_all_users(
 pub fn search_users(
     query: &str,
     pagination: &Pagination,
-    conn: &impl diesel::Connection<Backend = diesel::sqlite::Sqlite>,
+    conn: &impl diesel::Connection<Backend = diesel::pg::Pg>,
 ) -> Result<Vec<models::User>, errors::DomainError> {
     use crate::schema::users::dsl::*;
     Ok(query::_paginate_result(pagination)
@@ -67,7 +67,7 @@ pub fn search_users(
 
 pub fn insert_new_user(
     nu: models::NewUser,
-    conn: &impl diesel::Connection<Backend = diesel::sqlite::Sqlite>,
+    conn: &impl diesel::Connection<Backend = diesel::pg::Pg>,
     hash_cost: Option<u32>,
 ) -> Result<models::User, errors::DomainError> {
     use crate::schema::users::dsl::*;
@@ -91,23 +91,23 @@ pub fn insert_new_user(
 
 mod query {
     use super::*;
+    use diesel::pg::Pg;
     use diesel::sql_types::Integer;
     use diesel::sql_types::Text;
     use diesel::sql_types::Timestamp;
-    use diesel::sqlite::Sqlite;
 
     /// <'a, B, T> where a = lifetime, B = Backend, T = SQL data types
     type Query<'a, B, T> = crate::schema::users::BoxedQuery<'a, B, T>;
 
     pub fn _get_user_by_name(
-    ) -> Query<'static, Sqlite, (Integer, Text, Text, Timestamp)> {
+    ) -> Query<'static, Pg, (Integer, Text, Text, Timestamp)> {
         use crate::schema::users::dsl::*;
         users.into_boxed()
     }
 
     pub fn _paginate_result(
         pagination: &Pagination,
-    ) -> Query<'static, Sqlite, (Integer, Text, Text, Timestamp)> {
+    ) -> Query<'static, Pg, (Integer, Text, Text, Timestamp)> {
         use crate::schema::users::dsl::*;
         users
             .order_by(created_at)
