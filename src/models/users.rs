@@ -196,32 +196,32 @@ mod test {
     fn user_model_refinement_test() {
         //yes I had been watching a lot of star wars lately
         let mb_user = serde_json::from_str::<User>(
-            r#"{"id":1,"name":"chewbacca","password":"aeqfq3fq","created_at":"2021-05-12T12:37:56"}"#,
+            r#"{"id":1,"name":"chewbacca","password":"aeqfq3fq", "role":3, "created_at":"2021-05-12T12:37:56"}"#,
         );
         // println!("{:?}", mb_user);
         assert!(mb_user.is_ok());
         let mb_user = serde_json::from_str::<User>(
-            r#"{"id":1,"name":"chew-bacca","password":"aeqfq3fq","created_at":"2021-05-12T12:37:56"}"#,
+            r#"{"id":1,"name":"chew-bacca","password":"aeqfq3fq","role":3,"created_at":"2021-05-12T12:37:56"}"#,
         );
         assert!(mb_user.is_ok());
         let mb_user = serde_json::from_str::<User>(
-            r#"{"id":1,"name":"chew.bacca","password":"aeqfq3fq","created_at":"2021-05-12T12:37:56"}"#,
+            r#"{"id":1,"name":"chew.bacca","password":"aeqfq3fq","role":3,"created_at":"2021-05-12T12:37:56"}"#,
         );
         assert!(mb_user.is_err());
         let mb_user = serde_json::from_str::<User>(
-            r#"{"id":-1,"name":"chewbacca","password":"aeqfq3fq","created_at":"2021-05-12T12:37:56"}"#,
+            r#"{"id":-1,"name":"chewbacca","password":"aeqfq3fq","role":3,"created_at":"2021-05-12T12:37:56"}"#,
         );
         assert!(mb_user.is_err());
         let mb_user = serde_json::from_str::<User>(
-            r#"{"id":1,"name":"ch","password":"aeqfq3fq","created_at":"2021-05-12T12:37:56"}"#,
+            r#"{"id":1,"name":"ch","password":"aeqfq3fq","role":3,"created_at":"2021-05-12T12:37:56"}"#,
         );
         assert!(mb_user.is_err());
         let mb_user = serde_json::from_str::<User>(
-            r#"{"id":1,"name":"chaegw;eaef","password":"aeqfq3fq","created_at":"2021-05-12T12:37:56"}"#,
+            r#"{"id":1,"name":"chaegw;eaef","password":"aeqfq3fq","role":3,"created_at":"2021-05-12T12:37:56"}"#,
         );
         assert!(mb_user.is_err());
         let mb_user = serde_json::from_str::<User>(
-            r#"{"id":1,"name":"chaegw_eaef","password":"aeqfq3fq","created_at":"2021-05-12T12:37:56"}"#,
+            r#"{"id":1,"name":"chaegw_eaef","password":"aeqfq3fq","role":3,"created_at":"2021-05-12T12:37:56"}"#,
         );
         assert!(mb_user.is_err());
     }
