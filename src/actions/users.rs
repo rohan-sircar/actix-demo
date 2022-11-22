@@ -1,66 +1,92 @@
 use diesel::prelude::*;
 
-use crate::models::roles::Role;
-use crate::models::{self, Pagination, UserId, Username};
+use crate::models::{self, Pagination, User, UserId, Username};
 use crate::{errors, models::Password};
 use bcrypt::{hash, DEFAULT_COST};
 use validators::prelude::*;
-
-pub fn find_role_by_id(
-    conn: &impl diesel::Connection<Backend = diesel::pg::Pg>,
-) -> Result<Vec<Role>, errors::DomainError> {
-    use crate::schema::roles::dsl::*;
-    let res = roles.load::<Role>(conn);
-    Ok(res?)
-}
 
 pub fn find_user_by_uid(
     uid: &UserId,
     conn: &impl diesel::Connection<Backend = diesel::pg::Pg>,
 ) -> Result<Option<models::User>, errors::DomainError> {
-    use crate::schema::users::dsl::*;
+    use crate::schema::roles::dsl as roles;
+    use crate::schema::users::dsl as users;
 
-    let maybe_user = users
-        .select(users::all_columns())
-        .find(uid)
-        .first::<models::User>(conn)
+    let maybe_user = users::users
+        .inner_join(roles::roles)
+        .select((
+            users::id,
+            users::username,
+            users::created_at,
+            roles::role_name,
+        ))
+        .filter(users::id.eq(uid))
+        .first::<User>(conn)
         .optional();
 
     Ok(maybe_user?)
 }
 
-pub fn find_user_by_name(
+pub fn find_user_by_name2(
     user_name: &Username,
     conn: &impl diesel::Connection<Backend = diesel::pg::Pg>,
 ) -> Result<Option<models::User>, errors::DomainError> {
-    use crate::schema::users::dsl::*;
-    let maybe_user = query::_get_user_by_name()
-        .filter(name.eq(user_name))
+    use crate::schema::roles::dsl as roles;
+    use crate::schema::users::dsl as users;
+    let maybe_user = users::users
+        .inner_join(roles::roles)
+        .select((
+            users::id,
+            users::username,
+            users::created_at,
+            roles::role_name,
+        ))
+        .filter(users::username.eq(user_name))
         .first::<models::User>(conn)
         .optional();
 
     Ok(maybe_user?)
 }
 
-// def findAll(userId: Long, limit: Int, offset: Int) = db.run {
-//     for {
-//       comments <- query.filter(_.creatorId === userId)
-//                        .sortBy(_.createdAt)
-//                        .drop(offset).take(limit)
-//                        .result
-//       numberOfComments <- query.filter(_.creatorId === userId).length.result
-//     } yield PaginatedResult(
-//         totalCount = numberOfComments,
-//         entities = comments.toList,
-//         hasNextPage = numberOfComments - (offset + limit) > 0
-//     )
-//   }
+pub fn get_user_auth_details(
+    user_name: &Username,
+    conn: &impl diesel::Connection<Backend = diesel::pg::Pg>,
+) -> Result<Option<models::UserAuthDetails>, errors::DomainError> {
+    use crate::schema::roles::dsl as roles;
+    use crate::schema::users::dsl as users;
+    let maybe_user = users::users
+        .inner_join(roles::roles)
+        .select((
+            users::id,
+            users::username,
+            users::password,
+            roles::role_name,
+        ))
+        .filter(users::username.eq(user_name))
+        .first::<models::UserAuthDetails>(conn)
+        .optional();
+
+    Ok(maybe_user?)
+}
 
 pub fn get_all_users(
     pagination: &Pagination,
     conn: &impl diesel::Connection<Backend = diesel::pg::Pg>,
 ) -> Result<Vec<models::User>, errors::DomainError> {
-    Ok(query::_paginate_result(pagination).load::<models::User>(conn)?)
+    use crate::schema::roles::dsl as roles;
+    use crate::schema::users::dsl as users;
+    Ok(users::users
+        .inner_join(roles::roles)
+        .select((
+            users::id,
+            users::username,
+            users::created_at,
+            roles::role_name,
+        ))
+        .order_by(users::created_at)
+        .offset(pagination.calc_offset().as_uint().into())
+        .limit(pagination.limit.as_uint().into())
+        .load::<models::User>(conn)?)
 }
 
 pub fn search_users(
@@ -68,9 +94,20 @@ pub fn search_users(
     pagination: &Pagination,
     conn: &impl diesel::Connection<Backend = diesel::pg::Pg>,
 ) -> Result<Vec<models::User>, errors::DomainError> {
-    use crate::schema::users::dsl::*;
-    Ok(query::_paginate_result(pagination)
-        .filter(name.like(format!("%{}%", query)))
+    use crate::schema::roles::dsl as roles;
+    use crate::schema::users::dsl as users;
+    Ok(users::users
+        .inner_join(roles::roles)
+        .select((
+            users::id,
+            users::username,
+            users::created_at,
+            roles::role_name,
+        ))
+        .order_by(users::created_at)
+        .offset(pagination.calc_offset().as_uint().into())
+        .limit(pagination.limit.as_uint().into())
+        .filter(users::username.like(format!("%{}%", query)))
         .load::<models::User>(conn)?)
 }
 
@@ -79,7 +116,8 @@ pub fn insert_new_user(
     conn: &impl diesel::Connection<Backend = diesel::pg::Pg>,
     hash_cost: Option<u32>,
 ) -> Result<models::User, errors::DomainError> {
-    use crate::schema::users::dsl::*;
+    use crate::schema::roles::dsl as roles;
+    use crate::schema::users::dsl as users;
     let nu = {
         let mut nu2 = nu;
         let hash =
@@ -90,38 +128,19 @@ pub fn insert_new_user(
         nu2
     };
 
-    diesel::insert_into(users).values(&nu).execute(conn)?;
-    let user = query::_get_user_by_name()
-        .filter(name.eq(nu.name.as_str()))
+    diesel::insert_into(users::users)
+        .values(&nu)
+        .execute(conn)?;
+    let user = users::users
+        .inner_join(roles::roles)
+        .select((
+            users::id,
+            users::username,
+            users::created_at,
+            roles::role_name,
+        ))
+        .filter(users::username.eq(nu.username.as_str()))
         .first::<models::User>(conn)?;
 
     Ok(user)
-}
-
-mod query {
-    use super::*;
-    use diesel::pg::Pg;
-    use diesel::sql_types::Integer;
-    use diesel::sql_types::Text;
-    use diesel::sql_types::Timestamp;
-
-    /// <'a, B, T> where a = lifetime, B = Backend, T = SQL data types
-    type Query<'a, B, T> = crate::schema::users::BoxedQuery<'a, B, T>;
-
-    pub fn _get_user_by_name(
-    ) -> Query<'static, Pg, (Integer, Text, Text, Timestamp, Integer)> {
-        use crate::schema::users::dsl::*;
-        users.into_boxed()
-    }
-
-    pub fn _paginate_result(
-        pagination: &Pagination,
-    ) -> Query<'static, Pg, (Integer, Text, Text, Timestamp, Integer)> {
-        use crate::schema::users::dsl::*;
-        users
-            .order_by(created_at)
-            .offset(pagination.calc_offset().as_uint().into())
-            .limit(pagination.limit.as_uint().into())
-            .into_boxed()
-    }
 }

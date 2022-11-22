@@ -10,7 +10,7 @@ curl -X GET http://localhost:7800/api/users
 
 ```
 {
-  "name": "user1",
+  "username": "user1",
   "registration_date": "2020-05-09T06:17:26"
 }
 ```
@@ -22,15 +22,15 @@ curl -X GET http://localhost:7800/api/users
 ```
 [
   {
-    "name": "user1",
+    "username": "user1",
     "registration_date": "2020-05-09T06:17:26"
   },
   {
-    "name": "user2",
+    "username": "user2",
     "registration_date": "2020-05-12T12:43:13"
   },
   {
-    "name": "user3",
+    "username": "user3",
     "registration_date": "2020-05-15T07:47:50"
   }
 ]
@@ -42,25 +42,25 @@ curl -X GET http://localhost:7800/api/users
 curl -H "content-type: application/json" \
 -X PUT \
 -i http://localhost:7800/api/users \
---data '{"name":"user4","password":"test"}'
+--data '{"username":"user4","password":"test"}'
 ```
 
 ```
 [
   {
-    "name": "user1",
+    "username": "user1",
     "registration_date": "2020-05-09T06:17:26"
   },
   {
-    "name": "user2",
+    "username": "user2",
     "registration_date": "2020-05-12T12:43:13"
   },
   {
-    "name": "user3",
+    "username": "user3",
     "registration_date": "2020-05-15T07:47:50"
   },
   {
-    "name": "user4",
+    "username": "user4",
     "registration_date": "2020-08-01T05:04:05"
   }
 ]

@@ -41,24 +41,6 @@ pub async fn get_user(
     }
 }
 
-// #[get("/get/users/{user_id}")]
-// pub async fn get_user2(
-//     user_service: web::Data<dyn UserService>,
-//     user_id: web::Path<i32>,
-// ) -> Result<HttpResponse, DomainError> {
-//     let u_id = user_id.into_inner();
-//     let user = user_service.find_user_by_uid(u_id)?;
-//     if let Some(user) = user {
-//         Ok(HttpResponse::Ok().json(user))
-//     } else {
-//         let err = DomainError::new_entity_does_not_exist_error(format!(
-//             "No user found with uid: {}",
-//             u_id
-//         ));
-//         Err(err)
-//     }
-// }
-
 #[tracing::instrument(level = "debug", skip(app_data))]
 pub async fn get_users(
     app_data: web::Data<AppData>,

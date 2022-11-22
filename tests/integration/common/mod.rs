@@ -125,7 +125,7 @@ pub async fn test_app(
             let conn = &pool.get()?;
             actix_demo::actions::insert_new_user(
                 NewUser {
-                    name: Username::parse_str("user1").unwrap(),
+                    username: Username::parse_str("user1").unwrap(),
                     password: Password::parse_str("test").unwrap(),
                 },
                 conn,
@@ -169,7 +169,7 @@ pub async fn get_token(
 ) -> HeaderValue {
     let req = test::TestRequest::post()
         .append_header(("content-type", "application/json"))
-        .set_payload(r#"{"name":"user1","password":"test"}"#)
+        .set_payload(r#"{"username":"user1","password":"test"}"#)
         .uri("/api/login")
         .to_request();
     let resp: ax_dev::ServiceResponse<_> = test_app.call(req).await.unwrap();

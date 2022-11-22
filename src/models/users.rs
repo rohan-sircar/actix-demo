@@ -7,6 +7,8 @@ use std::convert::TryFrom;
 use std::{convert::TryInto, str::FromStr};
 use validators::prelude::*;
 
+use super::roles::RoleEnum;
+
 ///newtype to constrain id to positive int values
 ///
 ///sqlite does not allow u32 for primary keys
@@ -79,26 +81,33 @@ impl Password {
 #[table_name = "users"]
 pub struct User {
     pub id: UserId,
-    pub name: Username,
-    #[serde(skip_serializing)]
-    pub password: Password,
+    pub username: Username,
     pub created_at: chrono::NaiveDateTime,
-    pub role: i32,
+    pub role: RoleEnum,
 }
 
 #[derive(Debug, Clone, Insertable, Deserialize)]
 #[table_name = "users"]
 pub struct NewUser {
-    pub name: Username,
+    pub username: Username,
     #[serde(skip_serializing)]
     pub password: Password,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Queryable)]
 pub struct UserLogin {
-    pub name: Username,
+    pub username: Username,
     #[serde(skip_serializing)]
     pub password: Password,
+}
+
+#[derive(Debug, Clone, Deserialize, Queryable)]
+pub struct UserAuthDetails {
+    pub id: UserId,
+    pub username: Username,
+    #[serde(skip_serializing)]
+    pub password: Password,
+    pub role: RoleEnum,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -196,32 +205,32 @@ mod test {
     fn user_model_refinement_test() {
         //yes I had been watching a lot of star wars lately
         let mb_user = serde_json::from_str::<User>(
-            r#"{"id":1,"name":"chewbacca","password":"aeqfq3fq", "role":3, "created_at":"2021-05-12T12:37:56"}"#,
+            r#"{"id":1,"username":"chewbacca","password":"aeqfq3fq", "role":"RoleUser", "created_at":"2021-05-12T12:37:56"}"#,
         );
         // println!("{:?}", mb_user);
         assert!(mb_user.is_ok());
         let mb_user = serde_json::from_str::<User>(
-            r#"{"id":1,"name":"chew-bacca","password":"aeqfq3fq","role":3,"created_at":"2021-05-12T12:37:56"}"#,
+            r#"{"id":1,"username":"chew-bacca","password":"aeqfq3fq","role":"RoleUser","created_at":"2021-05-12T12:37:56"}"#,
         );
         assert!(mb_user.is_ok());
         let mb_user = serde_json::from_str::<User>(
-            r#"{"id":1,"name":"chew.bacca","password":"aeqfq3fq","role":3,"created_at":"2021-05-12T12:37:56"}"#,
+            r#"{"id":1,"username":"chew.bacca","password":"aeqfq3fq","role":"RoleUser","created_at":"2021-05-12T12:37:56"}"#,
         );
         assert!(mb_user.is_err());
         let mb_user = serde_json::from_str::<User>(
-            r#"{"id":-1,"name":"chewbacca","password":"aeqfq3fq","role":3,"created_at":"2021-05-12T12:37:56"}"#,
+            r#"{"id":-1,"username":"chewbacca","password":"aeqfq3fq","role":"RoleUser","created_at":"2021-05-12T12:37:56"}"#,
         );
         assert!(mb_user.is_err());
         let mb_user = serde_json::from_str::<User>(
-            r#"{"id":1,"name":"ch","password":"aeqfq3fq","role":3,"created_at":"2021-05-12T12:37:56"}"#,
+            r#"{"id":1,"username":"ch","password":"aeqfq3fq","role":"RoleUser","created_at":"2021-05-12T12:37:56"}"#,
         );
         assert!(mb_user.is_err());
         let mb_user = serde_json::from_str::<User>(
-            r#"{"id":1,"name":"chaegw;eaef","password":"aeqfq3fq","role":3,"created_at":"2021-05-12T12:37:56"}"#,
+            r#"{"id":1,"username":"chaegw;eaef","password":"aeqfq3fq","role":"RoleUser","created_at":"2021-05-12T12:37:56"}"#,
         );
         assert!(mb_user.is_err());
         let mb_user = serde_json::from_str::<User>(
-            r#"{"id":1,"name":"chaegw_eaef","password":"aeqfq3fq","role":3,"created_at":"2021-05-12T12:37:56"}"#,
+            r#"{"id":1,"username":"chaegw_eaef","password":"aeqfq3fq","role":"RoleUser","created_at":"2021-05-12T12:37:56"}"#,
         );
         assert!(mb_user.is_err());
     }

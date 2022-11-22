@@ -3,21 +3,21 @@ CREATE TYPE role_name AS ENUM ('role_super_user', 'role_admin', 'role_user');
 
 CREATE TABLE if not exists roles (
     id SERIAL PRIMARY KEY NOT NULL,
-    name role_name NOT NULL
+    role_name role_name NOT NULL UNIQUE
 );
 
 INSERT INTO
-    roles (name)
+    roles (role_name)
 VALUES
     ('role_super_user');
 
 INSERT INTO
-    roles (name)
+    roles (role_name)
 VALUES
     ('role_admin');
 
 INSERT INTO
-    roles (name)
+    roles (role_name)
 VALUES
     ('role_user');
 

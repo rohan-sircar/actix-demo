@@ -1,7 +1,6 @@
-use std::sync::Arc;
-
-use crate::actions::find_user_by_name;
+use crate::actions::get_user_auth_details;
 use crate::errors::DomainError;
+use crate::models::roles::RoleEnum;
 use crate::models::{UserId, UserLogin, Username};
 use crate::AppData;
 use actix_http::Payload;
@@ -13,12 +12,12 @@ use bcrypt::verify;
 use jwt_simple::prelude::*;
 
 #[derive(Serialize, Deserialize)]
-struct AuthData {
+struct VerifiedAuthDetails {
     user_id: UserId,
     username: Username,
+    role: RoleEnum,
 }
 
-//TODO - fix error messages
 #[tracing::instrument(level = "info", skip(req))]
 pub async fn validate_bearer_auth(
     req: ServiceRequest,
@@ -29,7 +28,7 @@ pub async fn validate_bearer_auth(
     let (http_req, payload) = req.into_parts();
     let claims = app_data
         .jwt_key
-        .verify_token::<AuthData>(&token, None)
+        .verify_token::<VerifiedAuthDetails>(&token, None)
         .map_err(|err| {
             (
                 Error::from(DomainError::new_auth_error(format!(
@@ -42,19 +41,22 @@ pub async fn validate_bearer_auth(
     let user_id = claims.custom.user_id;
     let credentials_repo = &app_data.credentials_repo;
 
-    let session_token = credentials_repo
-        .load(&user_id)
-        .await
-        .map_err(|err| {
+    let session_token =
+        match credentials_repo.load(&user_id).await.map_err(|err| {
             (
-                Error::from(DomainError::new_auth_error(format!(
-                    "Session does not exist for user id - {}, {}",
-                    &user_id, err
-                ))),
+                Error::from(err),
                 ServiceRequest::from_parts(http_req.clone(), Payload::None),
             )
-        })?
-        .unwrap_or_default();
+        })? {
+            Some(value) => Ok(value),
+            None => Err((
+                Error::from(DomainError::new_auth_error(format!(
+                    "Session does not exist for user id - {}",
+                    &user_id
+                ))),
+                ServiceRequest::from_parts(http_req.clone(), Payload::None),
+            )),
+        }?;
 
     if token.eq(&session_token) {
         Ok(ServiceRequest::from_parts(http_req, payload))
@@ -74,22 +76,22 @@ pub async fn login(
     user_login: web::Json<UserLogin>,
     app_data: web::Data<AppData>,
 ) -> Result<HttpResponse, DomainError> {
-    let user_login = Arc::new(user_login.into_inner());
-    let user_login2 = user_login.clone();
+    let user_login = user_login.into_inner().clone();
     let credentials_repo = &app_data.credentials_repo;
     let pool = app_data.pool.clone();
     let mb_user = web::block(move || {
         let conn = pool.get()?;
-        find_user_by_name(&user_login.name, &conn)
+        get_user_auth_details(&user_login.username, &conn)
     })
     .await
     .map_err(|err| DomainError::new_thread_pool_error(err.to_string()))??;
     let token = match mb_user {
         Some(user) => {
-            if verify(user_login2.password.as_str(), user.password.as_str())? {
-                let auth_data = AuthData {
+            if verify(user_login.password.as_str(), user.password.as_str())? {
+                let auth_data = VerifiedAuthDetails {
                     user_id: user.id.clone(),
-                    username: user.name,
+                    username: user.username,
+                    role: user.role,
                 };
                 let claims = Claims::with_custom_claims(
                     auth_data,
