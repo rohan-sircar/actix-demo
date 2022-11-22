@@ -1,3 +1,4 @@
+pub mod roles;
 pub mod users;
 pub use self::users::*;
 pub mod api_response;

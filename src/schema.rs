@@ -1,22 +1,17 @@
-// @generated automatically by Diesel CLI.
-
-pub mod sql_types {
-    #[derive(diesel::sql_types::SqlType)]
-    #[diesel(postgres_type(name = "role_name"))]
-    pub struct RoleName;
-}
-
-diesel::table! {
+table! {
     use diesel::sql_types::*;
-    use super::sql_types::RoleName;
+    use crate::models::roles::*;
 
     roles (id) {
         id -> Int4,
-        name -> RoleName,
+        name -> Role_name,
     }
 }
 
-diesel::table! {
+table! {
+    use diesel::sql_types::*;
+    use crate::models::roles::*;
+
     users (id) {
         id -> Int4,
         name -> Varchar,
@@ -26,9 +21,9 @@ diesel::table! {
     }
 }
 
-diesel::joinable!(users -> roles (role_id));
+joinable!(users -> roles (role_id));
 
-diesel::allow_tables_to_appear_in_same_query!(
+allow_tables_to_appear_in_same_query!(
     roles,
     users,
 );

@@ -29,6 +29,7 @@ dependencies = [
  "actix-service",
  "actix-threadpool",
  "actix-web",
+ "actix-web-grants",
  "actix-web-httpauth",
  "actix-ws",
  "anyhow",
@@ -43,6 +44,7 @@ dependencies = [
  "derive-new",
  "derive_more",
  "diesel",
+ "diesel-derive-enum",
  "diesel-derive-newtype",
  "diesel-tracing",
  "diesel_migrations",
@@ -97,6 +99,17 @@ dependencies = [
  "mime_guess",
  "percent-encoding",
  "pin-project-lite",
+]
+
+[[package]]
+name = "actix-grants-proc-macro"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "48df3c1e0019e6f46bf3277e9b339688f476ccd9f5d5161419fdd305648fcac2"
+dependencies = [
+ "proc-macro2 1.0.47",
+ "quote 1.0.9",
+ "syn 1.0.103",
 ]
 
 [[package]]
@@ -275,6 +288,16 @@ dependencies = [
  "proc-macro2 1.0.47",
  "quote 1.0.9",
  "syn 1.0.103",
+]
+
+[[package]]
+name = "actix-web-grants"
+version = "3.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ef8ecad01ac8f2e4d0355a825e141c2077bba4d4e7bf740da34810a4aa872aea"
+dependencies = [
+ "actix-grants-proc-macro",
+ "actix-web",
 ]
 
 [[package]]
@@ -957,6 +980,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "diesel-derive-enum"
+version = "1.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6c8910921b014e2af16298f006de12aa08af894b71f0f49a486ab6d74b17bbed"
+dependencies = [
+ "heck",
+ "proc-macro2 1.0.47",
+ "quote 1.0.9",
+ "syn 1.0.103",
+]
+
+[[package]]
 name = "diesel-derive-newtype"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1346,6 +1381,12 @@ name = "hashbrown"
 version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d7afe4a420e3fe79967a00898cc1f4db7c8a49a9333a29f8a4bd76a253d5cd04"
+
+[[package]]
+name = "heck"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2540771e65fc8cb83cd6e8a237f70c319bd5c29f78ed1084ba5d50eeac86f7f9"
 
 [[package]]
 name = "hermit-abi"

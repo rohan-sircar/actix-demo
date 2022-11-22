@@ -1,9 +1,18 @@
 use diesel::prelude::*;
 
+use crate::models::roles::Role;
 use crate::models::{self, Pagination, UserId, Username};
 use crate::{errors, models::Password};
 use bcrypt::{hash, DEFAULT_COST};
 use validators::prelude::*;
+
+pub fn find_role_by_id(
+    conn: &impl diesel::Connection<Backend = diesel::pg::Pg>,
+) -> Result<Vec<Role>, errors::DomainError> {
+    use crate::schema::roles::dsl::*;
+    let res = roles.load::<Role>(conn);
+    Ok(res?)
+}
 
 pub fn find_user_by_uid(
     uid: &UserId,
@@ -100,14 +109,14 @@ mod query {
     type Query<'a, B, T> = crate::schema::users::BoxedQuery<'a, B, T>;
 
     pub fn _get_user_by_name(
-    ) -> Query<'static, Pg, (Integer, Text, Text, Timestamp)> {
+    ) -> Query<'static, Pg, (Integer, Text, Text, Timestamp, Integer)> {
         use crate::schema::users::dsl::*;
         users.into_boxed()
     }
 
     pub fn _paginate_result(
         pagination: &Pagination,
-    ) -> Query<'static, Pg, (Integer, Text, Text, Timestamp)> {
+    ) -> Query<'static, Pg, (Integer, Text, Text, Timestamp, Integer)> {
         use crate::schema::users::dsl::*;
         users
             .order_by(created_at)

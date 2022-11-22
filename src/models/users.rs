@@ -83,6 +83,7 @@ pub struct User {
     #[serde(skip_serializing)]
     pub password: Password,
     pub created_at: chrono::NaiveDateTime,
+    pub role: i32,
 }
 
 #[derive(Debug, Clone, Insertable, Deserialize)]
