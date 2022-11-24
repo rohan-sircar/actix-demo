@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(DbEnum, Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
 #[allow(clippy::enum_variant_names)]
+#[serde(rename_all = "snake_case")]
 #[DieselType = "Role_name"]
 pub enum RoleEnum {
     RoleSuperUser,

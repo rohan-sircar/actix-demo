@@ -212,32 +212,32 @@ mod test {
     fn user_model_refinement_test() {
         //yes I had been watching a lot of star wars lately
         let mb_user = serde_json::from_str::<User>(
-            r#"{"id":1,"username":"chewbacca","password":"aeqfq3fq", "role":"RoleUser", "created_at":"2021-05-12T12:37:56"}"#,
+            r#"{"id":1,"username":"chewbacca","password":"aeqfq3fq", "role":"role_user", "created_at":"2021-05-12T12:37:56"}"#,
         );
         // println!("{:?}", mb_user);
         assert!(mb_user.is_ok());
         let mb_user = serde_json::from_str::<User>(
-            r#"{"id":1,"username":"chew-bacca","password":"aeqfq3fq","role":"RoleUser","created_at":"2021-05-12T12:37:56"}"#,
+            r#"{"id":1,"username":"chew-bacca","password":"aeqfq3fq","role":"role_user","created_at":"2021-05-12T12:37:56"}"#,
         );
         assert!(mb_user.is_ok());
         let mb_user = serde_json::from_str::<User>(
-            r#"{"id":1,"username":"chew.bacca","password":"aeqfq3fq","role":"RoleUser","created_at":"2021-05-12T12:37:56"}"#,
+            r#"{"id":1,"username":"chew.bacca","password":"aeqfq3fq","role":"role_user","created_at":"2021-05-12T12:37:56"}"#,
         );
         assert!(mb_user.is_err());
         let mb_user = serde_json::from_str::<User>(
-            r#"{"id":-1,"username":"chewbacca","password":"aeqfq3fq","role":"RoleUser","created_at":"2021-05-12T12:37:56"}"#,
+            r#"{"id":-1,"username":"chewbacca","password":"aeqfq3fq","role":"role_user","created_at":"2021-05-12T12:37:56"}"#,
         );
         assert!(mb_user.is_err());
         let mb_user = serde_json::from_str::<User>(
-            r#"{"id":1,"username":"ch","password":"aeqfq3fq","role":"RoleUser","created_at":"2021-05-12T12:37:56"}"#,
+            r#"{"id":1,"username":"ch","password":"aeqfq3fq","role":"role_user","created_at":"2021-05-12T12:37:56"}"#,
         );
         assert!(mb_user.is_err());
         let mb_user = serde_json::from_str::<User>(
-            r#"{"id":1,"username":"chaegw;eaef","password":"aeqfq3fq","role":"RoleUser","created_at":"2021-05-12T12:37:56"}"#,
+            r#"{"id":1,"username":"chaegw;eaef","password":"aeqfq3fq","role":"role_user","created_at":"2021-05-12T12:37:56"}"#,
         );
         assert!(mb_user.is_err());
         let mb_user = serde_json::from_str::<User>(
-            r#"{"id":1,"username":"chaegw_eaef","password":"aeqfq3fq","role":"RoleUser","created_at":"2021-05-12T12:37:56"}"#,
+            r#"{"id":1,"username":"chaegw_eaef","password":"aeqfq3fq","role":"role_user","created_at":"2021-05-12T12:37:56"}"#,
         );
         assert!(mb_user.is_err());
     }
