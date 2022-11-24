@@ -2,7 +2,7 @@ use crate::schema::roles;
 use diesel_derive_enum::DbEnum;
 use serde::{Deserialize, Serialize};
 
-#[derive(DbEnum, Debug, Deserialize, Serialize, Clone)]
+#[derive(DbEnum, Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
 #[allow(clippy::enum_variant_names)]
 #[DieselType = "Role_name"]
 pub enum RoleEnum {

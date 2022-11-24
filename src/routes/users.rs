@@ -1,4 +1,6 @@
+use crate::models::roles::RoleEnum;
 use actix_web::{post, web, HttpResponse};
+use actix_web_grants::proc_macro::has_any_role;
 
 use crate::{
     actions,
@@ -14,6 +16,7 @@ use crate::{errors::DomainError, AppData};
         user_id = %user_id.0
     )
 )]
+#[has_any_role("RoleEnum::RoleAdmin", type = "RoleEnum")]
 pub async fn get_user(
     app_data: web::Data<AppData>,
     user_id: web::Path<UserId>,

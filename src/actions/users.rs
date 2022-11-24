@@ -27,7 +27,7 @@ pub fn find_user_by_uid(
     Ok(maybe_user?)
 }
 
-pub fn find_user_by_name2(
+pub fn find_user_by_name(
     user_name: &Username,
     conn: &impl diesel::Connection<Backend = diesel::pg::Pg>,
 ) -> Result<Option<models::User>, errors::DomainError> {

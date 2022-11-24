@@ -7,10 +7,14 @@ mod tests {
     use actix_web::dev::Service as _;
     use actix_web::http::StatusCode;
     use actix_web::test;
-    use std::str;
     use testcontainers::clients;
 
     mod get_users_api {
+
+        use std::str::FromStr;
+
+        use actix_demo::models::{roles::RoleEnum, User, UserId, Username};
+        use validators::traits::ValidateString;
 
         use super::*;
 
@@ -31,11 +35,11 @@ mod tests {
                 .to_request();
             let resp = test_app.call(req).await.unwrap();
             assert_eq!(resp.status(), StatusCode::OK);
-            // let body: ApiResponse<Vec<_>> = test::read_body_json(resp).await;
-            // assert!(!body.response().is_empty());
-            let bytes = &test::read_body(resp).await;
-            let body = str::from_utf8(bytes).unwrap();
-            assert!(!body.is_empty());
+            let body: ApiResponse<Vec<User>> = test::read_body_json(resp).await;
+            let user = body.response().get(0).unwrap();
+            assert_eq!(user.id, UserId::from_str("1").unwrap());
+            assert_eq!(user.username, Username::parse_str("user1").unwrap());
+            assert_eq!(user.role, RoleEnum::RoleUser);
         }
 
         #[actix_rt::test]

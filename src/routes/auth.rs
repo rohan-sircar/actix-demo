@@ -18,6 +18,23 @@ struct VerifiedAuthDetails {
     role: RoleEnum,
 }
 
+pub async fn extract(req: &mut ServiceRequest) -> Result<Vec<RoleEnum>, Error> {
+    let app_data = req.app_data::<Data<AppData>>().cloned().unwrap();
+    let bearer = req.extract::<BearerAuth>().await?;
+    let claims = app_data
+        .jwt_key
+        .verify_token::<VerifiedAuthDetails>(bearer.token(), None)
+        .map_err(|err| {
+            Error::from(DomainError::new_auth_error(format!(
+                "Failed to verify token - {}",
+                err
+            )))
+        })?;
+    let role = claims.custom.role;
+
+    Ok(vec![role])
+}
+
 #[tracing::instrument(level = "info", skip(req))]
 pub async fn validate_bearer_auth(
     req: ServiceRequest,
@@ -87,7 +104,14 @@ pub async fn login(
     .map_err(|err| DomainError::new_thread_pool_error(err.to_string()))??;
     let token = match mb_user {
         Some(user) => {
-            if verify(user_login.password.as_str(), user.password.as_str())? {
+            let valid = web::block(move || {
+                verify(user_login.password.as_str(), user.password.as_str())
+            })
+            .await
+            .map_err(|err| {
+                DomainError::new_thread_pool_error(err.to_string())
+            })??;
+            if valid {
                 let auth_data = VerifiedAuthDetails {
                     user_id: user.id.clone(),
                     username: user.username,

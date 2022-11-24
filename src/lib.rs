@@ -24,6 +24,7 @@ use actix_files as fs;
 
 use actix_web::web::{Data, ServiceConfig};
 use actix_web::{web, App, HttpServer};
+use actix_web_grants::GrantsMiddleware;
 use actix_web_httpauth::middleware::HttpAuthentication;
 use jwt_simple::prelude::HS256Key;
 use routes::auth::validate_bearer_auth;
@@ -93,6 +94,9 @@ pub fn configure_app(
             .service(
                 web::scope("/api")
                     .wrap(HttpAuthentication::bearer(validate_bearer_auth))
+                    .wrap(GrantsMiddleware::with_extractor(
+                        routes::auth::extract,
+                    ))
                     .service(
                         web::scope("/users")
                             .route("", web::get().to(routes::users::get_users))

@@ -30,18 +30,3 @@ ALTER TABLE
     USERS
 ADD
     FOREIGN KEY (role_id) REFERENCES roles(id);
-
--- CREATE TABLE users2 (
---     id INTEGER PRIMARY KEY NOT NULL,
---     name VARCHAR NOT NULL,
---     password VARCHAR NOT NULL,
---     role_id INTEGER NOT NULL DEFAULT 3 REFERENCES roles(id),
---     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
--- );
--- INSERT INTO
---     users2 (id, name, password, created_at)
--- SELECT
---     *
--- FROM
---     users;
--- DROP TABLE users;
