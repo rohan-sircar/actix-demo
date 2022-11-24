@@ -4,6 +4,7 @@ use crate::schema::users;
 use crate::utils::regex;
 use derive_more::{Display, Into};
 use std::convert::TryFrom;
+use std::fmt;
 use std::{convert::TryInto, str::FromStr};
 use validators::prelude::*;
 
@@ -59,7 +60,7 @@ impl TryFrom<u32> for UserId {
             .map(UserId)
     }
 }
-#[derive(Validator, Debug, Clone, DieselNewType)]
+#[derive(Validator, Debug, Clone, DieselNewType, PartialEq, Eq)]
 #[validator(regex(regex::USERNAME_REG))]
 pub struct Username(String);
 impl Username {
@@ -67,9 +68,15 @@ impl Username {
         &self.0
     }
 }
-#[derive(Validator, Debug, Clone, DieselNewType)]
+#[derive(Validator, Clone, DieselNewType)]
 #[validator(line(char_length(max = 200)))]
 pub struct Password(String);
+
+impl fmt::Debug for Password {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("Password").field(&"**********").finish()
+    }
+}
 
 impl Password {
     pub fn as_str(&self) -> &str {
