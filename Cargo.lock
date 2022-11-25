@@ -59,7 +59,6 @@ dependencies = [
  "r2d2",
  "rand 0.8.5",
  "regex",
- "rusqlite",
  "serde",
  "serde_json",
  "testcontainers",
@@ -974,7 +973,6 @@ dependencies = [
  "diesel_derives",
  "ipnetwork",
  "libc",
- "libsqlite3-sys",
  "pq-sys",
  "r2d2",
 ]
@@ -1156,12 +1154,6 @@ name = "fallible-iterator"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4443176a9f2c162692bd3d352d745ef9413eec5782a80d8fd6f8a1ac692a07f7"
-
-[[package]]
-name = "fallible-streaming-iterator"
-version = "0.1.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7360491ce676a36bf9bb3c56c1aa791658183a54d2744120f27285738d90465a"
 
 [[package]]
 name = "ff"
@@ -1723,17 +1715,6 @@ name = "libm"
 version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "348108ab3fba42ec82ff6e9564fc4ca0247bdccdc68dd8af9764bbc79c3c8ffb"
-
-[[package]]
-name = "libsqlite3-sys"
-version = "0.18.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e704a02bcaecd4a08b93a23f6be59d0bd79cd161e0963e9499165a0a35df7bd"
-dependencies = [
- "cc",
- "pkg-config",
- "vcpkg",
-]
 
 [[package]]
 name = "libz-sys"
@@ -2628,22 +2609,6 @@ dependencies = [
  "smallvec",
  "subtle",
  "zeroize",
-]
-
-[[package]]
-name = "rusqlite"
-version = "0.23.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "45d0fd62e1df63d254714e6cb40d0a0e82e7a1623e7a27f679d851af092ae58b"
-dependencies = [
- "bitflags",
- "fallible-iterator",
- "fallible-streaming-iterator",
- "libsqlite3-sys",
- "lru-cache",
- "memchr",
- "smallvec",
- "time 0.1.44",
 ]
 
 [[package]]

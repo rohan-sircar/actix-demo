@@ -1,0 +1,13 @@
+[target.aarch64-unknown-linux-gnu]
+dockerfile = "aarch64.Dockerfile"
+# dockerfile = "multiarch.Dockerfile"
+
+[target.aarch64-unknown-linux-gnu.env]
+passthrough = ["RUST_DEBUG", "RUSTFLAGS"]
+
+[target.powerpc64le-unknown-linux-gnu]
+dockerfile = "ppc64le.Dockerfile"
+# dockerfile = "multiarch.Dockerfile"
+
+[target.powerpc64le-unknown-linux-gnu.env]
+passthrough = ["RUST_DEBUG", "RUSTFLAGS"]

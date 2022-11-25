@@ -71,15 +71,11 @@ features = ['derive']
 
 [dependencies.diesel]
 version = "1.4.8"
-features = ['sqlite', 'r2d2', 'chrono']
+features = ['r2d2', 'chrono', 'postgres']
 
 [dependencies.uuid]
 version = "1.2.2"
 features = ['serde', 'v4']
-
-[dependencies.rusqlite]
-version = "0.23.0"
-features = ['bundled']
 
 [dependencies.chrono]
 version = "0.4.19"
@@ -88,7 +84,6 @@ features = ['serde']
 [dev-dependencies]
 testcontainers = { git = "https://github.com/testcontainers/testcontainers-rs/" } # testcontainers = "0.14.0"
 tokio-postgres = "0.7.7"
-
 
 [build-dependencies]
 build-info-build = "0.0.28"

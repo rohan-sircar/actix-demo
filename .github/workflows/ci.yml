@@ -67,39 +67,34 @@ jobs:
           toolchain: stable
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2.2.0
-      - name: Install libpq-dev
-        run: sudo apt-get install -y libpq-dev
       - name: Compile
         run: |
           cargo install cross
-          cross build --release --target=aarch64-unknown-linux-gnu
+          cross build --target aarch64-unknown-linux-gnu
+        env:
+          RUSTFLAGS: "-C linker=aarch64-linux-gnu-gcc"
 
   build-ppc:
     name: Build PowerPC Binaries
     if: github.event_name != 'pull_request'
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     needs: [check, test, lints]
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-          targets: powerpc64-unknown-linux-gnu
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2.2.0
-      - name: Install libpq-dev
-        run: sudo apt-get install -y libpq-dev
-      - name: Install PowerPC gcc
-        run: |
-          sudo apt-get install -y gcc-powerpc64-linux-gnu
-          sudo ln -s /usr/bin/powerpc64-linux-gnu-gcc-7 /usr/bin/powerpc-linux-gnu-gcc
       - name: Compile
-        run: cargo build --release --target=powerpc64-unknown-linux-gnu
+        run: |
+          cargo install cross
+          cross build --target powerpc64le-unknown-linux-gnu
         env:
-          RUSTFLAGS: "-C linker=powerpc64-linux-gnu-gcc-7"
+          RUSTFLAGS: "-C linker=powerpc64le-linux-gnu-gcc"
 
   build-docker:
-    name: Build and Publish Docker Image
+    name: Build Docker Image
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     needs: [check, test, lints]
