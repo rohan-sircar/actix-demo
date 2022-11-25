@@ -93,9 +93,9 @@ jobs:
         env:
           RUSTFLAGS: "-C linker=powerpc64le-linux-gnu-gcc"
 
-  build-docker:
+  publish-devel-docker:
     name: Build Docker Image
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/devel'
     runs-on: ubuntu-latest
     needs: [check, test, lints]
     steps:
@@ -116,9 +116,11 @@ jobs:
       - name: Compile
         run: cargo build --release
       - name: Build Image
-        run: docker build -f ci.Dockerfile -t rohansircar/actix-demo:latest .
+        run: docker build -f ci.Dockerfile -t rohansircar/actix-demo:devel .
         env:
           DOCKER_BUILDKIT: 1
+      - name: Publish Image
+        run: docker push rohansircar/actix-demo:devel
 
   publish-docker:
     name: Build and Publish Docker Image
