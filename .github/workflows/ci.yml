@@ -97,7 +97,7 @@ jobs:
           mv target/powerpc64le-unknown-linux-gnu/debug/actix-demo target/ppc64le-linux/actix-demo
         env:
           RUSTFLAGS: "-C linker=powerpc64le-linux-gnu-gcc"
-      - name: Build Image
+      - name: Build And Publish Docker Image
         run: |
           docker buildx build --platform linux/ppc64le,linux/arm64/v8,linux/amd64 \
           -f ci.Dockerfile --push -t rohansircar/actix-demo:devel .
