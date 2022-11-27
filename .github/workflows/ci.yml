@@ -72,7 +72,9 @@ jobs:
           username: rohansircar
           password: ${{ secrets.DOCKER_LOGIN_PASSWORD }}
       - name: Docker Layer Caching
-        uses: satackey/action-docker-layer-caching@v0.0.11
+        uses: jpribyl/action-docker-layer-caching@v0.1.0
+        # Ignore the failure of a step and avoid terminating the job.
+        continue-on-error: true
       - name: Build And Publish Docker Image
         run: |
           docker buildx build --platform linux/ppc64le,linux/arm64,linux/amd64 \
