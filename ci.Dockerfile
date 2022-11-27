@@ -1,4 +1,4 @@
-FROM  --platform=${BUILDPLATFORM} debian:bullseye-slim
+FROM debian:bullseye-slim
 ARG APP=/usr/src/app
 ARG TARGETOS
 ARG TARGETARCH

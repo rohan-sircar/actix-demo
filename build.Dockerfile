@@ -1,4 +1,4 @@
-FROM --platform=${BUILDPLATFORM} rust:1.65 as builder
+FROM rust:1.65 as builder
 
 RUN USER=root cargo new --bin actix-demo
 WORKDIR /actix-demo
@@ -18,7 +18,7 @@ COPY ./build.rs ./build.rs
 RUN rm ./target/debug/deps/actix_demo*
 RUN cargo build 
 
-FROM --platform=${BUILDPLATFORM} debian:bullseye-slim
+FROM debian:bullseye-slim
 ARG APP=/usr/src/app
 ARG TARGETOS
 ARG TARGETARCH
