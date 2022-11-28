@@ -80,7 +80,7 @@ jobs:
           platforms: linux/ppc64le,linux/arm64,linux/amd64
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          file: build2.Dockerfile
+          file: build.Dockerfile
 
   publish-docker:
     name: Build and Publish main Docker Image
