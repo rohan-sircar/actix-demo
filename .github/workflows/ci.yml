@@ -108,5 +108,5 @@ jobs:
           platforms: linux/ppc64le,linux/arm64,linux/amd64
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          build-args:
+          build-args: PROFILE=release
           file: build.Dockerfile
