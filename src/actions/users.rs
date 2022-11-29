@@ -2,20 +2,32 @@ use std::str::FromStr;
 
 use diesel::prelude::*;
 
+use crate::errors::DomainError;
 use crate::models::roles::{NewUserRole, RoleEnum, RoleId};
+use crate::models::Password;
 use crate::models::{self, Pagination, User, UserId, UserWithRoles, Username};
-use crate::{errors, models::Password};
 use bcrypt::hash;
 use do_notation::m;
 use validators::prelude::*;
 
+pub fn get_user_roles(
+    uid: &UserId,
+    conn: &impl diesel::Connection<Backend = diesel::pg::Pg>,
+) -> Result<Vec<RoleEnum>, DomainError> {
+    use crate::schema::roles::dsl as roles;
+    use crate::schema::users_roles::dsl as users_roles;
+    Ok(users_roles::users_roles
+        .inner_join(roles::roles)
+        .select(roles::role_name)
+        .filter(users_roles::user_id.eq(uid))
+        .load::<RoleEnum>(conn)?)
+}
+
 pub fn find_user_by_uid(
     uid: &UserId,
     conn: &impl diesel::Connection<Backend = diesel::pg::Pg>,
-) -> Result<Option<models::UserWithRoles>, errors::DomainError> {
-    use crate::schema::roles::dsl as roles;
+) -> Result<Option<UserWithRoles>, DomainError> {
     use crate::schema::users::dsl as users;
-    use crate::schema::users_roles::dsl as users_roles;
 
     conn.transaction(|| {
         let mb_user = users::users
@@ -24,11 +36,7 @@ pub fn find_user_by_uid(
             .first::<User>(conn)
             .optional()?;
 
-        let roles = users_roles::users_roles
-            .inner_join(roles::roles)
-            .select(roles::role_name)
-            .filter(users_roles::user_id.eq(uid))
-            .load::<RoleEnum>(conn)?;
+        let roles = get_user_roles(uid, conn)?;
 
         Ok(mb_user.map(|user| UserWithRoles {
             id: user.id,
@@ -42,10 +50,8 @@ pub fn find_user_by_uid(
 pub fn find_user_by_name(
     user_name: &Username,
     conn: &impl diesel::Connection<Backend = diesel::pg::Pg>,
-) -> Result<Option<models::UserWithRoles>, errors::DomainError> {
-    use crate::schema::roles::dsl as roles;
+) -> Result<Option<UserWithRoles>, DomainError> {
     use crate::schema::users::dsl as users;
-    use crate::schema::users_roles::dsl as users_roles;
 
     conn.transaction(|| {
         let mb_user = users::users
@@ -55,13 +61,7 @@ pub fn find_user_by_name(
             .optional()?;
 
         let roles = match &mb_user {
-            Some(user) => Some(
-                users_roles::users_roles
-                    .inner_join(roles::roles)
-                    .select(roles::role_name)
-                    .filter(users_roles::user_id.eq(&user.id))
-                    .load::<RoleEnum>(conn)?,
-            ),
+            Some(user) => Some(get_user_roles(&user.id, conn)?),
             None => None,
         };
 
@@ -83,10 +83,8 @@ pub fn find_user_by_name(
 pub fn get_user_auth_details(
     user_name: &Username,
     conn: &impl diesel::Connection<Backend = diesel::pg::Pg>,
-) -> Result<Option<models::UserAuthDetailsWithRoles>, errors::DomainError> {
-    use crate::schema::roles::dsl as roles;
+) -> Result<Option<models::UserAuthDetailsWithRoles>, DomainError> {
     use crate::schema::users::dsl as users;
-    use crate::schema::users_roles::dsl as users_roles;
 
     conn.transaction(|| {
         let mb_user = users::users
@@ -96,13 +94,7 @@ pub fn get_user_auth_details(
             .optional()?;
 
         let roles = match &mb_user {
-            Some(user) => Some(
-                users_roles::users_roles
-                    .inner_join(roles::roles)
-                    .select(roles::role_name)
-                    .filter(users_roles::user_id.eq(&user.id))
-                    .load::<RoleEnum>(conn)?,
-            ),
+            Some(user) => Some(get_user_roles(&user.id, conn)?),
             None => None,
         };
 
@@ -124,10 +116,8 @@ pub fn get_user_auth_details(
 pub fn get_all_users(
     pagination: &Pagination,
     conn: &impl diesel::Connection<Backend = diesel::pg::Pg>,
-) -> Result<Vec<models::UserWithRoles>, errors::DomainError> {
-    use crate::schema::roles::dsl as roles;
+) -> Result<Vec<UserWithRoles>, DomainError> {
     use crate::schema::users::dsl as users;
-    use crate::schema::users_roles::dsl as users_roles;
 
     conn.transaction(|| {
         let users = users::users
@@ -140,20 +130,16 @@ pub fn get_all_users(
         users
             .into_iter()
             .map(|user| {
-                users_roles::users_roles
-                    .inner_join(roles::roles)
-                    .select(roles::role_name)
-                    .filter(users_roles::user_id.eq(&user.id))
-                    .load::<RoleEnum>(conn)
+                get_user_roles(&user.id, conn)
                     .map(|roles| UserWithRoles {
                         id: user.id,
                         username: user.username,
                         created_at: user.created_at,
                         roles,
                     })
-                    .map_err(errors::DomainError::from)
+                    .map_err(DomainError::from)
             })
-            .collect::<Result<Vec<UserWithRoles>, errors::DomainError>>()
+            .collect::<Result<Vec<UserWithRoles>, DomainError>>()
     })
 }
 
@@ -161,10 +147,8 @@ pub fn search_users(
     query: &str,
     pagination: &Pagination,
     conn: &impl diesel::Connection<Backend = diesel::pg::Pg>,
-) -> Result<Vec<models::UserWithRoles>, errors::DomainError> {
-    use crate::schema::roles::dsl as roles;
+) -> Result<Vec<UserWithRoles>, DomainError> {
     use crate::schema::users::dsl as users;
-    use crate::schema::users_roles::dsl as users_roles;
 
     conn.transaction(|| {
         let users = users::users
@@ -178,20 +162,16 @@ pub fn search_users(
         users
             .into_iter()
             .map(|user| {
-                users_roles::users_roles
-                    .inner_join(roles::roles)
-                    .select(roles::role_name)
-                    .filter(users_roles::user_id.eq(&user.id))
-                    .load::<RoleEnum>(conn)
+                get_user_roles(&user.id, conn)
                     .map(|roles| UserWithRoles {
                         id: user.id,
                         username: user.username,
                         created_at: user.created_at,
                         roles,
                     })
-                    .map_err(errors::DomainError::from)
+                    .map_err(DomainError::from)
             })
-            .collect::<Result<Vec<UserWithRoles>, errors::DomainError>>()
+            .collect::<Result<Vec<UserWithRoles>, DomainError>>()
     })
 }
 
@@ -199,8 +179,7 @@ pub fn insert_new_user(
     nu: models::NewUser,
     conn: &impl diesel::Connection<Backend = diesel::pg::Pg>,
     hash_cost: u32,
-) -> Result<models::UserWithRoles, errors::DomainError> {
-    use crate::schema::roles::dsl as roles;
+) -> Result<UserWithRoles, DomainError> {
     use crate::schema::users::dsl as users;
     use crate::schema::users_roles::dsl as users_roles;
 
@@ -208,7 +187,7 @@ pub fn insert_new_user(
         let mut nu2 = nu;
         let hash = hash(nu2.password.as_str(), hash_cost)?;
         nu2.password = Password::parse_string(hash).map_err(|err| {
-            errors::DomainError::new_field_validation_error(err.to_string())
+            DomainError::new_field_validation_error(err.to_string())
         })?;
         nu2
     };
@@ -229,11 +208,7 @@ pub fn insert_new_user(
             })
             .execute(conn)?;
 
-        let roles = users_roles::users_roles
-            .inner_join(roles::roles)
-            .select(roles::role_name)
-            .filter(users_roles::user_id.eq(&user.id))
-            .load::<RoleEnum>(conn)?;
+        let roles = get_user_roles(&user.id, conn)?;
 
         Ok(UserWithRoles {
             id: user.id,
