@@ -93,7 +93,7 @@ pub async fn add_user(
     let user = web::block(move || {
         let pool = &app_data.pool;
         let conn = pool.get()?;
-        actions::insert_new_user(form.0, &conn, Some(app_data.config.hash_cost))
+        actions::insert_new_user(form.0, &conn, app_data.config.hash_cost)
     })
     .await
     .map_err(|err| DomainError::new_thread_pool_error(err.to_string()))??;
