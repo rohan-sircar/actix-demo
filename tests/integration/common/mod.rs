@@ -129,7 +129,7 @@ pub async fn test_app(
                     password: Password::parse_str("test").unwrap(),
                 },
                 conn,
-                Some(8),
+                8,
             )
         })
         .await

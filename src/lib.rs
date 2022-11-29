@@ -52,7 +52,6 @@ pub struct EnvConfig {
     #[serde(default = "default_hash_cost")]
     pub hash_cost: u32,
     pub logger_format: LoggerFormat,
-    #[serde(skip_deserializing)]
     pub jwt_key: String,
 }
 
