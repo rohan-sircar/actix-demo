@@ -37,8 +37,30 @@ WORKDIR /actix-demo
 
 COPY ./Cargo.toml ./Cargo.toml
 COPY ./Cargo.lock ./Cargo.lock
+RUN \
+    case ${PROFILE} in \
+    "debug") CARGOFLAGS=""  ;; \
+    "release") CARGOFLAGS="--release"  ;; \
+    esac && \ 
+    case ${TARGETPLATFORM} in \
+    "linux/amd64") BUILDFLAGS=""  ;; \
+    "linux/arm64") BUILDFLAGS="-C linker=aarch64-linux-gnu-gcc"  ;; \
+    "linux/ppc64le") BUILDFLAGS="-C linker=powerpc64le-linux-gnu-gcc"  ;; \
+    esac && \
+    case ${TARGETPLATFORM} in \
+    "linux/amd64") TARGET="x86_64-unknown-linux-gnu"  ;; \
+    "linux/arm64") TARGET="aarch64-unknown-linux-gnu"  ;; \
+    "linux/ppc64le") TARGET="powerpc64le-unknown-linux-gnu"  ;; \
+    esac && \
+    RUSTFLAGS="${BUILDFLAGS}" cargo build --target ${TARGET} $CARGOFLAGS
+RUN rm -r src/*.rs
 COPY ./src ./src
 COPY ./build.rs ./build.rs
+# RUN case ${PROFILE} in \
+#     "debug") RELEASEPATH="debug"  ;; \
+#     "release") RELEASEPATH="release"  ;; \
+#     esac && \
+#     rm ./target/$RELEASEPATH/deps/actix_demo*
 RUN \
     case ${PROFILE} in \
     "debug") CARGOFLAGS=""  ;; \
