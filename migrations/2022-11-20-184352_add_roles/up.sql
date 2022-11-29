@@ -21,12 +21,11 @@ INSERT INTO
 VALUES
     ('role_user');
 
-ALTER TABLE
-    USERS
-ADD
-    role_id INTEGER NOT NULL DEFAULT 3;
+CREATE TABLE IF NOT EXISTS users_roles (
+    id SERIAL PRIMARY KEY NOT NULL,
+    user_id INTEGER NOT NULL,
+    role_id INTEGER NOT NULL,
+    CONSTRAINT fk_users_roles_user_id FOREIGN KEY(user_id) REFERENCES users(id),
+    CONSTRAINT fk_users_roles_role_id FOREIGN KEY(role_id) REFERENCES roles(id)
+);
 
-ALTER TABLE
-    USERS
-ADD
-    FOREIGN KEY (role_id) REFERENCES roles(id);

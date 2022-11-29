@@ -13,7 +13,9 @@ mod tests {
 
         use std::str::FromStr;
 
-        use actix_demo::models::{roles::RoleEnum, User, UserId, Username};
+        use actix_demo::models::{
+            roles::RoleEnum, UserId, UserWithRoles, Username,
+        };
         use validators::traits::ValidateString;
 
         use super::*;
@@ -35,11 +37,12 @@ mod tests {
                 .to_request();
             let resp = test_app.call(req).await.unwrap();
             assert_eq!(resp.status(), StatusCode::OK);
-            let body: ApiResponse<Vec<User>> = test::read_body_json(resp).await;
+            let body: ApiResponse<Vec<UserWithRoles>> =
+                test::read_body_json(resp).await;
             let user = body.response().get(0).unwrap();
             assert_eq!(user.id, UserId::from_str("1").unwrap());
             assert_eq!(user.username, Username::parse_str("user1").unwrap());
-            assert_eq!(user.role, RoleEnum::RoleUser);
+            assert_eq!(user.roles, vec![RoleEnum::RoleUser]);
         }
 
         #[actix_rt::test]

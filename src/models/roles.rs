@@ -1,9 +1,12 @@
 use std::str::FromStr;
 
 use crate::schema::roles;
+use crate::schema::users_roles;
 use derive_more::{Display, Into};
 use diesel_derive_enum::DbEnum;
 use serde::{Deserialize, Serialize};
+
+use super::UserId;
 
 #[derive(DbEnum, Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
 #[allow(clippy::enum_variant_names)]
@@ -68,4 +71,12 @@ impl TryFrom<u32> for RoleId {
             .map_err(|err| format!("error while converting user_id: {}", err))
             .map(RoleId)
     }
+}
+
+#[derive(Debug, Clone, Insertable)]
+#[table_name = "users_roles"]
+
+pub struct NewUserRole {
+    pub user_id: UserId,
+    pub role_id: RoleId,
 }

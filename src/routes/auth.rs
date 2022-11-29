@@ -15,7 +15,7 @@ use jwt_simple::prelude::*;
 struct VerifiedAuthDetails {
     user_id: UserId,
     username: Username,
-    role: RoleEnum,
+    roles: Vec<RoleEnum>,
 }
 
 pub async fn extract(req: &mut ServiceRequest) -> Result<Vec<RoleEnum>, Error> {
@@ -30,9 +30,9 @@ pub async fn extract(req: &mut ServiceRequest) -> Result<Vec<RoleEnum>, Error> {
                 err
             )))
         })?;
-    let role = claims.custom.role;
+    let roles = claims.custom.roles;
 
-    Ok(vec![role])
+    Ok(roles)
 }
 
 #[tracing::instrument(level = "info", skip(req))]
@@ -115,7 +115,7 @@ pub async fn login(
                 let auth_data = VerifiedAuthDetails {
                     user_id: user.id.clone(),
                     username: user.username,
-                    role: user.role,
+                    roles: user.roles,
                 };
                 let claims = Claims::with_custom_claims(
                     auth_data,
@@ -123,7 +123,7 @@ pub async fn login(
                 );
                 let token =
                     app_data.jwt_key.authenticate(claims).map_err(|err| {
-                        DomainError::new_jwt_error(err.to_string())
+                        DomainError::new_jwt_error(format! {"{:#}", err})
                     })?;
                 let _ = credentials_repo.save(&user.id, &token).await?;
                 Ok(token)

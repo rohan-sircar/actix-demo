@@ -11,8 +11,6 @@ use validators::prelude::*;
 use super::roles::RoleEnum;
 
 ///newtype to constrain id to positive int values
-///
-///sqlite does not allow u32 for primary keys
 #[derive(
     Debug,
     Clone,
@@ -90,7 +88,15 @@ pub struct User {
     pub id: UserId,
     pub username: Username,
     pub created_at: chrono::NaiveDateTime,
-    pub role: RoleEnum,
+    // pub role: Vec<RoleEnum>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct UserWithRoles {
+    pub id: UserId,
+    pub username: Username,
+    pub created_at: chrono::NaiveDateTime,
+    pub roles: Vec<RoleEnum>,
 }
 
 #[derive(Debug, Clone, Insertable, Deserialize)]
@@ -114,7 +120,15 @@ pub struct UserAuthDetails {
     pub username: Username,
     #[serde(skip_serializing)]
     pub password: Password,
-    pub role: RoleEnum,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct UserAuthDetailsWithRoles {
+    pub id: UserId,
+    pub username: Username,
+    #[serde(skip_serializing)]
+    pub password: Password,
+    pub roles: Vec<RoleEnum>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
