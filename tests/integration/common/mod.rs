@@ -133,11 +133,6 @@ pub async fn test_app(
             )
         })
         .await
-        .map_err(|err| {
-            actix_demo::errors::DomainError::new_thread_pool_error(
-                err.to_string(),
-            )
-        })
         .unwrap()
         .unwrap();
     };

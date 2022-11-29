@@ -25,10 +25,7 @@ pub async fn extract(req: &mut ServiceRequest) -> Result<Vec<RoleEnum>, Error> {
         .jwt_key
         .verify_token::<VerifiedAuthDetails>(bearer.token(), None)
         .map_err(|err| {
-            Error::from(DomainError::new_auth_error(format!(
-                "Failed to verify token - {}",
-                err
-            )))
+            Error::from(DomainError::anyhow_auth("Failed to verify token", err))
         })?;
     let roles = claims.custom.roles;
 
@@ -48,10 +45,10 @@ pub async fn validate_bearer_auth(
         .verify_token::<VerifiedAuthDetails>(&token, None)
         .map_err(|err| {
             (
-                Error::from(DomainError::new_auth_error(format!(
-                    "Failed to verify token - {}",
-                    err
-                ))),
+                Error::from(DomainError::anyhow_auth(
+                    "Failed to verify token",
+                    err,
+                )),
                 ServiceRequest::from_parts(http_req.clone(), Payload::None),
             )
         })?;
@@ -100,17 +97,13 @@ pub async fn login(
         let conn = pool.get()?;
         get_user_auth_details(&user_login.username, &conn)
     })
-    .await
-    .map_err(|err| DomainError::new_thread_pool_error(err.to_string()))??;
+    .await??;
     let token = match mb_user {
         Some(user) => {
             let valid = web::block(move || {
                 verify(user_login.password.as_str(), user.password.as_str())
             })
-            .await
-            .map_err(|err| {
-                DomainError::new_thread_pool_error(err.to_string())
-            })??;
+            .await??;
             if valid {
                 let auth_data = VerifiedAuthDetails {
                     user_id: user.id.clone(),
@@ -123,8 +116,12 @@ pub async fn login(
                 );
                 let token =
                     app_data.jwt_key.authenticate(claims).map_err(|err| {
-                        DomainError::new_jwt_error(format! {"{:#}", err})
+                        DomainError::anyhow_auth(
+                            "Failed to deserialize token",
+                            err,
+                        )
                     })?;
+
                 let _ = credentials_repo.save(&user.id, &token).await?;
                 Ok(token)
             } else {
