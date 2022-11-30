@@ -35,12 +35,10 @@ async fn main() -> io::Result<()> {
             )
         })?;
 
-    // println!("hello");
-
     //bind guard to variable instead of _
     let _guard = setup_logger(env_config.clone().logger_format)?;
 
-    tracing::error!("config: {:?}", env_config);
+    // tracing::error!("config: {:?}", env_config);
 
     let connspec = &env_config.database_url;
     let manager = ConnectionManager::<InstrumentedPgConnection>::new(connspec);
