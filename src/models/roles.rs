@@ -6,7 +6,7 @@ use derive_more::{Display, Into};
 use diesel_derive_enum::DbEnum;
 use serde::{Deserialize, Serialize};
 
-use super::UserId;
+use super::users::UserId;
 
 #[derive(DbEnum, Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
 #[allow(clippy::enum_variant_names)]
@@ -38,7 +38,7 @@ pub struct Role {
     DieselNewType,
 )]
 #[serde(try_from = "u32", into = "u32")]
-pub struct RoleId(pub i32);
+pub struct RoleId(i32);
 impl From<RoleId> for u32 {
     fn from(s: RoleId) -> u32 {
         //this should be safe to unwrap since our newtype

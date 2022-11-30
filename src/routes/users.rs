@@ -1,9 +1,8 @@
 use actix_web::{post, web, HttpResponse};
 
-use crate::{
-    actions,
-    models::{self, ApiResponse, Pagination, SearchQuery, UserId},
-};
+use crate::models::misc::{Pagination, SearchQuery};
+use crate::models::users::{NewUser, UserId};
+use crate::{actions, models::misc::ApiResponse};
 use crate::{errors::DomainError, AppData};
 
 /// Finds user by UID.
@@ -85,7 +84,7 @@ pub async fn search_users(
 #[tracing::instrument(level = "debug", skip(app_data))]
 pub async fn add_user(
     app_data: web::Data<AppData>,
-    form: web::Json<models::NewUser>,
+    form: web::Json<NewUser>,
 ) -> Result<HttpResponse, DomainError> {
     let user = web::block(move || {
         let pool = &app_data.pool;

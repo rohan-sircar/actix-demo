@@ -1,7 +1,7 @@
 use crate::actions::get_user_auth_details;
 use crate::errors::DomainError;
 use crate::models::roles::RoleEnum;
-use crate::models::{UserId, UserLogin, Username};
+use crate::models::users::{UserId, UserLogin, Username};
 use crate::AppData;
 use actix_http::Payload;
 use actix_web::dev::ServiceRequest;

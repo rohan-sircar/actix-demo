@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
 
 use crate::errors::DomainError;
-use crate::models::UserId;
+use crate::models::users::UserId;
 
 use super::CredentialsRepo;
 

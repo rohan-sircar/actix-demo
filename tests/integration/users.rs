@@ -3,7 +3,7 @@ use crate::common;
 mod tests {
 
     use super::*;
-    use actix_demo::models::ApiResponse;
+    use actix_demo::models::misc::ApiResponse;
     use actix_web::dev::Service as _;
     use actix_web::http::StatusCode;
     use actix_web::test;
@@ -14,7 +14,8 @@ mod tests {
         use std::str::FromStr;
 
         use actix_demo::models::{
-            roles::RoleEnum, UserId, UserWithRoles, Username,
+            roles::RoleEnum, users::UserId, users::UserWithRoles,
+            users::Username,
         };
         use validators::traits::ValidateString;
 

@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 
 use crate::errors::DomainError;
-use crate::models::UserId;
+use crate::models::users::UserId;
 
 #[async_trait(?Send)]
 pub trait CredentialsRepo {

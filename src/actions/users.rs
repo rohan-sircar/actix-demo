@@ -3,14 +3,17 @@ use std::str::FromStr;
 use diesel::prelude::*;
 
 use crate::errors::DomainError;
+use crate::models::misc::Pagination;
 use crate::models::roles::{NewUserRole, RoleEnum, RoleId};
-use crate::models::Password;
-use crate::models::{self, Pagination, User, UserId, UserWithRoles, Username};
+use crate::models::users::{
+    NewUser, Password, User, UserAuthDetails, UserAuthDetailsWithRoles, UserId,
+    UserWithRoles, Username,
+};
 use bcrypt::hash;
 use do_notation::m;
 use validators::prelude::*;
 
-pub fn get_user_roles(
+pub fn get_roles_for_user(
     uid: &UserId,
     conn: &impl diesel::Connection<Backend = diesel::pg::Pg>,
 ) -> Result<Vec<RoleEnum>, DomainError> {
@@ -21,6 +24,25 @@ pub fn get_user_roles(
         .select(roles::role_name)
         .filter(users_roles::user_id.eq(uid))
         .load::<RoleEnum>(conn)?)
+}
+
+pub fn get_roles_for_users(
+    users: Vec<User>,
+    conn: &impl diesel::Connection<Backend = diesel::pg::Pg>,
+) -> Result<Vec<UserWithRoles>, DomainError> {
+    users
+        .into_iter()
+        .map(|user| {
+            get_roles_for_user(&user.id, conn)
+                .map(|roles| UserWithRoles {
+                    id: user.id,
+                    username: user.username,
+                    created_at: user.created_at,
+                    roles,
+                })
+                .map_err(DomainError::from)
+        })
+        .collect::<Result<Vec<UserWithRoles>, DomainError>>()
 }
 
 pub fn find_user_by_uid(
@@ -36,7 +58,7 @@ pub fn find_user_by_uid(
             .first::<User>(conn)
             .optional()?;
 
-        let roles = get_user_roles(uid, conn)?;
+        let roles = get_roles_for_user(uid, conn)?;
 
         Ok(mb_user.map(|user| UserWithRoles {
             id: user.id,
@@ -57,11 +79,11 @@ pub fn find_user_by_name(
         let mb_user = users::users
             .select((users::id, users::username, users::created_at))
             .filter(users::username.eq(user_name))
-            .first::<models::User>(conn)
+            .first::<User>(conn)
             .optional()?;
 
         let roles = match &mb_user {
-            Some(user) => Some(get_user_roles(&user.id, conn)?),
+            Some(user) => Some(get_roles_for_user(&user.id, conn)?),
             None => None,
         };
 
@@ -83,25 +105,25 @@ pub fn find_user_by_name(
 pub fn get_user_auth_details(
     user_name: &Username,
     conn: &impl diesel::Connection<Backend = diesel::pg::Pg>,
-) -> Result<Option<models::UserAuthDetailsWithRoles>, DomainError> {
+) -> Result<Option<UserAuthDetailsWithRoles>, DomainError> {
     use crate::schema::users::dsl as users;
 
     conn.transaction(|| {
         let mb_user = users::users
             .select((users::id, users::username, users::password))
             .filter(users::username.eq(user_name))
-            .first::<models::UserAuthDetails>(conn)
+            .first::<UserAuthDetails>(conn)
             .optional()?;
 
         let roles = match &mb_user {
-            Some(user) => Some(get_user_roles(&user.id, conn)?),
+            Some(user) => Some(get_roles_for_user(&user.id, conn)?),
             None => None,
         };
 
         let mb_user_with_roles = m! {
             user <- mb_user;
             roles <- roles;
-            Some(models::UserAuthDetailsWithRoles {
+            Some(UserAuthDetailsWithRoles {
                 id: user.id,
                 username: user.username,
                 password: user.password,
@@ -125,21 +147,9 @@ pub fn get_all_users(
             .order_by(users::created_at)
             .offset(pagination.calc_offset().as_uint().into())
             .limit(pagination.limit.as_uint().into())
-            .load::<models::User>(conn)?;
+            .load::<User>(conn)?;
 
-        users
-            .into_iter()
-            .map(|user| {
-                get_user_roles(&user.id, conn)
-                    .map(|roles| UserWithRoles {
-                        id: user.id,
-                        username: user.username,
-                        created_at: user.created_at,
-                        roles,
-                    })
-                    .map_err(DomainError::from)
-            })
-            .collect::<Result<Vec<UserWithRoles>, DomainError>>()
+        get_roles_for_users(users, conn)
     })
 }
 
@@ -157,26 +167,14 @@ pub fn search_users(
             .order_by(users::created_at)
             .offset(pagination.calc_offset().as_uint().into())
             .limit(pagination.limit.as_uint().into())
-            .load::<models::User>(conn)?;
+            .load::<User>(conn)?;
 
-        users
-            .into_iter()
-            .map(|user| {
-                get_user_roles(&user.id, conn)
-                    .map(|roles| UserWithRoles {
-                        id: user.id,
-                        username: user.username,
-                        created_at: user.created_at,
-                        roles,
-                    })
-                    .map_err(DomainError::from)
-            })
-            .collect::<Result<Vec<UserWithRoles>, DomainError>>()
+        get_roles_for_users(users, conn)
     })
 }
 
 pub fn insert_new_user(
-    nu: models::NewUser,
+    nu: NewUser,
     conn: &impl diesel::Connection<Backend = diesel::pg::Pg>,
     hash_cost: u32,
 ) -> Result<UserWithRoles, DomainError> {
@@ -199,7 +197,7 @@ pub fn insert_new_user(
         let user = users::users
             .select((users::id, users::username, users::created_at))
             .filter(users::username.eq(nu.username))
-            .first::<models::User>(conn)?;
+            .first::<User>(conn)?;
 
         let _ = diesel::insert_into(users_roles::users_roles)
             .values(NewUserRole {
@@ -208,7 +206,7 @@ pub fn insert_new_user(
             })
             .execute(conn)?;
 
-        let roles = get_user_roles(&user.id, conn)?;
+        let roles = get_roles_for_user(&user.id, conn)?;
 
         Ok(UserWithRoles {
             id: user.id,

@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use crate::{get_build_info, models::UserId, AppData};
+use crate::{get_build_info, models::users::UserId, AppData};
 use actix_web::{web, HttpRequest, HttpResponse};
 use actix_ws::{Message, MessageStream, Session};
 use async_recursion::async_recursion;
@@ -56,7 +56,19 @@ pub async fn ws(
 
     let _ = actix_rt::spawn(async move {
         let res = ws_loop(session.clone(), msg_stream, &app_data).await;
-        let _ = tracing::debug!("{:?}", res);
+        match res {
+            Ok(_) => {
+                let _ =
+                    tracing::info!("Websocket connection ended successfully");
+            }
+            Err(err) => {
+                let _ = tracing::error!(
+                    "Websocket connection ended with error {:?}",
+                    err
+                );
+            }
+        }
+
         // let _ = app_data
         //     .credentials_repo
         //     .load(&UserId::from_str("1").unwrap());

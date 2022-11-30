@@ -1,5 +1,5 @@
 extern crate actix_demo;
-use actix_demo::models::{NewUser, Password, Username};
+use actix_demo::models::users::{NewUser, Password, Username};
 use actix_demo::{AppConfig, AppData, EnvConfig};
 use actix_http::header::HeaderValue;
 use actix_web::App;
