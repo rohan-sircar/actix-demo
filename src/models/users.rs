@@ -24,7 +24,7 @@ use super::roles::RoleEnum;
     DieselNewType,
 )]
 #[serde(try_from = "u32", into = "u32")]
-pub struct UserId(pub i32);
+pub struct UserId(i32);
 impl From<UserId> for u32 {
     fn from(s: UserId) -> u32 {
         //this should be safe to unwrap since our newtype
@@ -99,6 +99,18 @@ pub struct UserWithRoles {
     pub roles: Vec<RoleEnum>,
 }
 
+impl UserWithRoles {
+    pub fn from_user(user: &User, roles: &[RoleEnum]) -> UserWithRoles {
+        let mut user_value = serde_json::to_value(user).unwrap();
+        let roles = serde_json::to_value(roles).unwrap();
+        let _ = user_value
+            .as_object_mut()
+            .unwrap()
+            .insert("roles".to_owned(), roles);
+        serde_json::from_value(user_value).unwrap()
+    }
+}
+
 #[derive(Debug, Clone, Insertable, Deserialize)]
 #[table_name = "users"]
 pub struct NewUser {
@@ -131,6 +143,19 @@ pub struct UserAuthDetailsWithRoles {
     pub roles: Vec<RoleEnum>,
 }
 
+impl UserAuthDetailsWithRoles {
+    pub fn from_user(
+        user: UserAuthDetails,
+        roles: Vec<RoleEnum>,
+    ) -> UserAuthDetailsWithRoles {
+        UserAuthDetailsWithRoles {
+            id: user.id,
+            username: user.username,
+            password: user.password,
+            roles,
+        }
+    }
+}
 #[cfg(test)]
 mod test {
     use super::*;
@@ -166,5 +191,15 @@ mod test {
             r#"{"id":1,"username":"chaegw_eaef","password":"aeqfq3fq","role":"role_user","created_at":"2021-05-12T12:37:56"}"#,
         );
         assert!(mb_user.is_err());
+    }
+
+    #[test]
+    fn user_model_conversion_test() {
+        let user = serde_json::from_str::<User>(
+            r#"{"id":1,"username":"chewbacca","password":"aeqfq3fq", "role":"role_user", "created_at":"2021-05-12T12:37:56"}"#,
+        ).unwrap();
+        let roles = vec![RoleEnum::RoleUser];
+        let ur = UserWithRoles::from_user(&user, &roles);
+        assert_eq!(ur.id.0 as u32, 1);
     }
 }

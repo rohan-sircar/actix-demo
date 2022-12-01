@@ -10,7 +10,7 @@ use crate::{errors::DomainError, AppData};
     level = "debug",
     skip(app_data),
     fields(
-        user_id = %user_id.0
+        user_id = %user_id
     )
 )]
 // #[has_any_role("RoleEnum::RoleAdmin", type = "RoleEnum")]
@@ -25,7 +25,7 @@ pub async fn get_user(
     let res = web::block(move || {
         let pool = &app_data.pool;
         let conn = pool.get()?;
-        actions::find_user_by_uid(&u_id2, &conn)
+        actions::users::find_user_by_uid(&u_id2, &conn)
     })
     .await??;
     let _ = tracing::trace!("{:?}", res);
@@ -50,7 +50,7 @@ pub async fn get_users(
         let pool = &app_data.pool;
         let conn = pool.get()?;
         let p: Pagination = pagination.into_inner();
-        actions::get_all_users(&p, &conn)
+        actions::users::get_all_users(&p, &conn)
     })
     .await??;
 
@@ -70,7 +70,7 @@ pub async fn search_users(
         let pool = &app_data.pool;
         let conn = pool.get()?;
         let p: Pagination = pagination.into_inner();
-        actions::search_users(query.q.as_str(), &p, &conn)
+        actions::users::search_users(query.q.as_str(), &p, &conn)
     })
     .await??;
 
@@ -89,7 +89,11 @@ pub async fn add_user(
     let user = web::block(move || {
         let pool = &app_data.pool;
         let conn = pool.get()?;
-        actions::insert_new_user(form.0, &conn, app_data.config.hash_cost)
+        actions::users::insert_new_user(
+            form.0,
+            &conn,
+            app_data.config.hash_cost,
+        )
     })
     .await??;
 

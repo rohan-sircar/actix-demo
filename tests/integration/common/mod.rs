@@ -123,7 +123,7 @@ pub async fn test_app(
         let pool = pool.clone();
         let _ = web::block(move || {
             let conn = &pool.get()?;
-            actix_demo::actions::insert_new_user(
+            actix_demo::actions::users::insert_new_user(
                 NewUser {
                     username: Username::parse_str("user1").unwrap(),
                     password: Password::parse_str("test").unwrap(),

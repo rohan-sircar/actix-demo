@@ -1,4 +1,4 @@
-use crate::actions::get_user_auth_details;
+use crate::actions::users::get_user_auth_details;
 use crate::errors::DomainError;
 use crate::models::roles::RoleEnum;
 use crate::models::users::{UserId, UserLogin, Username};

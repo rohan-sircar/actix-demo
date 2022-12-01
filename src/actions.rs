@@ -1,2 +1,2 @@
+pub mod misc;
 pub mod users;
-pub use self::users::*;

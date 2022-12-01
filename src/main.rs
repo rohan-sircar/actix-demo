@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 #![allow(clippy::let_unit_value)]
+use actix_demo::actions::misc::create_database_if_needed;
 use actix_demo::{AppConfig, AppData, EnvConfig, LoggerFormat};
 use actix_web::web::Data;
 use diesel::r2d2::ConnectionManager;
@@ -41,6 +42,12 @@ async fn main() -> io::Result<()> {
     // tracing::error!("config: {:?}", env_config);
 
     let connspec = &env_config.database_url;
+    let _ = create_database_if_needed(connspec).map_err(|err| {
+        io::Error::new(
+            ErrorKind::Other,
+            format!("Failed to create/detect database: {:?}", err),
+        )
+    })?;
     let manager = ConnectionManager::<InstrumentedPgConnection>::new(connspec);
     let pool = r2d2::Pool::builder().build(manager).map_err(|err| {
         io::Error::new(

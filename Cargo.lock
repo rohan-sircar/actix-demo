@@ -73,6 +73,7 @@ dependencies = [
  "tracing-futures",
  "tracing-log",
  "tracing-subscriber",
+ "url 1.7.2",
  "uuid",
  "validators",
  "validators-derive",
@@ -97,7 +98,7 @@ dependencies = [
  "log",
  "mime",
  "mime_guess",
- "percent-encoding",
+ "percent-encoding 2.1.0",
  "pin-project-lite",
 ]
 
@@ -140,7 +141,7 @@ dependencies = [
  "language-tags",
  "local-channel",
  "mime",
- "percent-encoding",
+ "percent-encoding 2.1.0",
  "pin-project-lite",
  "rand 0.8.5",
  "sha1",
@@ -275,7 +276,7 @@ dependencies = [
  "smallvec",
  "socket2",
  "time 0.3.15",
- "url",
+ "url 2.2.1",
 ]
 
 [[package]]
@@ -745,7 +746,7 @@ version = "0.16.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "344adc371239ef32293cb1c4fe519592fcf21206c79c02854320afcdf3ab4917"
 dependencies = [
- "percent-encoding",
+ "percent-encoding 2.1.0",
  "time 0.3.15",
  "version_check",
 ]
@@ -1197,7 +1198,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5fc25a87fa4fd2094bffb06925852034d90a17f0d1e05197d4956d3555752191"
 dependencies = [
  "matches",
- "percent-encoding",
+ "percent-encoding 2.1.0",
 ]
 
 [[package]]
@@ -1336,7 +1337,7 @@ dependencies = [
  "libc",
  "libgit2-sys",
  "log",
- "url",
+ "url 2.2.1",
 ]
 
 [[package]]
@@ -1502,6 +1503,17 @@ name = "ident_case"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b9e0384b61958566e926dc50660321d12159025e767c18e043daf26b70104c39"
+
+[[package]]
+name = "idna"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "38f09e0f0b1fb55fdee1f17470ad800da77af5186a1a76c026b679358b7e844e"
+dependencies = [
+ "matches",
+ "unicode-bidi",
+ "unicode-normalization",
+]
 
 [[package]]
 name = "idna"
@@ -2114,6 +2126,12 @@ checksum = "24d159833a9105500e0398934e205e0773f0b27529557134ecfc51c27646adac"
 dependencies = [
  "base64ct",
 ]
+
+[[package]]
+name = "percent-encoding"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "31010dd2e1ac33d5b46a5b413495239882813e0369f8ed8a5e266f173602f831"
 
 [[package]]
 name = "percent-encoding"
@@ -3051,7 +3069,7 @@ dependencies = [
  "futures-util",
  "log",
  "parking_lot 0.12.1",
- "percent-encoding",
+ "percent-encoding 2.1.0",
  "phf 0.11.1",
  "pin-project-lite",
  "postgres-protocol",
@@ -3241,6 +3259,17 @@ checksum = "fc72304796d0818e357ead4e000d19c9c174ab23dc11093ac919054d20a6a7fc"
 
 [[package]]
 name = "url"
+version = "1.7.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dd4e7c0d531266369519a4aa4f399d748bd37043b00bde1e4ff1f60a120b355a"
+dependencies = [
+ "idna 0.1.5",
+ "matches",
+ "percent-encoding 1.0.1",
+]
+
+[[package]]
+name = "url"
 version = "2.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9ccd964113622c8e9322cfac19eb1004a07e636c545f325da085d5cdde6f1f8b"
@@ -3248,7 +3277,7 @@ dependencies = [
  "form_urlencoded",
  "idna 0.2.3",
  "matches",
- "percent-encoding",
+ "percent-encoding 2.1.0",
  "serde",
 ]
 
@@ -3277,7 +3306,7 @@ dependencies = [
  "serde_json",
  "str-utils",
  "thiserror",
- "url",
+ "url 2.2.1",
  "validators-derive",
  "validators-options",
 ]

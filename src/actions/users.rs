@@ -34,12 +34,7 @@ pub fn get_roles_for_users(
         .into_iter()
         .map(|user| {
             get_roles_for_user(&user.id, conn)
-                .map(|roles| UserWithRoles {
-                    id: user.id,
-                    username: user.username,
-                    created_at: user.created_at,
-                    roles,
-                })
+                .map(|roles| UserWithRoles::from_user(&user, &roles))
                 .map_err(DomainError::from)
         })
         .collect::<Result<Vec<UserWithRoles>, DomainError>>()
@@ -60,12 +55,7 @@ pub fn find_user_by_uid(
 
         let roles = get_roles_for_user(uid, conn)?;
 
-        Ok(mb_user.map(|user| UserWithRoles {
-            id: user.id,
-            username: user.username,
-            created_at: user.created_at,
-            roles,
-        }))
+        Ok(mb_user.map(|user| UserWithRoles::from_user(&user, &roles)))
     })
 }
 
@@ -123,12 +113,7 @@ pub fn get_user_auth_details(
         let mb_user_with_roles = m! {
             user <- mb_user;
             roles <- roles;
-            Some(UserAuthDetailsWithRoles {
-                id: user.id,
-                username: user.username,
-                password: user.password,
-                roles,
-            })
+            Some(UserAuthDetailsWithRoles::from_user(user, roles))
         };
 
         Ok(mb_user_with_roles)
