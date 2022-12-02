@@ -54,6 +54,11 @@ actix-rt = "2.7.0"
 actix-web-grants = "3.0.1"
 do-notation = "0.1.3"
 url = { version = "1.4.0" }
+redis = { version = "0.22.1", features = [
+    "tokio-comp",
+    "json",
+    "connection-manager",
+] }
 
 [dependencies.validators]
 version = "0.24.3"

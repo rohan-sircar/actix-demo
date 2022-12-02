@@ -1,6 +1,7 @@
 #![forbid(unsafe_code)]
 #![allow(clippy::let_unit_value)]
 use actix_demo::actions::misc::create_database_if_needed;
+use actix_demo::utils::redis_credentials_repo::RedisCredentialsRepo;
 use actix_demo::{AppConfig, AppData, EnvConfig, LoggerFormat};
 use actix_web::web::Data;
 use diesel::r2d2::ConnectionManager;
@@ -73,17 +74,40 @@ async fn main() -> io::Result<()> {
             })?;
     };
 
-    let credentials_repo =
-        Arc::new(actix_demo::utils::InMemoryCredentialsRepo::default());
-    let key = HS256Key::from_bytes(env_config.jwt_key.as_bytes());
+    let client = redis::Client::open("redis://127.0.0.1").unwrap();
+    let cm = redis::aio::ConnectionManager::new(client.clone())
+        .await
+        .map_err(|err| {
+            io::Error::new(
+                ErrorKind::Other,
+                format!("Error running migrations: {:?}", err),
+            )
+        })?;
+
+    // let pubsub_conn = client
+    //     .get_async_connection()
+    //     .await
+    //     .map_err(|err| {
+    //         io::Error::new(
+    //             ErrorKind::Other,
+    //             format!("Error running migrations: {:?}", err),
+    //         )
+    //     })?
+    //     .into_pubsub();
+
+    let credentials_repo = Arc::new(RedisCredentialsRepo::new(
+        "user-sessions".to_owned(),
+        cm.clone(),
+    ));
+    let jwt_key = HS256Key::from_bytes(env_config.jwt_key.as_bytes());
 
     let app_data = Data::new(AppData {
         config: AppConfig {
             hash_cost: env_config.hash_cost,
         },
-        pool: pool.clone(),
+        pool,
         credentials_repo,
-        jwt_key: key,
+        jwt_key,
     });
 
     actix_demo::run(format!("{}:7800", env_config.http_host), app_data).await

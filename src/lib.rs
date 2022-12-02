@@ -81,7 +81,7 @@ pub fn configure_app(
             .service(routes::users::add_user)
             .service(
                 web::scope("/ws")
-                    // .wrap(HttpAuthentication::bearer(validate_bearer_auth))
+                    .wrap(HttpAuthentication::bearer(validate_bearer_auth))
                     .route("", web::get().to(routes::misc::ws)),
             )
             // .service(routes::auth::logout)

@@ -20,7 +20,7 @@ pub async fn get_user(
 ) -> Result<HttpResponse, DomainError> {
     let u_id = user_id.into_inner();
     let u_id2 = u_id.clone();
-    let _ = tracing::info!("Getting user with id {}", u_id);
+    let _ = tracing::info!("Getting user with id {u_id}");
     // use web::block to offload blocking Diesel code without blocking server thread
     let res = web::block(move || {
         let pool = &app_data.pool;
