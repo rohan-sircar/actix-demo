@@ -5,7 +5,7 @@ authors = ['Rohan Sircar <rohansircar@tuta.io>']
 edition = '2021'
 
 [dependencies]
-tokio = { version = "1.21.2", features = ["sync"] }
+tokio = { version = "1.21.2", features = ["sync", "macros"] }
 anyhow = "1.0.66"
 async-recursion = "1.0.0"
 diesel-derive-enum = { version = "1", features = ["postgres"] }

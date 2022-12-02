@@ -6,10 +6,11 @@ use actix_web::App;
 use actix_web::{test, web};
 
 use actix_web::web::Data;
+use anyhow::Context;
 use diesel::r2d2::{self, ConnectionManager};
+use diesel_tracing::pg::InstrumentedPgConnection;
 use jwt_simple::prelude::HS256Key;
 use std::io;
-use std::io::ErrorKind;
 use std::sync::Arc;
 use testcontainers::core::WaitFor;
 use testcontainers::images::generic::GenericImage;
@@ -28,43 +29,24 @@ use actix_web::{dev as ax_dev, Error as AxError};
 
 pub async fn test_app(
     connspec: &str,
-) -> io::Result<
+) -> anyhow::Result<
     impl ax_dev::Service<
         Request,
         Response = ax_dev::ServiceResponse<impl actix_web::body::MessageBody>,
         Error = AxError,
     >,
 > {
-    let _ = dotenv::dotenv().map_err(|err| {
-        io::Error::new(
-            ErrorKind::Other,
-            format!("Failed to set up env: {:?}", err),
-        )
-    })?;
+    let _ = dotenv::dotenv().context("Failed to set up env")?;
 
     let _ = envy::prefixed("ACTIX_DEMO_")
         .from_env::<EnvConfig>()
-        .map_err(|err| {
-            io::Error::new(
-                ErrorKind::Other,
-                format!("Failed to parse config: {:?}", err),
-            )
-        })?;
+        .context("Failed to parse config")?;
 
-    let env_filter =
-        EnvFilter::try_from_env("ACTIX_DEMO_RUST_LOG").map_err(|err| {
-            io::Error::new(
-                ErrorKind::Other,
-                format!("Failed to set up env logger: {:?}", err),
-            )
-        })?;
+    let env_filter = EnvFilter::try_from_env("ACTIX_DEMO_TEST_RUST_LOG")
+        .context("Failed to set up env logger")?;
 
-    let _ = LogTracer::init().map_err(|err| {
-        io::Error::new(
-            ErrorKind::Other,
-            format!("Failed to set up log tracer: {:?}", err),
-        )
-    });
+    //discard the error
+    let _ = LogTracer::init();
 
     let subscriber = FmtSubscriber::builder()
         .pretty()
@@ -74,49 +56,24 @@ pub async fn test_app(
         .finish()
         .with(env_filter);
 
-    let _ = set_global_default(subscriber).map_err(|err| {
-        io::Error::new(
-            ErrorKind::Other,
-            format!("Failed to set subscriber: {:?}", err),
-        )
-    });
+    let _ = set_global_default(subscriber).context("Failed to set subscriber");
 
-    let manager = ConnectionManager::<
-        diesel_tracing::pg::InstrumentedPgConnection,
-    >::new(connspec);
-    let pool = r2d2::Pool::builder().build(manager).map_err(|err| {
-        io::Error::new(
-            ErrorKind::Other,
-            format!("Failed to create pool: {:?}", err),
-        )
-    })?;
+    let manager = ConnectionManager::<InstrumentedPgConnection>::new(connspec);
+    let pool = r2d2::Pool::builder()
+        .build(manager)
+        .context("Failed to create pool")?;
 
     let _ = {
-        let conn = &pool.get().map_err(|err| {
-            io::Error::new(
-                ErrorKind::Other,
-                format!("Failed to get connection: {:?}", err),
-            )
-        })?;
+        let conn = &pool.get().context("Failed to get connection")?;
 
         let migrations_dir = diesel_migrations::find_migrations_directory()
-            .map_err(|err| {
-                io::Error::new(
-                    ErrorKind::Other,
-                    format!("Error finding migrations dir: {:?}", err),
-                )
-            })?;
+            .context("Error finding migrations dir")?;
         let _ = diesel_migrations::run_pending_migrations_in_directory(
             conn,
             &migrations_dir,
             &mut io::sink(),
         )
-        .map_err(|err| {
-            io::Error::new(
-                ErrorKind::Other,
-                format!("Error running migrations: {:?}", err),
-            )
-        })?;
+        .context("Error running migrations")?;
     };
 
     let _ = {
@@ -132,9 +89,7 @@ pub async fn test_app(
                 8,
             )
         })
-        .await
-        .unwrap()
-        .unwrap();
+        .await??;
     };
 
     let credentials_repo =

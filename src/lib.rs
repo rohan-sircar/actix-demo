@@ -53,6 +53,7 @@ pub struct EnvConfig {
     pub hash_cost: u32,
     pub logger_format: LoggerFormat,
     pub jwt_key: String,
+    pub redis_url: String,
 }
 
 #[derive(Deserialize, Debug, Clone)]

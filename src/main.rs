@@ -4,11 +4,10 @@ use actix_demo::actions::misc::create_database_if_needed;
 use actix_demo::utils::redis_credentials_repo::RedisCredentialsRepo;
 use actix_demo::{AppConfig, AppData, EnvConfig, LoggerFormat};
 use actix_web::web::Data;
+use anyhow::Context;
 use diesel::r2d2::ConnectionManager;
 use diesel_tracing::pg::InstrumentedPgConnection;
-use io::ErrorKind;
 use jwt_simple::prelude::HS256Key;
-use std::io;
 use std::sync::Arc;
 use tracing::subscriber::set_global_default;
 use tracing_appender::non_blocking::WorkerGuard;
@@ -19,23 +18,13 @@ use tracing_subscriber::{
     layer::SubscriberExt, EnvFilter, FmtSubscriber, Registry,
 };
 
-#[actix_web::main]
-async fn main() -> io::Result<()> {
-    let _ = dotenv::dotenv().map_err(|err| {
-        io::Error::new(
-            ErrorKind::Other,
-            format!("Failed to set up env: {:?}", err),
-        )
-    })?;
+#[tokio::main(flavor = "current_thread")]
+async fn main() -> anyhow::Result<()> {
+    let _ = dotenv::dotenv().context("Failed to set up env")?;
 
     let env_config = envy::prefixed("ACTIX_DEMO_")
         .from_env::<EnvConfig>()
-        .map_err(|err| {
-            io::Error::new(
-                ErrorKind::Other,
-                format!("Failed to parse config: {:?}", err),
-            )
-        })?;
+        .context("Failed to parse config")?;
 
     //bind guard to variable instead of _
     let _guard = setup_logger(env_config.clone().logger_format)?;
@@ -43,45 +32,25 @@ async fn main() -> io::Result<()> {
     // tracing::error!("config: {:?}", env_config);
 
     let connspec = &env_config.database_url;
-    let _ = create_database_if_needed(connspec).map_err(|err| {
-        io::Error::new(
-            ErrorKind::Other,
-            format!("Failed to create/detect database: {:?}", err),
-        )
-    })?;
+    let _ = create_database_if_needed(connspec)
+        .context("Failed to create/detect database")?;
     let manager = ConnectionManager::<InstrumentedPgConnection>::new(connspec);
-    let pool = r2d2::Pool::builder().build(manager).map_err(|err| {
-        io::Error::new(
-            ErrorKind::Other,
-            format!("Failed to create pool: {:?}", err),
-        )
-    })?;
+    let pool = r2d2::Pool::builder()
+        .build(manager)
+        .context("Failed to create pool")?;
 
     let _ = {
-        let conn = &pool.get().map_err(|err| {
-            io::Error::new(
-                ErrorKind::Other,
-                format!("Failed to get connection: {:?}", err),
-            )
-        })?;
+        let conn = &pool.get().context("Failed to get connection")?;
 
-        let _ =
-            diesel_migrations::run_pending_migrations(conn).map_err(|err| {
-                io::Error::new(
-                    ErrorKind::Other,
-                    format!("Error running migrations: {:?}", err),
-                )
-            })?;
+        let _ = diesel_migrations::run_pending_migrations(conn)
+            .context("Error running migrations")?;
     };
 
-    let client = redis::Client::open("redis://127.0.0.1").unwrap();
+    let client = redis::Client::open(env_config.redis_url.clone()).unwrap();
     let cm = redis::aio::ConnectionManager::new(client.clone())
         .await
-        .map_err(|err| {
-            io::Error::new(
-                ErrorKind::Other,
-                format!("Error running migrations: {:?}", err),
-            )
+        .with_context(|| {
+            format!("Failed to connect to redis {}", &env_config.redis_url)
         })?;
 
     // let pubsub_conn = client
@@ -110,27 +79,20 @@ async fn main() -> io::Result<()> {
         jwt_key,
     });
 
-    actix_demo::run(format!("{}:7800", env_config.http_host), app_data).await
+    Ok(
+        actix_demo::run(format!("{}:7800", env_config.http_host), app_data)
+            .await?,
+    )
 }
 
-pub fn setup_logger(format: LoggerFormat) -> io::Result<WorkerGuard> {
-    let env_filter =
-        EnvFilter::try_from_env("ACTIX_DEMO_RUST_LOG").map_err(|err| {
-            io::Error::new(
-                ErrorKind::Other,
-                format!("Failed to set up env filter: {:?}", err),
-            )
-        })?;
+pub fn setup_logger(format: LoggerFormat) -> anyhow::Result<WorkerGuard> {
+    let env_filter = EnvFilter::try_from_env("ACTIX_DEMO_RUST_LOG")
+        .context("Failed to set up env logger")?;
 
     let (non_blocking, _guard) =
         tracing_appender::non_blocking(std::io::stdout());
 
-    let _ = LogTracer::init().map_err(|err| {
-        io::Error::new(
-            ErrorKind::Other,
-            format!("Failed to set up log tracer: {:?}", err),
-        )
-    })?;
+    let _ = LogTracer::init().context("Failed to set up log tracer")?;
 
     let bi = actix_demo::get_build_info();
 
@@ -145,12 +107,8 @@ pub fn setup_logger(format: LoggerFormat) -> io::Result<WorkerGuard> {
                 .with(env_filter)
                 .with(JsonStorageLayer)
                 .with(formatting_layer);
-            let _ = set_global_default(subscriber).map_err(|err| {
-                io::Error::new(
-                    ErrorKind::Other,
-                    format!("Failed to set subscriber: {:?}", err),
-                )
-            })?;
+            let _ = set_global_default(subscriber)
+                .context("Failed to set subscriber")?;
         }
 
         LoggerFormat::Pretty => {
@@ -162,12 +120,8 @@ pub fn setup_logger(format: LoggerFormat) -> io::Result<WorkerGuard> {
                 .with_writer(non_blocking)
                 .with_thread_names(true)
                 .finish();
-            let _ = set_global_default(subscriber).map_err(|err| {
-                io::Error::new(
-                    ErrorKind::Other,
-                    format!("Failed to set subscriber: {:?}", err),
-                )
-            })?;
+            let _ = set_global_default(subscriber)
+                .context("Failed to set subscriber")?;
         }
     };
     Ok(_guard)
