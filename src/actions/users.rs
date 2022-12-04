@@ -186,7 +186,7 @@ pub fn insert_new_user(
 
         let _ = diesel::insert_into(users_roles::users_roles)
             .values(NewUserRole {
-                user_id: user.id.clone(),
+                user_id: user.id,
                 role_id: RoleId::from_str("3").unwrap(), //TODO fix this
             })
             .execute(conn)?;

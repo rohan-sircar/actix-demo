@@ -18,14 +18,13 @@ pub async fn get_user(
     app_data: web::Data<AppData>,
     user_id: web::Path<UserId>,
 ) -> Result<HttpResponse, DomainError> {
-    let u_id = user_id.into_inner();
-    let u_id2 = u_id.clone();
-    let _ = tracing::info!("Getting user with id {u_id}");
+    let user_id = user_id.into_inner();
+    let _ = tracing::info!("Getting user with id {user_id}");
     // use web::block to offload blocking Diesel code without blocking server thread
     let res = web::block(move || {
         let pool = &app_data.pool;
         let conn = pool.get()?;
-        actions::users::find_user_by_uid(&u_id2, &conn)
+        actions::users::find_user_by_uid(&user_id, &conn)
     })
     .await??;
     let _ = tracing::trace!("{:?}", res);
@@ -34,7 +33,7 @@ pub async fn get_user(
     } else {
         let err = DomainError::new_entity_does_not_exist_error(format!(
             "No user found with uid: {}",
-            u_id
+            user_id
         ));
         Err(err)
     }

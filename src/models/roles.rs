@@ -36,6 +36,7 @@ pub struct Role {
     Into,
     Serialize,
     DieselNewType,
+    Copy,
 )]
 #[serde(try_from = "u32", into = "u32")]
 pub struct RoleId(i32);

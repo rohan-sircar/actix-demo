@@ -32,12 +32,13 @@ async fn main() -> anyhow::Result<()> {
     // tracing::error!("config: {:?}", env_config);
 
     let connspec = &env_config.database_url;
-    let _ = create_database_if_needed(connspec)
-        .context("Failed to create/detect database")?;
+    let _ = create_database_if_needed(connspec).with_context(|| {
+        format!("Failed to create/detect database. URL was {connspec}")
+    })?;
     let manager = ConnectionManager::<InstrumentedPgConnection>::new(connspec);
     let pool = r2d2::Pool::builder()
         .build(manager)
-        .context("Failed to create pool")?;
+        .context("Failed to create db pool")?;
 
     let _ = {
         let conn = &pool.get().context("Failed to get connection")?;
@@ -50,19 +51,11 @@ async fn main() -> anyhow::Result<()> {
     let cm = redis::aio::ConnectionManager::new(client.clone())
         .await
         .with_context(|| {
-            format!("Failed to connect to redis {}", &env_config.redis_url)
+            format!(
+                "Failed to connect to redis. Url was: {}",
+                &env_config.redis_url
+            )
         })?;
-
-    // let pubsub_conn = client
-    //     .get_async_connection()
-    //     .await
-    //     .map_err(|err| {
-    //         io::Error::new(
-    //             ErrorKind::Other,
-    //             format!("Error running migrations: {:?}", err),
-    //         )
-    //     })?
-    //     .into_pubsub();
 
     let credentials_repo = Arc::new(RedisCredentialsRepo::new(
         "user-sessions".to_owned(),
@@ -77,6 +70,7 @@ async fn main() -> anyhow::Result<()> {
         pool,
         credentials_repo,
         jwt_key,
+        redis_conn_factory: Some(client.clone()),
     });
 
     Ok(

@@ -22,9 +22,15 @@ use super::roles::RoleEnum;
     Into,
     Serialize,
     DieselNewType,
+    Copy,
 )]
 #[serde(try_from = "u32", into = "u32")]
 pub struct UserId(i32);
+impl UserId {
+    pub fn as_uint(&self) -> u32 {
+        self.0.try_into().unwrap()
+    }
+}
 impl From<UserId> for u32 {
     fn from(s: UserId) -> u32 {
         //this should be safe to unwrap since our newtype

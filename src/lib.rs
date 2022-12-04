@@ -27,6 +27,7 @@ use actix_web::{web, App, HttpServer};
 use actix_web_grants::GrantsMiddleware;
 use actix_web_httpauth::middleware::HttpAuthentication;
 use jwt_simple::prelude::HS256Key;
+use redis::Client;
 use routes::auth::validate_bearer_auth;
 use serde::Deserialize;
 use std::io;
@@ -67,6 +68,7 @@ pub struct AppData {
     pub pool: DbPool,
     pub credentials_repo: Arc<dyn CredentialsRepo + Send + Sync>,
     pub jwt_key: HS256Key,
+    pub redis_conn_factory: Option<Client>,
 }
 
 pub fn default_hash_cost() -> u32 {
@@ -81,9 +83,7 @@ pub fn configure_app(
             .service(routes::auth::login)
             .service(routes::users::add_user)
             .service(
-                web::scope("/ws")
-                    .wrap(HttpAuthentication::bearer(validate_bearer_auth))
-                    .route("", web::get().to(routes::misc::ws)),
+                web::scope("/ws").route("", web::get().to(routes::misc::ws)),
             )
             // .service(routes::auth::logout)
             // public endpoint - not implemented yet

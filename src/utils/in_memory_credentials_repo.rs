@@ -45,7 +45,7 @@ impl CredentialsRepo for InMemoryCredentialsRepo {
     ) -> Result<(), DomainError> {
         {
             let mut sessions = self.credentials.write().await;
-            let _ = sessions.insert(user_id.clone(), jwt.to_owned());
+            let _ = sessions.insert(*user_id, jwt.to_owned());
         }
         Ok(())
     }

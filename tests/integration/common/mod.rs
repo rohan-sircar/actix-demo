@@ -56,6 +56,7 @@ pub async fn test_app(
         .finish()
         .with(env_filter);
 
+    //discard the err
     let _ = set_global_default(subscriber).context("Failed to set subscriber");
 
     let manager = ConnectionManager::<InstrumentedPgConnection>::new(connspec);
@@ -103,6 +104,7 @@ pub async fn test_app(
                 pool,
                 credentials_repo,
                 jwt_key: key,
+                redis_conn_factory: None,
             })))
             .wrap(TracingLogger::default()),
     )
