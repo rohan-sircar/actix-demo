@@ -27,8 +27,9 @@ use actix_web::{web, App, HttpServer};
 use actix_web_grants::GrantsMiddleware;
 use actix_web_httpauth::middleware::HttpAuthentication;
 use jwt_simple::prelude::HS256Key;
+use redis::aio::ConnectionManager;
 use redis::Client;
-use routes::auth::validate_bearer_auth;
+use routes::auth::bearer_auth;
 use serde::Deserialize;
 use std::io;
 use std::sync::Arc;
@@ -69,6 +70,7 @@ pub struct AppData {
     pub credentials_repo: Arc<dyn CredentialsRepo + Send + Sync>,
     pub jwt_key: HS256Key,
     pub redis_conn_factory: Option<Client>,
+    pub redis_conn_manager: Option<ConnectionManager>,
 }
 
 pub fn default_hash_cost() -> u32 {
@@ -93,7 +95,7 @@ pub fn configure_app(
             ))
             .service(
                 web::scope("/api")
-                    .wrap(HttpAuthentication::bearer(validate_bearer_auth))
+                    .wrap(HttpAuthentication::bearer(bearer_auth))
                     .wrap(GrantsMiddleware::with_extractor(
                         routes::auth::extract,
                     ))

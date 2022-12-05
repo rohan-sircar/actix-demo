@@ -105,6 +105,7 @@ pub async fn test_app(
                 credentials_repo,
                 jwt_key: key,
                 redis_conn_factory: None,
+                redis_conn_manager: None,
             })))
             .wrap(TracingLogger::default()),
     )

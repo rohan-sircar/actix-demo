@@ -1,7 +1,10 @@
+use std::sync::Arc;
+
 use crate::actions::users::get_user_auth_details;
 use crate::errors::DomainError;
 use crate::models::roles::RoleEnum;
 use crate::models::users::{UserId, UserLogin, Username};
+use crate::utils::CredentialsRepo;
 use crate::AppData;
 use actix_http::Payload;
 use actix_web::dev::ServiceRequest;
@@ -36,51 +39,48 @@ pub async fn extract(req: &mut ServiceRequest) -> Result<Vec<RoleEnum>, Error> {
     Ok(roles)
 }
 
-#[tracing::instrument(level = "info", skip(req))]
-pub async fn validate_bearer_auth(
-    req: ServiceRequest,
-    credentials: BearerAuth,
-) -> Result<ServiceRequest, (Error, ServiceRequest)> {
-    let app_data = req.app_data::<Data<AppData>>().cloned().unwrap();
-    let token: String = credentials.token().into();
-    let (http_req, payload) = req.into_parts();
-    let claims = get_claims(&app_data.jwt_key, &token).map_err(|err| {
-        (
-            Error::from(err),
-            ServiceRequest::from_parts(http_req.clone(), Payload::None),
-        )
-    })?;
+pub async fn validate_token(
+    credentials_repo: &Arc<dyn CredentialsRepo + Send + Sync>,
+    jwt_key: &HS256Key,
+    token: String,
+) -> Result<(), DomainError> {
+    let claims = get_claims(jwt_key, &token)?;
     let user_id = claims.custom.user_id;
-    let credentials_repo = &app_data.credentials_repo;
 
-    let session_token = credentials_repo
-        .load(&user_id)
-        .await
-        .map_err(|err| {
-            (
-                Error::from(err),
-                ServiceRequest::from_parts(http_req.clone(), Payload::None),
-            )
-        })?
-        .ok_or_else(|| {
-            (
-                Error::from(DomainError::new_auth_error(format!(
-                    "Session does not exist for user id - {}",
-                    &user_id
-                ))),
-                ServiceRequest::from_parts(http_req.clone(), Payload::None),
-            )
+    let session_token =
+        credentials_repo.load(&user_id).await?.ok_or_else(|| {
+            DomainError::new_auth_error(format!(
+                "Session does not exist for user id - {}",
+                &user_id
+            ))
         })?;
 
     if token.eq(&session_token) {
-        Ok(ServiceRequest::from_parts(http_req, payload))
+        Ok(())
     } else {
-        Err((
-            Error::from(DomainError::new_auth_error(
-                "Invalid token".to_owned(),
-            )),
+        Err(DomainError::new_auth_error("Invalid token".to_owned()))
+    }
+}
+
+#[tracing::instrument(level = "info", skip(req))]
+pub async fn bearer_auth(
+    req: ServiceRequest,
+    credentials: BearerAuth,
+) -> Result<ServiceRequest, (Error, ServiceRequest)> {
+    let app_data = &req
+        .app_data::<Data<AppData>>()
+        .cloned()
+        .expect("AppData not initialized");
+    let credentials_repo = &app_data.credentials_repo;
+    let jwt_key = &app_data.jwt_key;
+    let token: String = credentials.token().into();
+    let (http_req, payload) = req.into_parts();
+    match validate_token(credentials_repo, jwt_key, token).await {
+        Ok(_) => Ok(ServiceRequest::from_parts(http_req, payload)),
+        Err(err) => Err((
+            Error::from(err),
             ServiceRequest::from_parts(http_req.clone(), Payload::None),
-        ))
+        )),
     }
 }
 
@@ -101,29 +101,26 @@ pub async fn login(
     let user = mb_user.ok_or_else(|| DomainError::AuthError {
         message: "User does not exist".to_owned(),
     })?;
-    let token = {
-        let valid = web::block(move || {
-            verify(user_login.password.as_str(), user.password.as_str())
-        })
-        .await??;
-        if valid {
-            let auth_data = VerifiedAuthDetails {
-                user_id: user.id,
-                username: user.username,
-                roles: user.roles,
-            };
-            let claims =
-                Claims::with_custom_claims(auth_data, Duration::from_days(365));
-            let token =
-                app_data.jwt_key.authenticate(claims).map_err(|err| {
-                    DomainError::anyhow_auth("Failed to deserialize token", err)
-                })?;
+    let valid = web::block(move || {
+        verify(user_login.password.as_str(), user.password.as_str())
+    })
+    .await??;
+    let token = if valid {
+        let auth_data = VerifiedAuthDetails {
+            user_id: user.id,
+            username: user.username,
+            roles: user.roles,
+        };
+        let claims =
+            Claims::with_custom_claims(auth_data, Duration::from_days(365));
+        let token = app_data.jwt_key.authenticate(claims).map_err(|err| {
+            DomainError::anyhow_auth("Failed to deserialize token", err)
+        })?;
 
-            let _ = credentials_repo.save(&user.id, &token).await?;
-            Ok(token)
-        } else {
-            Err(DomainError::new_auth_error("Wrong password".to_owned()))
-        }
+        let _ = credentials_repo.save(&user.id, &token).await?;
+        Ok(token)
+    } else {
+        Err(DomainError::new_auth_error("Wrong password".to_owned()))
     }?;
 
     Ok(HttpResponse::Ok()

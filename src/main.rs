@@ -71,6 +71,7 @@ async fn main() -> anyhow::Result<()> {
         credentials_repo,
         jwt_key,
         redis_conn_factory: Some(client.clone()),
+        redis_conn_manager: Some(cm.clone()),
     });
 
     Ok(
