@@ -86,9 +86,7 @@ pub fn configure_app(
         cfg.app_data(app_data.clone())
             .service(routes::auth::login)
             .service(routes::users::add_user)
-            .service(
-                web::scope("/ws").route("", web::get().to(routes::misc::ws)),
-            )
+            .service(web::scope("/ws").route("", web::get().to(routes::ws::ws)))
             // .service(routes::auth::logout)
             // public endpoint - not implemented yet
             .service(web::scope("/api/public").route(

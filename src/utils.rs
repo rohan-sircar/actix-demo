@@ -8,3 +8,4 @@ pub use self::credentials_repo::*;
 pub use self::in_memory_credentials_repo::*;
 pub use self::redis_channel_reader::*;
 pub use self::regex::*;
+pub mod ws;
