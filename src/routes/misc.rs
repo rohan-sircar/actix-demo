@@ -81,6 +81,64 @@ async fn ws_loop(
     }
 }
 
+async fn msg_receive_loop(
+    app_data: web::Data<AppData>,
+    user_id: UserId,
+    mut session: Session,
+) -> Result<(), DomainError> {
+    tracing::info!("Starting message channel receive loop ");
+    let sub_cm = {
+        let client = app_data.redis_conn_factory.clone().ok_or_else(|| {
+            DomainError::new_uninitialized_error(
+                "redis not initialized".to_owned(),
+            )
+        })?;
+        ConnectionManager::new(client)
+            .await
+            .map_err(DomainError::from)?
+    };
+
+    let messages_reader = RedisChannelReader::new(
+        format!("messages.{user_id}"),
+        sub_cm,
+        Arc::new(RwLock::new(None)),
+    );
+
+    let mut running = true;
+    while running {
+        actix_rt::time::sleep(Duration::from_millis(500)).await;
+        for msg in messages_reader.get_items().await? {
+            //todo fix the unwrap
+            let msg = msg.get::<String>("message").ok_or_else(|| {
+                DomainError::new_entity_does_not_exist_error(
+                    "invalid key".to_owned(),
+                )
+            })?;
+            let res = match serde_json::from_str::<WsClientFrame>(&msg) {
+                Ok(msg) => {
+                    session.text(serde_json::to_string(&msg).unwrap()).await
+                }
+                Err(err) => {
+                    session
+                        .text(
+                            serde_json::to_string(&WsClientFrame::Error {
+                                cause: err.to_string(),
+                            })
+                            .unwrap(),
+                        )
+                        .await
+                }
+            };
+            let _ = if res.is_err() {
+                running = false;
+                break;
+            };
+            let _ = tracing::debug!("Received message: {:?}", msg);
+        }
+    }
+    Ok(())
+}
+
 #[derive(Clone, Debug, Deserialize)]
 pub struct TokenQuery {
     pub token: Option<String>,
@@ -107,86 +165,44 @@ pub async fn ws(
     let _ = tracing::info!("Initiating websocket connection");
 
     let (response, session, msg_stream) = actix_ws::handle(&req, body)?;
-    let mut session2 = session.clone();
+    // let mut session2 = session.clone();
 
     let _ = tracing::info!("Websocket connection initiated");
 
     // let credentials_repo = app_data.credentials_repo.as_ref();
     let app_data2 = app_data.clone();
+    let session2 = session.clone();
     let msg_recv_fib = actix_web::rt::spawn(
         async move {
-            tracing::info!("Starting message channel receive loop ");
-            let sub_cm = {
-                let client =
-                    app_data2.redis_conn_factory.clone().ok_or_else(|| {
-                        DomainError::new_uninitialized_error(
-                            "redis not initialized".to_owned(),
-                        )
-                    })?;
-                ConnectionManager::new(client)
-                    .await
-                    .map_err(DomainError::from)?
-            };
-
-            let messages_reader = RedisChannelReader::new(
-                format!("messages.{user_id}"),
-                sub_cm,
-                Arc::new(RwLock::new(None)),
-            );
-
-            let mut running = true;
-            while running {
-                actix_rt::time::sleep(Duration::from_millis(500)).await;
-                for msg in messages_reader.get_items().await? {
-                    //todo fix the unwrap
-                    let msg =
-                        msg.get::<String>("message").ok_or_else(|| {
-                            DomainError::new_entity_does_not_exist_error(
-                                "invalid key".to_owned(),
-                            )
-                        })?;
-                    let res = match serde_json::from_str::<WsClientFrame>(&msg)
-                    {
-                        Ok(msg) => {
-                            session2
-                                .text(serde_json::to_string(&msg).unwrap())
-                                .await
-                        }
-                        Err(err) => {
-                            session2
-                                .text(
-                                    serde_json::to_string(
-                                        &WsClientFrame::Error {
-                                            cause: err.to_string(),
-                                        },
-                                    )
-                                    .unwrap(),
-                                )
-                                .await
-                        }
-                    };
-                    let _ = if res.is_err() {
-                        running = false;
-                        break;
-                    };
-                    let _ = tracing::debug!("Received message: {:?}", msg);
+            let res = msg_receive_loop(app_data2, user_id, session2).await;
+            let _ = match res {
+                Ok(_) => {
+                    let _ =
+                        tracing::info!("Msg receive loop ended successfull");
                 }
-            }
-            Ok::<(), DomainError>(())
+                Err(err) => {
+                    let _ = tracing::error!(
+                        "Msg receive loop ended with error {:?}",
+                        err
+                    );
+                }
+            };
         }
         .instrument(tracing::info_span!("msg_receive_loop")),
     );
 
+    let session3 = session.clone();
     let mut pub_cm = app_data.redis_conn_manager.clone().ok_or_else(|| {
         DomainError::new_uninitialized_error("redis not initialized".to_owned())
     })?;
     let _ = actix_web::rt::spawn(
         async move {
-            let res = ws_loop(session.clone(), msg_stream, &mut pub_cm).await;
-            match res {
+            let res = ws_loop(session3.clone(), msg_stream, &mut pub_cm).await;
+            let _ = match res {
                 Ok(_) => {
-                    let _ =
-                        tracing::info!("Websocket connection ended successf");
+                    let _ = tracing::info!(
+                        "Websocket connection ended successfull"
+                    );
                 }
                 Err(err) => {
                     let _ = tracing::error!(
@@ -194,7 +210,7 @@ pub async fn ws(
                         err
                     );
                 }
-            }
+            };
 
             let _ = session.close(None).await;
             let _ = msg_recv_fib.abort();
