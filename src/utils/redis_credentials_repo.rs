@@ -29,8 +29,7 @@ impl CredentialsRepo for RedisCredentialsRepo {
             .redis
             .clone()
             .get::<String, String>(self.get_key(user_id))
-            .await
-            .unwrap();
+            .await?;
         Ok(Some(jwt))
     }
 
@@ -44,8 +43,7 @@ impl CredentialsRepo for RedisCredentialsRepo {
                 .redis
                 .clone()
                 .set::<String, &str, ()>(self.get_key(user_id), jwt)
-                .await
-                .unwrap();
+                .await?;
         }
         Ok(())
     }
@@ -56,8 +54,7 @@ impl CredentialsRepo for RedisCredentialsRepo {
                 .redis
                 .clone()
                 .del::<String, ()>(self.get_key(user_id))
-                .await
-                .unwrap();
+                .await?;
         }
         Ok(())
     }

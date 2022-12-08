@@ -6,13 +6,7 @@ use crate::{actions, models::misc::ApiResponse};
 use crate::{errors::DomainError, AppData};
 
 /// Finds user by UID.
-#[tracing::instrument(
-    level = "debug",
-    skip(app_data),
-    fields(
-        user_id = %user_id
-    )
-)]
+#[tracing::instrument(level = "debug", skip(app_data))]
 // #[has_any_role("RoleEnum::RoleAdmin", type = "RoleEnum")]
 pub async fn get_user(
     app_data: web::Data<AppData>,

@@ -47,7 +47,8 @@ async fn main() -> anyhow::Result<()> {
             .context("Error running migrations")?;
     };
 
-    let client = redis::Client::open(env_config.redis_url.clone()).unwrap();
+    let client = redis::Client::open(env_config.redis_url.clone())
+        .context("failed to initialize redis")?;
     let cm = redis::aio::ConnectionManager::new(client.clone())
         .await
         .with_context(|| {

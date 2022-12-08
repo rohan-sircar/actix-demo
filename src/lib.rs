@@ -17,11 +17,11 @@ pub mod models;
 mod routes;
 mod schema;
 mod services;
+mod telemetry;
 mod types;
 pub mod utils;
 
 use actix_files as fs;
-
 use actix_web::web::{Data, ServiceConfig};
 use actix_web::{web, App, HttpServer};
 use actix_web_grants::GrantsMiddleware;
@@ -37,6 +37,8 @@ use tracing_actix_web::TracingLogger;
 use utils::CredentialsRepo;
 
 use types::DbPool;
+
+use crate::telemetry::DomainRootSpanBuilder;
 
 build_info::build_info!(pub fn get_build_info);
 
@@ -136,7 +138,7 @@ pub async fn run(addr: String, app_data: Data<AppData>) -> io::Result<()> {
     let app = move || {
         App::new()
             .configure(configure_app(app_data.clone()))
-            .wrap(TracingLogger::default())
+            .wrap(TracingLogger::<DomainRootSpanBuilder>::new())
     };
     HttpServer::new(app).bind(addr)?.run().await
 }
