@@ -1,18 +1,52 @@
 use crate::{errors::DomainError, models::users::UserId, utils, AppData};
 use actix_web::{web, HttpRequest, HttpResponse};
 
+use process_stream::{tokio_stream::StreamExt, Process, ProcessExt};
 use serde::{Deserialize, Serialize};
+use tracing::debug_span;
 use tracing_futures::Instrument;
 
 use super::auth::get_claims;
 
 // pub struct Context {}
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 #[serde(tag = "type")]
-pub enum WsClientFrame {
+pub enum WsClientEvent {
     SendMessage { receiver: UserId, message: String },
+    RunCommand { args: Vec<String> },
     Error { cause: String },
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
+#[serde(tag = "type")]
+
+pub enum RunCommandEvent {
+    Run { args: Vec<String> },
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
+
+pub struct SentMessage {
+    pub sender: UserId,
+    pub message: String,
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
+#[serde(tag = "type")]
+pub enum WsServerEvent {
+    SentMessage {
+        id: String,
+        sender: UserId,
+        message: String,
+    },
+    RunCommandMessage {
+        line: String,
+    },
+    Error {
+        id: Option<String>,
+        cause: String,
+    },
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -67,16 +101,64 @@ pub async fn ws(
         .instrument(tracing::info_span!("msg_receive_loop")),
     );
 
-    let session3 = session.clone();
+    let (command_tx, mut command_rx) = tokio::sync::mpsc::channel(50);
+
+    let mut session2 = session.clone();
+    let _ = actix_rt::spawn(
+        async move {
+            while let Some(cmd) = command_rx.recv().await {
+                match cmd {
+                    RunCommandEvent::Run { args } => {
+                        let mut session3 = session2.clone();
+                        let (tx, rx) = tokio::sync::oneshot::channel();
+                        let _handle = actix_rt::spawn(async move {
+                            // let _ = tokio::time::sleep(Duration::from_millis(2500))
+                            // .await;
+                            let mut ls_home = Process::new("/bin/ls");
+                            // let _ = ls_home.arg("-l").arg(".");
+                            for arg in args {
+                                let _ = ls_home.arg(arg);
+                            }
+                            let _ = rx.await;
+                            let mut stream =
+                                ls_home.spawn_and_stream().unwrap();
+                            while let Some(output) = stream.next().await {
+                                let _ = tracing::debug!("{:?}", output);
+                                let line = WsServerEvent::RunCommandMessage {
+                                    line: output.to_string(),
+                                };
+                                let res = session3
+                                    .text(serde_json::to_string(&line).unwrap())
+                                    .await;
+                                let _ = tracing::debug!("{:?}", res);
+                            }
+                        });
+                        if session2.text("started").await.is_err() {
+                            break;
+                        }
+                        tx.send(()).unwrap();
+                    }
+                }
+            }
+        }
+        .instrument(debug_span!("command_loop")),
+    );
+
+    let session2 = session.clone();
     let mut pub_cm = app_data.redis_conn_manager.clone().ok_or_else(|| {
         DomainError::new_uninitialized_error("redis not initialized".to_owned())
     })?;
     let _ = actix_web::rt::spawn(
         async move {
             tracing::info!("Starting websocket loop");
-            let res =
-                utils::ws::ws_loop(session3.clone(), msg_stream, &mut pub_cm)
-                    .await;
+            let res = utils::ws::ws_loop(
+                session2,
+                msg_stream,
+                &mut pub_cm,
+                user_id,
+                command_tx,
+            )
+            .await;
             let _ = match res {
                 Ok(_) => {
                     let _ =

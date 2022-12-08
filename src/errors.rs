@@ -16,7 +16,8 @@ custom_error! { #[derive(new)] #[allow(clippy::enum_variant_names)]
     JwtError {message: String} = "Jwt Error - {message}",
     RedisError {source: redis::RedisError} = "Redis Error = {source}",
     WsProtocolError {source: actix_ws::ProtocolError} = "WS Protocol Error = {source}",
-    UninitializedError { message: String } = "A required component was not initialized - {message}"
+    UninitializedError { message: String } = "A required component was not initialized - {message}",
+    InternalError {message: String} = "An internal error occured - {message}"
 }
 
 impl DomainError {
@@ -73,6 +74,11 @@ impl ResponseError for DomainError {
             DomainError::WsProtocolError { source: _ } => {
                 HttpResponse::InternalServerError()
                     .json(ApiResponse::failure("Websocket Protocol Failure"))
+            }
+            DomainError::InternalError { message } => {
+                HttpResponse::InternalServerError().json(ApiResponse::failure(
+                    format!("An internal error occured {message}"),
+                ))
             }
         }
     }

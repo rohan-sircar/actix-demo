@@ -5,7 +5,7 @@ authors = ['Rohan Sircar <rohansircar@tuta.io>']
 edition = '2021'
 
 [dependencies]
-tokio = { version = "1.21.2", features = ["sync", "macros"] }
+tokio = { version = "1.21.2", features = ["sync", "macros", "process"] }
 anyhow = "1.0.66"
 async-recursion = "1.0.0"
 diesel-derive-enum = { version = "1", features = ["postgres"] }
@@ -59,6 +59,7 @@ redis = { version = "0.22.1", features = [
     "json",
     "connection-manager",
 ] }
+process-stream = "0.4.1"
 
 [dependencies.validators]
 version = "0.24.3"
