@@ -74,9 +74,10 @@ pub async fn process_msg(
 ) -> Result<(), DomainError> {
     match ws_msg {
         WsClientEvent::SendMessage { receiver, message } => {
+            let chan_name = format!("messages.{receiver}");
             let id: String = conn
                 .xadd(
-                    format!("messages.{receiver}"),
+                    chan_name,
                     "*",
                     &[(
                         "message",
@@ -88,7 +89,7 @@ pub async fn process_msg(
                     )],
                 )
                 .await?;
-            tracing::debug!("Message id was {id}");
+            tracing::info!("Published message with id={id}");
             Ok(())
         }
         WsClientEvent::Error { cause } => {

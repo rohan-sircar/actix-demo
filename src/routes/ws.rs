@@ -2,6 +2,7 @@ use crate::{errors::DomainError, models::users::UserId, utils, AppData};
 use actix_web::{web, HttpRequest, HttpResponse};
 
 use process_stream::{tokio_stream::StreamExt, Process, ProcessExt};
+use redis::aio::ConnectionManager;
 use serde::{Deserialize, Serialize};
 use tracing::debug_span;
 use tracing_futures::Instrument;
@@ -75,17 +76,25 @@ pub async fn ws(
     let _ = tracing::info!("Initiating websocket connection");
 
     let (response, session, msg_stream) = actix_ws::handle(&req, body)?;
-    // let mut session2 = session.clone();
 
     let _ = tracing::info!("Websocket connection initiated");
 
     // let credentials_repo = app_data.credentials_repo.as_ref();
-    let app_data2 = app_data.clone();
     let session2 = session.clone();
+    let cm = {
+        let client = app_data.redis_conn_factory.clone().ok_or_else(|| {
+            DomainError::new_uninitialized_error(
+                "redis not initialized".to_owned(),
+            )
+        })?;
+        ConnectionManager::new(client)
+            .await
+            .map_err(DomainError::from)?
+    };
+
     let msg_recv_fib = actix_web::rt::spawn(
         async move {
-            let res =
-                utils::ws::msg_receive_loop(app_data2, user_id, session2).await;
+            let res = utils::ws::msg_receive_loop(user_id, cm, session2).await;
             let _ = match res {
                 Ok(_) => {
                     let _ = tracing::info!("Msg receive loop ended successful");

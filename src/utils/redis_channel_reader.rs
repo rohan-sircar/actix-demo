@@ -10,17 +10,18 @@ use crate::errors::DomainError;
 
 #[derive(Serialize, Debug, Clone)]
 pub enum RedisReply<T> {
-    Success { id: String, data: T },
+    Ok { id: String, data: T },
     Error { id: String, cause: String },
 }
 
 pub type RedisStreamResult<T> = Result<RedisReply<T>, DomainError>;
 
-#[derive(Clone, new)]
+#[derive(new)]
 pub struct RedisChannelReader<T> {
     channel_name: String,
     pub conn: ConnectionManager,
     last_msg_id: Option<String>,
+    opts: StreamReadOptions,
     pd: std::marker::PhantomData<T>,
 }
 
@@ -36,17 +37,16 @@ where
         self.last_msg_id.as_deref()
     }
 
-    pub async fn get_items2(
+    pub async fn get_items(
         &mut self,
     ) -> Result<Vec<RedisReply<T>>, DomainError> {
         let mut conn = self.conn.clone();
-        let opts = StreamReadOptions::default().block(0).count(5);
         let id = self.last_msg_id.clone().unwrap_or_else(|| "0".to_string());
-        let _ = tracing::debug!("Id = {id}");
+        let _ = tracing::trace!("Id = {id}");
         let rep: StreamReadReply = conn
-            .xread_options(&[&self.channel_name], &[&id], &opts)
+            .xread_options(&[&self.channel_name], &[&id], &self.opts)
             .await?;
-        let _ = tracing::debug!("Received keys {:?}", &rep.keys);
+        let _ = tracing::trace!("Received keys {:?}", &rep.keys);
         let items = rep
             .keys
             .into_iter()
@@ -54,7 +54,7 @@ where
             .map(|m| {
                 let msg = m.get::<String>("message").unwrap();
                 match serde_json::from_str::<T>(&msg) {
-                    Ok(msg) => RedisReply::Success {
+                    Ok(msg) => RedisReply::Ok {
                         id: m.id,
                         data: msg,
                     },
@@ -73,7 +73,7 @@ where
             .collect::<Vec<_>>();
         let _ = if let Some(x) = items.last() {
             match x {
-                RedisReply::Success { id, data: _ } => {
+                RedisReply::Ok { id, data: _ } => {
                     self.last_msg_id = Some(id.clone());
                 }
                 RedisReply::Error { id, cause: _ } => {
@@ -84,13 +84,14 @@ where
         Ok(items)
     }
 
-    pub async fn get_items(&mut self) -> Result<Vec<StreamId>, DomainError> {
+    pub async fn get_items_unparsed(
+        &mut self,
+    ) -> Result<Vec<StreamId>, DomainError> {
         let mut conn = self.conn.clone();
-        let opts = StreamReadOptions::default().block(0).count(5);
         let id = self.last_msg_id.clone().unwrap_or_else(|| "0".to_string());
         let _ = tracing::debug!("Id = {id}");
         let rep: StreamReadReply = conn
-            .xread_options(&[&self.channel_name], &[&id], &opts)
+            .xread_options(&[&self.channel_name], &[&id], &self.opts)
             .await?;
         let _ = tracing::debug!("Received keys {:?}", &rep.keys);
         let items = rep
