@@ -7,7 +7,7 @@ mod tests {
     use actix_web::dev::Service as _;
     use actix_web::http::StatusCode;
     use actix_web::test;
-    use testcontainers::clients;
+    use common::WithToken;
 
     mod get_users_api {
 
@@ -21,20 +21,16 @@ mod tests {
 
         use super::*;
 
-        #[actix_rt::test]
+        #[tokio::test]
         async fn should_return_a_user() {
-            let docker = clients::Cli::default();
-            let (connspec, _port, _node) = common::start_pg_container(&docker);
+            let connspec = common::pg_conn_string().unwrap();
             let test_app = common::test_app(&connspec).await.unwrap();
             // let (client, _connection) =
             //     tokio_postgres::connect(&connspec, NoTls).await.unwrap();
             let token = common::get_token(&test_app).await;
             let req = test::TestRequest::get()
                 .uri("/api/users?page=0&limit=2")
-                .append_header((
-                    "Authorization",
-                    format! {"Bearer {}", token.to_str().unwrap()},
-                ))
+                .with_token(token)
                 .to_request();
             let resp = test_app.call(req).await.unwrap();
             assert_eq!(resp.status(), StatusCode::OK);
@@ -48,16 +44,12 @@ mod tests {
 
         #[actix_rt::test]
         async fn should_return_error_message_if_user_with_id_does_not_exist() {
-            let docker = clients::Cli::default();
-            let (connspec, _port, _node) = common::start_pg_container(&docker);
+            let connspec = common::pg_conn_string().unwrap();
             let test_app = common::test_app(&connspec).await.unwrap();
             let token = common::get_token(&test_app).await;
             let req = test::TestRequest::get()
                 .uri("/api/users/55")
-                .append_header((
-                    "Authorization",
-                    format! {"Bearer {}", token.to_str().unwrap()},
-                ))
+                .with_token(token)
                 .to_request();
             let resp = test_app.call(req).await.unwrap();
             assert_eq!(resp.status(), StatusCode::NOT_FOUND);

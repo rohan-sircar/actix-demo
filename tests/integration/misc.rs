@@ -8,12 +8,10 @@ mod tests {
     use actix_web::dev::Service as _;
     use actix_web::http::StatusCode;
     use actix_web::test;
-    use testcontainers::clients;
 
     #[actix_rt::test]
     async fn get_build_info_should_succeed() {
-        let docker = clients::Cli::default();
-        let (connspec, _port, _node) = common::start_pg_container(&docker);
+        let connspec = common::pg_conn_string().unwrap();
         let req = test::TestRequest::get()
             .uri("/api/public/build-info")
             .to_request();

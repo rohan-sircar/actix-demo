@@ -60,6 +60,7 @@ redis = { version = "0.22.1", features = [
     "connection-manager",
 ] }
 process-stream = "0.4.1"
+once_cell = "1.16.0"
 
 [dependencies.validators]
 version = "0.24.3"

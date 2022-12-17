@@ -1,7 +1,8 @@
 extern crate actix_demo;
+use actix_demo::actions::misc::create_database_if_needed;
 use actix_demo::models::users::{NewUser, Password, Username};
 use actix_demo::{AppConfig, AppData, EnvConfig};
-use actix_http::header::HeaderValue;
+use actix_web::test::TestRequest;
 use actix_web::App;
 use actix_web::{test, web};
 
@@ -10,6 +11,8 @@ use anyhow::Context;
 use diesel::r2d2::{self, ConnectionManager};
 use diesel_tracing::pg::InstrumentedPgConnection;
 use jwt_simple::prelude::HS256Key;
+use once_cell::sync::Lazy;
+use rand::Rng;
 use std::io;
 use std::sync::Arc;
 use testcontainers::core::WaitFor;
@@ -26,6 +29,39 @@ use actix_demo::configure_app;
 
 use actix_http::Request;
 use actix_web::{dev as ax_dev, Error as AxError};
+use lazy_static::lazy_static;
+
+lazy_static! {
+    static ref DOCKER: clients::Cli = clients::Cli::default();
+    static ref PG: Container<'static, GenericImage> = DOCKER.run(
+        GenericImage::new("postgres", "15-alpine")
+            .with_wait_for(WaitFor::message_on_stderr(
+                "database system is ready to accept connections",
+            ))
+            .with_env_var("POSTGRES_DB", "postgres")
+            .with_env_var("POSTGRES_USER", "postgres")
+            .with_env_var("POSTGRES_PASSWORD", "postgres")
+    );
+}
+
+static TRACING: Lazy<anyhow::Result<()>> = Lazy::new(|| {
+    let env_filter = EnvFilter::try_from_env("ACTIX_DEMO_TEST_RUST_LOG")
+        .context("Failed to set up env logger")?;
+
+    let _ = LogTracer::init()?;
+
+    let subscriber = FmtSubscriber::builder()
+        .pretty()
+        .with_test_writer()
+        .with_span_events(FmtSpan::NEW)
+        .with_span_events(FmtSpan::CLOSE)
+        .finish()
+        .with(env_filter);
+
+    let _ =
+        set_global_default(subscriber).context("Failed to set subscriber")?;
+    Ok(())
+});
 
 pub async fn test_app(
     connspec: &str,
@@ -42,45 +78,26 @@ pub async fn test_app(
         .from_env::<EnvConfig>()
         .context("Failed to parse config")?;
 
-    let env_filter = EnvFilter::try_from_env("ACTIX_DEMO_TEST_RUST_LOG")
-        .context("Failed to set up env logger")?;
-
-    //discard the error
-    let _ = LogTracer::init();
-
-    let subscriber = FmtSubscriber::builder()
-        .pretty()
-        .with_test_writer()
-        .with_span_events(FmtSpan::NEW)
-        .with_span_events(FmtSpan::CLOSE)
-        .finish()
-        .with(env_filter);
-
-    //discard the err
-    let _ = set_global_default(subscriber).context("Failed to set subscriber");
+    let _ = Lazy::force(&TRACING).as_ref().unwrap();
 
     let manager = ConnectionManager::<InstrumentedPgConnection>::new(connspec);
     let pool = r2d2::Pool::builder()
+        .max_size(2)
         .build(manager)
         .context("Failed to create pool")?;
-
-    let _ = {
-        let conn = &pool.get().context("Failed to get connection")?;
-
-        let migrations_dir = diesel_migrations::find_migrations_directory()
-            .context("Error finding migrations dir")?;
-        let _ = diesel_migrations::run_pending_migrations_in_directory(
-            conn,
-            &migrations_dir,
-            &mut io::sink(),
-        )
-        .context("Error running migrations")?;
-    };
 
     let _ = {
         let pool = pool.clone();
         let _ = web::block(move || {
             let conn = &pool.get()?;
+            let migrations_dir = diesel_migrations::find_migrations_directory()
+                .context("Error finding migrations dir")?;
+            let _ = diesel_migrations::run_pending_migrations_in_directory(
+                conn,
+                &migrations_dir,
+                &mut io::sink(),
+            )
+            .context("Error running migrations")?;
             actix_demo::actions::users::insert_new_user(
                 NewUser {
                     username: Username::parse_str("user1").unwrap(),
@@ -88,7 +105,8 @@ pub async fn test_app(
                 },
                 conn,
                 8,
-            )
+            )?;
+            Ok::<(), anyhow::Error>(())
         })
         .await??;
     };
@@ -119,7 +137,7 @@ pub async fn get_token(
         Response = ax_dev::ServiceResponse<impl actix_web::body::MessageBody>,
         Error = AxError,
     >,
-) -> HeaderValue {
+) -> String {
     let req = test::TestRequest::post()
         .append_header(("content-type", "application/json"))
         .set_payload(r#"{"username":"user1","password":"test"}"#)
@@ -128,31 +146,37 @@ pub async fn get_token(
     let resp: ax_dev::ServiceResponse<_> = test_app.call(req).await.unwrap();
     // let body: ApiResponse<String> = test::read_body_json(resp).await;
     // println!("{:?}", body);
-    resp.headers().get("X-AUTH-TOKEN").unwrap().clone()
+    resp.headers()
+        .get("X-AUTH-TOKEN")
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_string()
 }
 
-pub fn start_pg_container(
-    docker: &'_ clients::Cli,
-) -> (String, u16, Container<'_, GenericImage>) {
-    let db = "postgres-db-test";
-    let user = "postgres-user-test";
-    let password = "postgres-password-test";
-
-    let generic_postgres =
-        images::generic::GenericImage::new("postgres", "15-alpine")
-            .with_wait_for(WaitFor::message_on_stderr(
-                "database system is ready to accept connections",
-            ))
-            .with_env_var("POSTGRES_DB", db)
-            .with_env_var("POSTGRES_USER", user)
-            .with_env_var("POSTGRES_PASSWORD", password);
-    // .with_exposed_port(port);
-
-    let node = docker.run(generic_postgres);
-    let port = node.get_host_port_ipv4(5432);
-
+pub fn pg_conn_string() -> anyhow::Result<String> {
+    let mut rng = rand::thread_rng();
+    let n1: u8 = rng.gen();
+    let db = format!("postgres{n1}");
+    let port = PG.get_host_port_ipv4(5432);
     let connection_string =
-        format!("postgres://{}:{}@127.0.0.1:{}/{}", user, password, port, db);
+        format!("postgres://postgres:postgres@127.0.0.1:{}/{}", port, db);
+    let _ =
+        create_database_if_needed(&connection_string).with_context(|| {
+            format!(
+                "Failed to create/detect database. URL was {connection_string}"
+            )
+        })?;
 
-    (connection_string, port, node)
+    Ok(connection_string)
+}
+
+pub trait WithToken {
+    fn with_token(self, token: String) -> Self;
+}
+
+impl WithToken for TestRequest {
+    fn with_token(self, token: String) -> Self {
+        self.append_header(("Authorization", format! {"Bearer {}", token}))
+    }
 }

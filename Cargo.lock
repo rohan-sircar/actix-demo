@@ -57,6 +57,7 @@ dependencies = [
  "lazy-regex",
  "lazy_static",
  "nanoid",
+ "once_cell",
  "process-stream",
  "r2d2",
  "rand 0.8.5",
