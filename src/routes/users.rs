@@ -6,7 +6,7 @@ use crate::{actions, models::misc::ApiResponse};
 use crate::{errors::DomainError, AppData};
 
 /// Finds user by UID.
-#[tracing::instrument(level = "debug", skip(app_data))]
+#[tracing::instrument(level = "info", skip(app_data))]
 // #[has_any_role("RoleEnum::RoleAdmin", type = "RoleEnum")]
 pub async fn get_user(
     app_data: web::Data<AppData>,
@@ -21,10 +21,12 @@ pub async fn get_user(
         actions::users::find_user_by_uid(&user_id, &conn)
     })
     .await??;
-    let _ = tracing::trace!("{:?}", res);
+    let _ = tracing::debug!("{:?}", res);
     if let Some(user) = res {
+        let _ = tracing::info!("Found user");
         Ok(HttpResponse::Ok().json(ApiResponse::successful(user)))
     } else {
+        let _ = tracing::warn!("Could not find user");
         let err = DomainError::new_entity_does_not_exist_error(format!(
             "No user found with uid: {}",
             user_id
@@ -33,7 +35,7 @@ pub async fn get_user(
     }
 }
 
-#[tracing::instrument(level = "debug", skip(app_data))]
+#[tracing::instrument(level = "info", skip(app_data))]
 pub async fn get_users(
     app_data: web::Data<AppData>,
     pagination: web::Query<Pagination>,
@@ -47,12 +49,13 @@ pub async fn get_users(
     })
     .await??;
 
-    let _ = tracing::trace!("{:?}", users);
+    let _ = tracing::info!("Found {} users", users.len());
+    let _ = tracing::debug!("{:?}", users);
 
     Ok(HttpResponse::Ok().json(ApiResponse::successful(users)))
 }
 
-#[tracing::instrument(level = "debug", skip(app_data))]
+#[tracing::instrument(level = "info", skip(app_data))]
 pub async fn search_users(
     app_data: web::Data<AppData>,
     query: web::Query<SearchQuery>,
@@ -67,14 +70,15 @@ pub async fn search_users(
     })
     .await??;
 
-    let _ = tracing::trace!("{:?}", users);
+    let _ = tracing::info!("Found {} users", users.len());
+    let _ = tracing::debug!("{:?}", users);
 
     Ok(HttpResponse::Ok().json(ApiResponse::successful(users)))
 }
 
 /// Inserts a new user
 #[post("/api/registration")]
-#[tracing::instrument(level = "debug", skip(app_data))]
+#[tracing::instrument(level = "info", skip(app_data))]
 pub async fn add_user(
     app_data: web::Data<AppData>,
     form: web::Json<NewUser>,
@@ -90,7 +94,8 @@ pub async fn add_user(
     })
     .await??;
 
-    let _ = tracing::trace!("{:?}", user);
+    let _ = tracing::info!("Created user with id={}", user.id);
+    let _ = tracing::debug!("{:?}", user);
 
     Ok(HttpResponse::Created().json(ApiResponse::successful(user)))
 }

@@ -30,6 +30,7 @@ pub fn get_claims(
         .map_err(|err| DomainError::anyhow_auth("Failed to verify token", err))
 }
 
+#[tracing::instrument(level = "info", skip(req))]
 pub async fn extract(req: &mut ServiceRequest) -> Result<Vec<RoleEnum>, Error> {
     let app_data = req.app_data::<Data<AppData>>().cloned().unwrap();
     let bearer = req.extract::<BearerAuth>().await?;

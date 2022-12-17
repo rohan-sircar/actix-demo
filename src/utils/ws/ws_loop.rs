@@ -1,45 +1,51 @@
+use std::sync::Arc;
+
 use crate::{
     errors::DomainError,
     models::users::UserId,
-    routes::ws::{RunCommandEvent, SentMessage, WsClientEvent, WsServerEvent},
+    routes::{
+        command::MyProcessItem,
+        ws::{SentMessage, WsClientEvent, WsServerEvent},
+    },
+    utils, AppData,
 };
 
 use actix_ws::{Message, MessageStream, Session};
-use async_recursion::async_recursion;
 use futures::prelude::*;
 use redis::{aio::ConnectionManager, AsyncCommands};
-use tokio::sync::mpsc::Sender;
+use tracing::{info_span, Instrument};
 
 // pub enum WsResult {
 //     Ok,
 //     Closed,
 // }
 
-#[async_recursion(?Send)]
 pub async fn ws_loop(
     mut session: Session,
     mut msg_stream: MessageStream,
     conn: &mut ConnectionManager,
     user_id: UserId,
-    command_tx: Sender<RunCommandEvent>,
+    app_data: Arc<AppData>,
 ) -> Result<(), DomainError> {
-    match msg_stream.next().await {
-        Some(Ok(msg)) => match msg {
-            Message::Ping(bytes) => {
-                if session.pong(&bytes).await.is_ok() {
-                    ws_loop(session, msg_stream, conn, user_id, command_tx)
-                        .await
-                } else {
-                    Ok(())
+    while let Some(item) = msg_stream.next().await {
+        match item {
+            Ok(Message::Ping(bytes)) => {
+                if session.pong(&bytes).await.is_err() {
+                    break;
                 }
             }
-            Message::Text(s) => {
-                tracing::debug!("Got text, {}", s);
+            Ok(Message::Text(s)) => {
+                tracing::info!("Received message");
+                tracing::debug!("Message content: {}", s);
                 let res = match serde_json::from_str::<WsClientEvent>(&s) {
-                    Ok(ws_msg) => {
-                        Ok(process_msg(ws_msg, conn, user_id, &command_tx)
-                            .await?)
-                    }
+                    Ok(ws_msg) => Ok(process_msg(
+                        ws_msg,
+                        session.clone(),
+                        conn,
+                        user_id,
+                        app_data.clone(),
+                    )
+                    .await?),
                     Err(err) => {
                         let err = &WsServerEvent::Error {
                             id: None,
@@ -50,27 +56,31 @@ pub async fn ws_loop(
                     }
                 };
 
-                if res.is_ok() {
-                    ws_loop(session, msg_stream, conn, user_id, command_tx)
-                        .await
-                } else {
-                    Ok(())
+                if res.is_err() {
+                    break;
                 }
             }
-            Message::Close(_) => Ok(()),
-            _ => Ok(()),
-        },
-        Some(Err(err)) => Err(DomainError::from(err)),
-        None => Ok(()),
+            Ok(Message::Close(reason)) => {
+                tracing::info!("Received close, reason={:?}", reason);
+                break;
+            }
+            Ok(_) => {
+                break;
+            }
+            Err(_) => {
+                break;
+            }
+        }
     }
+    Ok(())
 }
 
 pub async fn process_msg(
     ws_msg: WsClientEvent,
-    // mut session: Session,
+    session: Session,
     conn: &mut ConnectionManager,
     user_id: UserId,
-    command_tx: &Sender<RunCommandEvent>,
+    app_data: Arc<AppData>,
 ) -> Result<(), DomainError> {
     match ws_msg {
         WsClientEvent::SendMessage { receiver, message } => {
@@ -83,7 +93,7 @@ pub async fn process_msg(
                         "message",
                         serde_json::to_string(&SentMessage {
                             sender: user_id,
-                            message: message.clone(),
+                            message,
                         })
                         .unwrap(),
                     )],
@@ -96,9 +106,66 @@ pub async fn process_msg(
             let _ = tracing::error!("client indicated error {}", cause);
             Ok(())
         }
-        WsClientEvent::RunCommand { args } => {
-            let msg = RunCommandEvent::Run { args };
-            let _ = command_tx.send(msg).await.unwrap();
+        WsClientEvent::SubscribeJob { job_id } => {
+            let chan_name = format!("job.{job_id}");
+            let _ = tracing::info!("Subscribing {chan_name}");
+            let _ = tokio::spawn(
+                async move {
+                    let res = async move {
+                        let mut session2 = session.clone();
+                        let mut ps = utils::get_pubsub(app_data).await?;
+                        let _ = ps.subscribe(&chan_name).await?;
+                        {
+                            let mut msg_stream = ps.on_message();
+                            while let Some(msg) = msg_stream.next().await {
+                                let cmd = msg
+                                    .get_payload::<String>()
+                                    .unwrap_or_default();
+                                let _ = tracing::info!("Got cmd {cmd}");
+                                let rcm =
+                                    serde_json::from_str::<MyProcessItem>(&cmd)
+                                        .unwrap();
+                                let server_msg = serde_json::to_string(
+                                    &WsServerEvent::CommandMessage {
+                                        message: rcm.clone(),
+                                    },
+                                )
+                                .unwrap();
+                                let _ = match &rcm {
+                                    MyProcessItem::Line { value: _ } => {
+                                        let res =
+                                            session2.text(server_msg).await;
+                                        if res.is_err() {
+                                            break;
+                                        }
+                                    }
+                                    MyProcessItem::Error { cause: _ } => {
+                                        let res =
+                                            session2.text(server_msg).await;
+                                        if res.is_err() {
+                                            break;
+                                        }
+                                    }
+                                    MyProcessItem::Done { code } => {
+                                        let _ = tracing::info!(
+                                            "Process completed with code={code}"
+                                        );
+                                        let _ = session2.text(server_msg).await;
+                                        break;
+                                    }
+                                };
+                            }
+                        }
+                        ps.unsubscribe(&chan_name).await?;
+                        // //not sure if this is required
+                        // drop(ps);
+                        Ok::<(), DomainError>(())
+                    }
+                    .await;
+                    tracing::info!("res = {:?}", res);
+                }
+                .instrument(info_span!("command_receive_loop")),
+            );
             Ok(())
         }
     }
