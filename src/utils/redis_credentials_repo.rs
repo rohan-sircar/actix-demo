@@ -15,7 +15,7 @@ pub struct RedisCredentialsRepo {
 
 impl RedisCredentialsRepo {
     pub fn get_key(&self, user_id: &UserId) -> String {
-        format!("actix-demo.{}.{}", self.base_key, user_id)
+        format!("{}.{user_id}", self.base_key)
     }
 }
 
