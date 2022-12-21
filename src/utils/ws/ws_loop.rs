@@ -51,7 +51,7 @@ pub async fn ws_loop(
                             id: None,
                             cause: err.to_string(),
                         };
-                        let err = serde_json::to_string(err).unwrap();
+                        let err = utils::jstr(err);
                         session.text(err).await
                     }
                 };
@@ -82,20 +82,20 @@ pub async fn process_msg(
     user_id: UserId,
     app_data: Arc<AppData>,
 ) -> Result<(), DomainError> {
+    let redis_prefix = app_data.redis_prefix.as_ref();
     match ws_msg {
         WsClientEvent::SendMessage { receiver, message } => {
-            let chan_name = format!("messages.{receiver}");
+            let chan_name = redis_prefix(&format!("messages.{receiver}"));
             let id: String = conn
                 .xadd(
                     chan_name,
                     "*",
                     &[(
                         "message",
-                        serde_json::to_string(&SentMessage {
+                        utils::jstr(&SentMessage {
                             sender: user_id,
                             message,
-                        })
-                        .unwrap(),
+                        }),
                     )],
                 )
                 .await?;
@@ -107,7 +107,7 @@ pub async fn process_msg(
             Ok(())
         }
         WsClientEvent::SubscribeJob { job_id } => {
-            let chan_name = format!("job.{job_id}");
+            let chan_name = redis_prefix(&format!("job.{job_id}"));
             let _ = tracing::info!("Subscribing {chan_name}");
             let _ = tokio::spawn(
                 async move {
@@ -125,34 +125,41 @@ pub async fn process_msg(
                                 let rcm =
                                     serde_json::from_str::<MyProcessItem>(&cmd)
                                         .unwrap();
-                                let server_msg = serde_json::to_string(
-                                    &WsServerEvent::CommandMessage {
-                                        message: rcm.clone(),
-                                    },
-                                )
-                                .unwrap();
-                                let _ = match &rcm {
-                                    MyProcessItem::Line { value: _ } => {
-                                        let res =
-                                            session2.text(server_msg).await;
-                                        if res.is_err() {
-                                            break;
+                                let server_msg =
+                                    WsServerEvent::CommandMessage {
+                                        message: rcm,
+                                    };
+
+                                let msg_str = utils::jstr(&server_msg);
+
+                                let _ = match &server_msg {
+                                    WsServerEvent::CommandMessage {
+                                        message,
+                                    } => match message {
+                                        MyProcessItem::Line { value: _ } => {
+                                            let res =
+                                                session2.text(msg_str).await;
+                                            if res.is_err() {
+                                                break;
+                                            }
                                         }
-                                    }
-                                    MyProcessItem::Error { cause: _ } => {
-                                        let res =
-                                            session2.text(server_msg).await;
-                                        if res.is_err() {
-                                            break;
+                                        MyProcessItem::Error { cause: _ } => {
+                                            let res =
+                                                session2.text(msg_str).await;
+                                            if res.is_err() {
+                                                break;
+                                            }
                                         }
-                                    }
-                                    MyProcessItem::Done { code } => {
-                                        let _ = tracing::info!(
+                                        MyProcessItem::Done { code } => {
+                                            let _ = tracing::info!(
                                             "Process completed with code={code}"
                                         );
-                                        let _ = session2.text(server_msg).await;
-                                        break;
-                                    }
+                                            let _ =
+                                                session2.text(msg_str).await;
+                                            break;
+                                        }
+                                    },
+                                    _ => panic!("Coding error lol"),
                                 };
                             }
                         }

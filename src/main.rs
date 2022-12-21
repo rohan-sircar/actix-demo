@@ -2,7 +2,7 @@
 #![allow(clippy::let_unit_value)]
 use actix_demo::actions::misc::create_database_if_needed;
 use actix_demo::utils::redis_credentials_repo::RedisCredentialsRepo;
-use actix_demo::{AppConfig, AppData, EnvConfig, LoggerFormat};
+use actix_demo::{utils, AppConfig, AppData, EnvConfig, LoggerFormat};
 use actix_web::web::Data;
 use anyhow::Context;
 use diesel::r2d2::ConnectionManager;
@@ -58,8 +58,10 @@ async fn main() -> anyhow::Result<()> {
             )
         })?;
 
+    let redis_prefix = Box::new(utils::get_redis_prefix("app"));
+
     let credentials_repo = Arc::new(RedisCredentialsRepo::new(
-        "user-sessions".to_owned(),
+        redis_prefix(&"user-sessions"),
         cm.clone(),
     ));
     let jwt_key = HS256Key::from_bytes(env_config.jwt_key.as_bytes());
@@ -73,6 +75,7 @@ async fn main() -> anyhow::Result<()> {
         jwt_key,
         redis_conn_factory: Some(client.clone()),
         redis_conn_manager: Some(cm.clone()),
+        redis_prefix,
     });
 
     Ok(

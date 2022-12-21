@@ -4,10 +4,12 @@ pub mod in_memory_credentials_repo;
 pub mod redis_channel_reader;
 pub mod redis_credentials_repo;
 pub mod regex;
+use std::fmt::Display;
 use std::sync::Arc;
 
 use redis::aio::ConnectionManager;
 use redis::aio::PubSub;
+use serde::Serialize;
 
 use crate::errors::DomainError;
 use crate::AppData;
@@ -32,6 +34,19 @@ pub async fn get_redis_conn(
         DomainError::new_uninitialized_error("redis not initialized".to_owned())
     })?;
     Ok(ConnectionManager::new(client).await?)
+}
+
+pub fn get_redis_prefix<T: Display>(
+    prefix: T,
+) -> impl Fn(&dyn Display) -> String {
+    move |st| format!("{prefix}.{st}")
+}
+
+pub fn jstr<T>(value: &T) -> String
+where
+    T: ?Sized + Serialize,
+{
+    serde_json::to_string(value).expect("failed to serialize {value}")
 }
 
 // pub fn from_str<'a, T, F>(value: &'a str, mk_default: F) -> T

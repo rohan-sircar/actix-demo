@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use crate::actions::users::get_user_auth_details;
 use crate::errors::DomainError;
 use crate::models::roles::RoleEnum;
@@ -41,7 +39,7 @@ pub async fn extract(req: &mut ServiceRequest) -> Result<Vec<RoleEnum>, Error> {
 }
 
 pub async fn validate_token(
-    credentials_repo: &Arc<dyn CredentialsRepo + Send + Sync>,
+    credentials_repo: &dyn CredentialsRepo,
     jwt_key: &HS256Key,
     token: String,
 ) -> Result<(), DomainError> {
@@ -76,7 +74,7 @@ pub async fn bearer_auth(
     let jwt_key = &app_data.jwt_key;
     let token: String = credentials.token().into();
     let (http_req, payload) = req.into_parts();
-    match validate_token(credentials_repo, jwt_key, token).await {
+    match validate_token(credentials_repo.as_ref(), jwt_key, token).await {
         Ok(_) => Ok(ServiceRequest::from_parts(http_req, payload)),
         Err(err) => Err((
             Error::from(err),

@@ -1,10 +1,11 @@
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
 use crate::{
     errors::DomainError,
     models::users::UserId,
     routes::ws::{SentMessage, WsServerEvent},
-    utils::{RedisChannelReader, RedisReply},
+    utils::{self, RedisChannelReader, RedisReply},
+    AppData,
 };
 
 use actix_ws::Session;
@@ -14,13 +15,16 @@ pub async fn msg_receive_loop(
     user_id: UserId,
     cm: ConnectionManager,
     mut session: Session,
+    app_data: Arc<AppData>,
 ) -> Result<(), DomainError> {
     let _ = tracing::info!("Starting message channel receive loop ");
 
     let opts = StreamReadOptions::default().block(500).count(5);
 
+    let redis_prefix = app_data.redis_prefix.as_ref();
+
     let mut messages_reader = RedisChannelReader::<SentMessage>::new(
-        format!("messages.{user_id}"),
+        redis_prefix(&format!("messages.{user_id}")),
         cm,
         None,
         opts,
@@ -47,7 +51,7 @@ pub async fn msg_receive_loop(
                     cause,
                 },
             };
-            let res = session.text(serde_json::to_string(&msg).unwrap()).await;
+            let res = session.text(utils::jstr(&msg)).await;
             let _ = if res.is_err() {
                 running = false;
                 break;

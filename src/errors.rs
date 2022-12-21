@@ -23,10 +23,10 @@ custom_error! { #[derive(new)] #[allow(clippy::enum_variant_names)]
 
 impl DomainError {
     pub fn anyhow_jwt(err: anyhow::Error) -> DomainError {
-        DomainError::new_jwt_error(format!("{:#}", err))
+        DomainError::new_jwt_error(format!("{err:#}"))
     }
     pub fn anyhow_auth(message: &str, err: anyhow::Error) -> DomainError {
-        DomainError::new_auth_error(format!("{}, {:#}", message, err))
+        DomainError::new_auth_error(format!("{message}, {err:#}"))
     }
 }
 

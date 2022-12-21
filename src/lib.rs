@@ -31,6 +31,7 @@ use redis::aio::ConnectionManager;
 use redis::Client;
 use routes::auth::bearer_auth;
 use serde::Deserialize;
+use std::fmt::Display;
 use std::io;
 use std::sync::Arc;
 use tracing_actix_web::TracingLogger;
@@ -65,7 +66,8 @@ pub struct AppConfig {
     pub hash_cost: u32,
 }
 
-#[derive(Clone)]
+type RedisPrefixFn = Box<dyn Fn(&dyn Display) -> String + Send + Sync>;
+
 pub struct AppData {
     pub config: AppConfig,
     pub pool: DbPool,
@@ -73,6 +75,7 @@ pub struct AppData {
     pub jwt_key: HS256Key,
     pub redis_conn_factory: Option<Client>,
     pub redis_conn_manager: Option<ConnectionManager>,
+    pub redis_prefix: RedisPrefixFn,
 }
 
 pub fn default_hash_cost() -> u32 {

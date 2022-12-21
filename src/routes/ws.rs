@@ -82,9 +82,12 @@ pub async fn ws(
     let session2 = session.clone();
     let cm = utils::get_redis_conn(app_data.clone().into_inner()).await?;
 
+    let app_data2 = app_data.clone().into_inner();
     let msg_recv_fib = actix_web::rt::spawn(
         async move {
-            let res = utils::ws::msg_receive_loop(user_id, cm, session2).await;
+            let res =
+                utils::ws::msg_receive_loop(user_id, cm, session2, app_data2)
+                    .await;
             let _ = match res {
                 Ok(_) => {
                     let _ = tracing::info!("Msg receive loop ended successful");
@@ -122,8 +125,7 @@ pub async fn ws(
                 }
                 Err(err) => {
                     let _ = tracing::error!(
-                        "Websocket connection ended with error {:?}",
-                        err
+                        "Websocket connection ended with error {err:?}"
                     );
                 }
             };

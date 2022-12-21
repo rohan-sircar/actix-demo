@@ -1,7 +1,7 @@
 extern crate actix_demo;
 use actix_demo::actions::misc::create_database_if_needed;
 use actix_demo::models::users::{NewUser, Password, Username};
-use actix_demo::{AppConfig, AppData, EnvConfig};
+use actix_demo::{utils, AppConfig, AppData, EnvConfig};
 use actix_web::test::TestRequest;
 use actix_web::App;
 use actix_web::{test, web};
@@ -14,7 +14,6 @@ use jwt_simple::prelude::HS256Key;
 use once_cell::sync::Lazy;
 use rand::Rng;
 use std::io;
-use std::sync::Arc;
 use testcontainers::core::WaitFor;
 use testcontainers::images::generic::GenericImage;
 use testcontainers::*;
@@ -30,6 +29,7 @@ use actix_demo::configure_app;
 use actix_http::Request;
 use actix_web::{dev as ax_dev, Error as AxError};
 use lazy_static::lazy_static;
+use std::sync::Arc;
 
 lazy_static! {
     static ref DOCKER: clients::Cli = clients::Cli::default();
@@ -42,9 +42,20 @@ lazy_static! {
             .with_env_var("POSTGRES_USER", "postgres")
             .with_env_var("POSTGRES_PASSWORD", "postgres")
     );
+    static ref REDIS: Container<'static, GenericImage> =
+        DOCKER.run(GenericImage::new("redis", "7-alpine").with_wait_for(
+            WaitFor::message_on_stdout("Ready to accept connections",)
+        ));
+    static ref REDIS_CONNSTR: String = {
+        let port = REDIS.get_host_port_ipv4(6379);
+        let connection_string = format!("redis://127.0.0.1:{port}");
+        tracing::info!("Redis connstr={connection_string}");
+        connection_string
+    };
 }
 
 static TRACING: Lazy<anyhow::Result<()>> = Lazy::new(|| {
+    let _ = dotenv::dotenv().context("Failed to set up env")?;
     let env_filter = EnvFilter::try_from_env("ACTIX_DEMO_TEST_RUST_LOG")
         .context("Failed to set up env logger")?;
 
@@ -72,13 +83,16 @@ pub async fn test_app(
         Error = AxError,
     >,
 > {
-    let _ = dotenv::dotenv().context("Failed to set up env")?;
-
-    let _ = envy::prefixed("ACTIX_DEMO_")
-        .from_env::<EnvConfig>()
-        .context("Failed to parse config")?;
-
     let _ = Lazy::force(&TRACING).as_ref().unwrap();
+
+    let client = redis::Client::open(REDIS_CONNSTR.to_string())
+        .context("failed to initialize redis")?;
+    let cm = redis::aio::ConnectionManager::new(client.clone())
+        .await
+        .with_context(|| {
+            let conn_string: String = REDIS_CONNSTR.to_string();
+            format!("Failed to connect to redis. Url was: {conn_string}",)
+        })?;
 
     let manager = ConnectionManager::<InstrumentedPgConnection>::new(connspec);
     let pool = r2d2::Pool::builder()
@@ -115,6 +129,12 @@ pub async fn test_app(
         Arc::new(actix_demo::utils::InMemoryCredentialsRepo::default());
     let key = HS256Key::from_bytes("test".as_bytes());
 
+    let redis_prefix = {
+        let mut rng = rand::thread_rng();
+        let n1: u8 = rng.gen();
+        Box::new(utils::get_redis_prefix(format!("redis{n1}")))
+    };
+
     let test_app = test::init_service(
         App::new()
             .configure(configure_app(Data::new(AppData {
@@ -122,8 +142,9 @@ pub async fn test_app(
                 pool,
                 credentials_repo,
                 jwt_key: key,
-                redis_conn_factory: None,
-                redis_conn_manager: None,
+                redis_conn_factory: Some(client.clone()),
+                redis_conn_manager: Some(cm.clone()),
+                redis_prefix,
             })))
             .wrap(TracingLogger::default()),
     )
@@ -160,7 +181,7 @@ pub fn pg_conn_string() -> anyhow::Result<String> {
     let db = format!("postgres{n1}");
     let port = PG.get_host_port_ipv4(5432);
     let connection_string =
-        format!("postgres://postgres:postgres@127.0.0.1:{}/{}", port, db);
+        format!("postgres://postgres:postgres@127.0.0.1:{port}/{db}");
     let _ =
         create_database_if_needed(&connection_string).with_context(|| {
             format!(

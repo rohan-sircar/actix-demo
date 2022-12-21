@@ -32,9 +32,13 @@ pub async fn run_command(
     // let job_id =
     //     uuid::Uuid::from_str("319fe476-c767-4788-96cf-dd5a52006231").unwrap();
     let job_id = uuid::Uuid::new_v4();
-    let chan_name = format!("job.{}", job_id);
+    let app_data = app_data.clone();
+    let redis_prefix = app_data.redis_prefix.as_ref();
+    let job_chan_name = redis_prefix(&format!("job.{job_id}"));
+    let abort_chan_name = redis_prefix(&format!("job.{job_id}.abort"));
     let payload = payload.into_inner();
     let args = payload.args;
+
     let _ = actix_rt::spawn(
         async move {
             let _ = tokio::time::sleep(Duration::from_millis(1000)).await;
@@ -43,7 +47,7 @@ pub async fn run_command(
                 let _ = proc.borrow_mut().args(&args);
             }
             let proc2 = proc.clone();
-            let abort_chan_name = format!("job.{job_id}.abort");
+
             let aborter = actix_rt::spawn(
                 async move {
                     // let _ = tokio::time::sleep(Duration::from_millis(5000)).await;
@@ -89,12 +93,8 @@ pub async fn run_command(
                     });
                 while let Some(rcm) = stream.next().await {
                     // let _ = println!("{:?}", output);
-                    let _ = conn
-                        .publish(
-                            &chan_name,
-                            serde_json::to_string(&rcm).unwrap(),
-                        )
-                        .await?;
+                    let _ =
+                        conn.publish(&job_chan_name, utils::jstr(&rcm)).await?;
                     // let _ = if let RunCommandMessage::Error { cause: _ } = &rcm {
                     //     tx.send("done").await.unwrap()
                     // };
@@ -119,7 +119,8 @@ pub async fn abort_command(
     let job_id = job_id.into_inner();
     // let job_id =
     //     uuid::Uuid::from_str("319fe476-c767-4788-96cf-dd5a52006231").unwrap();
-    let abort_chan_name = format!("job.{job_id}.abort");
+    let abort_chan_name =
+        (app_data.redis_prefix)(&format!("job.{job_id}.abort"));
     let _ = conn.publish(abort_chan_name, "done").await?;
     Ok(HttpResponse::Ok().finish())
 }

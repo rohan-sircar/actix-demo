@@ -1,5 +1,5 @@
-use crate::get_build_info;
+use crate::{get_build_info, utils};
 
 pub async fn build_info_req() -> String {
-    serde_json::to_string(get_build_info()).unwrap()
+    utils::jstr(get_build_info())
 }

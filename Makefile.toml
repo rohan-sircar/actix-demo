@@ -32,6 +32,7 @@ args = ["test", "--lib"]
 [tasks.it-test]
 command = "cargo"
 args = ["test", "--test", "integration"]
+# args = ["test", "--test", "integration", "--", "--nocapture"]
 
 [tasks.stage]
 dependencies = ["lint-check", "compile", "test", "it-test"]
