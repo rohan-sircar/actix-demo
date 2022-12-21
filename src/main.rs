@@ -113,8 +113,7 @@ pub fn setup_logger(format: LoggerFormat) -> anyhow::Result<WorkerGuard> {
         LoggerFormat::Pretty => {
             let subscriber = FmtSubscriber::builder()
                 .pretty()
-                .with_span_events(FmtSpan::NEW)
-                .with_span_events(FmtSpan::CLOSE)
+                .with_span_events(FmtSpan::NEW | FmtSpan::CLOSE)
                 .with_env_filter(env_filter)
                 .with_writer(non_blocking)
                 .with_thread_names(true)

@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use diesel::prelude::*;
 
 use crate::errors::DomainError;
@@ -160,9 +158,11 @@ pub fn search_users(
 
 pub fn insert_new_user(
     nu: NewUser,
-    conn: &impl diesel::Connection<Backend = diesel::pg::Pg>,
+    role: RoleEnum,
     hash_cost: u32,
+    conn: &impl diesel::Connection<Backend = diesel::pg::Pg>,
 ) -> Result<UserWithRoles, DomainError> {
+    use crate::schema::roles::dsl as roles;
     use crate::schema::users::dsl as users;
     use crate::schema::users_roles::dsl as users_roles;
 
@@ -178,7 +178,10 @@ pub fn insert_new_user(
         let _ = diesel::insert_into(users::users)
             .values(&nu)
             .execute(conn)?;
-
+        let role_id = roles::roles
+            .select(roles::id)
+            .filter(roles::role_name.eq(role))
+            .first::<RoleId>(conn)?;
         let user = users::users
             .select((users::id, users::username, users::created_at))
             .filter(users::username.eq(nu.username))
@@ -187,7 +190,7 @@ pub fn insert_new_user(
         let _ = diesel::insert_into(users_roles::users_roles)
             .values(NewUserRole {
                 user_id: user.id,
-                role_id: RoleId::from_str("3").unwrap(), //TODO fix this
+                role_id,
             })
             .execute(conn)?;
 
@@ -200,4 +203,12 @@ pub fn insert_new_user(
             roles,
         })
     })
+}
+
+pub fn insert_new_regular_user(
+    nu: NewUser,
+    hash_cost: u32,
+    conn: &impl diesel::Connection<Backend = diesel::pg::Pg>,
+) -> Result<UserWithRoles, DomainError> {
+    insert_new_user(nu, RoleEnum::RoleUser, hash_cost, conn)
 }

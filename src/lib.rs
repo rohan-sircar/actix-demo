@@ -18,7 +18,7 @@ mod routes;
 mod schema;
 mod services;
 mod telemetry;
-mod types;
+pub mod types;
 pub mod utils;
 
 use actix_files as fs;

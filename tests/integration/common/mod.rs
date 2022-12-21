@@ -1,7 +1,9 @@
 extern crate actix_demo;
 use actix_demo::actions::misc::create_database_if_needed;
+use actix_demo::models::roles::RoleEnum;
 use actix_demo::models::users::{NewUser, Password, Username};
-use actix_demo::{utils, AppConfig, AppData, EnvConfig};
+use actix_demo::{utils, AppConfig, AppData};
+use actix_web::dev::ServiceResponse;
 use actix_web::test::TestRequest;
 use actix_web::App;
 use actix_web::{test, web};
@@ -27,9 +29,12 @@ use validators::prelude::*;
 use actix_demo::configure_app;
 
 use actix_http::Request;
-use actix_web::{dev as ax_dev, Error as AxError};
+use actix_web::body::MessageBody;
+use actix_web::{dev::*, Error as AxError};
 use lazy_static::lazy_static;
 use std::sync::Arc;
+
+const DEFAULT_USER: &str = "admin";
 
 lazy_static! {
     static ref DOCKER: clients::Cli = clients::Cli::default();
@@ -64,8 +69,7 @@ static TRACING: Lazy<anyhow::Result<()>> = Lazy::new(|| {
     let subscriber = FmtSubscriber::builder()
         .pretty()
         .with_test_writer()
-        .with_span_events(FmtSpan::NEW)
-        .with_span_events(FmtSpan::CLOSE)
+        .with_span_events(FmtSpan::NEW | FmtSpan::CLOSE)
         .finish()
         .with(env_filter);
 
@@ -77,13 +81,15 @@ static TRACING: Lazy<anyhow::Result<()>> = Lazy::new(|| {
 pub async fn test_app(
     connspec: &str,
 ) -> anyhow::Result<
-    impl ax_dev::Service<
+    impl Service<
         Request,
-        Response = ax_dev::ServiceResponse<impl actix_web::body::MessageBody>,
+        Response = ServiceResponse<impl MessageBody>,
         Error = AxError,
     >,
 > {
     let _ = Lazy::force(&TRACING).as_ref().unwrap();
+
+    let config = AppConfig { hash_cost: 8 };
 
     let client = redis::Client::open(REDIS_CONNSTR.to_string())
         .context("failed to initialize redis")?;
@@ -114,11 +120,12 @@ pub async fn test_app(
             .context("Error running migrations")?;
             actix_demo::actions::users::insert_new_user(
                 NewUser {
-                    username: Username::parse_str("user1").unwrap(),
-                    password: Password::parse_str("test").unwrap(),
+                    username: Username::parse_str(DEFAULT_USER).unwrap(),
+                    password: Password::parse_str(DEFAULT_USER).unwrap(),
                 },
+                RoleEnum::RoleAdmin,
+                config.hash_cost,
                 conn,
-                8,
             )?;
             Ok::<(), anyhow::Error>(())
         })
@@ -138,7 +145,7 @@ pub async fn test_app(
     let test_app = test::init_service(
         App::new()
             .configure(configure_app(Data::new(AppData {
-                config: AppConfig { hash_cost: 8 },
+                config,
                 pool,
                 credentials_repo,
                 jwt_key: key,
@@ -152,19 +159,43 @@ pub async fn test_app(
     Ok(test_app)
 }
 
-pub async fn get_token(
-    test_app: &impl ax_dev::Service<
+pub async fn create_user(
+    username: &str,
+    password: &str,
+    test_app: &impl Service<
         Request,
-        Response = ax_dev::ServiceResponse<impl actix_web::body::MessageBody>,
+        Response = ServiceResponse<impl MessageBody>,
         Error = AxError,
     >,
 ) -> String {
     let req = test::TestRequest::post()
         .append_header(("content-type", "application/json"))
-        .set_payload(r#"{"username":"user1","password":"test"}"#)
+        .set_payload(format!(
+            r#"{{"username":"{username}","password":"{password}"}}"#
+        ))
+        .uri("/api/registration")
+        .to_request();
+    let _ = test_app.call(req).await.unwrap();
+    get_token(username, password, test_app).await
+}
+
+pub async fn get_token(
+    username: &str,
+    password: &str,
+    test_app: &impl Service<
+        Request,
+        Response = ServiceResponse<impl MessageBody>,
+        Error = AxError,
+    >,
+) -> String {
+    let req = test::TestRequest::post()
+        .append_header(("content-type", "application/json"))
+        .set_payload(format!(
+            r#"{{"username":"{username}","password":"{password}"}}"#
+        ))
         .uri("/api/login")
         .to_request();
-    let resp: ax_dev::ServiceResponse<_> = test_app.call(req).await.unwrap();
+    let resp: ServiceResponse<_> = test_app.call(req).await.unwrap();
     // let body: ApiResponse<String> = test::read_body_json(resp).await;
     // println!("{:?}", body);
     resp.headers()
@@ -173,6 +204,16 @@ pub async fn get_token(
         .to_str()
         .unwrap()
         .to_string()
+}
+
+pub async fn get_default_token(
+    test_app: &impl Service<
+        Request,
+        Response = ServiceResponse<impl MessageBody>,
+        Error = AxError,
+    >,
+) -> String {
+    get_token(DEFAULT_USER, DEFAULT_USER, test_app).await
 }
 
 pub fn pg_conn_string() -> anyhow::Result<String> {

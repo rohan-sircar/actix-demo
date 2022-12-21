@@ -11,13 +11,7 @@ mod tests {
 
     mod get_users_api {
 
-        use std::str::FromStr;
-
-        use actix_demo::models::{
-            roles::RoleEnum, users::UserId, users::UserWithRoles,
-            users::Username,
-        };
-        use validators::traits::ValidateString;
+        use actix_demo::models::{roles::RoleEnum, users::UserWithRoles};
 
         use super::*;
 
@@ -27,7 +21,8 @@ mod tests {
             let test_app = common::test_app(&connspec).await.unwrap();
             // let (client, _connection) =
             //     tokio_postgres::connect(&connspec, NoTls).await.unwrap();
-            let token = common::get_token(&test_app).await;
+            let token = common::get_default_token(&test_app).await;
+            let _ = common::create_user("user1", "test", &test_app).await;
             let req = test::TestRequest::get()
                 .uri("/api/users?page=0&limit=2")
                 .with_token(token)
@@ -37,8 +32,12 @@ mod tests {
             let body: ApiResponse<Vec<UserWithRoles>> =
                 test::read_body_json(resp).await;
             let user = body.response().get(0).unwrap();
-            assert_eq!(user.id, UserId::from_str("1").unwrap());
-            assert_eq!(user.username, Username::parse_str("user1").unwrap());
+            assert_eq!(user.id.as_uint(), 1);
+            assert_eq!(user.username.as_str(), "admin");
+            assert_eq!(user.roles, vec![RoleEnum::RoleAdmin]);
+            let user = body.response().get(1).unwrap();
+            assert_eq!(user.id.as_uint(), 2);
+            assert_eq!(user.username.as_str(), "user1");
             assert_eq!(user.roles, vec![RoleEnum::RoleUser]);
         }
 
@@ -46,7 +45,7 @@ mod tests {
         async fn should_return_error_message_if_user_with_id_does_not_exist() {
             let connspec = common::pg_conn_string().unwrap();
             let test_app = common::test_app(&connspec).await.unwrap();
-            let token = common::get_token(&test_app).await;
+            let token = common::get_default_token(&test_app).await;
             let req = test::TestRequest::get()
                 .uri("/api/users/55")
                 .with_token(token)

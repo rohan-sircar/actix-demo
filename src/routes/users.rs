@@ -86,10 +86,10 @@ pub async fn add_user(
     let user = web::block(move || {
         let pool = &app_data.pool;
         let conn = pool.get()?;
-        actions::users::insert_new_user(
+        actions::users::insert_new_regular_user(
             form.0,
-            &conn,
             app_data.config.hash_cost,
+            &conn,
         )
     })
     .await??;
