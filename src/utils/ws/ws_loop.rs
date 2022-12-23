@@ -3,10 +3,8 @@ use std::sync::Arc;
 use crate::{
     errors::DomainError,
     models::users::UserId,
-    routes::{
-        command::MyProcessItem,
-        ws::{SentMessage, WsClientEvent, WsServerEvent},
-    },
+    models::ws::MyProcessItem,
+    models::ws::{SentMessage, WsClientEvent, WsServerEvent},
     utils, AppData,
 };
 

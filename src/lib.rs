@@ -17,7 +17,7 @@ pub mod models;
 mod routes;
 mod schema;
 mod services;
-mod telemetry;
+pub mod telemetry;
 pub mod types;
 pub mod utils;
 
@@ -59,11 +59,13 @@ pub struct EnvConfig {
     pub logger_format: LoggerFormat,
     pub jwt_key: String,
     pub redis_url: String,
+    pub job_bin_path: String,
 }
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct AppConfig {
     pub hash_cost: u32,
+    pub job_bin_path: String,
 }
 
 type RedisPrefixFn = Box<dyn Fn(&dyn Display) -> String + Send + Sync>;

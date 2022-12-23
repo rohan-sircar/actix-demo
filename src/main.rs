@@ -69,6 +69,7 @@ async fn main() -> anyhow::Result<()> {
     let app_data = Data::new(AppData {
         config: AppConfig {
             hash_cost: env_config.hash_cost,
+            job_bin_path: env_config.job_bin_path,
         },
         pool,
         credentials_repo,

@@ -2,6 +2,7 @@ extern crate actix_demo;
 use actix_demo::actions::misc::create_database_if_needed;
 use actix_demo::models::roles::RoleEnum;
 use actix_demo::models::users::{NewUser, Password, Username};
+use actix_demo::telemetry::DomainRootSpanBuilder;
 use actix_demo::{utils, AppConfig, AppData};
 use actix_web::dev::ServiceResponse;
 use actix_web::test::TestRequest;
@@ -15,7 +16,9 @@ use diesel_tracing::pg::InstrumentedPgConnection;
 use jwt_simple::prelude::HS256Key;
 use once_cell::sync::Lazy;
 use rand::Rng;
-use std::io;
+use std::fs;
+use std::io::{self, Write};
+use std::os::unix::prelude::OpenOptionsExt;
 use testcontainers::core::WaitFor;
 use testcontainers::images::generic::GenericImage;
 use testcontainers::*;
@@ -29,12 +32,20 @@ use validators::prelude::*;
 use actix_demo::configure_app;
 
 use actix_http::Request;
+use actix_test::TestServer;
 use actix_web::body::MessageBody;
 use actix_web::{dev::*, Error as AxError};
 use lazy_static::lazy_static;
 use std::sync::Arc;
 
-const DEFAULT_USER: &str = "admin";
+pub const DEFAULT_USER: &str = "admin";
+
+pub const BIN_FILE_LOCATION: &str = "/tmp/my-echo.sh";
+
+pub const BIN_FILE_CONTENTS: &str = r#"#!/bin/bash
+
+echo "hello world $1 $2";
+"#;
 
 lazy_static! {
     static ref DOCKER: clients::Cli = clients::Cli::default();
@@ -78,18 +89,26 @@ static TRACING: Lazy<anyhow::Result<()>> = Lazy::new(|| {
     Ok(())
 });
 
-pub async fn test_app(
-    connspec: &str,
-) -> anyhow::Result<
-    impl Service<
-        Request,
-        Response = ServiceResponse<impl MessageBody>,
-        Error = AxError,
-    >,
-> {
+static BIN_FILE: Lazy<anyhow::Result<()>> = Lazy::new(|| {
+    let mut file = fs::OpenOptions::new()
+        .create(true)
+        .write(true)
+        .mode(0o777)
+        .open(BIN_FILE_LOCATION)?;
+    file.write_all(BIN_FILE_CONTENTS.as_bytes())?;
+    file.flush()?;
+    Ok(())
+});
+
+pub async fn app_data(connspec: &str) -> anyhow::Result<web::Data<AppData>> {
     let _ = Lazy::force(&TRACING).as_ref().unwrap();
 
-    let config = AppConfig { hash_cost: 8 };
+    let _ = Lazy::force(&BIN_FILE).as_ref().unwrap();
+
+    let config = AppConfig {
+        hash_cost: 4,
+        job_bin_path: BIN_FILE_LOCATION.to_string(),
+    };
 
     let client = redis::Client::open(REDIS_CONNSTR.to_string())
         .context("failed to initialize redis")?;
@@ -120,8 +139,8 @@ pub async fn test_app(
             .context("Error running migrations")?;
             actix_demo::actions::users::insert_new_user(
                 NewUser {
-                    username: Username::parse_str(DEFAULT_USER).unwrap(),
-                    password: Password::parse_str(DEFAULT_USER).unwrap(),
+                    username: Username::parse_str(DEFAULT_USER)?,
+                    password: Password::parse_str(DEFAULT_USER)?,
                 },
                 RoleEnum::RoleAdmin,
                 config.hash_cost,
@@ -142,21 +161,42 @@ pub async fn test_app(
         Box::new(utils::get_redis_prefix(format!("redis{n1}")))
     };
 
-    let test_app = test::init_service(
-        App::new()
-            .configure(configure_app(Data::new(AppData {
-                config,
-                pool,
-                credentials_repo,
-                jwt_key: key,
-                redis_conn_factory: Some(client.clone()),
-                redis_conn_manager: Some(cm.clone()),
-                redis_prefix,
-            })))
-            .wrap(TracingLogger::default()),
-    )
-    .await;
+    let data = Data::new(AppData {
+        config,
+        pool,
+        credentials_repo,
+        jwt_key: key,
+        redis_conn_factory: Some(client.clone()),
+        redis_conn_manager: Some(cm.clone()),
+        redis_prefix,
+    });
+    Ok(data)
+}
+
+pub async fn test_app(
+    connspec: &str,
+) -> anyhow::Result<
+    impl Service<
+        Request,
+        Response = ServiceResponse<impl MessageBody>,
+        Error = AxError,
+    >,
+> {
+    let app = App::new()
+        .configure(configure_app(app_data(connspec).await?))
+        .wrap(TracingLogger::<DomainRootSpanBuilder>::new());
+    let test_app = test::init_service(app).await;
     Ok(test_app)
+}
+
+pub async fn test_http_app(connspec: &str) -> anyhow::Result<TestServer> {
+    let data = app_data(connspec).await?;
+    let test_app = move || {
+        App::new()
+            .configure(configure_app(data.clone()))
+            .wrap(TracingLogger::<DomainRootSpanBuilder>::new())
+    };
+    Ok(actix_test::start(test_app))
 }
 
 pub async fn create_user(

@@ -7,19 +7,11 @@ use redis::AsyncCommands;
 use serde::{Deserialize, Serialize};
 use tracing::{info_span, Instrument};
 
-use crate::{errors::DomainError, utils, AppData};
+use crate::{errors::DomainError, models::ws::MyProcessItem, utils, AppData};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RunCommandRequest {
     pub args: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "kind")]
-pub enum MyProcessItem {
-    Line { value: String },
-    Error { cause: String },
-    Done { code: String },
 }
 
 #[tracing::instrument(level = "info", skip(app_data))]
@@ -33,6 +25,7 @@ pub async fn run_command(
     //     uuid::Uuid::from_str("319fe476-c767-4788-96cf-dd5a52006231").unwrap();
     let job_id = uuid::Uuid::new_v4();
     let app_data = app_data.clone();
+    let bin_path = app_data.config.job_bin_path.clone();
     let redis_prefix = app_data.redis_prefix.as_ref();
     let job_chan_name = redis_prefix(&format!("job.{job_id}"));
     let abort_chan_name = redis_prefix(&format!("job.{job_id}.abort"));
@@ -42,7 +35,7 @@ pub async fn run_command(
     let _ = actix_rt::spawn(
         async move {
             let _ = tokio::time::sleep(Duration::from_millis(1000)).await;
-            let proc = Rc::new(RefCell::new(Process::new("ls")));
+            let proc = Rc::new(RefCell::new(Process::new(bin_path)));
             {
                 let _ = proc.borrow_mut().args(&args);
             }
@@ -53,7 +46,7 @@ pub async fn run_command(
                     // let _ = tokio::time::sleep(Duration::from_millis(5000)).await;
                     let mut ps =
                         utils::get_pubsub(app_data.into_inner()).await?;
-                    let _ = ps.subscribe(&abort_chan_name).await.unwrap();
+                    let _ = ps.subscribe(&abort_chan_name).await?;
                     let mut r_stream = ps.on_message();
                     while let Some(msg) = r_stream.next().await {
                         let msg =
@@ -75,7 +68,11 @@ pub async fn run_command(
                 let mut stream = proc
                     .borrow_mut()
                     .spawn_and_stream()
-                    .unwrap()
+                    .map_err(|err| {
+                        DomainError::new_internal_error(format!(
+                            "Failed to run process: {err:?}"
+                        ))
+                    })?
                     .map(|output| match output {
                         ProcessItem::Output(value) => {
                             MyProcessItem::Line { value }
@@ -92,7 +89,7 @@ pub async fn run_command(
                         ProcessItem::Exit(code) => MyProcessItem::Done { code },
                     });
                 while let Some(rcm) = stream.next().await {
-                    // let _ = println!("{:?}", output);
+                    // let _ = println!("{:?}", &rcm);
                     let _ =
                         conn.publish(&job_chan_name, utils::jstr(&rcm)).await?;
                     // let _ = if let RunCommandMessage::Error { cause: _ } = &rcm {
@@ -102,7 +99,11 @@ pub async fn run_command(
                 aborter.abort();
                 Ok::<(), DomainError>(())
             });
-            _pub_task.await??;
+            let res = _pub_task.await?;
+
+            if let Err(err) = res {
+                tracing::error!("Error running job: {err:?}");
+            }
             Ok::<(), DomainError>(())
         }
         .instrument(info_span!("job", job_id = job_id.to_string())),

@@ -3,7 +3,7 @@ use std::{sync::Arc, time::Duration};
 use crate::{
     errors::DomainError,
     models::users::UserId,
-    routes::ws::{SentMessage, WsServerEvent},
+    models::ws::{SentMessage, WsServerEvent},
     utils::{self, RedisChannelReader, RedisReply},
     AppData,
 };

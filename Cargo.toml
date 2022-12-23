@@ -91,6 +91,10 @@ version = "0.4.19"
 features = ['serde']
 
 [dev-dependencies]
+actix-codec = "0.5.0"
+actix-test = "0.1.0"
+awc = "3.0.1"
+bytestring = { version = "1.2.0", features = ["serde"] }
 testcontainers = { git = "https://github.com/testcontainers/testcontainers-rs/" } # testcontainers = "0.14.0"
 tokio-postgres = "0.7.7"
 
