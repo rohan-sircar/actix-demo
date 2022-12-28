@@ -1,4 +1,7 @@
+use std::{cell::RefCell, rc::Rc, time::Duration};
+
 use crate::{errors::DomainError, utils, AppData};
+use actix_rt::time::sleep;
 use actix_web::{web, HttpRequest, HttpResponse};
 
 use serde::Deserialize;
@@ -42,7 +45,8 @@ pub async fn ws(
     let cm = utils::get_redis_conn(app_data.clone().into_inner()).await?;
 
     let app_data2 = app_data.clone().into_inner();
-    let msg_recv_fib = actix_web::rt::spawn(
+    let handles = Rc::new(RefCell::new(Vec::new()));
+    let msg_recv_fib = Rc::new(actix_rt::spawn(
         async move {
             let res =
                 utils::ws::msg_receive_loop(user_id, cm, session2, app_data2)
@@ -60,16 +64,19 @@ pub async fn ws(
             };
         }
         .instrument(tracing::info_span!("msg_receive_loop")),
-    );
+    ));
+    let _ = {
+        handles.borrow_mut().push(msg_recv_fib.clone());
+    };
 
     let session2 = session.clone();
     let mut pub_cm =
         utils::get_redis_conn(app_data.clone().into_inner()).await?;
-    let _ = actix_web::rt::spawn(
+    let handle2 = Rc::new(actix_rt::spawn(
         async move {
             tracing::info!("Starting websocket loop");
             let res = utils::ws::ws_loop(
-                session2,
+                session2.clone(),
                 msg_stream,
                 &mut pub_cm,
                 user_id,
@@ -89,10 +96,28 @@ pub async fn ws(
                 }
             };
 
-            let _ = session.close(None).await;
+            let _ = session2.close(None).await;
             let _ = msg_recv_fib.abort();
         }
         .instrument(tracing::info_span!("ws_loop")),
+    ));
+    let _ = {
+        handles.borrow_mut().push(handle2);
+    };
+    let mut session2 = session.clone();
+    let _ = actix_rt::spawn(
+        async move {
+            loop {
+                sleep(Duration::from_secs(30)).await;
+                if session2.ping(b"").await.is_err() {
+                    for h in handles.borrow().iter() {
+                        h.abort();
+                    }
+                    break;
+                }
+            }
+        }
+        .instrument(tracing::info_span!("ws_hb")),
     );
 
     Ok(response)

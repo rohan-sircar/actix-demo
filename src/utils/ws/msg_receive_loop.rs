@@ -8,6 +8,7 @@ use crate::{
     AppData,
 };
 
+use actix_rt::time::sleep;
 use actix_ws::Session;
 use redis::{aio::ConnectionManager, streams::StreamReadOptions};
 
@@ -32,7 +33,7 @@ pub async fn msg_receive_loop(
 
     let mut running = true;
     while running {
-        actix_rt::time::sleep(Duration::from_millis(500)).await;
+        sleep(Duration::from_millis(500)).await;
         let msgs = messages_reader.get_items().await?;
         let len = msgs.len();
         if len > 0 {
