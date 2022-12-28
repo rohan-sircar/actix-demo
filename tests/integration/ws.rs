@@ -127,7 +127,7 @@ mod tests {
             } = msg
             {
                 assert_eq!(sender.as_uint(), 1);
-                assert_eq!(&message, "hello");
+                assert_eq!(&message, "foo");
             } else {
                 panic!("error wrong message type");
             };
