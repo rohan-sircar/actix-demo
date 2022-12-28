@@ -15,6 +15,10 @@ while (True):
     time.sleep(1)
 
 try:
-    os.system("cargo test --test integration")
+    status = os.system("cargo test --test integration")
+    code = os.WEXITSTATUS(status)
+    print(f"code {code}")
+    if (code > 0):
+        sys.exit("test failed")
 finally:
     os.system(f"docker-compose -f {workdir}/docker-compose.it-test.yml down")
