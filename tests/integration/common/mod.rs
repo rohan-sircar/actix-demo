@@ -19,9 +19,6 @@ use rand::Rng;
 use std::fs;
 use std::io::{self, Write};
 use std::os::unix::prelude::OpenOptionsExt;
-use testcontainers::core::WaitFor;
-use testcontainers::images::generic::GenericImage;
-use testcontainers::*;
 use tracing::subscriber::set_global_default;
 use tracing_actix_web::TracingLogger;
 use tracing_log::LogTracer;
@@ -48,22 +45,8 @@ echo "hello world $1 $2";
 "#;
 
 lazy_static! {
-    static ref DOCKER: clients::Cli = clients::Cli::default();
-    static ref PG: Container<'static, GenericImage> = DOCKER.run(
-        GenericImage::new("postgres", "15-alpine")
-            .with_wait_for(WaitFor::message_on_stderr(
-                "database system is ready to accept connections",
-            ))
-            .with_env_var("POSTGRES_DB", "postgres")
-            .with_env_var("POSTGRES_USER", "postgres")
-            .with_env_var("POSTGRES_PASSWORD", "postgres")
-    );
-    static ref REDIS: Container<'static, GenericImage> =
-        DOCKER.run(GenericImage::new("redis", "7-alpine").with_wait_for(
-            WaitFor::message_on_stdout("Ready to accept connections",)
-        ));
     static ref REDIS_CONNSTR: String = {
-        let port = REDIS.get_host_port_ipv4(6379);
+        let port = 5556;
         let connection_string = format!("redis://127.0.0.1:{port}");
         tracing::info!("Redis connstr={connection_string}");
         connection_string
@@ -260,7 +243,7 @@ pub fn pg_conn_string() -> anyhow::Result<String> {
     let mut rng = rand::thread_rng();
     let n1: u8 = rng.gen();
     let db = format!("postgres{n1}");
-    let port = PG.get_host_port_ipv4(5432);
+    let port = 5555;
     let connection_string =
         format!("postgres://postgres:postgres@127.0.0.1:{port}/{db}");
     let _ =

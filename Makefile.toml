@@ -30,8 +30,8 @@ command = "cargo"
 args = ["test", "--lib"]
 
 [tasks.it-test]
-command = "cargo"
-args = ["test", "--test", "integration"]
+command = "python3"
+args = ["tests/integration/it-test.py"]
 # args = ["test", "--test", "integration", "--", "--nocapture"]
 
 [tasks.stage]

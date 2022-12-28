@@ -1,0 +1,15 @@
+version: '3.8'
+services:
+  postgres:
+    container_name: actix-demo-test-postgres
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - '5555:5432'
+  redis:
+    container_name: actix-demo-test-redis
+    image: redis:7-alpine
+    ports:
+      - '5556:6379'
