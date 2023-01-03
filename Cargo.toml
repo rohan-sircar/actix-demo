@@ -71,7 +71,7 @@ version = "0.24.1"
 features = ["serde"]
 
 [dependencies.build-info]
-version = "0.0.28"
+version = "0.0.29"
 features = ['runtime', 'serde']
 
 [dependencies.serde]
@@ -80,10 +80,10 @@ features = ['derive']
 
 [dependencies.diesel]
 version = "1.4.8"
-features = ['r2d2', 'chrono', 'postgres']
+features = ['r2d2', 'chrono', 'postgres', 'uuidv07']
 
 [dependencies.uuid]
-version = "1.2.2"
+version = "0.8.2"
 features = ['serde', 'v4']
 
 [dependencies.chrono]
@@ -99,4 +99,4 @@ testcontainers = { git = "https://github.com/testcontainers/testcontainers-rs/" 
 tokio-postgres = "0.7.7"
 
 [build-dependencies]
-build-info-build = "0.0.28"
+build-info-build = "0.0.29"

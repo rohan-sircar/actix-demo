@@ -119,7 +119,7 @@ pub async fn process_msg(
                                 let cmd = msg
                                     .get_payload::<String>()
                                     .unwrap_or_default();
-                                let _ = tracing::info!("Got cmd {cmd}");
+                                let _ = tracing::debug!("Got cmd {cmd}");
                                 let rcm =
                                     serde_json::from_str::<MyProcessItem>(&cmd)
                                         .unwrap();

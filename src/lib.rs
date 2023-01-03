@@ -1,6 +1,5 @@
 #![forbid(unsafe_code)]
 #![allow(clippy::let_unit_value)]
-#![allow(deprecated)]
 #[macro_use]
 extern crate diesel;
 #[macro_use]
@@ -94,24 +93,25 @@ pub fn configure_app(
             .service(web::scope("/ws").route("", web::get().to(routes::ws::ws)))
             // .service(routes::auth::logout)
             // public endpoint - not implemented yet
-            .service(
-                web::scope("/api/public")
-                    .route(
-                        "/build-info",
-                        web::get().to(routes::misc::build_info_req),
-                    )
-                    .route("/cmd", web::post().to(routes::command::run_command))
-                    .route(
-                        "/cmd",
-                        web::delete().to(routes::command::abort_command),
-                    ),
-            )
+            .service(web::scope("/api/public").route(
+                "/build-info",
+                web::get().to(routes::misc::build_info_req),
+            ))
             .service(
                 web::scope("/api")
                     .wrap(HttpAuthentication::bearer(bearer_auth))
                     .wrap(GrantsMiddleware::with_extractor(
                         routes::auth::extract,
                     ))
+                    .route("/cmd", web::post().to(routes::command::run_command))
+                    .route(
+                        "/cmd/{job_id}",
+                        web::get().to(routes::command::get_job),
+                    )
+                    .route(
+                        "/cmd/{job_id}",
+                        web::delete().to(routes::command::abort_command),
+                    )
                     .service(
                         web::scope("/users")
                             .route("", web::get().to(routes::users::get_users))

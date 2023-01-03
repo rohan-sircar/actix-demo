@@ -1,4 +1,8 @@
+use crate::schema::jobs;
+use diesel_derive_enum::DbEnum;
 use serde::{Deserialize, Serialize};
+
+use super::users::{UserId, Username};
 
 #[derive(Eq, PartialEq, Debug, Clone, Serialize, Deserialize, new)]
 pub struct ApiResponse<T> {
@@ -107,6 +111,37 @@ impl SearchQueryString {
 pub struct SearchQuery {
     pub q: SearchQueryString,
     // pub pagination: Pagination
+}
+
+#[derive(DbEnum, Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
+#[allow(clippy::enum_variant_names)]
+#[serde(rename_all = "snake_case")]
+#[DieselType = "Job_status"]
+pub enum JobStatus {
+    Pending,
+    Completed,
+    Aborted,
+    Failed,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, Queryable, Identifiable)]
+#[table_name = "jobs"]
+pub struct Job {
+    pub id: i32,
+    pub job_id: uuid::Uuid,
+    pub started_by: Username,
+    pub status: JobStatus,
+    pub status_message: Option<String>,
+    pub created_at: chrono::NaiveDateTime,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, Insertable)]
+#[table_name = "jobs"]
+pub struct NewJob {
+    pub job_id: uuid::Uuid,
+    pub started_by: UserId,
+    pub status: JobStatus,
+    pub status_message: Option<String>,
 }
 
 #[cfg(test)]

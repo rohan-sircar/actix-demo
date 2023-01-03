@@ -4,6 +4,7 @@ use crate::models::roles::RoleEnum;
 use crate::models::users::{UserId, UserLogin, Username};
 use crate::utils::CredentialsRepo;
 use crate::AppData;
+use actix_http::header::{HeaderName, HeaderValue};
 use actix_http::Payload;
 use actix_web::dev::ServiceRequest;
 use actix_web::web::{self, Data};
@@ -34,6 +35,12 @@ pub async fn extract(req: &mut ServiceRequest) -> Result<Vec<RoleEnum>, Error> {
     let bearer = req.extract::<BearerAuth>().await?;
     let claims = get_claims(&app_data.jwt_key, bearer.token())?;
     let roles = claims.custom.roles;
+    let user_id = claims.custom.user_id.to_string();
+
+    req.headers_mut().insert(
+        HeaderName::from_static("x-auth-user"),
+        HeaderValue::from_str(&user_id).unwrap(),
+    );
 
     Ok(roles)
 }

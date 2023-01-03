@@ -94,7 +94,10 @@ pub mod ws_utils {
 mod tests {
 
     use super::*;
-    use actix_demo::models::ws::MyProcessItem;
+    use actix_demo::models::{
+        misc::{Job, JobStatus},
+        ws::MyProcessItem,
+    };
     use ws_utils::*;
 
     #[actix_rt::test]
@@ -139,7 +142,7 @@ mod tests {
 
     #[actix_rt::test]
     async fn run_job_test() {
-        async {
+        let res = async {
             let connspec = common::pg_conn_string()?;
             let test_server = common::test_http_app(&connspec).await?;
 
@@ -152,15 +155,24 @@ mod tests {
             let (_resp, mut ws) = connect_ws(&addr, &token, &client).await?;
 
             let mut resp = client
-                .post(format!("http://{addr}/api/public/cmd"))
+                .post(format!("http://{addr}/api/cmd"))
                 .append_header((header::CONTENT_TYPE, "application/json"))
+                .append_header((
+                    header::AUTHORIZATION,
+                    format!("Bearer {token}"),
+                ))
                 .send_body(r#"{"args":["arg1", "arg2"]}"#)
                 .await
                 .map_err(|err| anyhow!("{err}"))?;
-            let job_id = std::str::from_utf8(&resp.body().await?)?.to_owned();
+            let job_resp = resp.json::<Job>().await?;
+            let job_id = job_resp.job_id.to_string();
+            assert_eq!(job_resp.started_by.as_str(), common::DEFAULT_USER);
+            assert_eq!(job_resp.status, JobStatus::Pending);
 
-            ws.send(ws_msg(&WsClientEvent::SubscribeJob { job_id }))
-                .await?;
+            ws.send(ws_msg(&WsClientEvent::SubscribeJob {
+                job_id: job_id.clone(),
+            }))
+            .await?;
 
             let msg = ws_take_one(&mut ws).await?;
 
@@ -172,9 +184,36 @@ mod tests {
             } else {
                 panic!("error wrong message type");
             };
+
+            let msg = ws_take_one(&mut ws).await?;
+
+            if let WsServerEvent::CommandMessage {
+                message: MyProcessItem::Done { code },
+            } = msg
+            {
+                assert_eq!(&code, "0");
+            } else {
+                panic!("error wrong message type");
+            };
+
+            let mut resp = client
+                .get(format!("http://{addr}/api/cmd/{job_id}"))
+                .append_header((header::CONTENT_TYPE, "application/json"))
+                .append_header((
+                    header::AUTHORIZATION,
+                    format!("Bearer {token}"),
+                ))
+                .send()
+                .await
+                .map_err(|err| anyhow!("{err}"))?;
+            let job_resp = resp.json::<Job>().await?;
+            assert_eq!(job_resp.started_by.as_str(), common::DEFAULT_USER);
+            assert_eq!(job_resp.status, JobStatus::Completed);
             Ok::<(), anyhow::Error>(())
         }
-        .await
-        .unwrap()
+        .await;
+
+        tracing::info!("{res:?}");
+        res.unwrap();
     }
 }

@@ -10,6 +10,7 @@ custom_error! { #[derive(new)] #[allow(clippy::enum_variant_names)]
     FieldValidationError {message: String} = "Failed to validate one or more fields",
     DbError {source: diesel::result::Error} = "Database error",
     DbPoolError {source: r2d2::Error} = "Failed to get connection from pool",
+    BadInputError {message: String} = "Bad inputs to request: {message}",
     EntityDoesNotExistError {message: String} = "Entity does not exist - {message}",
     BlockingError {source: actix_web::error::BlockingError} = "Blocking error - {source}",
     AuthError {message: String} = "Authentication Error - {message}",
@@ -46,6 +47,10 @@ impl ResponseError for DomainError {
                 HttpResponse::InternalServerError().json(ApiResponse::failure(
                     "Error getting database pool".to_owned(),
                 ))
+            }
+            DomainError::BadInputError { message: _ } => {
+                HttpResponse::BadRequest()
+                    .json(ApiResponse::failure(self.to_string()))
             }
             DomainError::EntityDoesNotExistError { message: _ } => {
                 HttpResponse::NotFound()

@@ -1,21 +1,31 @@
-use std::{cell::RefCell, rc::Rc, time::Duration};
+use std::{cell::RefCell, rc::Rc, str::FromStr};
 
-use actix_web::{web, HttpResponse};
+use actix_web::{web, HttpRequest, HttpResponse};
 use futures::StreamExt;
 use process_stream::{Process, ProcessExt, ProcessItem};
 use redis::AsyncCommands;
 use serde::{Deserialize, Serialize};
 use tracing::{info_span, Instrument};
 
-use crate::{errors::DomainError, models::ws::MyProcessItem, utils, AppData};
+use crate::{
+    actions,
+    errors::DomainError,
+    models::{
+        misc::{JobStatus, NewJob},
+        users::UserId,
+        ws::MyProcessItem,
+    },
+    utils, AppData,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RunCommandRequest {
     pub args: Vec<String>,
 }
 
-#[tracing::instrument(level = "info", skip(app_data))]
+#[tracing::instrument(level = "info", skip_all, fields(payload))]
 pub async fn run_command(
+    req: HttpRequest,
     app_data: web::Data<AppData>,
     payload: web::Json<RunCommandRequest>,
 ) -> Result<HttpResponse, DomainError> {
@@ -31,10 +41,28 @@ pub async fn run_command(
     let abort_chan_name = redis_prefix(&format!("job.{job_id}.abort"));
     let payload = payload.into_inner();
     let args = payload.args;
+    let user_id = UserId::from_str(
+        req.headers().get("x-auth-user").unwrap().to_str().unwrap(),
+    )
+    .unwrap();
 
+    let pool = app_data.pool.clone();
+    let pool2 = pool.clone();
+    let job = web::block(move || {
+        let conn = pool2.get()?;
+        let nj = NewJob {
+            job_id,
+            started_by: user_id,
+            status: JobStatus::Pending,
+            status_message: None,
+        };
+        actions::misc::create_job(&nj, &conn)
+    })
+    .await??;
+
+    let pool2 = pool.clone();
     let _ = actix_rt::spawn(
         async move {
-            let _ = tokio::time::sleep(Duration::from_millis(1000)).await;
             let proc = Rc::new(RefCell::new(Process::new(bin_path)));
             {
                 let _ = proc.borrow_mut().args(&args);
@@ -53,7 +81,7 @@ pub async fn run_command(
                             &msg.get_payload::<String>().unwrap_or_default();
                         if msg == "done" {
                             let _ = tracing::debug!("Killing");
-                            let _ = proc2.borrow_mut().abort();
+                            let _ = proc2.borrow().abort();
                             break;
                         }
                     }
@@ -64,7 +92,7 @@ pub async fn run_command(
                     job_id = job_id.to_string()
                 )),
             );
-            let _pub_task = actix_rt::spawn(async move {
+            let pub_task = actix_rt::spawn(async move {
                 let mut stream = proc
                     .borrow_mut()
                     .spawn_and_stream()
@@ -96,19 +124,56 @@ pub async fn run_command(
                     //     tx.send("done").await.unwrap()
                     // };
                 }
-                aborter.abort();
                 Ok::<(), DomainError>(())
             });
-            let res = _pub_task.await?;
+            let res = pub_task.await?;
+            tracing::info!("Job completed");
 
-            if let Err(err) = res {
-                tracing::error!("Error running job: {err:?}");
-            }
+            aborter.abort();
+            let status = match res {
+                Ok(_) => JobStatus::Completed,
+                Err(err) => {
+                    tracing::error!("Error running job: {err:?}");
+                    JobStatus::Failed
+                }
+            };
+            let conn = pool2.get()?;
+            web::block(move || {
+                actions::misc::update_job_status(job_id, status, &conn)
+            })
+            .await??;
             Ok::<(), DomainError>(())
         }
         .instrument(info_span!("job", job_id = job_id.to_string())),
     );
-    Ok(HttpResponse::Ok().body(job_id.to_string()))
+    Ok(HttpResponse::Ok().json(job))
+}
+
+#[tracing::instrument(level = "info", skip(app_data))]
+pub async fn get_job(
+    app_data: web::Data<AppData>,
+    job_id: web::Path<String>,
+) -> Result<HttpResponse, DomainError> {
+    let pool = app_data.pool.clone();
+    let job_id =
+        uuid::Uuid::parse_str(&job_id.into_inner()).map_err(|err| {
+            DomainError::new_bad_input_error(format!("Expected UUID: {err}"))
+        })?;
+    let job = web::block(move || {
+        let conn = &pool.get()?;
+        actions::misc::get_job_by_uuid(job_id, conn)
+    })
+    .await??;
+    match job {
+        Some(job) => {
+            tracing::info!("Found job with id: {}", job.job_id);
+            tracing::debug!("Found job: {job:?}");
+            Ok(HttpResponse::Ok().json(job))
+        }
+        None => Err(DomainError::new_entity_does_not_exist_error(format!(
+            "No jobs with uuid: {job_id}"
+        ))),
+    }
 }
 
 #[tracing::instrument(level = "info", skip(app_data))]
