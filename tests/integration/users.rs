@@ -13,12 +13,17 @@ mod tests {
 
         use actix_demo::models::{roles::RoleEnum, users::UserWithRoles};
 
+        use crate::common::TestAppOptions;
+
         use super::*;
 
         #[tokio::test]
         async fn should_return_a_user() {
             let connspec = common::pg_conn_string().unwrap();
-            let test_app = common::test_app(&connspec).await.unwrap();
+            let test_app =
+                common::test_app(&connspec, TestAppOptions::default())
+                    .await
+                    .unwrap();
             // let (client, _connection) =
             //     tokio_postgres::connect(&connspec, NoTls).await.unwrap();
             let token = common::get_default_token(&test_app).await;
@@ -44,7 +49,10 @@ mod tests {
         #[actix_rt::test]
         async fn should_return_error_message_if_user_with_id_does_not_exist() {
             let connspec = common::pg_conn_string().unwrap();
-            let test_app = common::test_app(&connspec).await.unwrap();
+            let test_app =
+                common::test_app(&connspec, TestAppOptions::default())
+                    .await
+                    .unwrap();
             let token = common::get_default_token(&test_app).await;
             let req = test::TestRequest::get()
                 .uri("/api/users/55")

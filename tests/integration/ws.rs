@@ -13,6 +13,8 @@ use actix_ws::Message;
 use anyhow::anyhow;
 use awc::{BoxedSocket, Client, ClientResponse};
 use bytestring::ByteString;
+use common::TestAppOptionsBuilder;
+use once_cell::sync::Lazy;
 
 pub mod ws_utils {
     use super::*;
@@ -93,21 +95,29 @@ pub mod ws_utils {
 #[cfg(test)]
 mod tests {
 
+    use std::time::Duration;
+
+    use crate::common::TestAppOptions;
+
     use super::*;
     use actix_demo::models::{
         misc::{Job, JobStatus},
         ws::MyProcessItem,
     };
+    use actix_http::StatusCode;
+    use actix_rt::time::sleep;
     use ws_utils::*;
 
     #[actix_rt::test]
     async fn send_message_test() {
         async {
             let connspec = common::pg_conn_string()?;
-            let test_server = common::test_http_app(&connspec).await?;
+            let test_server =
+                common::test_http_app(&connspec, TestAppOptions::default())
+                    .await?;
 
             let addr = test_server.addr().to_string();
-            tracing::info!("Addr: {addr}");
+            // tracing::info!("Addr: {addr}");
             let client = Client::new();
             // let resp = test_server.get("/users").send().await;
             let username = common::DEFAULT_USER;
@@ -144,10 +154,11 @@ mod tests {
     async fn run_job_test() {
         let res = async {
             let connspec = common::pg_conn_string()?;
-            let test_server = common::test_http_app(&connspec).await?;
+            let test_server =
+                common::test_http_app(&connspec, TestAppOptions::default())
+                    .await?;
 
             let addr = test_server.addr().to_string();
-            tracing::info!("Addr: {addr}");
             let client = Client::new();
             let username = common::DEFAULT_USER;
             let password = common::DEFAULT_USER;
@@ -209,6 +220,82 @@ mod tests {
             let job_resp = resp.json::<Job>().await?;
             assert_eq!(job_resp.started_by.as_str(), common::DEFAULT_USER);
             assert_eq!(job_resp.status, JobStatus::Completed);
+            Ok::<(), anyhow::Error>(())
+        }
+        .await;
+
+        tracing::info!("{res:?}");
+        res.unwrap();
+    }
+
+    #[actix_rt::test]
+    async fn abort_job_test() {
+        let res = async {
+            let connspec = common::pg_conn_string()?;
+            let file = Lazy::force(&common::BIN_FILE_TWO);
+            let options = TestAppOptionsBuilder::default()
+                .bin_file(file.clone())
+                .build()
+                .unwrap();
+            let test_server = common::test_http_app(&connspec, options).await?;
+
+            let addr = test_server.addr().to_string();
+            let client = Client::new();
+            let username = common::DEFAULT_USER;
+            let password = common::DEFAULT_USER;
+            let token = get_token(&addr, username, password, &client).await?;
+            let (_resp, mut ws) = connect_ws(&addr, &token, &client).await?;
+
+            let mut resp = client
+                .post(format!("http://{addr}/api/cmd"))
+                .append_header((header::CONTENT_TYPE, "application/json"))
+                .append_header((
+                    header::AUTHORIZATION,
+                    format!("Bearer {token}"),
+                ))
+                .send_body(r#"{"args":[]}"#)
+                .await
+                .map_err(|err| anyhow!("{err}"))?;
+            let job_resp = resp.json::<Job>().await?;
+            let job_id = job_resp.job_id.to_string();
+            assert_eq!(job_resp.started_by.as_str(), common::DEFAULT_USER);
+            assert_eq!(job_resp.status, JobStatus::Pending);
+
+            ws.send(ws_msg(&WsClientEvent::SubscribeJob {
+                job_id: job_id.clone(),
+            }))
+            .await?;
+
+            let _ = ws_take_one(&mut ws).await?;
+
+            sleep(Duration::from_millis(100)).await;
+
+            let resp = client
+                .delete(format!("http://{addr}/api/cmd/{job_id}"))
+                .append_header((
+                    header::AUTHORIZATION,
+                    format!("Bearer {token}"),
+                ))
+                .send()
+                .await
+                .map_err(|err| anyhow!("{err}"))?;
+
+            assert_eq!(resp.status(), StatusCode::OK);
+
+            sleep(Duration::from_millis(500)).await;
+
+            let mut resp = client
+                .get(format!("http://{addr}/api/cmd/{job_id}"))
+                .append_header((
+                    header::AUTHORIZATION,
+                    format!("Bearer {token}"),
+                ))
+                .send()
+                .await
+                .map_err(|err| anyhow!("{err}"))?;
+            let job_resp = resp.json::<Job>().await?;
+            assert_eq!(job_resp.started_by.as_str(), common::DEFAULT_USER);
+            assert_eq!(job_resp.status, JobStatus::Aborted);
             Ok::<(), anyhow::Error>(())
         }
         .await;

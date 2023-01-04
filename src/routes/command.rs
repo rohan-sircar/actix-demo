@@ -69,6 +69,9 @@ pub async fn run_command(
             }
             let proc2 = proc.clone();
 
+            let aborted = Rc::new(RefCell::new(false));
+
+            let aborted2 = aborted.clone();
             let aborter = actix_rt::spawn(
                 async move {
                     // let _ = tokio::time::sleep(Duration::from_millis(5000)).await;
@@ -82,6 +85,16 @@ pub async fn run_command(
                         if msg == "done" {
                             let _ = tracing::debug!("Killing");
                             let _ = proc2.borrow().abort();
+                            let pool2 = pool.clone();
+                            *aborted2.borrow_mut() = true;
+                            web::block(move || {
+                                let conn = pool2.get()?;
+                                actions::misc::update_job_status(job_id,
+                                    JobStatus::Aborted,
+                                    Some("Job aborted by user".to_owned()),
+                                    &conn)
+                            })
+                            .await??;
                             break;
                         }
                     }
@@ -92,56 +105,77 @@ pub async fn run_command(
                     job_id = job_id.to_string()
                 )),
             );
-            let pub_task = actix_rt::spawn(async move {
-                let mut stream = proc
-                    .borrow_mut()
-                    .spawn_and_stream()
-                    .map_err(|err| {
-                        DomainError::new_internal_error(format!(
-                            "Failed to run process: {err:?}"
-                        ))
-                    })?
-                    .map(|output| match output {
-                        ProcessItem::Output(value) => {
-                            MyProcessItem::Line { value }
-                        }
-                        ProcessItem::Error(cause) => {
-                            if cause.starts_with("[ERROR]")
-                                || cause.starts_with("E:")
-                            {
-                                MyProcessItem::Error { cause }
-                            } else {
-                                MyProcessItem::Line { value: cause }
+            let publisher = actix_rt::spawn(
+                async move {
+                    let mut stream = proc
+                        .borrow_mut()
+                        .spawn_and_stream()
+                        .map_err(|err| {
+                            DomainError::new_internal_error(format!(
+                                "Failed to run process: {err:?}"
+                            ))
+                        })?
+                        .map(|output| match output {
+                            ProcessItem::Output(value) => {
+                                MyProcessItem::Line { value }
+                            }
+                            ProcessItem::Error(cause) => {
+                                if cause.starts_with("[ERROR]")
+                                    || cause.starts_with("E:")
+                                {
+                                    MyProcessItem::Error { cause }
+                                } else {
+                                    MyProcessItem::Line { value: cause }
+                                }
+                            }
+                            ProcessItem::Exit(code) => {
+                                MyProcessItem::Done { code }
+                            }
+                        });
+                    while let Some(rcm) = stream.next().await {
+                        let _ = println!("{:?}", &rcm);
+                        let _ = conn
+                            .publish(&job_chan_name, utils::jstr(&rcm))
+                            .await?;
+                        if let MyProcessItem::Done { code } = rcm {
+                            let code = code.parse::<i32>().map_err(|err| {
+                                DomainError::new_internal_error(
+                                    format!("Expected integer return code, got: {code}, err was: {err}")
+                                )
+                            })?;
+                            if code > 0 {
+                                Err(DomainError::new_internal_error(
+                                    "Failed to run job".to_owned(),
+                                ))?;
                             }
                         }
-                        ProcessItem::Exit(code) => MyProcessItem::Done { code },
-                    });
-                while let Some(rcm) = stream.next().await {
-                    // let _ = println!("{:?}", &rcm);
-                    let _ =
-                        conn.publish(&job_chan_name, utils::jstr(&rcm)).await?;
-                    // let _ = if let RunCommandMessage::Error { cause: _ } = &rcm {
-                    //     tx.send("done").await.unwrap()
-                    // };
+                    }
+                    Ok::<(), DomainError>(())
                 }
-                Ok::<(), DomainError>(())
-            });
-            let res = pub_task.await?;
+                .instrument(info_span!(
+                    "job_publisher",
+                    job_id = job_id.to_string()
+                )),
+            );
+            let res = publisher.await?;
             tracing::info!("Job completed");
 
             aborter.abort();
-            let status = match res {
-                Ok(_) => JobStatus::Completed,
+            let (status, msg) = match res {
+                Ok(_) => (JobStatus::Completed, None),
                 Err(err) => {
-                    tracing::error!("Error running job: {err:?}");
-                    JobStatus::Failed
+                    let msg = format!("Error running job: {err:?}");
+                    tracing::error!(msg);
+                    (JobStatus::Failed, Some(msg))
                 }
             };
-            let conn = pool2.get()?;
-            web::block(move || {
-                actions::misc::update_job_status(job_id, status, &conn)
-            })
-            .await??;
+            if !*aborted.borrow() {
+                let conn = pool2.get()?;
+                web::block(move || {
+                    actions::misc::update_job_status(job_id, status, msg, &conn)
+                })
+                .await??;
+            }
             Ok::<(), DomainError>(())
         }
         .instrument(info_span!("job", job_id = job_id.to_string())),

@@ -11,6 +11,7 @@ use actix_web::{test, web};
 
 use actix_web::web::Data;
 use anyhow::Context;
+use derive_builder::Builder;
 use diesel::r2d2::{self, ConnectionManager};
 use diesel_tracing::pg::InstrumentedPgConnection;
 use jwt_simple::prelude::HS256Key;
@@ -32,26 +33,45 @@ use actix_http::Request;
 use actix_test::TestServer;
 use actix_web::body::MessageBody;
 use actix_web::{dev::*, Error as AxError};
-use lazy_static::lazy_static;
 use std::sync::Arc;
 
 pub const DEFAULT_USER: &str = "admin";
 
-pub const BIN_FILE_LOCATION: &str = "/tmp/my-echo.sh";
+fn redis_connstr() -> String {
+    let port = 5556;
+    let connection_string = format!("redis://127.0.0.1:{port}");
+    tracing::info!("Redis connstr={connection_string}");
+    connection_string
+}
 
-pub const BIN_FILE_CONTENTS: &str = r#"#!/bin/bash
+#[derive(Clone, Debug)]
+pub struct BinFile {
+    pub location: String,
+    pub contents: String,
+}
+
+pub static BIN_FILE_ONE: Lazy<BinFile> = Lazy::new(|| BinFile {
+    location: "/tmp/my-echo.sh".to_owned(),
+    contents: r#"#!/bin/bash
 
 echo "hello world $1 $2";
-"#;
+"#
+    .to_owned(),
+});
+pub static BIN_FILE_TWO: Lazy<BinFile> = Lazy::new(|| BinFile {
+    location: "/tmp/sleeper.sh".to_owned(),
+    contents: r#"#!/bin/bash
 
-lazy_static! {
-    static ref REDIS_CONNSTR: String = {
-        let port = 5556;
-        let connection_string = format!("redis://127.0.0.1:{port}");
-        tracing::info!("Redis connstr={connection_string}");
-        connection_string
-    };
-}
+echo "sleeping"
+for i in {1..5}
+do
+    echo "$i still sleeping"
+    sleep 2
+done
+echo "done sleeping"
+"#
+    .to_owned(),
+});
 
 static TRACING: Lazy<anyhow::Result<()>> = Lazy::new(|| {
     let _ = dotenv::dotenv().context("Failed to set up env")?;
@@ -72,33 +92,60 @@ static TRACING: Lazy<anyhow::Result<()>> = Lazy::new(|| {
     Ok(())
 });
 
-static BIN_FILE: Lazy<anyhow::Result<()>> = Lazy::new(|| {
-    let mut file = fs::OpenOptions::new()
-        .create(true)
-        .write(true)
-        .mode(0o777)
-        .open(BIN_FILE_LOCATION)?;
-    file.write_all(BIN_FILE_CONTENTS.as_bytes())?;
-    file.flush()?;
+static CREATE_BIN_FILES: Lazy<anyhow::Result<()>> = Lazy::new(|| {
+    let file1 = Lazy::force(&BIN_FILE_ONE);
+    let file2 = Lazy::force(&BIN_FILE_TWO);
+    let files = vec![file1, file2];
+    for f in &files {
+        let mut file = fs::OpenOptions::new()
+            .create(true)
+            .write(true)
+            .mode(0o777)
+            .open(&f.location)?;
+        file.write_all(f.contents.as_bytes())?;
+        file.flush()?;
+    }
     Ok(())
 });
 
-pub async fn app_data(connspec: &str) -> anyhow::Result<web::Data<AppData>> {
+#[derive(Clone, Builder, Debug)]
+pub struct TestAppOptions {
+    #[builder(default = "self.default_bin_file()")]
+    pub bin_file: BinFile,
+}
+
+impl Default for TestAppOptions {
+    fn default() -> Self {
+        TestAppOptionsBuilder::default().build().unwrap()
+    }
+}
+
+impl TestAppOptionsBuilder {
+    fn default_bin_file(&self) -> BinFile {
+        let file = Lazy::force(&BIN_FILE_ONE);
+        file.clone()
+    }
+}
+
+pub async fn app_data(
+    connspec: &str,
+    options: TestAppOptions,
+) -> anyhow::Result<web::Data<AppData>> {
     let _ = Lazy::force(&TRACING).as_ref().unwrap();
 
-    let _ = Lazy::force(&BIN_FILE).as_ref().unwrap();
+    let _ = Lazy::force(&CREATE_BIN_FILES).as_ref().unwrap();
 
     let config = AppConfig {
         hash_cost: 4,
-        job_bin_path: BIN_FILE_LOCATION.to_string(),
+        job_bin_path: options.bin_file.location.clone(),
     };
 
-    let client = redis::Client::open(REDIS_CONNSTR.to_string())
+    let client = redis::Client::open(redis_connstr())
         .context("failed to initialize redis")?;
     let cm = redis::aio::ConnectionManager::new(client.clone())
         .await
         .with_context(|| {
-            let conn_string: String = REDIS_CONNSTR.to_string();
+            let conn_string: String = redis_connstr();
             format!("Failed to connect to redis. Url was: {conn_string}",)
         })?;
 
@@ -158,6 +205,7 @@ pub async fn app_data(connspec: &str) -> anyhow::Result<web::Data<AppData>> {
 
 pub async fn test_app(
     connspec: &str,
+    options: TestAppOptions,
 ) -> anyhow::Result<
     impl Service<
         Request,
@@ -166,14 +214,17 @@ pub async fn test_app(
     >,
 > {
     let app = App::new()
-        .configure(configure_app(app_data(connspec).await?))
+        .configure(configure_app(app_data(connspec, options).await?))
         .wrap(TracingLogger::<DomainRootSpanBuilder>::new());
     let test_app = test::init_service(app).await;
     Ok(test_app)
 }
 
-pub async fn test_http_app(connspec: &str) -> anyhow::Result<TestServer> {
-    let data = app_data(connspec).await?;
+pub async fn test_http_app(
+    connspec: &str,
+    options: TestAppOptions,
+) -> anyhow::Result<TestServer> {
+    let data = app_data(connspec, options).await?;
     let test_app = move || {
         App::new()
             .configure(configure_app(data.clone()))

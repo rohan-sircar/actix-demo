@@ -107,71 +107,63 @@ pub async fn process_msg(
         WsClientEvent::SubscribeJob { job_id } => {
             let chan_name = redis_prefix(&format!("job.{job_id}"));
             let _ = tracing::info!("Subscribing {chan_name}");
-            let _ = tokio::spawn(
+            let _ = actix_rt::spawn(
                 async move {
-                    let res = async move {
-                        let mut session2 = session.clone();
-                        let mut ps = utils::get_pubsub(app_data).await?;
-                        let _ = ps.subscribe(&chan_name).await?;
-                        {
-                            let mut msg_stream = ps.on_message();
-                            while let Some(msg) = msg_stream.next().await {
-                                let cmd = msg
-                                    .get_payload::<String>()
-                                    .unwrap_or_default();
-                                let _ = tracing::debug!("Got cmd {cmd}");
-                                let rcm =
-                                    serde_json::from_str::<MyProcessItem>(&cmd)
-                                        .unwrap();
-                                let server_msg =
-                                    WsServerEvent::CommandMessage {
-                                        message: rcm,
-                                    };
-
-                                let msg_str = utils::jstr(&server_msg);
-
-                                let _ = match &server_msg {
-                                    WsServerEvent::CommandMessage {
-                                        message,
-                                    } => match message {
-                                        MyProcessItem::Line { value: _ } => {
-                                            let res =
-                                                session2.text(msg_str).await;
-                                            if res.is_err() {
-                                                break;
-                                            }
-                                        }
-                                        MyProcessItem::Error { cause: _ } => {
-                                            let res =
-                                                session2.text(msg_str).await;
-                                            if res.is_err() {
-                                                break;
-                                            }
-                                        }
-                                        MyProcessItem::Done { code } => {
-                                            let _ = tracing::info!(
-                                            "Process completed with code={code}"
-                                        );
-                                            let _ =
-                                                session2.text(msg_str).await;
-                                            break;
-                                        }
-                                    },
-                                    _ => panic!("Coding error lol"),
-                                };
-                            }
-                        }
-                        ps.unsubscribe(&chan_name).await?;
-                        // //not sure if this is required
-                        // drop(ps);
-                        Ok::<(), DomainError>(())
-                    }
-                    .await;
-                    tracing::info!("res = {:?}", res);
+                    let res = subscribe_job(session, chan_name, app_data).await;
+                    tracing::info!("Job subscription ended: {res:?}");
                 }
-                .instrument(info_span!("command_receive_loop")),
+                .instrument(info_span!("job_subscribe_loop")),
             );
             Ok(())
         }
     }
+}
+
+async fn subscribe_job(
+    mut session: Session,
+    chan_name: String,
+    app_data: Arc<AppData>,
+) -> Result<(), DomainError> {
+    let mut ps = utils::get_pubsub(app_data).await?;
+    let _ = ps.subscribe(&chan_name).await?;
+    {
+        let mut msg_stream = ps.on_message();
+        while let Some(msg) = msg_stream.next().await {
+            let cmd = msg.get_payload::<String>().unwrap_or_default();
+            let _ = tracing::debug!("Got cmd {cmd}");
+            let rcm = serde_json::from_str::<MyProcessItem>(&cmd).unwrap();
+            let server_msg = WsServerEvent::CommandMessage { message: rcm };
+
+            let msg_str = utils::jstr(&server_msg);
+
+            let _ = match &server_msg {
+                WsServerEvent::CommandMessage { message } => match message {
+                    MyProcessItem::Line { value: _ } => {
+                        let res = session.text(msg_str).await;
+                        if res.is_err() {
+                            break;
+                        }
+                    }
+                    MyProcessItem::Error { cause: _ } => {
+                        let res = session.text(msg_str).await;
+                        if res.is_err() {
+                            break;
+                        }
+                    }
+                    MyProcessItem::Done { code } => {
+                        let _ = tracing::info!(
+                            "Process completed with code={code}"
+                        );
+                        let _ = session.text(msg_str).await;
+                        break;
+                    }
+                },
+                _ => panic!("Coding error lol"),
+            };
+        }
+    }
+    ps.unsubscribe(&chan_name).await?;
+    // //not sure if this is required
+    // drop(ps);
+    Ok(())
 }

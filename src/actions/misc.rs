@@ -72,11 +72,15 @@ pub fn get_job_by_uuid(
 pub fn update_job_status(
     job_id: uuid::Uuid,
     new_status: JobStatus,
+    status_message: Option<String>,
     conn: &impl diesel::Connection<Backend = diesel::pg::Pg>,
 ) -> Result<(), DomainError> {
     use crate::schema::jobs::dsl as jobs;
     diesel::update(jobs::jobs.filter(jobs::job_id.eq(job_id)))
-        .set(jobs::status.eq(new_status))
+        .set((
+            jobs::status.eq(new_status),
+            jobs::status_message.eq(status_message),
+        ))
         .execute(conn)?;
     Ok(())
 }
