@@ -14,7 +14,6 @@ use anyhow::anyhow;
 use awc::{BoxedSocket, Client, ClientResponse};
 use bytestring::ByteString;
 use common::TestAppOptionsBuilder;
-use once_cell::sync::Lazy;
 
 pub mod ws_utils {
     use super::*;
@@ -80,14 +79,19 @@ pub mod ws_utils {
     pub async fn ws_take_one(
         ws: &mut WsClient,
     ) -> anyhow::Result<WsServerEvent> {
-        if let Some(Ok(Frame::Text(txt))) = ws.next().await {
-            let server_msg = serde_json::from_str::<WsServerEvent>(
-                std::str::from_utf8(&txt)?,
-            )?;
+        match ws.next().await {
+            Some(Ok(Frame::Text(txt))) => {
+                let server_msg = serde_json::from_str::<WsServerEvent>(
+                    std::str::from_utf8(&txt)?,
+                )?;
 
-            Ok(server_msg)
-        } else {
-            Err(anyhow!("could not get ws message"))
+                Ok(server_msg)
+            }
+            Some(Ok(frm)) => {
+                Err(anyhow!("received wrong message frame: {frm:?}"))
+            }
+            Some(Err(err)) => Err(anyhow!("could not get ws message: {err:?}")),
+            None => Err(anyhow!("could not get ws message")),
         }
     }
 }
@@ -97,7 +101,7 @@ mod tests {
 
     use std::time::Duration;
 
-    use crate::common::TestAppOptions;
+    use crate::common::{failing_bin_file, sleep_bin_file, TestAppOptions};
 
     use super::*;
     use actix_demo::models::{
@@ -198,6 +202,8 @@ mod tests {
 
             let msg = ws_take_one(&mut ws).await?;
 
+            // sleep(Duration::from_millis(500)).await;
+
             if let WsServerEvent::CommandMessage {
                 message: MyProcessItem::Done { code },
             } = msg
@@ -232,9 +238,9 @@ mod tests {
     async fn abort_job_test() {
         let res = async {
             let connspec = common::pg_conn_string()?;
-            let file = Lazy::force(&common::BIN_FILE_TWO);
+            let file = sleep_bin_file();
             let options = TestAppOptionsBuilder::default()
-                .bin_file(file.clone())
+                .bin_file(file)
                 .build()
                 .unwrap();
             let test_server = common::test_http_app(&connspec, options).await?;
@@ -296,6 +302,69 @@ mod tests {
             let job_resp = resp.json::<Job>().await?;
             assert_eq!(job_resp.started_by.as_str(), common::DEFAULT_USER);
             assert_eq!(job_resp.status, JobStatus::Aborted);
+            Ok::<(), anyhow::Error>(())
+        }
+        .await;
+
+        tracing::info!("{res:?}");
+        res.unwrap();
+    }
+
+    #[actix_rt::test]
+    async fn failed_job_test() {
+        let res = async {
+            let connspec = common::pg_conn_string()?;
+            let file = failing_bin_file();
+            let options = TestAppOptionsBuilder::default()
+                .bin_file(file)
+                .build()
+                .unwrap();
+            let test_server = common::test_http_app(&connspec, options).await?;
+
+            let addr = test_server.addr().to_string();
+            let client = Client::new();
+            let username = common::DEFAULT_USER;
+            let password = common::DEFAULT_USER;
+            let token = get_token(&addr, username, password, &client).await?;
+            let (_resp, mut ws) = connect_ws(&addr, &token, &client).await?;
+
+            let mut resp = client
+                .post(format!("http://{addr}/api/cmd"))
+                .append_header((header::CONTENT_TYPE, "application/json"))
+                .append_header((
+                    header::AUTHORIZATION,
+                    format!("Bearer {token}"),
+                ))
+                .send_body(r#"{"args":[]}"#)
+                .await
+                .map_err(|err| anyhow!("{err}"))?;
+            let job_resp = resp.json::<Job>().await?;
+            let job_id = job_resp.job_id.to_string();
+            assert_eq!(job_resp.started_by.as_str(), common::DEFAULT_USER);
+            assert_eq!(job_resp.status, JobStatus::Pending);
+
+            ws.send(ws_msg(&WsClientEvent::SubscribeJob {
+                job_id: job_id.clone(),
+            }))
+            .await?;
+
+            let _ = ws_take_one(&mut ws).await?;
+            let _ = ws_take_one(&mut ws).await?;
+
+            sleep(Duration::from_millis(500)).await;
+
+            let mut resp = client
+                .get(format!("http://{addr}/api/cmd/{job_id}"))
+                .append_header((
+                    header::AUTHORIZATION,
+                    format!("Bearer {token}"),
+                ))
+                .send()
+                .await
+                .map_err(|err| anyhow!("{err}"))?;
+            let job_resp = resp.json::<Job>().await?;
+            assert_eq!(job_resp.started_by.as_str(), common::DEFAULT_USER);
+            assert_eq!(job_resp.status, JobStatus::Failed);
             Ok::<(), anyhow::Error>(())
         }
         .await;

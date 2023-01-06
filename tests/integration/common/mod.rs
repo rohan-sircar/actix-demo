@@ -50,28 +50,44 @@ pub struct BinFile {
     pub contents: String,
 }
 
-pub static BIN_FILE_ONE: Lazy<BinFile> = Lazy::new(|| BinFile {
-    location: "/tmp/my-echo.sh".to_owned(),
-    contents: r#"#!/bin/bash
+pub fn echo_bin_file() -> BinFile {
+    BinFile {
+        location: "/tmp/my-echo.sh".to_owned(),
+        contents: r#"#!/bin/bash
 
 echo "hello world $1 $2";
 "#
-    .to_owned(),
-});
-pub static BIN_FILE_TWO: Lazy<BinFile> = Lazy::new(|| BinFile {
-    location: "/tmp/sleeper.sh".to_owned(),
-    contents: r#"#!/bin/bash
+        .to_owned(),
+    }
+}
+pub fn sleep_bin_file() -> BinFile {
+    BinFile {
+        location: "/tmp/sleeper.sh".to_owned(),
+        contents: r#"#!/bin/bash
+    
+    echo "sleeping"
+    for i in {1..5}
+    do
+        echo "$i still sleeping"
+        sleep 2
+    done
+    echo "done sleeping"
+    "#
+        .to_owned(),
+    }
+}
 
-echo "sleeping"
-for i in {1..5}
-do
-    echo "$i still sleeping"
-    sleep 2
-done
-echo "done sleeping"
-"#
-    .to_owned(),
-});
+pub fn failing_bin_file() -> BinFile {
+    BinFile {
+        location: "/tmp/failing.sh".to_owned(),
+        contents: r#"#!/bin/bash
+    
+    echo "I'm a failing script"
+    exit 1
+    "#
+        .to_owned(),
+    }
+}
 
 static TRACING: Lazy<anyhow::Result<()>> = Lazy::new(|| {
     let _ = dotenv::dotenv().context("Failed to set up env")?;
@@ -93,9 +109,10 @@ static TRACING: Lazy<anyhow::Result<()>> = Lazy::new(|| {
 });
 
 static CREATE_BIN_FILES: Lazy<anyhow::Result<()>> = Lazy::new(|| {
-    let file1 = Lazy::force(&BIN_FILE_ONE);
-    let file2 = Lazy::force(&BIN_FILE_TWO);
-    let files = vec![file1, file2];
+    let file1 = echo_bin_file();
+    let file2 = sleep_bin_file();
+    let file3 = failing_bin_file();
+    let files = vec![file1, file2, file3];
     for f in &files {
         let mut file = fs::OpenOptions::new()
             .create(true)
@@ -122,8 +139,7 @@ impl Default for TestAppOptions {
 
 impl TestAppOptionsBuilder {
     fn default_bin_file(&self) -> BinFile {
-        let file = Lazy::force(&BIN_FILE_ONE);
-        file.clone()
+        echo_bin_file()
     }
 }
 
