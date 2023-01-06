@@ -101,7 +101,7 @@ mod tests {
 
     use std::time::Duration;
 
-    use crate::common::{failing_bin_file, sleep_bin_file, TestAppOptions};
+    use crate::common::{sleep_bin_file, TestAppOptions};
 
     use super::*;
     use actix_demo::models::{
