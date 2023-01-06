@@ -20,7 +20,7 @@ pub enum WsClientEvent {
     },
     #[serde(rename_all = "camelCase")]
     SubscribeJob {
-        job_id: String,
+        job_id: uuid::Uuid,
     },
     Error {
         cause: String,

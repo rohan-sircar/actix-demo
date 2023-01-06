@@ -180,14 +180,12 @@ mod tests {
                 .await
                 .map_err(|err| anyhow!("{err}"))?;
             let job_resp = resp.json::<Job>().await?;
-            let job_id = job_resp.job_id.to_string();
+            let job_id = job_resp.job_id;
             assert_eq!(job_resp.started_by.as_str(), common::DEFAULT_USER);
             assert_eq!(job_resp.status, JobStatus::Pending);
 
-            ws.send(ws_msg(&WsClientEvent::SubscribeJob {
-                job_id: job_id.clone(),
-            }))
-            .await?;
+            ws.send(ws_msg(&WsClientEvent::SubscribeJob { job_id }))
+                .await?;
 
             let msg = ws_take_one(&mut ws).await?;
 
@@ -263,14 +261,12 @@ mod tests {
                 .await
                 .map_err(|err| anyhow!("{err}"))?;
             let job_resp = resp.json::<Job>().await?;
-            let job_id = job_resp.job_id.to_string();
+            let job_id = job_resp.job_id;
             assert_eq!(job_resp.started_by.as_str(), common::DEFAULT_USER);
             assert_eq!(job_resp.status, JobStatus::Pending);
 
-            ws.send(ws_msg(&WsClientEvent::SubscribeJob {
-                job_id: job_id.clone(),
-            }))
-            .await?;
+            ws.send(ws_msg(&WsClientEvent::SubscribeJob { job_id }))
+                .await?;
 
             let _ = ws_take_one(&mut ws).await?;
 
