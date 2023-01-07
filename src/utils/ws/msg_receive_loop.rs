@@ -4,7 +4,7 @@ use crate::{
     errors::DomainError,
     models::users::UserId,
     models::ws::{SentMessage, WsServerEvent},
-    utils::{self, RedisChannelReader, RedisReply},
+    utils::{self, RedisChannelReader, RedisReply, RedisReplyKind},
     AppData,
 };
 
@@ -42,12 +42,18 @@ pub async fn msg_receive_loop(
         for msg in msgs {
             let _ = tracing::debug!("Received message: {:?}", &msg);
             let msg = match msg {
-                RedisReply::Ok { id, data } => WsServerEvent::SentMessage {
+                RedisReply {
+                    id,
+                    kind: RedisReplyKind::Ok { data },
+                } => WsServerEvent::SentMessage {
                     id,
                     sender: data.sender,
                     message: data.message,
                 },
-                RedisReply::Error { id, cause } => WsServerEvent::Error {
+                RedisReply {
+                    id,
+                    kind: RedisReplyKind::Error { cause },
+                } => WsServerEvent::Error {
                     id: Some(id),
                     cause,
                 },

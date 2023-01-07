@@ -9,9 +9,15 @@ use serde::{Deserialize, Serialize};
 use crate::errors::DomainError;
 
 #[derive(Serialize, Debug, Clone)]
-pub enum RedisReply<T> {
-    Ok { id: String, data: T },
-    Error { id: String, cause: String },
+pub enum RedisReplyKind<T> {
+    Ok { data: T },
+    Error { cause: String },
+}
+
+#[derive(Serialize, Debug, Clone)]
+pub struct RedisReply<T> {
+    pub id: String,
+    pub kind: RedisReplyKind<T>,
 }
 
 pub type RedisStreamResult<T> = Result<RedisReply<T>, DomainError>;
@@ -54,32 +60,21 @@ where
             .map(|m| {
                 let msg = m.get::<String>("message").unwrap();
                 match serde_json::from_str::<T>(&msg) {
-                    Ok(msg) => RedisReply::Ok {
+                    Ok(msg) => RedisReply {
                         id: m.id,
-                        data: msg,
+                        kind: RedisReplyKind::Ok { data: msg },
                     },
-                    Err(err) => RedisReply::Error {
+                    Err(err) => RedisReply {
                         id: m.id,
-                        cause: format!("Error parsing json - {err}"),
+                        kind: RedisReplyKind::Error {
+                            cause: format!("Error parsing json - {err}"),
+                        },
                     },
                 }
-                // .map_err(|err| {
-                //     DomainError::new_internal_error(format!(
-                //         "Error parsing json - {err}"
-                //     ))
-                // })
-                // .map(|m2| )
             })
             .collect::<Vec<_>>();
         let _ = if let Some(x) = items.last() {
-            match x {
-                RedisReply::Ok { id, data: _ } => {
-                    self.last_msg_id = Some(id.clone());
-                }
-                RedisReply::Error { id, cause: _ } => {
-                    self.last_msg_id = Some(id.clone());
-                }
-            }
+            self.last_msg_id = Some(id.clone());
         };
         Ok(items)
     }
@@ -98,7 +93,7 @@ where
             .keys
             .into_iter()
             .flat_map(|x| x.ids.into_iter())
-            .collect::<Vec<StreamId>>();
+            .collect::<Vec<_>>();
         let _ = if let Some(x) = items.last() {
             self.last_msg_id = Some(x.id.clone());
         };
