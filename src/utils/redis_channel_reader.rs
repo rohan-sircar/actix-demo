@@ -73,7 +73,7 @@ where
                 }
             })
             .collect::<Vec<_>>();
-        let _ = if let Some(x) = items.last() {
+        let _ = if items.last().is_some() {
             self.last_msg_id = Some(id.clone());
         };
         Ok(items)

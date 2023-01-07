@@ -3,7 +3,7 @@ use crate::common;
 mod tests {
 
     use super::*;
-    use actix_demo::models::misc::ApiResponse;
+    use actix_demo::models::misc::ErrorResponse;
     use actix_web::dev::Service as _;
     use actix_web::http::StatusCode;
     use actix_web::test;
@@ -34,13 +34,12 @@ mod tests {
                 .to_request();
             let resp = test_app.call(req).await.unwrap();
             assert_eq!(resp.status(), StatusCode::OK);
-            let body: ApiResponse<Vec<UserWithRoles>> =
-                test::read_body_json(resp).await;
-            let user = body.response().get(0).unwrap();
+            let body: Vec<UserWithRoles> = test::read_body_json(resp).await;
+            let user = body.get(0).unwrap();
             assert_eq!(user.id.as_uint(), 1);
             assert_eq!(user.username.as_str(), "admin");
             assert_eq!(user.roles, vec![RoleEnum::RoleAdmin]);
-            let user = body.response().get(1).unwrap();
+            let user = body.get(1).unwrap();
             assert_eq!(user.id.as_uint(), 2);
             assert_eq!(user.username.as_str(), "user1");
             assert_eq!(user.roles, vec![RoleEnum::RoleUser]);
@@ -60,14 +59,11 @@ mod tests {
                 .to_request();
             let resp = test_app.call(req).await.unwrap();
             assert_eq!(resp.status(), StatusCode::NOT_FOUND);
-            let body: ApiResponse<String> = test::read_body_json(resp).await;
+            let body: ErrorResponse<String> = test::read_body_json(resp).await;
             let _ = tracing::debug!("{:?}", body);
             assert_eq!(
-                body,
-                ApiResponse::failure(
-                    "Entity does not exist - No user found with uid: 55"
-                        .to_owned()
-                )
+                &body.cause,
+                "Entity does not exist - No user found with uid: 55"
             );
         }
     }

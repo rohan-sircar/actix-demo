@@ -37,57 +37,57 @@ impl ResponseError for DomainError {
         match self {
             DomainError::PwdHashError { source: _ } => {
                 HttpResponse::InternalServerError()
-                    .json(ApiResponse::failure(self.to_string()))
+                    .json(ErrorResponse::new(self.to_string()))
             }
             DomainError::DbError { source: _ } => {
                 HttpResponse::InternalServerError()
-                    .json(ApiResponse::failure("Error in database".to_owned()))
+                    .json(ErrorResponse::new("Error in database".to_owned()))
             }
             DomainError::DbPoolError { source: _ } => {
-                HttpResponse::InternalServerError().json(ApiResponse::failure(
+                HttpResponse::InternalServerError().json(ErrorResponse::new(
                     "Error getting database pool".to_owned(),
                 ))
             }
             DomainError::BadInputError { message: _ } => {
                 HttpResponse::BadRequest()
-                    .json(ApiResponse::failure(self.to_string()))
+                    .json(ErrorResponse::new(self.to_string()))
             }
             DomainError::EntityDoesNotExistError { message: _ } => {
                 HttpResponse::NotFound()
-                    .json(ApiResponse::failure(self.to_string()))
+                    .json(ErrorResponse::new(self.to_string()))
             }
             DomainError::BlockingError { source: _ } => {
                 HttpResponse::InternalServerError()
-                    .json(ApiResponse::failure("Blocking Error".to_owned()))
+                    .json(ErrorResponse::new("Blocking Error".to_owned()))
             }
             DomainError::AuthError { message: _ } => HttpResponse::Forbidden()
-                .json(ApiResponse::failure(self.to_string())),
+                .json(ErrorResponse::new(self.to_string())),
             DomainError::FieldValidationError { message: _ } => {
                 HttpResponse::BadRequest()
-                    .json(ApiResponse::failure(self.to_string()))
+                    .json(ErrorResponse::new(self.to_string()))
             }
             DomainError::JwtError { message: _ } => HttpResponse::BadRequest()
-                .json(ApiResponse::failure(self.to_string())),
+                .json(ErrorResponse::new(self.to_string())),
             DomainError::RedisError { source: _ } => {
                 HttpResponse::InternalServerError()
-                    .json(ApiResponse::failure("Failure in Redis"))
+                    .json(ErrorResponse::new("Failure in Redis"))
             }
             DomainError::UninitializedError { message } => {
                 HttpResponse::InternalServerError()
-                    .json(ApiResponse::failure(message))
+                    .json(ErrorResponse::new(message))
             }
             DomainError::WsProtocolError { source: _ } => {
                 HttpResponse::InternalServerError()
-                    .json(ApiResponse::failure("Websocket Protocol Failure"))
+                    .json(ErrorResponse::new("Websocket Protocol Failure"))
             }
             DomainError::InternalError { message } => {
-                HttpResponse::InternalServerError().json(ApiResponse::failure(
+                HttpResponse::InternalServerError().json(ErrorResponse::new(
                     format!("An internal error occured {message}"),
                 ))
             }
             DomainError::JoinError { source: _ } => {
                 HttpResponse::InternalServerError()
-                    .json(ApiResponse::failure("Join Error"))
+                    .json(ErrorResponse::new("Join Error"))
             }
         }
     }

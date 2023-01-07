@@ -1,8 +1,8 @@
 use actix_web::{post, web, HttpResponse};
 
+use crate::actions;
 use crate::models::misc::{Pagination, SearchQuery};
 use crate::models::users::{NewUser, UserId};
-use crate::{actions, models::misc::ApiResponse};
 use crate::{errors::DomainError, AppData};
 
 /// Finds user by UID.
@@ -24,7 +24,7 @@ pub async fn get_user(
     let _ = tracing::debug!("{:?}", res);
     if let Some(user) = res {
         let _ = tracing::info!("Found user");
-        Ok(HttpResponse::Ok().json(ApiResponse::successful(user)))
+        Ok(HttpResponse::Ok().json(user))
     } else {
         let _ = tracing::warn!("Could not find user");
         let err = DomainError::new_entity_does_not_exist_error(format!(
@@ -52,7 +52,7 @@ pub async fn get_users(
     let _ = tracing::info!("Found {} users", users.len());
     let _ = tracing::debug!("{:?}", users);
 
-    Ok(HttpResponse::Ok().json(ApiResponse::successful(users)))
+    Ok(HttpResponse::Ok().json(users))
 }
 
 #[tracing::instrument(level = "info", skip(app_data))]
@@ -73,7 +73,7 @@ pub async fn search_users(
     let _ = tracing::info!("Found {} users", users.len());
     let _ = tracing::debug!("{:?}", users);
 
-    Ok(HttpResponse::Ok().json(ApiResponse::successful(users)))
+    Ok(HttpResponse::Ok().json(users))
 }
 
 /// Inserts a new user
@@ -97,5 +97,5 @@ pub async fn add_user(
     let _ = tracing::info!("Created user with id={}", user.id);
     let _ = tracing::debug!("{:?}", user);
 
-    Ok(HttpResponse::Created().json(ApiResponse::successful(user)))
+    Ok(HttpResponse::Created().json(user))
 }

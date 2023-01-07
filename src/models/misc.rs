@@ -5,23 +5,13 @@ use serde::{Deserialize, Serialize};
 use super::users::{UserId, Username};
 
 #[derive(Eq, PartialEq, Debug, Clone, Serialize, Deserialize, new)]
-pub struct ApiResponse<T> {
-    success: bool,
-    response: T,
+pub struct ErrorResponse<T> {
+    pub cause: T,
 }
 
-impl<T: Serialize> ApiResponse<T> {
-    pub fn is_success(&self) -> bool {
-        self.success
-    }
-    pub fn response(&self) -> &T {
-        &self.response
-    }
-    pub fn successful(response: T) -> ApiResponse<T> {
-        ApiResponse::new(true, response)
-    }
-    pub fn failure(response: T) -> ApiResponse<T> {
-        ApiResponse::new(false, response)
+impl<T: Serialize> ErrorResponse<T> {
+    pub fn failure(response: T) -> ErrorResponse<T> {
+        ErrorResponse::new(response)
     }
 }
 
