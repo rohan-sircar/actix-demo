@@ -4,6 +4,8 @@ pub mod in_memory_credentials_repo;
 pub mod redis_channel_reader;
 pub mod redis_credentials_repo;
 pub mod regex;
+pub mod ws;
+
 use std::fmt::Display;
 use std::sync::Arc;
 
@@ -18,7 +20,7 @@ pub use self::credentials_repo::*;
 pub use self::in_memory_credentials_repo::*;
 pub use self::redis_channel_reader::*;
 pub use self::regex::*;
-pub mod ws;
+pub use self::ws::{msg_receive_loop, ws_loop};
 
 pub async fn get_pubsub(app_data: Arc<AppData>) -> Result<PubSub, DomainError> {
     let client = app_data.redis_conn_factory.clone().ok_or_else(|| {
