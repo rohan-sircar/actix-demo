@@ -11,11 +11,11 @@ extern crate diesel_derive_newtype;
 
 pub mod actions;
 pub mod errors;
-mod middlewares;
+// mod middlewares;
 pub mod models;
 mod routes;
 mod schema;
-mod services;
+// mod services;
 pub mod telemetry;
 pub mod types;
 pub mod utils;
@@ -138,12 +138,12 @@ pub async fn run(addr: String, app_data: Data<AppData>) -> io::Result<()> {
     );
     println!(
         r#"
-                       __  .__                     .___                     
-        _____    _____/  |_|__|__  ___           __| _/____   _____   ____  
-        \__  \ _/ ___\   __\  \  \/  /  ______  / __ |/ __ \ /     \ /  _ \ 
+                       __  .__                     .___
+        _____    _____/  |_|__|__  ___           __| _/____   _____   ____
+        \__  \ _/ ___\   __\  \  \/  /  ______  / __ |/ __ \ /     \ /  _ \
          / __ \\  \___|  | |  |>    <  /_____/ / /_/ \  ___/|  Y Y  (  <_> )
-        (____  /\___  >__| |__/__/\_ \         \____ |\___  >__|_|  /\____/ 
-             \/     \/              \/              \/    \/      \/        
+        (____  /\___  >__| |__/__/\_ \         \____ |\___  >__|_|  /\____/
+             \/     \/              \/              \/    \/      \/
          "#
     );
     let app = move || {

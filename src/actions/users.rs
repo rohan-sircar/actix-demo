@@ -1,4 +1,7 @@
 use diesel::prelude::*;
+use diesel::r2d2::ConnectionManager;
+use diesel_tracing::pg::InstrumentedPgConnection;
+use r2d2::PooledConnection;
 
 use crate::errors::DomainError;
 use crate::models::misc::Pagination;
@@ -13,7 +16,7 @@ use validators::prelude::*;
 
 pub fn get_roles_for_user(
     uid: &UserId,
-    conn: &impl diesel::Connection<Backend = diesel::pg::Pg>,
+    conn: &mut PooledConnection<ConnectionManager<InstrumentedPgConnection>>,
 ) -> Result<Vec<RoleEnum>, DomainError> {
     use crate::schema::roles::dsl as roles;
     use crate::schema::users_roles::dsl as users_roles;
@@ -26,7 +29,7 @@ pub fn get_roles_for_user(
 
 pub fn get_roles_for_users(
     users: Vec<User>,
-    conn: &impl diesel::Connection<Backend = diesel::pg::Pg>,
+    conn: &mut PooledConnection<ConnectionManager<InstrumentedPgConnection>>,
 ) -> Result<Vec<UserWithRoles>, DomainError> {
     users
         .into_iter()
@@ -40,11 +43,11 @@ pub fn get_roles_for_users(
 
 pub fn find_user_by_uid(
     uid: &UserId,
-    conn: &impl diesel::Connection<Backend = diesel::pg::Pg>,
+    conn: &mut PooledConnection<ConnectionManager<InstrumentedPgConnection>>,
 ) -> Result<Option<UserWithRoles>, DomainError> {
     use crate::schema::users::dsl as users;
 
-    conn.transaction(|| {
+    conn.transaction(|conn| {
         let mb_user = users::users
             .select((users::id, users::username, users::created_at))
             .filter(users::id.eq(uid))
@@ -59,11 +62,11 @@ pub fn find_user_by_uid(
 
 pub fn find_user_by_name(
     user_name: &Username,
-    conn: &impl diesel::Connection<Backend = diesel::pg::Pg>,
+    conn: &mut PooledConnection<ConnectionManager<InstrumentedPgConnection>>,
 ) -> Result<Option<UserWithRoles>, DomainError> {
     use crate::schema::users::dsl as users;
 
-    conn.transaction(|| {
+    conn.transaction(|conn| {
         let mb_user = users::users
             .select((users::id, users::username, users::created_at))
             .filter(users::username.eq(user_name))
@@ -92,11 +95,11 @@ pub fn find_user_by_name(
 
 pub fn get_user_auth_details(
     user_name: &Username,
-    conn: &impl diesel::Connection<Backend = diesel::pg::Pg>,
+    conn: &mut PooledConnection<ConnectionManager<InstrumentedPgConnection>>,
 ) -> Result<Option<UserAuthDetailsWithRoles>, DomainError> {
     use crate::schema::users::dsl as users;
 
-    conn.transaction(|| {
+    conn.transaction(|conn| {
         let mb_user = users::users
             .select((users::id, users::username, users::password))
             .filter(users::username.eq(user_name))
@@ -120,11 +123,11 @@ pub fn get_user_auth_details(
 
 pub fn get_all_users(
     pagination: &Pagination,
-    conn: &impl diesel::Connection<Backend = diesel::pg::Pg>,
+    conn: &mut PooledConnection<ConnectionManager<InstrumentedPgConnection>>,
 ) -> Result<Vec<UserWithRoles>, DomainError> {
     use crate::schema::users::dsl as users;
 
-    conn.transaction(|| {
+    conn.transaction(|conn| {
         let users = users::users
             .select((users::id, users::username, users::created_at))
             .order_by(users::created_at)
@@ -139,11 +142,11 @@ pub fn get_all_users(
 pub fn search_users(
     query: &str,
     pagination: &Pagination,
-    conn: &impl diesel::Connection<Backend = diesel::pg::Pg>,
+    conn: &mut PooledConnection<ConnectionManager<InstrumentedPgConnection>>,
 ) -> Result<Vec<UserWithRoles>, DomainError> {
     use crate::schema::users::dsl as users;
 
-    conn.transaction(|| {
+    conn.transaction(|conn| {
         let users = users::users
             .select((users::id, users::username, users::created_at))
             .filter(users::username.like(format!("%{}%", query)))
@@ -160,7 +163,7 @@ pub fn insert_new_user(
     nu: NewUser,
     role: RoleEnum,
     hash_cost: u32,
-    conn: &impl diesel::Connection<Backend = diesel::pg::Pg>,
+    conn: &mut PooledConnection<ConnectionManager<InstrumentedPgConnection>>,
 ) -> Result<UserWithRoles, DomainError> {
     use crate::schema::roles::dsl as roles;
     use crate::schema::users::dsl as users;
@@ -174,7 +177,7 @@ pub fn insert_new_user(
         })?;
         nu2
     };
-    conn.transaction(|| {
+    conn.transaction(|conn| {
         let _ = diesel::insert_into(users::users)
             .values(&nu)
             .execute(conn)?;
@@ -208,7 +211,7 @@ pub fn insert_new_user(
 pub fn insert_new_regular_user(
     nu: NewUser,
     hash_cost: u32,
-    conn: &impl diesel::Connection<Backend = diesel::pg::Pg>,
+    conn: &mut PooledConnection<ConnectionManager<InstrumentedPgConnection>>,
 ) -> Result<UserWithRoles, DomainError> {
     insert_new_user(nu, RoleEnum::RoleUser, hash_cost, conn)
 }

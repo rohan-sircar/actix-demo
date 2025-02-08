@@ -54,8 +54,8 @@ pub fn create_database_if_needed(database_url: &str) -> anyhow::Result<()> {
         let (database, postgres_url) =
             change_database_of_url(database_url, "postgres");
         tracing::info!("Creating database: {database}");
-        let conn = PgConnection::establish(&postgres_url)?;
-        create_database(&database).execute(&conn)?;
+        let mut conn = PgConnection::establish(&postgres_url)?;
+        create_database(&database).execute(&mut conn)?;
     } else {
         tracing::info!("Detected existing database")
     }

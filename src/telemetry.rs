@@ -1,3 +1,4 @@
+use actix_http::body::MessageBody;
 use actix_http::header::Header;
 use actix_web::dev::{ServiceRequest, ServiceResponse};
 use actix_web::web::Data;
@@ -28,7 +29,7 @@ impl RootSpanBuilder for DomainRootSpanBuilder {
         tracing_actix_web::root_span!(req, auth_user_id,)
     }
 
-    fn on_request_end<B>(
+    fn on_request_end<B: MessageBody>(
         span: Span,
         outcome: &Result<ServiceResponse<B>, Error>,
     ) {

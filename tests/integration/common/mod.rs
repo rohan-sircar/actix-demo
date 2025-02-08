@@ -13,12 +13,13 @@ use actix_web::web::Data;
 use anyhow::Context;
 use derive_builder::Builder;
 use diesel::r2d2::{self, ConnectionManager};
+use diesel_migrations::{FileBasedMigrations, MigrationHarness};
 use diesel_tracing::pg::InstrumentedPgConnection;
 use jwt_simple::prelude::HS256Key;
 use once_cell::sync::Lazy;
 use rand::Rng;
 use std::fs;
-use std::io::{self, Write};
+use std::io::Write;
 use std::os::unix::prelude::OpenOptionsExt;
 use tracing::subscriber::set_global_default;
 use tracing_actix_web::TracingLogger;
@@ -116,6 +117,7 @@ static CREATE_BIN_FILES: Lazy<anyhow::Result<()>> = Lazy::new(|| {
     for f in &files {
         let mut file = fs::OpenOptions::new()
             .create(true)
+            .truncate(true)
             .write(true)
             .mode(0o777)
             .open(&f.location)?;
@@ -174,24 +176,28 @@ pub async fn app_data(
     let _ = {
         let pool = pool.clone();
         let _ = web::block(move || {
-            let conn = &pool.get()?;
-            let migrations_dir = diesel_migrations::find_migrations_directory()
-                .context("Error finding migrations dir")?;
-            let _ = diesel_migrations::run_pending_migrations_in_directory(
-                conn,
-                &migrations_dir,
-                &mut io::sink(),
-            )
-            .context("Error running migrations")?;
-            actix_demo::actions::users::insert_new_user(
-                NewUser {
-                    username: Username::parse_str(DEFAULT_USER)?,
-                    password: Password::parse_str(DEFAULT_USER)?,
-                },
-                RoleEnum::RoleAdmin,
-                config.hash_cost,
-                conn,
-            )?;
+            let _ = {
+                let mut conn =
+                    pool.get().context("Failed to get connection")?;
+
+                let migrations: FileBasedMigrations =
+                    FileBasedMigrations::find_migrations_directory()
+                        .context("Error running migrations")?;
+                let _ = conn
+                    .run_pending_migrations(migrations)
+                    .map_err(|e| anyhow::anyhow!(e)) // Convert error to anyhow::Error
+                    .context("Error running migrations")?;
+                actix_demo::actions::users::insert_new_user(
+                    NewUser {
+                        username: Username::parse_str(DEFAULT_USER)?,
+                        password: Password::parse_str(DEFAULT_USER)?,
+                    },
+                    RoleEnum::RoleAdmin,
+                    config.hash_cost,
+                    &mut conn,
+                )?;
+            };
+
             Ok::<(), anyhow::Error>(())
         })
         .await??;

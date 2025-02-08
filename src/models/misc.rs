@@ -106,7 +106,8 @@ pub struct SearchQuery {
 #[derive(DbEnum, Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
 #[allow(clippy::enum_variant_names)]
 #[serde(rename_all = "snake_case")]
-#[DieselType = "Job_status"]
+// #[DieselType = "Job_status"]
+#[ExistingTypePath = "crate::schema::sql_types::JobStatus"]
 pub enum JobStatus {
     Pending,
     Completed,
@@ -115,7 +116,7 @@ pub enum JobStatus {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Queryable, Identifiable)]
-#[table_name = "jobs"]
+#[diesel(table_name = jobs)]
 pub struct Job {
     pub id: i32,
     pub job_id: uuid::Uuid,
@@ -126,7 +127,7 @@ pub struct Job {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Insertable)]
-#[table_name = "jobs"]
+#[diesel(table_name = jobs)]
 pub struct NewJob {
     pub job_id: uuid::Uuid,
     pub started_by: UserId,

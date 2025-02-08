@@ -100,8 +100,8 @@ pub async fn login(
     let credentials_repo = &app_data.credentials_repo;
     let pool = app_data.pool.clone();
     let mb_user = web::block(move || {
-        let conn = pool.get()?;
-        get_user_auth_details(&user_login.username, &conn)
+        let mut conn = pool.get()?;
+        get_user_auth_details(&user_login.username, &mut conn)
     })
     .await??;
     let user = mb_user.ok_or_else(|| DomainError::AuthError {

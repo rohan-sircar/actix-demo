@@ -89,7 +89,7 @@ impl Password {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Queryable, Identifiable)]
-#[table_name = "users"]
+#[diesel(table_name = users)]
 pub struct User {
     pub id: UserId,
     pub username: Username,
@@ -118,7 +118,7 @@ impl UserWithRoles {
 }
 
 #[derive(Debug, Clone, Insertable, Deserialize)]
-#[table_name = "users"]
+#[diesel(table_name = users)]
 pub struct NewUser {
     pub username: Username,
     #[serde(skip_serializing)]

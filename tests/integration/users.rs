@@ -35,7 +35,7 @@ mod tests {
             let resp = test_app.call(req).await.unwrap();
             assert_eq!(resp.status(), StatusCode::OK);
             let body: Vec<UserWithRoles> = test::read_body_json(resp).await;
-            let user = body.get(0).unwrap();
+            let user = body.first().unwrap();
             assert_eq!(user.id.as_uint(), 1);
             assert_eq!(user.username.as_str(), "admin");
             assert_eq!(user.roles, vec![RoleEnum::RoleAdmin]);

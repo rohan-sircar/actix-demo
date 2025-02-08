@@ -1,4 +1,4 @@
-pub mod broadcast_demo;
+// pub mod broadcast_demo;
 pub mod credentials_repo;
 pub mod in_memory_credentials_repo;
 pub mod redis_channel_reader;
@@ -24,7 +24,7 @@ pub async fn get_pubsub(app_data: Arc<AppData>) -> Result<PubSub, DomainError> {
     let client = app_data.redis_conn_factory.clone().ok_or_else(|| {
         DomainError::new_uninitialized_error("redis not initialized".to_owned())
     })?;
-    Ok(client.get_async_connection().await?.into_pubsub())
+    Ok(client.get_async_pubsub().await?)
 }
 
 pub async fn get_redis_conn(
@@ -49,15 +49,15 @@ where
     serde_json::to_string(value).expect("failed to serialize {value}")
 }
 
-// pub fn from_str<'a, T, F>(value: &'a str, mk_default: F) -> T
-// where
-//     T: serde::Deserialize<'a>,
-//     F: Fn(()) -> T,
-// {
-//     let res = serde_json::from_str(value);
+pub fn from_str<'a, T, F>(value: &'a str, mk_default: F) -> T
+where
+    T: serde::Deserialize<'a>,
+    F: Fn(()) -> T,
+{
+    let res = serde_json::from_str(value);
 
-//     res.unwrap_or_else(|err| {
-//         tracing::error!("Error deserializing: {:?}", err);
-//         mk_default(())
-//     })
-// }
+    res.unwrap_or_else(|err| {
+        tracing::error!("Error deserializing: {:?}", err);
+        mk_default(())
+    })
+}

@@ -11,7 +11,7 @@ use super::users::UserId;
 #[derive(DbEnum, Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
 #[allow(clippy::enum_variant_names)]
 #[serde(rename_all = "snake_case")]
-#[DieselType = "Role_name"]
+#[ExistingTypePath = "crate::schema::sql_types::RoleName"]
 pub enum RoleEnum {
     RoleSuperUser,
     RoleAdmin,
@@ -19,7 +19,7 @@ pub enum RoleEnum {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Queryable, Identifiable)]
-#[table_name = "roles"]
+#[diesel(table_name = roles)]
 pub struct Role {
     pub id: RoleId,
     pub name: RoleEnum,
@@ -75,8 +75,7 @@ impl TryFrom<u32> for RoleId {
 }
 
 #[derive(Debug, Clone, Insertable)]
-#[table_name = "users_roles"]
-
+#[diesel(table_name = users_roles)]
 pub struct NewUserRole {
     pub user_id: UserId,
     pub role_id: RoleId,

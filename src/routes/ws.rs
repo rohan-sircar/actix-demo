@@ -32,7 +32,7 @@ pub async fn ws(
 
     let user_id = claims.custom.user_id;
 
-    let _ = tracing::Span::current().record("auth_user_id", &user_id.as_uint());
+    let _ = tracing::Span::current().record("auth_user_id", user_id.as_uint());
 
     let _ = tracing::info!("Initiating websocket connection");
 
@@ -105,7 +105,7 @@ pub async fn ws(
         handles.borrow_mut().push(handle2);
     };
     let mut session2 = session.clone();
-    let _ = actix_rt::spawn(
+    actix_rt::spawn(
         async move {
             loop {
                 sleep(Duration::from_secs(30)).await;

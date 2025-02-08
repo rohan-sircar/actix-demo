@@ -6,6 +6,7 @@ use actix_demo::{utils, AppConfig, AppData, EnvConfig, LoggerFormat};
 use actix_web::web::Data;
 use anyhow::Context;
 use diesel::r2d2::ConnectionManager;
+use diesel_migrations::{FileBasedMigrations, MigrationHarness};
 use diesel_tracing::pg::InstrumentedPgConnection;
 use jwt_simple::prelude::HS256Key;
 use std::sync::Arc;
@@ -41,9 +42,14 @@ async fn main() -> anyhow::Result<()> {
         .context("Failed to create db pool")?;
 
     let _ = {
-        let conn = &pool.get().context("Failed to get connection")?;
+        let mut conn = pool.get().context("Failed to get connection")?;
 
-        let _ = diesel_migrations::run_pending_migrations(conn)
+        let migrations: FileBasedMigrations =
+            FileBasedMigrations::find_migrations_directory()
+                .context("Error running migrations")?;
+        let _ = conn
+            .run_pending_migrations(migrations)
+            .map_err(|e| anyhow::anyhow!(e)) // Convert error to anyhow::Error
             .context("Error running migrations")?;
     };
 

@@ -17,8 +17,8 @@ pub async fn get_user(
     // use web::block to offload blocking Diesel code without blocking server thread
     let res = web::block(move || {
         let pool = &app_data.pool;
-        let conn = pool.get()?;
-        actions::users::find_user_by_uid(&user_id, &conn)
+        let mut conn = pool.get()?;
+        actions::users::find_user_by_uid(&user_id, &mut conn)
     })
     .await??;
     let _ = tracing::debug!("{:?}", res);
@@ -43,9 +43,9 @@ pub async fn get_users(
     let _ = tracing::info!("Paginated users request");
     let users = web::block(move || {
         let pool = &app_data.pool;
-        let conn = pool.get()?;
+        let mut conn = pool.get()?;
         let p: Pagination = pagination.into_inner();
-        actions::users::get_all_users(&p, &conn)
+        actions::users::get_all_users(&p, &mut conn)
     })
     .await??;
 
@@ -64,9 +64,9 @@ pub async fn search_users(
     let _ = tracing::info!("Search users request");
     let users = web::block(move || {
         let pool = &app_data.pool;
-        let conn = pool.get()?;
+        let mut conn = pool.get()?;
         let p: Pagination = pagination.into_inner();
-        actions::users::search_users(query.q.as_str(), &p, &conn)
+        actions::users::search_users(query.q.as_str(), &p, &mut conn)
     })
     .await??;
 
@@ -85,11 +85,11 @@ pub async fn add_user(
 ) -> Result<HttpResponse, DomainError> {
     let user = web::block(move || {
         let pool = &app_data.pool;
-        let conn = pool.get()?;
+        let mut conn = pool.get()?;
         actions::users::insert_new_regular_user(
             form.0,
             app_data.config.hash_cost,
-            &conn,
+            &mut conn,
         )
     })
     .await??;

@@ -1,31 +1,44 @@
-#![allow(unused_imports)]
-table! {
+// @generated automatically by Diesel CLI.
+
+pub mod sql_types {
+    #[derive(diesel::query_builder::QueryId, diesel::sql_types::SqlType)]
+    #[diesel(postgres_type(name = "job_status"))]
+    pub struct JobStatus;
+
+    #[derive(diesel::query_builder::QueryId, diesel::sql_types::SqlType)]
+    #[diesel(postgres_type(name = "role_name"))]
+    pub struct RoleName;
+}
+
+diesel::table! {
     use diesel::sql_types::*;
     use crate::models::roles::*;
     use crate::models::misc::*;
+    use super::sql_types::JobStatus;
 
     jobs (id) {
         id -> Int4,
         job_id -> Uuid,
         started_by -> Int4,
-        status -> Job_status,
+        status -> JobStatus,
         status_message -> Nullable<Varchar>,
         created_at -> Timestamp,
     }
 }
 
-table! {
+diesel::table! {
     use diesel::sql_types::*;
     use crate::models::roles::*;
     use crate::models::misc::*;
+    use super::sql_types::RoleName;
 
     roles (id) {
         id -> Int4,
-        role_name -> Role_name,
+        role_name -> RoleName,
     }
 }
 
-table! {
+diesel::table! {
     use diesel::sql_types::*;
     use crate::models::roles::*;
     use crate::models::misc::*;
@@ -38,7 +51,7 @@ table! {
     }
 }
 
-table! {
+diesel::table! {
     use diesel::sql_types::*;
     use crate::models::roles::*;
     use crate::models::misc::*;
@@ -50,8 +63,8 @@ table! {
     }
 }
 
-joinable!(jobs -> users (started_by));
-joinable!(users_roles -> roles (role_id));
-joinable!(users_roles -> users (user_id));
+diesel::joinable!(jobs -> users (started_by));
+diesel::joinable!(users_roles -> roles (role_id));
+diesel::joinable!(users_roles -> users (user_id));
 
-allow_tables_to_appear_in_same_query!(jobs, roles, users, users_roles,);
+diesel::allow_tables_to_appear_in_same_query!(jobs, roles, users, users_roles,);

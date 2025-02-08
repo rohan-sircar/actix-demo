@@ -1,6 +1,8 @@
 mod create_database;
 pub use create_database::*;
-use diesel::prelude::*;
+use diesel::{prelude::*, r2d2::ConnectionManager};
+use diesel_tracing::pg::InstrumentedPgConnection;
+use r2d2::PooledConnection;
 
 use crate::{
     errors::DomainError,
@@ -11,7 +13,7 @@ use crate::{
 };
 
 pub fn get_jobs(
-    conn: &impl diesel::Connection<Backend = diesel::pg::Pg>,
+    conn: &mut PooledConnection<ConnectionManager<InstrumentedPgConnection>>,
 ) -> Result<Vec<Job>, DomainError> {
     use crate::schema::jobs::dsl as jobs;
     use crate::schema::users::dsl as users;
@@ -30,7 +32,7 @@ pub fn get_jobs(
 
 pub fn get_jobs_by_user(
     user_id: &UserId,
-    conn: &impl diesel::Connection<Backend = diesel::pg::Pg>,
+    conn: &mut PooledConnection<ConnectionManager<InstrumentedPgConnection>>,
 ) -> Result<Vec<Job>, DomainError> {
     use crate::schema::jobs::dsl as jobs;
     use crate::schema::users::dsl as users;
@@ -50,7 +52,7 @@ pub fn get_jobs_by_user(
 
 pub fn get_job_by_uuid(
     job_id: uuid::Uuid,
-    conn: &impl diesel::Connection<Backend = diesel::pg::Pg>,
+    conn: &mut PooledConnection<ConnectionManager<InstrumentedPgConnection>>,
 ) -> Result<Option<Job>, DomainError> {
     use crate::schema::jobs::dsl as jobs;
     use crate::schema::users::dsl as users;
@@ -73,7 +75,7 @@ pub fn update_job_status(
     job_id: uuid::Uuid,
     new_status: JobStatus,
     status_message: Option<String>,
-    conn: &impl diesel::Connection<Backend = diesel::pg::Pg>,
+    conn: &mut PooledConnection<ConnectionManager<InstrumentedPgConnection>>,
 ) -> Result<(), DomainError> {
     use crate::schema::jobs::dsl as jobs;
     diesel::update(jobs::jobs.filter(jobs::job_id.eq(job_id)))
@@ -87,11 +89,11 @@ pub fn update_job_status(
 
 pub fn create_job(
     new_job: &NewJob,
-    conn: &impl diesel::Connection<Backend = diesel::pg::Pg>,
+    conn: &mut PooledConnection<ConnectionManager<InstrumentedPgConnection>>,
 ) -> Result<Job, DomainError> {
     use crate::schema::jobs::dsl as jobs;
     let job = conn
-        .transaction(|| {
+        .transaction(|conn| {
             diesel::insert_into(jobs::jobs)
                 .values(new_job)
                 .execute(conn)?;

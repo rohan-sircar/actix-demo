@@ -12,7 +12,6 @@ pub enum MyProcessItem {
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 #[serde(tag = "kind")]
-
 pub enum WsClientEvent {
     SendMessage {
         receiver: UserId,

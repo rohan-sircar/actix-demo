@@ -30,7 +30,7 @@ pub async fn run_command(
     payload: web::Json<RunCommandRequest>,
 ) -> Result<HttpResponse, DomainError> {
     let mut conn = app_data.redis_conn_manager.clone().unwrap();
-    let _ = conn.publish("hc", "hc").await?;
+    let () = conn.publish("hc", "hc").await?;
     // let job_id =
     //     uuid::Uuid::from_str("319fe476-c767-4788-96cf-dd5a52006231").unwrap();
     let job_id = uuid::Uuid::new_v4();
@@ -49,19 +49,19 @@ pub async fn run_command(
     let pool = app_data.pool.clone();
     let pool2 = pool.clone();
     let job = web::block(move || {
-        let conn = pool2.get()?;
+        let mut conn = pool2.get()?;
         let nj = NewJob {
             job_id,
             started_by: user_id,
             status: JobStatus::Pending,
             status_message: None,
         };
-        actions::misc::create_job(&nj, &conn)
+        actions::misc::create_job(&nj, &mut conn)
     })
     .await??;
 
     let pool2 = pool.clone();
-    let _ = actix_rt::spawn(
+    actix_rt::spawn(
         async move {
             let proc = Rc::new(RefCell::new(Process::new(bin_path)));
             {
@@ -75,24 +75,24 @@ pub async fn run_command(
             let aborter = actix_rt::spawn(
                 async move {
                     // let _ = tokio::time::sleep(Duration::from_millis(5000)).await;
-                    let mut ps =
-                        utils::get_pubsub(app_data.into_inner()).await?;
+                    let mut ps = utils::get_pubsub(app_data.into_inner()).await?;
                     let _ = ps.subscribe(&abort_chan_name).await?;
                     let mut r_stream = ps.on_message();
                     while let Some(msg) = r_stream.next().await {
-                        let msg =
-                            &msg.get_payload::<String>().unwrap_or_default();
+                        let msg = &msg.get_payload::<String>().unwrap_or_default();
                         if msg == "done" {
                             let _ = tracing::debug!("Killing");
                             let _ = proc2.borrow().abort();
                             let pool2 = pool.clone();
                             *aborted2.borrow_mut() = true;
                             web::block(move || {
-                                let conn = pool2.get()?;
-                                actions::misc::update_job_status(job_id,
+                                let mut conn = pool2.get()?;
+                                actions::misc::update_job_status(
+                                    job_id,
                                     JobStatus::Aborted,
                                     Some("Job aborted by user".to_owned()),
-                                    &conn)
+                                    &mut conn,
+                                )
                             })
                             .await??;
                             break;
@@ -100,10 +100,7 @@ pub async fn run_command(
                     }
                     Ok::<(), DomainError>(())
                 }
-                .instrument(info_span!(
-                    "job_abort",
-                    job_id = job_id.to_string()
-                )),
+                .instrument(info_span!("job_abort", job_id = job_id.to_string())),
             );
             let publisher = actix_rt::spawn(
                 async move {
@@ -116,32 +113,24 @@ pub async fn run_command(
                             ))
                         })?
                         .map(|output| match output {
-                            ProcessItem::Output(value) => {
-                                MyProcessItem::Line { value }
-                            }
+                            ProcessItem::Output(value) => MyProcessItem::Line { value },
                             ProcessItem::Error(cause) => {
-                                if cause.starts_with("[ERROR]")
-                                    || cause.starts_with("E:")
-                                {
+                                if cause.starts_with("[ERROR]") || cause.starts_with("E:") {
                                     MyProcessItem::Error { cause }
                                 } else {
                                     MyProcessItem::Line { value: cause }
                                 }
                             }
-                            ProcessItem::Exit(code) => {
-                                MyProcessItem::Done { code }
-                            }
+                            ProcessItem::Exit(code) => MyProcessItem::Done { code },
                         });
                     while let Some(rcm) = stream.next().await {
                         let _ = println!("{:?}", &rcm);
-                        let _ = conn
-                            .publish(&job_chan_name, utils::jstr(&rcm))
-                            .await?;
+                        let () = conn.publish(&job_chan_name, utils::jstr(&rcm)).await?;
                         if let MyProcessItem::Done { code } = rcm {
                             let code = code.parse::<i32>().map_err(|err| {
-                                DomainError::new_internal_error(
-                                    format!("Expected integer return code, got: {code}, err was: {err}")
-                                )
+                                DomainError::new_internal_error(format!(
+                                    "Expected integer return code, got: {code}, err was: {err}"
+                                ))
                             })?;
                             if code > 0 {
                                 Err(DomainError::new_internal_error(
@@ -152,10 +141,7 @@ pub async fn run_command(
                     }
                     Ok::<(), DomainError>(())
                 }
-                .instrument(info_span!(
-                    "job_publisher",
-                    job_id = job_id.to_string()
-                )),
+                .instrument(info_span!("job_publisher", job_id = job_id.to_string())),
             );
             let res = publisher.await?;
             tracing::info!("Job completed");
@@ -170,9 +156,9 @@ pub async fn run_command(
                 }
             };
             if !*aborted.borrow() {
-                let conn = pool2.get()?;
+                let mut conn = pool2.get()?;
                 web::block(move || {
-                    actions::misc::update_job_status(job_id, status, msg, &conn)
+                    actions::misc::update_job_status(job_id, status, msg, &mut conn)
                 })
                 .await??;
             }
@@ -194,8 +180,8 @@ pub async fn get_job(
             DomainError::new_bad_input_error(format!("Expected UUID: {err}"))
         })?;
     let job = web::block(move || {
-        let conn = &pool.get()?;
-        actions::misc::get_job_by_uuid(job_id, conn)
+        let mut conn = pool.get()?;
+        actions::misc::get_job_by_uuid(job_id, &mut conn)
     })
     .await??;
     match job {
@@ -221,6 +207,6 @@ pub async fn abort_command(
     //     uuid::Uuid::from_str("319fe476-c767-4788-96cf-dd5a52006231").unwrap();
     let abort_chan_name =
         (app_data.redis_prefix)(&format!("job.{job_id}.abort"));
-    let _ = conn.publish(abort_chan_name, "done").await?;
+    let () = conn.publish(abort_chan_name, "done").await?;
     Ok(HttpResponse::Ok().finish())
 }
