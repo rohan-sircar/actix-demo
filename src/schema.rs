@@ -12,8 +12,6 @@ pub mod sql_types {
 
 diesel::table! {
     use diesel::sql_types::*;
-    use crate::models::roles::*;
-    use crate::models::misc::*;
     use super::sql_types::JobStatus;
 
     jobs (id) {
@@ -28,8 +26,6 @@ diesel::table! {
 
 diesel::table! {
     use diesel::sql_types::*;
-    use crate::models::roles::*;
-    use crate::models::misc::*;
     use super::sql_types::RoleName;
 
     roles (id) {
@@ -39,10 +35,6 @@ diesel::table! {
 }
 
 diesel::table! {
-    use diesel::sql_types::*;
-    use crate::models::roles::*;
-    use crate::models::misc::*;
-
     users (id) {
         id -> Int4,
         username -> Varchar,
@@ -52,10 +44,6 @@ diesel::table! {
 }
 
 diesel::table! {
-    use diesel::sql_types::*;
-    use crate::models::roles::*;
-    use crate::models::misc::*;
-
     users_roles (id) {
         id -> Int4,
         user_id -> Int4,
