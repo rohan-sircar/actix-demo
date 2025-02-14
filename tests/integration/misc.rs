@@ -20,13 +20,18 @@ mod tests {
 
     #[actix_rt::test]
     async fn get_build_info_should_succeed() {
-        let connspec = common::pg_conn_string().unwrap();
+        let (pg_connstr, _pg) = common::test_with_postgres().await.unwrap();
+        let (redis_connstr, _redis) = common::test_with_redis().await.unwrap();
         let req = test::TestRequest::get()
             .uri("/api/public/build-info")
             .to_request();
-        let test_app = common::test_app(&connspec, TestAppOptions::default())
-            .await
-            .unwrap();
+        let test_app = common::test_app(
+            &pg_connstr,
+            &redis_connstr,
+            TestAppOptions::default(),
+        )
+        .await
+        .unwrap();
         let resp = test_app.call(req).await.unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
         let body: build_info::BuildInfo = test::read_body_json(resp).await;
@@ -36,14 +41,18 @@ mod tests {
 
     #[actix_rt::test]
     async fn failed_job_test() {
-        let res = async {
-            let connspec = common::pg_conn_string()?;
+        let res: anyhow::Result<()> = async {
+            let (pg_connstr, _pg) = common::test_with_postgres().await?;
+            let (redis_connstr, _redis) = common::test_with_redis().await?;
             let file = failing_bin_file();
             let options = TestAppOptionsBuilder::default()
                 .bin_file(file)
                 .build()
                 .unwrap();
-            let test_app = common::test_app(&connspec, options).await.unwrap();
+            let test_app =
+                common::test_app(&pg_connstr, &redis_connstr, options)
+                    .await
+                    .unwrap();
             let token = common::get_default_token(&test_app).await;
             let req = test::TestRequest::post()
                 .append_header((header::CONTENT_TYPE, "application/json"))
@@ -71,11 +80,11 @@ mod tests {
 
             assert_eq!(job_resp.started_by.as_str(), common::DEFAULT_USER);
             assert_eq!(job_resp.status, JobStatus::Failed);
-            Ok::<(), anyhow::Error>(())
+            Ok(())
         }
         .await;
 
-        tracing::info!("{res:?}");
+        tracing::info!("Ended with {res:?}");
         res.unwrap();
     }
 }

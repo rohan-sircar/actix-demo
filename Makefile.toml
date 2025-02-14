@@ -30,9 +30,8 @@ command = "cargo"
 args = ["test", "--lib"]
 
 [tasks.it-test]
-command = "python3"
-args = ["tests/integration/it-test.py"]
-# args = ["test", "--test", "integration", "--", "--nocapture"]
+command = "cargo"
+args = ["test", "--test", "integration", "--", "--nocapture"]
 
 [tasks.stage]
 dependencies = ["lint-check", "compile", "test", "it-test"]

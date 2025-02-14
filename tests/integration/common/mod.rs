@@ -17,10 +17,13 @@ use diesel_migrations::{FileBasedMigrations, MigrationHarness};
 use diesel_tracing::pg::InstrumentedPgConnection;
 use jwt_simple::prelude::HS256Key;
 use once_cell::sync::Lazy;
-use rand::Rng;
 use std::fs;
 use std::io::Write;
 use std::os::unix::prelude::OpenOptionsExt;
+use testcontainers_modules::postgres::{self, Postgres};
+use testcontainers_modules::redis::{Redis, REDIS_PORT};
+use testcontainers_modules::testcontainers::runners::AsyncRunner;
+use testcontainers_modules::testcontainers::ContainerAsync;
 use tracing::subscriber::set_global_default;
 use tracing_actix_web::TracingLogger;
 use tracing_log::LogTracer;
@@ -38,12 +41,12 @@ use std::sync::Arc;
 
 pub const DEFAULT_USER: &str = "admin";
 
-fn redis_connstr() -> String {
-    let port = 5556;
-    let connection_string = format!("redis://127.0.0.1:{port}");
-    tracing::info!("Redis connstr={connection_string}");
-    connection_string
-}
+// fn redis_connstr() -> String {
+//     let port = 5556;
+//     let connection_string = format!("redis://127.0.0.1:{port}");
+//     tracing::info!("Redis connstr={connection_string}");
+//     connection_string
+// }
 
 #[derive(Clone, Debug)]
 pub struct BinFile {
@@ -146,7 +149,8 @@ impl TestAppOptionsBuilder {
 }
 
 pub async fn app_data(
-    connspec: &str,
+    pg_connstr: &str,
+    redis_connstr: &str,
     options: TestAppOptions,
 ) -> anyhow::Result<web::Data<AppData>> {
     let _ = Lazy::force(&TRACING).as_ref().unwrap();
@@ -158,16 +162,16 @@ pub async fn app_data(
         job_bin_path: options.bin_file.location.clone(),
     };
 
-    let client = redis::Client::open(redis_connstr())
+    let client = redis::Client::open(redis_connstr)
         .context("failed to initialize redis")?;
     let cm = redis::aio::ConnectionManager::new(client.clone())
         .await
         .with_context(|| {
-            let conn_string: String = redis_connstr();
-            format!("Failed to connect to redis. Url was: {conn_string}",)
+            format!("Failed to connect to redis. Url was: {redis_connstr}",)
         })?;
 
-    let manager = ConnectionManager::<InstrumentedPgConnection>::new(connspec);
+    let manager =
+        ConnectionManager::<InstrumentedPgConnection>::new(pg_connstr);
     let pool = r2d2::Pool::builder()
         .max_size(2)
         .build(manager)
@@ -203,15 +207,18 @@ pub async fn app_data(
         .await??;
     };
 
-    let credentials_repo =
-        Arc::new(actix_demo::utils::InMemoryCredentialsRepo::default());
+    let redis_prefix = Box::new(utils::get_redis_prefix("app"));
+
+    let credentials_repo = Arc::new(
+        actix_demo::utils::redis_credentials_repo::RedisCredentialsRepo::new(
+            redis_prefix(&"user-sessions"),
+            cm.clone(),
+        ),
+    );
+
     let key = HS256Key::from_bytes("test".as_bytes());
 
-    let redis_prefix = {
-        let mut rng = rand::thread_rng();
-        let n1: u8 = rng.gen();
-        Box::new(utils::get_redis_prefix(format!("redis{n1}")))
-    };
+    let redis_prefix = Box::new(utils::get_redis_prefix("app"));
 
     let data = Data::new(AppData {
         config,
@@ -226,7 +233,8 @@ pub async fn app_data(
 }
 
 pub async fn test_app(
-    connspec: &str,
+    pg_connstr: &str,
+    redis_connstr: &str,
     options: TestAppOptions,
 ) -> anyhow::Result<
     impl Service<
@@ -236,17 +244,20 @@ pub async fn test_app(
     >,
 > {
     let app = App::new()
-        .configure(configure_app(app_data(connspec, options).await?))
+        .configure(configure_app(
+            app_data(pg_connstr, redis_connstr, options).await?,
+        ))
         .wrap(TracingLogger::<DomainRootSpanBuilder>::new());
     let test_app = test::init_service(app).await;
     Ok(test_app)
 }
 
 pub async fn test_http_app(
-    connspec: &str,
+    pg_connstr: &str,
+    redis_connstr: &str,
     options: TestAppOptions,
 ) -> anyhow::Result<TestServer> {
-    let data = app_data(connspec, options).await?;
+    let data = app_data(pg_connstr, redis_connstr, options).await?;
     let test_app = move || {
         App::new()
             .configure(configure_app(data.clone()))
@@ -312,21 +323,28 @@ pub async fn get_default_token(
     get_token(DEFAULT_USER, DEFAULT_USER, test_app).await
 }
 
-pub fn pg_conn_string() -> anyhow::Result<String> {
-    let mut rng = rand::thread_rng();
-    let n1: u8 = rng.gen();
-    let db = format!("postgres{n1}");
-    let port = 5555;
+pub async fn test_with_postgres(
+) -> anyhow::Result<(String, ContainerAsync<Postgres>)> {
+    let container = postgres::Postgres::default().start().await?;
+    let host_port = container.get_host_port_ipv4(5432).await?;
     let connection_string =
-        format!("postgres://postgres:postgres@127.0.0.1:{port}/{db}");
+        format!("postgres://postgres:postgres@127.0.0.1:{host_port}/postgres",);
     let _ =
         create_database_if_needed(&connection_string).with_context(|| {
             format!(
                 "Failed to create/detect database. URL was {connection_string}"
             )
         })?;
+    Ok((connection_string, container))
+}
 
-    Ok(connection_string)
+pub async fn test_with_redis() -> anyhow::Result<(String, ContainerAsync<Redis>)>
+{
+    let container = Redis::default().start().await?;
+    let host = container.get_host().await?;
+    let host_port = container.get_host_port_ipv4(REDIS_PORT).await?;
+    let connection_string = format!("redis://{host}:{host_port}");
+    Ok((connection_string, container))
 }
 
 pub trait WithToken {

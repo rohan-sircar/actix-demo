@@ -74,6 +74,7 @@ dependencies = [
  "serde",
  "serde_json",
  "testcontainers",
+ "testcontainers-modules",
  "timeago",
  "tokio",
  "tokio-postgres",
@@ -4104,8 +4105,9 @@ checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
 
 [[package]]
 name = "testcontainers"
-version = "0.23.1"
-source = "git+https://github.com/testcontainers/testcontainers-rs/#a43ad4282fa3cd56cc5719be15db09d0504caa40"
+version = "0.23.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "042009c52a4204476bff461ca8ef17bab6f1a91628504a8a36c6fd2c1cde2d5e"
 dependencies = [
  "async-trait",
  "bollard",
@@ -4128,6 +4130,15 @@ dependencies = [
  "tokio-tar",
  "tokio-util",
  "url 2.5.4",
+]
+
+[[package]]
+name = "testcontainers-modules"
+version = "0.11.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4d43ed4e8f58424c3a2c6c56dbea6643c3c23e8666a34df13c54f0a184e6c707"
+dependencies = [
+ "testcontainers",
 ]
 
 [[package]]

@@ -44,8 +44,12 @@ pub async fn ws(
     let session2 = session.clone();
     let cm = utils::get_redis_conn(app_data.clone().into_inner()).await?;
 
+    let _ = tracing::info!("Connected to Redis");
+
     let app_data2 = app_data.clone().into_inner();
     let handles = Rc::new(RefCell::new(Vec::new()));
+
+    let _ = tracing::info!("Starting message receiver");
     let msg_recv_fib = Rc::new(actix_rt::spawn(
         async move {
             let res =
@@ -72,6 +76,7 @@ pub async fn ws(
     let session2 = session.clone();
     let mut pub_cm =
         utils::get_redis_conn(app_data.clone().into_inner()).await?;
+    let _ = tracing::info!("Connected to Redis PubSub");
     let handle2 = Rc::new(actix_rt::spawn(
         async move {
             tracing::info!("Starting websocket loop");

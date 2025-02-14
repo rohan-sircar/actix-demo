@@ -115,10 +115,14 @@ mod tests {
     #[actix_rt::test]
     async fn send_message_test() {
         async {
-            let connspec = common::pg_conn_string()?;
-            let test_server =
-                common::test_http_app(&connspec, TestAppOptions::default())
-                    .await?;
+            let (pg_connstr, _pg) = common::test_with_postgres().await?;
+            let (redis_connstr, _redis) = common::test_with_redis().await?;
+            let test_server = common::test_http_app(
+                &pg_connstr,
+                &redis_connstr,
+                TestAppOptions::default(),
+            )
+            .await?;
 
             let addr = test_server.addr().to_string();
             // tracing::info!("Addr: {addr}");
@@ -157,10 +161,14 @@ mod tests {
     #[actix_rt::test]
     async fn run_job_test() {
         let res = async {
-            let connspec = common::pg_conn_string()?;
-            let test_server =
-                common::test_http_app(&connspec, TestAppOptions::default())
-                    .await?;
+            let (pg_connstr, _pg) = common::test_with_postgres().await?;
+            let (redis_connstr, _redis) = common::test_with_redis().await?;
+            let test_server = common::test_http_app(
+                &pg_connstr,
+                &redis_connstr,
+                TestAppOptions::default(),
+            )
+            .await?;
 
             let addr = test_server.addr().to_string();
             let client = Client::new();
@@ -234,14 +242,17 @@ mod tests {
 
     #[actix_rt::test]
     async fn abort_job_test() {
-        let res = async {
-            let connspec = common::pg_conn_string()?;
+        let res: anyhow::Result<()> = async {
+            let (pg_connstr, _pg) = common::test_with_postgres().await?;
+            let (redis_connstr, _redis) = common::test_with_redis().await?;
             let file = sleep_bin_file();
             let options = TestAppOptionsBuilder::default()
                 .bin_file(file)
                 .build()
                 .unwrap();
-            let test_server = common::test_http_app(&connspec, options).await?;
+            let test_server =
+                common::test_http_app(&pg_connstr, &redis_connstr, options)
+                    .await?;
 
             let addr = test_server.addr().to_string();
             let client = Client::new();
@@ -298,7 +309,7 @@ mod tests {
             let job_resp = resp.json::<Job>().await?;
             assert_eq!(job_resp.started_by.as_str(), common::DEFAULT_USER);
             assert_eq!(job_resp.status, JobStatus::Aborted);
-            Ok::<(), anyhow::Error>(())
+            Ok(())
         }
         .await;
 

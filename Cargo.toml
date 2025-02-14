@@ -78,7 +78,11 @@ actix-test = "0.1.0"
 awc = "3.5.1"
 bytestring = { version = "1.2.0", features = ["serde"] }
 derive_builder = "0.12.0"
-testcontainers = { git = "https://github.com/testcontainers/testcontainers-rs/" } # testcontainers = "0.14.0"
+testcontainers = "0.23.2"
+testcontainers-modules = { version = "0.11.6", features = [
+    "postgres",
+    "redis",
+] }
 tokio-postgres = "0.7.7"
 
 [build-dependencies]
