@@ -197,6 +197,8 @@ mod tests {
 
             let msg = ws_take_one(&mut ws).await?;
 
+            let _ = tracing::info!("Received message: {msg:?}");
+
             if let WsServerEvent::CommandMessage {
                 message: MyProcessItem::Line { value },
             } = msg
@@ -207,6 +209,8 @@ mod tests {
             };
 
             let msg = ws_take_one(&mut ws).await?;
+
+            let _ = tracing::info!("Received message: {msg:?}");
 
             // sleep(Duration::from_millis(500)).await;
 
