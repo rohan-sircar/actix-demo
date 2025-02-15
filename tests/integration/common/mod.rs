@@ -33,6 +33,8 @@ use validators::prelude::*;
 
 use actix_demo::configure_app;
 
+use testcontainers_modules::testcontainers::ImageExt;
+
 use actix_http::Request;
 use actix_test::TestServer;
 use actix_web::body::MessageBody;
@@ -40,13 +42,6 @@ use actix_web::{dev::*, Error as AxError};
 use std::sync::Arc;
 
 pub const DEFAULT_USER: &str = "admin";
-
-// fn redis_connstr() -> String {
-//     let port = 5556;
-//     let connection_string = format!("redis://127.0.0.1:{port}");
-//     tracing::info!("Redis connstr={connection_string}");
-//     connection_string
-// }
 
 #[derive(Clone, Debug)]
 pub struct BinFile {
@@ -325,7 +320,10 @@ pub async fn get_default_token(
 
 pub async fn test_with_postgres(
 ) -> anyhow::Result<(String, ContainerAsync<Postgres>)> {
-    let container = postgres::Postgres::default().start().await?;
+    let container = postgres::Postgres::default()
+        .with_tag("13-alpine")
+        .start()
+        .await?;
     let host_port = container.get_host_port_ipv4(5432).await?;
     let connection_string =
         format!("postgres://postgres:postgres@127.0.0.1:{host_port}/postgres",);
@@ -340,7 +338,7 @@ pub async fn test_with_postgres(
 
 pub async fn test_with_redis() -> anyhow::Result<(String, ContainerAsync<Redis>)>
 {
-    let container = Redis::default().start().await?;
+    let container = Redis::default().with_tag("7-alpine").start().await?;
     let host = container.get_host().await?;
     let host_port = container.get_host_port_ipv4(REDIS_PORT).await?;
     let connection_string = format!("redis://{host}:{host_port}");

@@ -160,7 +160,7 @@ mod tests {
 
     #[actix_rt::test]
     async fn run_job_test() {
-        let res = async {
+        let res: anyhow::Result<()> = async {
             let (pg_connstr, _pg) = common::test_with_postgres().await?;
             let (redis_connstr, _redis) = common::test_with_redis().await?;
             let test_server = common::test_http_app(
@@ -232,7 +232,7 @@ mod tests {
             let job_resp = resp.json::<Job>().await?;
             assert_eq!(job_resp.started_by.as_str(), common::DEFAULT_USER);
             assert_eq!(job_resp.status, JobStatus::Completed);
-            Ok::<(), anyhow::Error>(())
+            Ok(())
         }
         .await;
 
