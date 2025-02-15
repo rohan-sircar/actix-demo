@@ -20,28 +20,29 @@ pub async fn subscribe_job(
         while let Some(msg) = msg_stream.next().await {
             let cmd = msg.get_payload::<String>().unwrap_or_default();
             let _ = tracing::debug!("Got cmd {cmd}");
-            let rcm = serde_json::from_str::<MyProcessItem>(&cmd).unwrap();
-            let server_msg = WsServerEvent::CommandMessage { message: rcm };
+            let rcm = match serde_json::from_str::<MyProcessItem>(&cmd) {
+                Ok(rcm) => rcm,
+                Err(_) => {
+                    tracing::error!("Failed to parse command: {cmd}");
+                    continue;
+                }
+            };
+            let server_msg = WsServerEvent::CommandMessage {
+                message: rcm.clone(),
+            };
 
             let msg_str = utils::jstr(&server_msg);
 
-            let should_break = match &server_msg {
-                WsServerEvent::CommandMessage { message } => match message {
-                    MyProcessItem::Line { value: _ } => {
-                        session.text(msg_str).await.is_err()
-                    }
-                    MyProcessItem::Error { cause: _ } => {
-                        session.text(msg_str).await.is_err()
-                    }
-                    MyProcessItem::Done { code } => {
-                        let _ = tracing::info!(
-                            "Process completed with code={code}"
-                        );
-                        let _ = session.text(msg_str).await;
-                        true
-                    }
-                },
-                _ => panic!("Coding error lol"),
+            let should_break = match &rcm {
+                MyProcessItem::Line { .. } | MyProcessItem::Error { .. } => {
+                    session.text(msg_str).await.is_err()
+                }
+                MyProcessItem::Done { code } => {
+                    let _ =
+                        tracing::info!("Process completed with code={code}");
+                    let _ = session.text(msg_str).await;
+                    true
+                }
             };
 
             if should_break {
