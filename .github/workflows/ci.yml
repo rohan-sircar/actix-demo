@@ -77,7 +77,7 @@ jobs:
           context: .
           push: true
           tags: rohansircar/actix-demo:devel
-          platforms: linux/arm64,linux/amd64
+          platforms: linux/amd64
           cache-from: type=gha
           cache-to: type=gha,mode=max
           file: build.Dockerfile
