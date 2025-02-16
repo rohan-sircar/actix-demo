@@ -15,6 +15,7 @@ use crate::{
         users::UserId,
         ws::MyProcessItem,
     },
+    types::Task,
     utils, AppData,
 };
 
@@ -61,7 +62,7 @@ pub async fn run_command(
     .await??;
 
     let pool2 = pool.clone();
-    actix_rt::spawn(
+    let _task: Task<()> = actix_rt::spawn(
         async move {
             let proc = Rc::new(RefCell::new(Process::new(bin_path)));
             {
@@ -72,7 +73,7 @@ pub async fn run_command(
             let aborted = Rc::new(RefCell::new(false));
 
             let aborted2 = aborted.clone();
-            let aborter = actix_rt::spawn(
+            let aborter: Task<()> = actix_rt::spawn(
                 async move {
                     // let _ = tokio::time::sleep(Duration::from_millis(5000)).await;
                     let mut ps = utils::get_pubsub(app_data.into_inner()).await?;
@@ -98,11 +99,11 @@ pub async fn run_command(
                             break;
                         }
                     }
-                    Ok::<(), DomainError>(())
+                    Ok(())
                 }
                 .instrument(info_span!("job_abort", job_id = job_id.to_string())),
             );
-            let publisher = actix_rt::spawn(
+            let publisher: Task<()> = actix_rt::spawn(
                 async move {
                     let mut stream = proc
                         .borrow_mut()
@@ -139,7 +140,7 @@ pub async fn run_command(
                             }
                         }
                     }
-                    Ok::<(), DomainError>(())
+                    Ok(())
                 }
                 .instrument(info_span!("job_publisher", job_id = job_id.to_string())),
             );
@@ -162,7 +163,7 @@ pub async fn run_command(
                 })
                 .await??;
             }
-            Ok::<(), DomainError>(())
+            Ok(())
         }
         .instrument(info_span!("job", job_id = job_id.to_string())),
     );
