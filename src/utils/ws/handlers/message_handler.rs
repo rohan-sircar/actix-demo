@@ -1,16 +1,17 @@
 use actix_ws::Session;
 use redis::{aio::ConnectionManager, AsyncCommands};
-use std::{fmt::Display, sync::Arc};
+use std::sync::Arc;
 use tracing_futures::Instrument;
 
 use crate::{
     errors::DomainError,
-    models::users::UserId,
-    models::ws::{SentMessage, WsClientEvent},
+    models::{
+        users::UserId,
+        ws::{SentMessage, WsClientEvent},
+    },
+    types::RedisPrefixFn,
     utils, AppData,
 };
-
-type RedisPrefixFn = Box<dyn Fn(&dyn Display) -> String + Send + Sync>;
 
 pub async fn handle_send_message(
     _session: Session,

@@ -30,13 +30,12 @@ use redis::aio::ConnectionManager;
 use redis::Client;
 use routes::auth::bearer_auth;
 use serde::Deserialize;
-use std::fmt::Display;
 use std::io;
 use std::sync::Arc;
 use tracing_actix_web::TracingLogger;
 use utils::CredentialsRepo;
 
-use types::DbPool;
+use types::{DbPool, RedisPrefixFn};
 
 use crate::telemetry::DomainRootSpanBuilder;
 
@@ -66,8 +65,6 @@ pub struct AppConfig {
     pub hash_cost: u32,
     pub job_bin_path: String,
 }
-
-type RedisPrefixFn = Box<dyn Fn(&dyn Display) -> String + Send + Sync>;
 
 pub struct AppData {
     pub config: AppConfig,
