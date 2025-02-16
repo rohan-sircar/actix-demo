@@ -1,11 +1,8 @@
-use async_trait::async_trait;
 use redis::aio::ConnectionManager;
 use redis::AsyncCommands;
 
 use crate::errors::DomainError;
 use crate::models::users::UserId;
-
-use super::CredentialsRepo;
 
 #[derive(new)]
 pub struct RedisCredentialsRepo {
@@ -17,11 +14,8 @@ impl RedisCredentialsRepo {
     pub fn get_key(&self, user_id: &UserId) -> String {
         format!("{}.{user_id}", self.base_key)
     }
-}
 
-#[async_trait(?Send)]
-impl CredentialsRepo for RedisCredentialsRepo {
-    async fn load(
+    pub async fn load(
         &self,
         user_id: &UserId,
     ) -> Result<Option<String>, DomainError> {
@@ -33,7 +27,7 @@ impl CredentialsRepo for RedisCredentialsRepo {
         Ok(Some(jwt))
     }
 
-    async fn save(
+    pub async fn save(
         &self,
         user_id: &UserId,
         jwt: &str,
@@ -48,7 +42,7 @@ impl CredentialsRepo for RedisCredentialsRepo {
         Ok(())
     }
 
-    async fn delete(&self, user_id: &UserId) -> Result<(), DomainError> {
+    pub async fn delete(&self, user_id: &UserId) -> Result<(), DomainError> {
         {
             let _ = self
                 .redis

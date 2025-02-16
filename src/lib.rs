@@ -31,9 +31,8 @@ use redis::Client;
 use routes::auth::bearer_auth;
 use serde::Deserialize;
 use std::io;
-use std::sync::Arc;
 use tracing_actix_web::TracingLogger;
-use utils::CredentialsRepo;
+use utils::redis_credentials_repo::RedisCredentialsRepo;
 
 use types::{DbPool, RedisPrefixFn};
 
@@ -69,7 +68,7 @@ pub struct AppConfig {
 pub struct AppData {
     pub config: AppConfig,
     pub pool: DbPool,
-    pub credentials_repo: Arc<dyn CredentialsRepo + Send + Sync>,
+    pub credentials_repo: RedisCredentialsRepo,
     pub jwt_key: HS256Key,
     pub redis_conn_factory: Option<Client>,
     pub redis_conn_manager: Option<ConnectionManager>,

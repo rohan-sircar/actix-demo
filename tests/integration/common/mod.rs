@@ -3,6 +3,7 @@ use actix_demo::actions::misc::create_database_if_needed;
 use actix_demo::models::roles::RoleEnum;
 use actix_demo::models::users::{NewUser, Password, Username};
 use actix_demo::telemetry::DomainRootSpanBuilder;
+use actix_demo::utils::redis_credentials_repo::RedisCredentialsRepo;
 use actix_demo::{utils, AppConfig, AppData};
 use actix_web::dev::ServiceResponse;
 use actix_web::test::TestRequest;
@@ -39,7 +40,6 @@ use actix_http::Request;
 use actix_test::TestServer;
 use actix_web::body::MessageBody;
 use actix_web::{dev::*, Error as AxError};
-use std::sync::Arc;
 
 pub const DEFAULT_USER: &str = "admin";
 
@@ -204,16 +204,10 @@ pub async fn app_data(
 
     let redis_prefix = Box::new(utils::get_redis_prefix("app"));
 
-    let credentials_repo = Arc::new(
-        actix_demo::utils::redis_credentials_repo::RedisCredentialsRepo::new(
-            redis_prefix(&"user-sessions"),
-            cm.clone(),
-        ),
-    );
+    let credentials_repo =
+        RedisCredentialsRepo::new(redis_prefix(&"user-sessions"), cm.clone());
 
     let key = HS256Key::from_bytes("test".as_bytes());
-
-    let redis_prefix = Box::new(utils::get_redis_prefix("app"));
 
     let data = Data::new(AppData {
         config,

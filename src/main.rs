@@ -9,7 +9,6 @@ use diesel::r2d2::ConnectionManager;
 use diesel_migrations::{FileBasedMigrations, MigrationHarness};
 use diesel_tracing::pg::InstrumentedPgConnection;
 use jwt_simple::prelude::HS256Key;
-use std::sync::Arc;
 use tracing::subscriber::set_global_default;
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer};
@@ -66,10 +65,8 @@ async fn main() -> anyhow::Result<()> {
 
     let redis_prefix = Box::new(utils::get_redis_prefix("app"));
 
-    let credentials_repo = Arc::new(RedisCredentialsRepo::new(
-        redis_prefix(&"user-sessions"),
-        cm.clone(),
-    ));
+    let credentials_repo =
+        RedisCredentialsRepo::new(redis_prefix(&"user-sessions"), cm.clone());
     let jwt_key = HS256Key::from_bytes(env_config.jwt_key.as_bytes());
 
     let app_data = Data::new(AppData {
