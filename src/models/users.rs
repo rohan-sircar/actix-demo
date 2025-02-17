@@ -107,13 +107,12 @@ pub struct UserWithRoles {
 
 impl UserWithRoles {
     pub fn from_user(user: &User, roles: &[RoleEnum]) -> UserWithRoles {
-        let mut user_value = serde_json::to_value(user).unwrap();
-        let roles = serde_json::to_value(roles).unwrap();
-        let _ = user_value
-            .as_object_mut()
-            .unwrap()
-            .insert("roles".to_owned(), roles);
-        serde_json::from_value(user_value).unwrap()
+        UserWithRoles {
+            id: user.id,
+            username: user.username.clone(),
+            created_at: user.created_at,
+            roles: roles.to_vec(),
+        }
     }
 }
 
