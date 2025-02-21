@@ -57,7 +57,7 @@ mod tests {
             let req = test::TestRequest::post()
                 .append_header((header::CONTENT_TYPE, "application/json"))
                 .uri("/api/cmd")
-                .with_token(token.clone())
+                .with_token(&token)
                 .set_payload(r#"{"args":[]}"#.as_bytes())
                 .to_request();
             let resp = test_app.call(req).await.unwrap();
@@ -72,7 +72,7 @@ mod tests {
 
             let req = test::TestRequest::get()
                 .uri(&format!("/api/cmd/{job_id}"))
-                .with_token(token.clone())
+                .with_token(&token)
                 .to_request();
             let resp = test_app.call(req).await.unwrap();
             assert_eq!(resp.status(), StatusCode::OK);

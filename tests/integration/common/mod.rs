@@ -340,11 +340,11 @@ pub async fn test_with_redis() -> anyhow::Result<(String, ContainerAsync<Redis>)
 }
 
 pub trait WithToken {
-    fn with_token(self, token: String) -> Self;
+    fn with_token(self, token: &str) -> Self;
 }
 
 impl WithToken for TestRequest {
-    fn with_token(self, token: String) -> Self {
+    fn with_token(self, token: &str) -> Self {
         self.append_header(("Authorization", format! {"Bearer {}", token}))
     }
 }
