@@ -62,6 +62,9 @@ pub async fn validate_token(
         })?;
 
     if token.eq(&session_token) {
+        // Refresh TTL on valid token
+        let ttl_seconds: u64 = 1800; // 30 minutes
+        credentials_repo.save(&user_id, &token, ttl_seconds).await?;
         Ok(())
     } else {
         Err(DomainError::new_auth_error("Invalid token".to_owned()))
@@ -118,17 +121,17 @@ pub async fn login(
             roles: user.roles,
         };
         let claims =
-            Claims::with_custom_claims(auth_data, Duration::from_days(365));
+            Claims::with_custom_claims(auth_data, Duration::from_days(30));
         let token = app_data.jwt_key.authenticate(claims).map_err(|err| {
             DomainError::anyhow_auth("Failed to deserialize token", err)
         })?;
 
-        let _ = credentials_repo.save(&user.id, &token).await?;
+        let ttl_seconds: u64 = 86400; // 24 hours
+        let _ = credentials_repo.save(&user.id, &token, ttl_seconds).await?;
         Ok(token)
     } else {
         Err(DomainError::new_auth_error("Wrong password".to_owned()))
     }?;
-
     Ok(HttpResponse::Ok()
         .insert_header(("X-AUTH-TOKEN", token))
         .finish())

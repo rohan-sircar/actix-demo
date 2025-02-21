@@ -31,12 +31,17 @@ impl RedisCredentialsRepo {
         &self,
         user_id: &UserId,
         jwt: &str,
+        ttl_seconds: u64,
     ) -> Result<(), DomainError> {
         {
             let _ = self
                 .redis
                 .clone()
-                .set::<String, &str, ()>(self.get_key(user_id), jwt)
+                .set_ex::<String, &str, ()>(
+                    self.get_key(user_id),
+                    jwt,
+                    ttl_seconds,
+                )
                 .await?;
         }
         Ok(())
