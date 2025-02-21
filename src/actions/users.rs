@@ -36,7 +36,6 @@ pub fn get_roles_for_users(
         .map(|user| {
             get_roles_for_user(&user.id, conn)
                 .map(|roles| UserWithRoles::from_user(&user, &roles))
-                .map_err(DomainError::from)
         })
         .collect::<Result<Vec<UserWithRoles>, DomainError>>()
 }
