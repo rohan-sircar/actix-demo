@@ -40,7 +40,6 @@ pub async fn ws(
 
     let _ = tracing::info!("Websocket connection initiated");
 
-    // let credentials_repo = app_data.credentials_repo.as_ref();
     let session2 = session.clone();
     let cm = utils::get_redis_conn(app_data.clone().into_inner()).await?;
 
@@ -50,7 +49,7 @@ pub async fn ws(
     let handles = Rc::new(RefCell::new(Vec::new()));
 
     let _ = tracing::info!("Starting message receiver");
-    let msg_recv_fib = Rc::new(actix_rt::spawn(
+    let msg_receiver = Rc::new(actix_rt::spawn(
         async move {
             let res =
                 utils::ws::msg_receive_loop(user_id, cm, session2, app_data2)
@@ -70,14 +69,14 @@ pub async fn ws(
         .instrument(tracing::info_span!("msg_receive_loop")),
     ));
     let _ = {
-        handles.borrow_mut().push(msg_recv_fib.clone());
+        handles.borrow_mut().push(msg_receiver.clone());
     };
 
     let session2 = session.clone();
     let mut pub_cm =
         utils::get_redis_conn(app_data.clone().into_inner()).await?;
     let _ = tracing::info!("Connected to Redis PubSub");
-    let handle2 = Rc::new(actix_rt::spawn(
+    let ws_loop = Rc::new(actix_rt::spawn(
         async move {
             tracing::info!("Starting websocket loop");
             let res = utils::ws::ws_loop(
@@ -102,15 +101,15 @@ pub async fn ws(
             };
 
             let _ = session2.close(None).await;
-            let _ = msg_recv_fib.abort();
+            let _ = msg_receiver.abort();
         }
         .instrument(tracing::info_span!("ws_loop")),
     ));
     let _ = {
-        handles.borrow_mut().push(handle2);
+        handles.borrow_mut().push(ws_loop);
     };
     let mut session2 = session.clone();
-    actix_rt::spawn(
+    let _hb = actix_rt::spawn(
         async move {
             loop {
                 sleep(Duration::from_secs(30)).await;

@@ -79,19 +79,30 @@ pub mod ws_utils {
     pub async fn ws_take_one(
         ws: &mut WsClient,
     ) -> anyhow::Result<WsServerEvent> {
-        match ws.next().await {
-            Some(Ok(Frame::Text(txt))) => {
-                let server_msg = serde_json::from_str::<WsServerEvent>(
-                    std::str::from_utf8(&txt)?,
-                )?;
-
-                Ok(server_msg)
+        loop {
+            match ws.next().await {
+                Some(Ok(Frame::Text(txt))) => {
+                    let server_msg = serde_json::from_str::<WsServerEvent>(
+                        std::str::from_utf8(&txt)?,
+                    )?;
+                    return Ok(server_msg);
+                }
+                Some(Ok(Frame::Ping(_))) => {
+                    // Ignore ping frames from heartbeat
+                    // add log message here
+                    tracing::info!("Discarding ping message");
+                    continue;
+                }
+                Some(Ok(frm)) => {
+                    return Err(anyhow!(
+                        "received wrong message frame: {frm:?}"
+                    ));
+                }
+                Some(Err(err)) => {
+                    return Err(anyhow!("could not get ws message: {err:?}"))
+                }
+                None => return Err(anyhow!("could not get ws message")),
             }
-            Some(Ok(frm)) => {
-                Err(anyhow!("received wrong message frame: {frm:?}"))
-            }
-            Some(Err(err)) => Err(anyhow!("could not get ws message: {err:?}")),
-            None => Err(anyhow!("could not get ws message")),
         }
     }
 }

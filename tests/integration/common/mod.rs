@@ -53,7 +53,7 @@ pub fn echo_bin_file() -> BinFile {
     BinFile {
         location: "/tmp/my-echo.sh".to_owned(),
         contents: r#"#!/bin/bash
-
+sleep 2
 echo "hello world $1 $2";
 "#
         .to_owned(),
