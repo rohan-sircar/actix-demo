@@ -62,7 +62,7 @@ where
                     tracing::error!("Did not find message key in response");
                     "Did not find message key in response".to_string()
                 });
-                
+
                 match serde_json::from_str::<T>(&msg) {
                     Ok(msg) => RedisReply {
                         id: m.id,
