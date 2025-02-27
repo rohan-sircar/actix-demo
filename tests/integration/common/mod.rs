@@ -12,6 +12,7 @@ use actix_web::{test, web};
 
 use actix_web::web::Data;
 use anyhow::Context;
+use awc::Client;
 use derive_builder::Builder;
 use diesel::r2d2::{self, ConnectionManager};
 use diesel_migrations::{FileBasedMigrations, MigrationHarness};
@@ -36,7 +37,7 @@ use actix_demo::configure_app;
 
 use testcontainers_modules::testcontainers::ImageExt;
 
-use actix_http::Request;
+use actix_http::{header, Request};
 use actix_test::TestServer;
 use actix_web::body::MessageBody;
 use actix_web::{dev::*, Error as AxError};
@@ -347,4 +348,45 @@ impl WithToken for TestRequest {
     fn with_token(self, token: &str) -> Self {
         self.append_header(("Authorization", format! {"Bearer {}", token}))
     }
+}
+
+pub async fn get_http_token(
+    addr: &str,
+    username: &str,
+    password: &str,
+    client: &Client,
+) -> anyhow::Result<String> {
+    let resp = client
+        .post(format!("http://{addr}/api/login"))
+        .insert_header((header::CONTENT_TYPE, "application/json"))
+        .send_body(format!(
+            r#"{{"username":"{username}","password":"{password}"}}"#
+        ))
+        .await
+        .map_err(|err| anyhow::anyhow!("{err}"))?;
+    let token = resp
+        .headers()
+        .get("X-AUTH-TOKEN")
+        .unwrap()
+        .to_str()?
+        .to_owned();
+    Ok(token)
+}
+
+pub async fn create_http_user(
+    addr: &str,
+    username: &str,
+    password: &str,
+    client: &Client,
+) -> anyhow::Result<()> {
+    let _ = client
+        .post(format!("http://{addr}/api/registration"))
+        .insert_header(("content-type", "application/json"))
+        .send_body(format!(
+            r#"{{"username":"{username}","password":"{password}"}}"#
+        ))
+        .await
+        .map_err(|err| anyhow::anyhow!("{err}"))?;
+
+    Ok(())
 }

@@ -61,8 +61,10 @@ impl ResponseError for DomainError {
                 HttpResponse::InternalServerError()
                     .json(ErrorResponse::new("Blocking Error".to_owned()))
             }
-            DomainError::AuthError { message: _ } => HttpResponse::Forbidden()
-                .json(ErrorResponse::new(self.to_string())),
+            DomainError::AuthError { message: _ } => {
+                HttpResponse::Unauthorized()
+                    .json(ErrorResponse::new(self.to_string()))
+            }
             DomainError::FieldValidationError { message: _ } => {
                 HttpResponse::BadRequest()
                     .json(ErrorResponse::new(self.to_string()))
