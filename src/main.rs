@@ -73,6 +73,8 @@ async fn main() -> anyhow::Result<()> {
         config: AppConfig {
             hash_cost: env_config.hash_cost,
             job_bin_path: env_config.job_bin_path,
+            // TODO Take from env
+            auth_rate_limit: 60,
         },
         pool,
         credentials_repo,

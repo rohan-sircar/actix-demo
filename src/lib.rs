@@ -68,6 +68,7 @@ pub struct EnvConfig {
 pub struct AppConfig {
     pub hash_cost: u32,
     pub job_bin_path: String,
+    pub auth_rate_limit: u64,
 }
 
 pub struct AppData {
@@ -104,7 +105,7 @@ pub fn configure_app(
             .expect("Redis connection required for rate limiting");
         let backend = RedisBackend::builder(redis_cm).build();
         let input_fn = SimpleInputFunctionBuilder::new(
-            std::time::Duration::from_secs(60),
+            std::time::Duration::from_secs(app_data.config.auth_rate_limit),
             5,
         )
         .real_ip_key()

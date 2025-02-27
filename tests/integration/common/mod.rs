@@ -156,6 +156,7 @@ pub async fn app_data(
     let config = AppConfig {
         hash_cost: 4,
         job_bin_path: options.bin_file.location.clone(),
+        auth_rate_limit: 2,
     };
 
     let client = redis::Client::open(redis_connstr)
