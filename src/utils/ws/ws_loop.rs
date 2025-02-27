@@ -5,11 +5,11 @@ use crate::{
     models::ws::WsServerEvent, utils, AppData,
 };
 
+use utils::ws;
+
 use actix_ws::{Message, MessageStream, Session};
 use futures::StreamExt;
 use redis::aio::ConnectionManager;
-
-use super::handlers::message_handler;
 
 pub async fn ws_loop(
     mut session: Session,
@@ -29,7 +29,7 @@ pub async fn ws_loop(
                 tracing::info!("Received message");
                 tracing::debug!("Message content: {}", s);
                 let res = match serde_json::from_str::<WsClientEvent>(&s) {
-                    Ok(ws_msg) => Ok(message_handler::process_msg(
+                    Ok(ws_msg) => Ok(ws::process_client_msg(
                         ws_msg,
                         session.clone(),
                         conn,
