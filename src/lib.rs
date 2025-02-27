@@ -25,6 +25,7 @@ use actix_web::web::{Data, ServiceConfig};
 use actix_web::{web, App, HttpServer};
 use actix_web_grants::GrantsMiddleware;
 use actix_web_httpauth::middleware::HttpAuthentication;
+use errors::DomainError;
 use jwt_simple::prelude::HS256Key;
 use redis::aio::ConnectionManager;
 use redis::Client;
@@ -73,6 +74,16 @@ pub struct AppData {
     pub redis_conn_factory: Option<Client>,
     pub redis_conn_manager: Option<ConnectionManager>,
     pub redis_prefix: RedisPrefixFn,
+}
+
+impl AppData {
+    pub fn get_redis_conn(&self) -> Result<ConnectionManager, DomainError> {
+        self.redis_conn_manager.clone().ok_or_else(|| {
+            DomainError::new_internal_error(
+                "Redis connection not initialized".to_owned(),
+            )
+        })
+    }
 }
 
 pub fn default_hash_cost() -> u32 {

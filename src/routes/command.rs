@@ -30,7 +30,7 @@ pub async fn run_command(
     app_data: web::Data<AppData>,
     payload: web::Json<RunCommandRequest>,
 ) -> Result<HttpResponse, DomainError> {
-    let mut conn = app_data.redis_conn_manager.clone().unwrap();
+    let mut conn = app_data.get_redis_conn()?;
     let () = conn.publish("hc", "hc").await?;
     // let job_id =
     //     uuid::Uuid::from_str("319fe476-c767-4788-96cf-dd5a52006231").unwrap();
@@ -42,10 +42,26 @@ pub async fn run_command(
     let abort_chan_name = redis_prefix(&format!("job.{job_id}.abort"));
     let payload = payload.into_inner();
     let args = payload.args;
-    let user_id = UserId::from_str(
-        req.headers().get("x-auth-user").unwrap().to_str().unwrap(),
-    )
-    .unwrap();
+    let user_id = req
+        .headers()
+        .get("x-auth-user")
+        .ok_or_else(|| {
+            DomainError::new_auth_error("Missing x-auth-user header".to_owned())
+        })
+        .and_then(|hv| {
+            hv.to_str().map_err(|err| {
+                DomainError::new_bad_input_error(format!(
+                    "x-auth-user header is not a valid UTF-8 string: {err}"
+                ))
+            })
+        })
+        .and_then(|str| {
+            UserId::from_str(str).map_err(|err| {
+                DomainError::new_bad_input_error(format!(
+                    "Invalid UserId format in x-auth-user header: {err}"
+                ))
+            })
+        })?;
 
     let pool = app_data.pool.clone();
     let pool2 = pool.clone();
@@ -202,7 +218,7 @@ pub async fn abort_command(
     app_data: web::Data<AppData>,
     job_id: web::Path<String>,
 ) -> Result<HttpResponse, DomainError> {
-    let mut conn = app_data.redis_conn_manager.clone().unwrap();
+    let mut conn = app_data.get_redis_conn()?;
     let job_id = job_id.into_inner();
     // let job_id =
     //     uuid::Uuid::from_str("319fe476-c767-4788-96cf-dd5a52006231").unwrap();

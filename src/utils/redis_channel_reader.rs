@@ -58,8 +58,11 @@ where
             .into_iter()
             .flat_map(|x| x.ids.into_iter())
             .map(|m| {
-                let msg = m.get::<String>("message").unwrap();
-                match serde_json::from_str::<T>(&msg) {
+                let msg = m.get::<String>("message").unwrap_or_else(|| {
+                    tracing::error!("Did not find message key in response");
+                    "Did not find message key in response".to_string()
+                });
+                let res = match serde_json::from_str::<T>(&msg) {
                     Ok(msg) => RedisReply {
                         id: m.id,
                         kind: RedisReplyKind::Ok { data: msg },
@@ -70,7 +73,8 @@ where
                             cause: format!("Error parsing json - {err}"),
                         },
                     },
-                }
+                };
+                res
             })
             .collect::<Vec<_>>();
         let _ = if items.last().is_some() {
