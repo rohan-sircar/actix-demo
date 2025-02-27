@@ -25,7 +25,7 @@ pub async fn get_pubsub(app_data: Arc<AppData>) -> Result<PubSub, DomainError> {
     Ok(client.get_async_pubsub().await?)
 }
 
-pub async fn get_redis_conn(
+pub async fn get_new_redis_conn(
     app_data: Arc<AppData>,
 ) -> Result<ConnectionManager, DomainError> {
     let client = app_data.redis_conn_factory.clone().ok_or_else(|| {

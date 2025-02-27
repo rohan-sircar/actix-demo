@@ -41,7 +41,7 @@ pub async fn ws(
     let _ = tracing::info!("Websocket connection initiated");
 
     let session2 = session.clone();
-    let cm = utils::get_redis_conn(app_data.clone().into_inner()).await?;
+    let cm = utils::get_new_redis_conn(app_data.clone().into_inner()).await?;
 
     let _ = tracing::info!("Connected to Redis");
 
@@ -74,7 +74,7 @@ pub async fn ws(
 
     let session2 = session.clone();
     let mut pub_cm =
-        utils::get_redis_conn(app_data.clone().into_inner()).await?;
+        utils::get_new_redis_conn(app_data.clone().into_inner()).await?;
     let _ = tracing::info!("Connected to Redis PubSub");
     let ws_loop = Rc::new(actix_rt::spawn(
         async move {
