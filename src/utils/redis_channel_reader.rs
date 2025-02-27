@@ -62,7 +62,8 @@ where
                     tracing::error!("Did not find message key in response");
                     "Did not find message key in response".to_string()
                 });
-                let res = match serde_json::from_str::<T>(&msg) {
+                
+                match serde_json::from_str::<T>(&msg) {
                     Ok(msg) => RedisReply {
                         id: m.id,
                         kind: RedisReplyKind::Ok { data: msg },
@@ -73,8 +74,7 @@ where
                             cause: format!("Error parsing json - {err}"),
                         },
                     },
-                };
-                res
+                }
             })
             .collect::<Vec<_>>();
         let _ = if items.last().is_some() {
