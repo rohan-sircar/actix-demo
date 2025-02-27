@@ -20,6 +20,10 @@ pub mod telemetry;
 pub mod types;
 pub mod utils;
 
+use actix_extensible_rate_limit::{
+    backend::{redis::RedisBackend, SimpleInputFunctionBuilder},
+    RateLimiter,
+};
 use actix_files as fs;
 use actix_web::web::{Data, ServiceConfig};
 use actix_web::{web, App, HttpServer};
@@ -29,7 +33,7 @@ use errors::DomainError;
 use jwt_simple::prelude::HS256Key;
 use redis::aio::ConnectionManager;
 use redis::Client;
-use routes::auth::bearer_auth;
+use routes::auth::{bearer_auth, login};
 use serde::Deserialize;
 use std::io;
 use tracing_actix_web::TracingLogger;
@@ -94,8 +98,26 @@ pub fn configure_app(
     app_data: Data<AppData>,
 ) -> Box<dyn Fn(&mut ServiceConfig)> {
     Box::new(move |cfg: &mut ServiceConfig| {
+        // Configure rate limiter for login endpoint
+        let redis_cm = app_data
+            .get_redis_conn()
+            .expect("Redis connection required for rate limiting");
+        let backend = RedisBackend::builder(redis_cm).build();
+        let input_fn = SimpleInputFunctionBuilder::new(
+            std::time::Duration::from_secs(60),
+            5,
+        )
+        .real_ip_key()
+        .build();
+
+        let login_limiter = RateLimiter::builder(backend, input_fn).build();
+
         cfg.app_data(app_data.clone())
-            .service(routes::auth::login)
+            .service(
+                web::resource("/api/login")
+                    .wrap(login_limiter)
+                    .route(web::post().to(login)), // reference the function directly
+            )
             .service(routes::users::add_user)
             .service(web::scope("/ws").route("", web::get().to(routes::ws::ws)))
             // .service(routes::auth::logout)
