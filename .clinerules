@@ -1,0 +1,23 @@
+## Instructions for AI assistants
+
+- Use idiomatic Rust always
+  - e.g. Do not use `return`, try to convert the error to a value. If it does
+    not seem possible, ask the user what they would like to do.
+- In closures, keep the parameter name of the closure small e.g. `hv` instead of
+  `header_value`
+- For error handling, consult `src/errors.rs` for built-in error types. Convert
+  occurences of `.unwrap` where applicable.
+  - Always use built in rust methods like `and_then` and `ok_or_else` instead of
+    nesting match statements when handling multiple consecutive errors on a value
+  - When returning the error value as `DomainError`, always remember to include
+    the error value as part of the error
+    string e.g.
+  ```rust
+    .and_then(|hv| {
+            hv.to_str().map_err(|err| {
+                DomainError::new_bad_input_error(format!(
+                    "x-auth-user header is not a valid UTF-8 string: {err}"
+                ))
+            })
+        })
+  ```
