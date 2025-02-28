@@ -58,19 +58,21 @@ pub enum LoggerFormat {
 pub struct EnvConfig {
     pub database_url: String,
     pub http_host: String,
-    #[serde(default = "default_hash_cost")]
+    #[serde(default = "models::defaults::default_hash_cost")]
     pub hash_cost: u32,
     pub logger_format: LoggerFormat,
     pub jwt_key: String,
     pub redis_url: String,
     pub job_bin_path: String,
-    #[serde(default = "default_rate_limit_auth_max_requests")]
+    #[serde(
+        default = "models::defaults::default_rate_limit_auth_max_requests"
+    )]
     pub rate_limit_auth_max_requests: u32,
-    #[serde(default = "default_rate_limit_auth_window_secs")]
+    #[serde(default = "models::defaults::default_rate_limit_auth_window_secs")]
     pub rate_limit_auth_window_secs: u64,
-    #[serde(default = "default_rate_limit_api_max_requests")]
+    #[serde(default = "models::defaults::default_rate_limit_api_max_requests")]
     pub rate_limit_api_max_requests: u32,
-    #[serde(default = "default_rate_limit_api_window_secs")]
+    #[serde(default = "models::defaults::default_rate_limit_api_window_secs")]
     pub rate_limit_api_window_secs: u64,
 }
 
@@ -79,10 +81,6 @@ pub struct AppConfig {
     pub hash_cost: u32,
     pub job_bin_path: String,
     pub rate_limit: RateLimitConfig,
-    // TODO Take from env
-    // pub rate_limit_key: String,
-    // pub auth_rate_limit_window: u64,
-    // pub auth_rate_limit_window: u64,
 }
 
 pub struct AppData {
@@ -103,26 +101,6 @@ impl AppData {
             )
         })
     }
-}
-
-pub fn default_hash_cost() -> u32 {
-    8
-}
-
-pub fn default_rate_limit_auth_max_requests() -> u32 {
-    5
-}
-
-pub fn default_rate_limit_auth_window_secs() -> u64 {
-    120
-}
-
-pub fn default_rate_limit_api_max_requests() -> u32 {
-    500
-}
-
-pub fn default_rate_limit_api_window_secs() -> u64 {
-    60
 }
 
 fn build_input_function(

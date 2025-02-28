@@ -1,3 +1,4 @@
+pub mod defaults;
 pub mod misc;
 pub mod rate_limit;
 pub mod roles;

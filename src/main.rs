@@ -89,8 +89,6 @@ async fn main() -> anyhow::Result<()> {
             hash_cost: env_config.hash_cost,
             job_bin_path: env_config.job_bin_path,
             rate_limit: rate_limit_config,
-            // TODO Take from env
-            // auth_rate_limit_window: 60,
         },
         pool,
         credentials_repo,
