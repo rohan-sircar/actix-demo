@@ -7,7 +7,6 @@ name: Continuous Integration
 jobs:
   check:
     name: Check
-    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
@@ -23,7 +22,6 @@ jobs:
 
   test:
     name: Test Suite
-    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
@@ -41,7 +39,6 @@ jobs:
 
   lints:
     name: Lints
-    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
