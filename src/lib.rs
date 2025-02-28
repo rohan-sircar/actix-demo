@@ -31,9 +31,10 @@ use actix_web_grants::GrantsMiddleware;
 use actix_web_httpauth::middleware::HttpAuthentication;
 use errors::DomainError;
 use jwt_simple::prelude::HS256Key;
+use rand::{distributions::Alphanumeric, Rng};
 use redis::aio::ConnectionManager;
 use redis::Client;
-use routes::auth::{bearer_auth, login};
+use routes::auth::bearer_auth;
 use serde::Deserialize;
 use std::io;
 use tracing_actix_web::TracingLogger;
@@ -70,6 +71,7 @@ pub struct AppConfig {
     pub job_bin_path: String,
     pub rate_limit_key: String,
     pub auth_rate_limit_window: u64,
+    // pub auth_rate_limit_window: u64,
 }
 
 pub struct AppData {
@@ -96,53 +98,92 @@ pub fn default_hash_cost() -> u32 {
     8
 }
 
+fn build_input_function(
+    app_data: &web::Data<AppData>,
+    input_fn_builder: SimpleInputFunctionBuilder,
+) -> SimpleInputFunctionBuilder {
+    if app_data.config.rate_limit_key == "ip" {
+        input_fn_builder.real_ip_key()
+    } else {
+        let random_suffix: String = rand::thread_rng()
+            .sample_iter(&Alphanumeric)
+            .take(10)
+            .map(char::from)
+            .collect();
+        let unique_key =
+            format!("{}-{}", app_data.config.rate_limit_key, random_suffix);
+        input_fn_builder.custom_key(&unique_key)
+    }
+}
+
 pub fn configure_app(
     app_data: Data<AppData>,
 ) -> Box<dyn Fn(&mut ServiceConfig)> {
     Box::new(move |cfg: &mut ServiceConfig| {
         // Configure rate limiter for login endpoint
-        let redis_cm = app_data
-            .get_redis_conn()
-            .expect("Redis connection required for rate limiting");
-        let backend = RedisBackend::builder(redis_cm).build();
-        let input_fn_builder = SimpleInputFunctionBuilder::new(
-            std::time::Duration::from_secs(
-                app_data.config.auth_rate_limit_window,
-            ),
-            5,
-        );
-        let input_fn = if app_data.config.rate_limit_key == "ip" {
-            input_fn_builder.real_ip_key().build()
-        } else {
-            input_fn_builder
-                .custom_key(&app_data.config.rate_limit_key)
+        let login_limiter = {
+            let redis_cm = app_data
+                .get_redis_conn()
+                .expect("Redis connection required for rate limiting");
+            let backend = RedisBackend::builder(redis_cm).build();
+            let input_fn_builder = SimpleInputFunctionBuilder::new(
+                std::time::Duration::from_secs(
+                    app_data.config.auth_rate_limit_window,
+                ),
+                5,
+            );
+            let input_fn =
+                build_input_function(&app_data, input_fn_builder).build();
+            RateLimiter::builder(backend, input_fn)
+                // Rollback rate limit count if response status is not 401 (Unauthorized)
+                // This means the login was successful
+                .rollback_condition(Some(|status| {
+                    status != actix_web::http::StatusCode::UNAUTHORIZED
+                }))
                 .build()
         };
 
-        let login_limiter = RateLimiter::builder(backend, input_fn)
-            // Rollback rate limit count if response status is not 401 (Unauthorized)
-            // This means the login was successful
-            .rollback_condition(Some(|status| {
-                status != actix_web::http::StatusCode::UNAUTHORIZED
-            }))
-            .build();
+        // Configure rate limiter for other endpoints
+        let api_rate_limiter = || {
+            let redis_cm = app_data
+                .get_redis_conn()
+                .expect("Redis connection required for rate limiting");
+            let backend = RedisBackend::builder(redis_cm).build();
+            let input_fn_builder = SimpleInputFunctionBuilder::new(
+                std::time::Duration::from_secs(60),
+                200,
+            );
+            let input_fn =
+                build_input_function(&app_data, input_fn_builder).build();
+            RateLimiter::builder(backend, input_fn).build()
+        };
 
         cfg.app_data(app_data.clone())
             .service(
                 web::resource("/api/login")
                     .wrap(login_limiter)
-                    .route(web::post().to(login)), // reference the function directly
+                    .route(web::post().to(routes::auth::login)), // reference the function directly
             )
-            .service(routes::users::add_user)
-            .service(web::scope("/ws").route("", web::get().to(routes::ws::ws)))
+            .service(
+                web::resource("/api/registration")
+                    .wrap(api_rate_limiter())
+                    .route(web::post().to(routes::users::add_user)),
+            )
+            .service(
+                web::scope("/ws")
+                    .wrap(api_rate_limiter())
+                    .route("", web::get().to(routes::ws::ws)),
+            )
+            // TODO Implement logout
             // .service(routes::auth::logout)
             // public endpoint - not implemented yet
-            .service(web::scope("/api/public").route(
+            .service(web::scope("/api/public").wrap(api_rate_limiter()).route(
                 "/build-info",
                 web::get().to(routes::misc::build_info_req),
             ))
             .service(
                 web::scope("/api")
+                    .wrap(api_rate_limiter())
                     .wrap(HttpAuthentication::bearer(bearer_auth))
                     .wrap(GrantsMiddleware::with_extractor(
                         routes::auth::extract,
