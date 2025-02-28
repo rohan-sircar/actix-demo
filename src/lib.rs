@@ -31,6 +31,7 @@ use actix_web_grants::GrantsMiddleware;
 use actix_web_httpauth::middleware::HttpAuthentication;
 use errors::DomainError;
 use jwt_simple::prelude::HS256Key;
+use models::rate_limit::{KeyStrategy, RateLimitConfig};
 use rand::{distributions::Alphanumeric, Rng};
 use redis::aio::ConnectionManager;
 use redis::Client;
@@ -69,8 +70,10 @@ pub struct EnvConfig {
 pub struct AppConfig {
     pub hash_cost: u32,
     pub job_bin_path: String,
-    pub rate_limit_key: String,
-    pub auth_rate_limit_window: u64,
+    pub rate_limit: RateLimitConfig,
+    // TODO Take from env
+    // pub rate_limit_key: String,
+    // pub auth_rate_limit_window: u64,
     // pub auth_rate_limit_window: u64,
 }
 
@@ -102,7 +105,7 @@ fn build_input_function(
     app_data: &web::Data<AppData>,
     input_fn_builder: SimpleInputFunctionBuilder,
 ) -> SimpleInputFunctionBuilder {
-    if app_data.config.rate_limit_key == "ip" {
+    if app_data.config.rate_limit.key_strategy == KeyStrategy::Ip {
         input_fn_builder.real_ip_key()
     } else {
         let random_suffix: String = rand::thread_rng()
@@ -110,8 +113,7 @@ fn build_input_function(
             .take(10)
             .map(char::from)
             .collect();
-        let unique_key =
-            format!("{}-{}", app_data.config.rate_limit_key, random_suffix);
+        let unique_key = format!("{}-{}", "test", random_suffix);
         input_fn_builder.custom_key(&unique_key)
     }
 }
@@ -128,9 +130,9 @@ pub fn configure_app(
             let backend = RedisBackend::builder(redis_cm).build();
             let input_fn_builder = SimpleInputFunctionBuilder::new(
                 std::time::Duration::from_secs(
-                    app_data.config.auth_rate_limit_window,
+                    app_data.config.rate_limit.auth.window_secs,
                 ),
-                5,
+                app_data.config.rate_limit.auth.max_requests.into(),
             );
             let input_fn =
                 build_input_function(&app_data, input_fn_builder).build();
@@ -150,8 +152,10 @@ pub fn configure_app(
                 .expect("Redis connection required for rate limiting");
             let backend = RedisBackend::builder(redis_cm).build();
             let input_fn_builder = SimpleInputFunctionBuilder::new(
-                std::time::Duration::from_secs(60),
-                200,
+                std::time::Duration::from_secs(
+                    app_data.config.rate_limit.api.window_secs,
+                ),
+                app_data.config.rate_limit.api.max_requests.into(),
             );
             let input_fn =
                 build_input_function(&app_data, input_fn_builder).build();

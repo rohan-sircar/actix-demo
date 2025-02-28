@@ -1,5 +1,8 @@
 extern crate actix_demo;
 use actix_demo::actions::misc::create_database_if_needed;
+use actix_demo::models::rate_limit::{
+    KeyStrategy, RateLimitConfig, RateLimitPolicy,
+};
 use actix_demo::models::roles::RoleEnum;
 use actix_demo::models::users::{NewUser, Password, Username};
 use actix_demo::telemetry::DomainRootSpanBuilder;
@@ -144,6 +147,21 @@ impl TestAppOptionsBuilder {
     }
 }
 
+/// Create a new RateLimitConfig with custom settings for tests
+pub fn create_rate_limit_config() -> RateLimitConfig {
+    RateLimitConfig {
+        key_strategy: KeyStrategy::Random,
+        auth: RateLimitPolicy {
+            max_requests: 5,
+            window_secs: 2,
+        },
+        api: RateLimitPolicy {
+            max_requests: 200,
+            window_secs: 60,
+        },
+    }
+}
+
 pub async fn app_data(
     pg_connstr: &str,
     redis_connstr: &str,
@@ -156,8 +174,7 @@ pub async fn app_data(
     let config = AppConfig {
         hash_cost: 4,
         job_bin_path: options.bin_file.location.clone(),
-        rate_limit_key: "test".to_owned(),
-        auth_rate_limit_window: 2,
+        rate_limit: create_rate_limit_config(),
     };
 
     let client = redis::Client::open(redis_connstr)
