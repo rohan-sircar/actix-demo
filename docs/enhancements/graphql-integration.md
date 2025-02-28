@@ -17,8 +17,8 @@ src/
   graphql/
     mod.rs         # Schema root
     schema.rs      # Query/Mutation definitions
-    loaders/       # DataLoader implementations
-      user_loader.rs
+    types/         # GraphQL type mappings
+      user.rs
   routes/
     graphql.rs     # Actix-web route handlers
 ```
@@ -46,6 +46,7 @@ src/
    ```
 
 2. **Error Handling**
+   - Implement `async_graphql::Error` conversions for `DomainError`
    ```rust
    impl From<DomainError> for async_graphql::Error {
        fn from(e: DomainError) -> Self {
@@ -64,26 +65,35 @@ src/
 ### Route Mapping
 
 ```rust
+// src/main.rs
 app.service(
     web::scope("/api")
-        .configure(routes::rest::config)
-        .service(routes::graphql::handler)
-        .service(routes::ws::websocket_route)
+        .configure(routes::rest::config) // Existing REST API
+        .service(routes::graphql::graphql_route) // New GraphQL endpoint
+        .service(routes::ws::websocket_route) // Existing WebSocket
 );
 ```
 
-### Performance
+### Performance Considerations
 
-- Configure Actix thread pool for blocking operations
-- Use DataLoader with bounded concurrency
-- Enable query caching in async-graphql
+- Batch database access using DataLoader pattern
+- Schema complexity analysis with `async-graphql` built-in tools
+- Query depth/recursion limits configured via middleware
 
 ## Implementation Steps
 
 1. [x] Create architecture document
-2. [ ] Add async-graphql dependencies
-3. [ ] Implement GraphQL types for core models
-4. [ ] Create web::block wrapped database accessors
-5. [ ] Configure Actix-web route integration
-6. [ ] Add DataLoader implementations
-7. [ ] Write integration tests
+1. [ ] Add dependencies to Cargo.toml
+1. [ ] Create basic GraphQL schema with User query
+1. [ ] Configure Actix-web route integration
+1. [ ] Add error conversion layer
+1. [ ] Write integration tests in `tests/integration/graphql.rs`
+
+## Compatibility Matrix
+
+| Component     | GraphQL Compatibility |
+| ------------- | --------------------- |
+| REST API      | Full (side-by-side)   |
+| WebSocket     | Full (separate path)  |
+| Diesel Models | Direct mapping        |
+| Auth System   | Shared middleware     |
