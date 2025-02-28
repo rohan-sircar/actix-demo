@@ -84,7 +84,7 @@ mod tests {
                 );
 
                 // Optional: Test rate limit expiration
-                // Sleep for 61 seconds to allow rate limit window to expire
+                // Sleep for window_secs + 1 seconds to allow rate limit window to expire
                 tokio::time::sleep(Duration::from_secs(3)).await;
 
                 // Try login with correct password after window expiration

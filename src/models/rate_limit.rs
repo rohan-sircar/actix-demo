@@ -55,12 +55,12 @@ impl Default for RateLimitConfig {
             key_strategy: KeyStrategy::Ip,
             auth: RateLimitPolicy {
                 max_requests: 5,
-                window_secs: 300, // 5 minutes
+                window_secs: 120, // 2 minutes
                                   // burst: Some(2),
                                   // jitter_secs: Some(1),
             },
             api: RateLimitPolicy {
-                max_requests: 200,
+                max_requests: 500,
                 window_secs: 60,
                 // burst: Some(20),
                 // jitter_secs: Some(1),

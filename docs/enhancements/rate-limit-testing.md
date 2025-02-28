@@ -33,7 +33,7 @@ Below is a nicely formatted outline of the rate limiting test implementation:
      `{"error": "Rate limit exceeded..."}`
 
 3. **Optional: Testing Rate Limit Window Expiration**
-   - Wait for 61 seconds to allow the rate limit window to expire.
+   - Wait for window_secs+1 seconds to allow the rate limit window to expire.
    - Verify that subsequent login requests work as expected (i.e., they no longer trigger the rate limit).
 
 ---
