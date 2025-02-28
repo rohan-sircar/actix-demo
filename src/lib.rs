@@ -68,7 +68,8 @@ pub struct EnvConfig {
 pub struct AppConfig {
     pub hash_cost: u32,
     pub job_bin_path: String,
-    pub auth_rate_limit: u64,
+    pub rate_limit_key: String,
+    pub auth_rate_limit_window: u64,
 }
 
 pub struct AppData {
@@ -104,14 +105,27 @@ pub fn configure_app(
             .get_redis_conn()
             .expect("Redis connection required for rate limiting");
         let backend = RedisBackend::builder(redis_cm).build();
-        let input_fn = SimpleInputFunctionBuilder::new(
-            std::time::Duration::from_secs(app_data.config.auth_rate_limit),
+        let input_fn_builder = SimpleInputFunctionBuilder::new(
+            std::time::Duration::from_secs(
+                app_data.config.auth_rate_limit_window,
+            ),
             5,
-        )
-        .real_ip_key()
-        .build();
+        );
+        let input_fn = if app_data.config.rate_limit_key == "ip" {
+            input_fn_builder.real_ip_key().build()
+        } else {
+            input_fn_builder
+                .custom_key(&app_data.config.rate_limit_key)
+                .build()
+        };
 
-        let login_limiter = RateLimiter::builder(backend, input_fn).build();
+        let login_limiter = RateLimiter::builder(backend, input_fn)
+            // Rollback rate limit count if response status is not 401 (Unauthorized)
+            // This means the login was successful
+            .rollback_condition(Some(|status| {
+                status != actix_web::http::StatusCode::UNAUTHORIZED
+            }))
+            .build();
 
         cfg.app_data(app_data.clone())
             .service(
