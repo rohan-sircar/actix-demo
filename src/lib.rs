@@ -64,6 +64,14 @@ pub struct EnvConfig {
     pub jwt_key: String,
     pub redis_url: String,
     pub job_bin_path: String,
+    #[serde(default = "default_rate_limit_auth_max_requests")]
+    pub rate_limit_auth_max_requests: u32,
+    #[serde(default = "default_rate_limit_auth_window_secs")]
+    pub rate_limit_auth_window_secs: u64,
+    #[serde(default = "default_rate_limit_api_max_requests")]
+    pub rate_limit_api_max_requests: u32,
+    #[serde(default = "default_rate_limit_api_window_secs")]
+    pub rate_limit_api_window_secs: u64,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -99,6 +107,22 @@ impl AppData {
 
 pub fn default_hash_cost() -> u32 {
     8
+}
+
+pub fn default_rate_limit_auth_max_requests() -> u32 {
+    5
+}
+
+pub fn default_rate_limit_auth_window_secs() -> u64 {
+    120
+}
+
+pub fn default_rate_limit_api_max_requests() -> u32 {
+    500
+}
+
+pub fn default_rate_limit_api_window_secs() -> u64 {
+    60
 }
 
 fn build_input_function(
