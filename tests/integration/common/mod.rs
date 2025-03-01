@@ -89,7 +89,7 @@ pub fn failing_bin_file() -> BinFile {
 }
 
 static TRACING: Lazy<anyhow::Result<()>> = Lazy::new(|| {
-    let _ = dotenv::dotenv().context("Failed to set up env")?;
+    let _ = dotenvy::dotenv().context("Failed to set up env")?;
     let env_filter = EnvFilter::try_from_env("ACTIX_DEMO_TEST_RUST_LOG")
         .context("Failed to set up env logger")?;
 
