@@ -23,7 +23,7 @@ use tracing_subscriber::{
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
-    let _ = dotenv::dotenv().context("Failed to set up env")?;
+    let _ = dotenvy::dotenv().context("Failed to set up env")?;
 
     let env_config = envy::prefixed("ACTIX_DEMO_")
         .from_env::<EnvConfig>()
