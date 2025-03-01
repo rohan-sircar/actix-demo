@@ -5,6 +5,7 @@ use serde::Deserialize;
 #[serde(rename_all = "snake_case")]
 pub enum KeyStrategy {
     Ip,
+    /// This is only used for tests
     Random,
 }
 
@@ -13,6 +14,7 @@ pub enum KeyStrategy {
 #[serde(rename_all = "snake_case")]
 pub struct RateLimitConfig {
     /// Base key strategy for rate limiting ("ip" or "random")
+    /// This is only used for tests
     pub key_strategy: KeyStrategy,
     /// Authentication endpoint rate limiting policy
     pub auth: RateLimitPolicy,
@@ -29,7 +31,7 @@ pub struct RateLimitPolicy {
     pub max_requests: u32,
     /// Time window in seconds for rate limiting
     pub window_secs: u64,
-    // /// Optional burst capacity beyond the regular rate limit
+    // /// TOD Optional burst capacity beyond the regular rate limit
     // #[serde(default)]
     // pub burst: Option<u32>,
     // /// Optional jitter window in seconds for burst requests
@@ -37,7 +39,7 @@ pub struct RateLimitPolicy {
     // pub jitter_secs: Option<u64>,
 }
 
-// /// Redis-specific configuration for rate limiting storage
+// /// TODO  Redis-specific configuration for rate limiting storage
 // #[derive(Debug, Clone, Deserialize)]
 // pub struct RedisRateLimitConfig {
 //     /// Prefix for Redis keys used in rate limiting
@@ -56,15 +58,15 @@ impl Default for RateLimitConfig {
             auth: RateLimitPolicy {
                 max_requests: 5,
                 window_secs: 120, // 2 minutes
-                                  // burst: Some(2),
-                                  // jitter_secs: Some(1),
             },
             api: RateLimitPolicy {
                 max_requests: 500,
                 window_secs: 60,
+                // TODO sample config
                 // burst: Some(20),
                 // jitter_secs: Some(1),
             },
+            // TODO sample config
             // redis: RedisRateLimitConfig {
             //     key_prefix: "rate_limit".to_string(),
             //     key_ttl_secs: 600, // 10 minutes
