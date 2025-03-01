@@ -25,8 +25,11 @@ use actix_extensible_rate_limit::{
     RateLimiter,
 };
 use actix_files as fs;
-use actix_web::web::{Data, ServiceConfig};
 use actix_web::{web, App, HttpServer};
+use actix_web::{
+    web::{Data, ServiceConfig},
+    HttpResponse,
+};
 use actix_web_grants::GrantsMiddleware;
 use actix_web_httpauth::middleware::HttpAuthentication;
 use errors::DomainError;
@@ -144,6 +147,11 @@ pub fn configure_app(
                 .rollback_condition(Some(|status| {
                     status != actix_web::http::StatusCode::UNAUTHORIZED
                 }))
+                .add_headers()
+                .request_denied_response(|_output| {
+                    tracing::warn!("Reached rate limit for login");
+                    HttpResponse::TooManyRequests().finish()
+                })
                 .build()
         };
 
@@ -161,7 +169,13 @@ pub fn configure_app(
             );
             let input_fn =
                 build_input_function(&app_data, input_fn_builder).build();
-            RateLimiter::builder(backend, input_fn).build()
+            RateLimiter::builder(backend, input_fn)
+                .add_headers()
+                .request_denied_response(|_output| {
+                    tracing::warn!("Reached rate limit for login");
+                    HttpResponse::TooManyRequests().finish()
+                })
+                .build()
         };
 
         cfg.app_data(app_data.clone())
