@@ -46,6 +46,9 @@ use actix_web::body::MessageBody;
 use actix_web::{dev::*, Error as AxError};
 
 pub const DEFAULT_USER: &str = "admin";
+pub const X_RATELIMIT_LIMIT: &str = "x-ratelimit-limit";
+pub const X_RATELIMIT_REMAINING: &str = "x-ratelimit-remaining";
+pub const X_RATELIMIT_RESET: &str = "x-ratelimit-reset";
 
 #[derive(Clone, Debug)]
 pub struct BinFile {

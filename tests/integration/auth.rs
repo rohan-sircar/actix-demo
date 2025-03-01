@@ -64,6 +64,25 @@ mod tests {
                         StatusCode::UNAUTHORIZED,
                         "Expected 401 Unauthorized for failed login attempt"
                     );
+
+                    let headers = resp.headers();
+
+                    // Check for the existence of rate limiting headers
+                    assert!(
+                        headers.contains_key(common::X_RATELIMIT_LIMIT),
+                        "Expected the '{}' header to be present",
+                        common::X_RATELIMIT_LIMIT
+                    );
+                    assert!(
+                        headers.contains_key(common::X_RATELIMIT_REMAINING),
+                        "Expected the '{}' header to be present",
+                        common::X_RATELIMIT_REMAINING
+                    );
+                    assert!(
+                        headers.contains_key(common::X_RATELIMIT_RESET),
+                        "Expected the '{}' header to be present",
+                        common::X_RATELIMIT_RESET
+                    );
                 }
 
                 // Send 6th login attempt which should be rate limited
@@ -77,6 +96,25 @@ mod tests {
                     .await
                     .map_err(|err| anyhow!("{err}"))?;
 
+                let headers = resp.headers();
+
+                // Check for the existence of rate limiting headers
+                assert!(
+                    headers.contains_key(common::X_RATELIMIT_LIMIT),
+                    "Expected the '{}' header to be present",
+                    common::X_RATELIMIT_LIMIT
+                );
+                assert!(
+                    headers.contains_key(common::X_RATELIMIT_REMAINING),
+                    "Expected the '{}' header to be present",
+                    common::X_RATELIMIT_REMAINING
+                );
+                assert!(
+                    headers.contains_key(common::X_RATELIMIT_RESET),
+                    "Expected the '{}' header to be present",
+                    common::X_RATELIMIT_RESET
+                );
+
                 assert_eq!(
                     resp.status(),
                     StatusCode::TOO_MANY_REQUESTS,
@@ -85,7 +123,7 @@ mod tests {
 
                 // Optional: Test rate limit expiration
                 // Sleep for window_secs + 1 seconds to allow rate limit window to expire
-                tokio::time::sleep(Duration::from_secs(3)).await;
+                let _sleep = tokio::time::sleep(Duration::from_secs(3)).await;
 
                 // Try login with correct password after window expiration
                 let resp = client
