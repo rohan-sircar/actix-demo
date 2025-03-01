@@ -8,7 +8,7 @@ use actix_http::header::{HeaderName, HeaderValue};
 use actix_http::Payload;
 use actix_web::dev::ServiceRequest;
 use actix_web::web::{self, Data};
-use actix_web::{post, Error, HttpResponse};
+use actix_web::{Error, HttpResponse};
 use actix_web_httpauth::extractors::bearer::BearerAuth;
 use bcrypt::verify;
 use jwt_simple::prelude::*;
@@ -94,7 +94,6 @@ pub async fn bearer_auth(
 }
 
 #[tracing::instrument(level = "info", skip(app_data))]
-#[post("/api/login")]
 pub async fn login(
     user_login: web::Json<UserLogin>,
     app_data: web::Data<AppData>,

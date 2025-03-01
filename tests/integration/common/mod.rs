@@ -1,5 +1,8 @@
 extern crate actix_demo;
 use actix_demo::actions::misc::create_database_if_needed;
+use actix_demo::models::rate_limit::{
+    KeyStrategy, RateLimitConfig, RateLimitPolicy,
+};
 use actix_demo::models::roles::RoleEnum;
 use actix_demo::models::users::{NewUser, Password, Username};
 use actix_demo::telemetry::DomainRootSpanBuilder;
@@ -12,6 +15,7 @@ use actix_web::{test, web};
 
 use actix_web::web::Data;
 use anyhow::Context;
+use awc::Client;
 use derive_builder::Builder;
 use diesel::r2d2::{self, ConnectionManager};
 use diesel_migrations::{FileBasedMigrations, MigrationHarness};
@@ -36,7 +40,7 @@ use actix_demo::configure_app;
 
 use testcontainers_modules::testcontainers::ImageExt;
 
-use actix_http::Request;
+use actix_http::{header, Request};
 use actix_test::TestServer;
 use actix_web::body::MessageBody;
 use actix_web::{dev::*, Error as AxError};
@@ -143,6 +147,21 @@ impl TestAppOptionsBuilder {
     }
 }
 
+/// Create a new RateLimitConfig with custom settings for tests
+pub fn create_rate_limit_config() -> RateLimitConfig {
+    RateLimitConfig {
+        key_strategy: KeyStrategy::Random,
+        auth: RateLimitPolicy {
+            max_requests: 5,
+            window_secs: 2,
+        },
+        api: RateLimitPolicy {
+            max_requests: 200,
+            window_secs: 60,
+        },
+    }
+}
+
 pub async fn app_data(
     pg_connstr: &str,
     redis_connstr: &str,
@@ -155,6 +174,7 @@ pub async fn app_data(
     let config = AppConfig {
         hash_cost: 4,
         job_bin_path: options.bin_file.location.clone(),
+        rate_limit: create_rate_limit_config(),
     };
 
     let client = redis::Client::open(redis_connstr)
@@ -347,4 +367,45 @@ impl WithToken for TestRequest {
     fn with_token(self, token: &str) -> Self {
         self.append_header(("Authorization", format! {"Bearer {}", token}))
     }
+}
+
+pub async fn get_http_token(
+    addr: &str,
+    username: &str,
+    password: &str,
+    client: &Client,
+) -> anyhow::Result<String> {
+    let resp = client
+        .post(format!("http://{addr}/api/login"))
+        .insert_header((header::CONTENT_TYPE, "application/json"))
+        .send_body(format!(
+            r#"{{"username":"{username}","password":"{password}"}}"#
+        ))
+        .await
+        .map_err(|err| anyhow::anyhow!("{err}"))?;
+    let token = resp
+        .headers()
+        .get("X-AUTH-TOKEN")
+        .unwrap()
+        .to_str()?
+        .to_owned();
+    Ok(token)
+}
+
+pub async fn create_http_user(
+    addr: &str,
+    username: &str,
+    password: &str,
+    client: &Client,
+) -> anyhow::Result<()> {
+    let _ = client
+        .post(format!("http://{addr}/api/registration"))
+        .insert_header(("content-type", "application/json"))
+        .send_body(format!(
+            r#"{{"username":"{username}","password":"{password}"}}"#
+        ))
+        .await
+        .map_err(|err| anyhow::anyhow!("{err}"))?;
+
+    Ok(())
 }
