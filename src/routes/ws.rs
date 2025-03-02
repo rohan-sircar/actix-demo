@@ -125,7 +125,7 @@ pub fn extract_auth_token(headers: &HeaderMap) -> Result<String, DomainError> {
         .get("cookie")
         .and_then(|hv| hv.to_str().ok())
         .ok_or_else(|| {
-            DomainError::new_auth_error("X-AUTH-TOKEN not found".to_owned())
+            DomainError::new_bad_input_error(format!("Cookie header not set"))
         })?;
 
     let token = header
@@ -135,12 +135,6 @@ pub fn extract_auth_token(headers: &HeaderMap) -> Result<String, DomainError> {
             // Try to parse each cookie fragment
             awc::cookie::Cookie::parse_encoded(cookie_str.to_owned()).ok()
         })
-        // .find(|cookie| cookie.name() == "X-AUTH-TOKEN")
-        // .map_err(|err| {
-        //     DomainError::new_bad_input_error(format!(
-        //         "Failed to parse cookies {err}"
-        //     ))
-        // })?
         .find_map(|cookie| {
             if cookie.name() == "X-AUTH-TOKEN" {
                 Some(cookie.value().to_string())
