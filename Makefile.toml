@@ -33,5 +33,15 @@ args = ["test", "--lib"]
 command = "cargo"
 args = ["test", "--test", "integration"]
 
+[tasks.flaky-test]
+command = "cargo"
+args = ["test", "--test", "integration", "--", "--ignored"]
+
+
+[tasks.it-all-test]
+command = "cargo"
+args = ["test", "--test", "integration"]
+dependencies = ["flaky-test"]
+
 [tasks.stage]
 dependencies = ["lint-check", "compile", "test", "it-test"]
