@@ -14,9 +14,6 @@ use serde::Serialize;
 use crate::errors::DomainError;
 use crate::AppData;
 
-mod no_op_rate_limiter;
-pub use self::no_op_rate_limiter::NoopBackend;
-
 mod rate_limit_backend;
 pub use self::rate_limit_backend::RateLimitBackend;
 
