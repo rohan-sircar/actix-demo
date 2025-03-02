@@ -1,4 +1,4 @@
-FROM --platform=${BUILDPLATFORM} rust:1.84 as builder
+FROM --platform=${BUILDPLATFORM} rust:1.85 as builder
 ARG TARGETPLATFORM
 ARG PROFILE=debug
 
@@ -13,7 +13,7 @@ RUN \
 RUN \ 
     case ${TARGETPLATFORM} in \
     "linux/amd64") GCC="gcc"  ;; \
-    "linux/arm64") GCC="gcc-aarch64-linux-gnu"  ;; \
+    "linux/arm64") GCC="g++-aarch64-linux-gnu"  ;; \
     "linux/ppc64le") GCC="gcc-powerpc64le-linux-gnu"  ;; \
     esac && \
     apt-get update && \
@@ -29,7 +29,10 @@ RUN \
     apt-get update && \
     apt-get install -y  \
     libpq-dev:${ARCH} \
-    libz-dev:${ARCH}
+    libz-dev:${ARCH} \
+    cmake:${ARCH} \
+    # clang:${ARCH} \
+    libclang-rt-14-dev:${ARCH}
 
 
 RUN USER=root cargo new --bin actix-demo
@@ -44,7 +47,7 @@ RUN \
     esac && \ 
     case ${TARGETPLATFORM} in \
     "linux/amd64") BUILDFLAGS=""  ;; \
-    "linux/arm64") BUILDFLAGS="-C linker=aarch64-linux-gnu-gcc"  ;; \
+    "linux/arm64") BUILDFLAGS="-C linker=aarch64-linux-gnu-g++"  ;; \
     "linux/ppc64le") BUILDFLAGS="-C linker=powerpc64le-linux-gnu-gcc"  ;; \
     esac && \
     case ${TARGETPLATFORM} in \
@@ -68,7 +71,7 @@ RUN \
     esac && \ 
     case ${TARGETPLATFORM} in \
     "linux/amd64") BUILDFLAGS=""  ;; \
-    "linux/arm64") BUILDFLAGS="-C linker=aarch64-linux-gnu-gcc"  ;; \
+    "linux/arm64") BUILDFLAGS="-C linker=aarch64-linux-gnu-g++"  ;; \
     "linux/ppc64le") BUILDFLAGS="-C linker=powerpc64le-linux-gnu-gcc"  ;; \
     esac && \
     case ${TARGETPLATFORM} in \
