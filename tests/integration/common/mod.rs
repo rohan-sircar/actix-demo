@@ -1,6 +1,5 @@
 extern crate actix_demo;
 use actix_demo::actions::misc::create_database_if_needed;
-use actix_demo::errors::DomainError;
 use actix_demo::models::rate_limit::{
     KeyStrategy, RateLimitConfig, RateLimitPolicy,
 };

@@ -28,14 +28,13 @@ use actix_extensible_rate_limit::{
 use actix_files as fs;
 use actix_http::header::{HeaderName, HeaderValue, RETRY_AFTER};
 
-use actix_web::middleware::{from_fn, ErrorHandlerResponse};
+use actix_web::middleware::from_fn;
 use actix_web::{middleware, web, App, HttpServer};
 use actix_web::{
     web::{Data, ServiceConfig},
     HttpResponse,
 };
 use actix_web_grants::GrantsMiddleware;
-use actix_web_httpauth::middleware::HttpAuthentication;
 use errors::DomainError;
 use jwt_simple::prelude::HS256Key;
 use models::rate_limit::{KeyStrategy, RateLimitConfig};
@@ -43,7 +42,6 @@ use rand::distr::Alphanumeric;
 use rand::Rng;
 use redis::aio::ConnectionManager;
 use redis::Client;
-use routes::auth::bearer_auth;
 use serde::Deserialize;
 use std::io;
 use tracing_actix_web::TracingLogger;
