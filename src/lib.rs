@@ -27,13 +27,14 @@ use actix_extensible_rate_limit::{
 };
 use actix_files as fs;
 use actix_http::header::{HeaderName, HeaderValue, RETRY_AFTER};
-use actix_web::{web, App, HttpServer};
+
+use actix_web::middleware::from_fn;
+use actix_web::{middleware, web, App, HttpServer};
 use actix_web::{
     web::{Data, ServiceConfig},
     HttpResponse,
 };
 use actix_web_grants::GrantsMiddleware;
-use actix_web_httpauth::middleware::HttpAuthentication;
 use errors::DomainError;
 use jwt_simple::prelude::HS256Key;
 use models::rate_limit::{KeyStrategy, RateLimitConfig};
@@ -41,7 +42,6 @@ use rand::distr::Alphanumeric;
 use rand::Rng;
 use redis::aio::ConnectionManager;
 use redis::Client;
-use routes::auth::bearer_auth;
 use serde::Deserialize;
 use std::io;
 use tracing_actix_web::TracingLogger;
@@ -242,10 +242,15 @@ pub fn configure_app(
             .service(
                 web::scope("/api")
                     .wrap(api_rate_limiter())
-                    .wrap(HttpAuthentication::bearer(bearer_auth))
                     .wrap(GrantsMiddleware::with_extractor(
                         routes::auth::extract,
                     ))
+                    .wrap(middleware::Condition::new(
+                        true, // Always enabled
+                        middleware::DefaultHeaders::new()
+                            .add(("Vary", "Cookie")),
+                    ))
+                    .wrap(from_fn(utils::cookie_auth))
                     .route("/cmd", web::post().to(routes::command::run_command))
                     .route(
                         "/cmd/{job_id}",

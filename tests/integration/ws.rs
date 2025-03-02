@@ -16,6 +16,8 @@ use bytestring::ByteString;
 use common::TestAppOptionsBuilder;
 
 pub mod ws_utils {
+    use awc::cookie::Cookie;
+
     use super::*;
     pub type WsClient = Framed<BoxedSocket, Codec>;
 
@@ -29,7 +31,8 @@ pub mod ws_utils {
         client: &Client,
     ) -> anyhow::Result<(ClientResponse, WsClient)> {
         client
-            .ws(format!("http://{addr}/ws?token={token}"))
+            .ws(format!("http://{addr}/ws"))
+            .cookie(Cookie::new("X-AUTH-TOKEN", token))
             .connect()
             .await
             .map_err(|err| anyhow!("{err}"))
@@ -71,7 +74,7 @@ mod tests {
 
     use std::time::Duration;
 
-    use crate::common::{sleep_bin_file, TestAppOptions};
+    use crate::common::{sleep_bin_file, TestAppOptions, WithToken};
 
     use super::*;
     use actix_demo::models::{
@@ -156,10 +159,7 @@ mod tests {
             let mut resp = client
                 .post(format!("http://{addr}/api/cmd"))
                 .append_header((header::CONTENT_TYPE, "application/json"))
-                .append_header((
-                    header::AUTHORIZATION,
-                    format!("Bearer {token}"),
-                ))
+                .with_token(&token)
                 .send_body(r#"{"args":["arg1", "arg2"]}"#)
                 .await
                 .map_err(|err| anyhow!("{err}"))?;
@@ -204,10 +204,7 @@ mod tests {
             let mut resp = client
                 .get(format!("http://{addr}/api/cmd/{job_id}"))
                 .append_header((header::CONTENT_TYPE, "application/json"))
-                .append_header((
-                    header::AUTHORIZATION,
-                    format!("Bearer {token}"),
-                ))
+                .with_token(&token)
                 .send()
                 .await
                 .map_err(|err| anyhow!("{err}"))?;
@@ -249,10 +246,7 @@ mod tests {
             let mut resp = client
                 .post(format!("http://{addr}/api/cmd"))
                 .append_header((header::CONTENT_TYPE, "application/json"))
-                .append_header((
-                    header::AUTHORIZATION,
-                    format!("Bearer {token}"),
-                ))
+                .with_token(&token)
                 .send_body(r#"{"args":[]}"#)
                 .await
                 .map_err(|err| anyhow!("{err}"))?;
@@ -270,10 +264,7 @@ mod tests {
 
             let resp = client
                 .delete(format!("http://{addr}/api/cmd/{job_id}"))
-                .append_header((
-                    header::AUTHORIZATION,
-                    format!("Bearer {token}"),
-                ))
+                .with_token(&token)
                 .send()
                 .await
                 .map_err(|err| anyhow!("{err}"))?;
@@ -284,10 +275,7 @@ mod tests {
 
             let mut resp = client
                 .get(format!("http://{addr}/api/cmd/{job_id}"))
-                .append_header((
-                    header::AUTHORIZATION,
-                    format!("Bearer {token}"),
-                ))
+                .with_token(&token)
                 .send()
                 .await
                 .map_err(|err| anyhow!("{err}"))?;

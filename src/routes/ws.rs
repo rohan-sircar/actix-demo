@@ -1,32 +1,23 @@
 use std::{cell::RefCell, rc::Rc, time::Duration};
 
 use crate::{errors::DomainError, utils, AppData};
+use actix_http::header::HeaderMap;
 use actix_rt::time::sleep;
 use actix_web::{web, HttpRequest, HttpResponse};
 
-use serde::Deserialize;
 use tracing_futures::Instrument;
 
 use super::auth::get_claims;
-
-// pub struct Context {}
-
-#[derive(Clone, Debug, Deserialize)]
-pub struct TokenQuery {
-    pub token: Option<String>,
-}
 
 #[tracing::instrument(level = "info", skip_all, fields(auth_user_id))]
 pub async fn ws(
     req: HttpRequest,
     body: web::Payload,
     app_data: web::Data<AppData>,
-    token: web::Query<TokenQuery>,
 ) -> Result<HttpResponse, actix_web::Error> {
-    let token = token
-        .0
-        .token
-        .ok_or_else(|| DomainError::new_auth_error("need token".to_owned()))?;
+    let headers = req.headers();
+
+    let token = extract_auth_token(headers)?;
 
     let claims = get_claims(&app_data.jwt_key, &token)?;
 
@@ -125,4 +116,35 @@ pub async fn ws(
     );
 
     Ok(response)
+}
+
+/// Extract the X-AUTH-TOKEN from the "cookie" header in the given HttpRequest.
+pub fn extract_auth_token(headers: &HeaderMap) -> Result<String, DomainError> {
+    // Get the raw cookie header string
+    let header = headers
+        .get("cookie")
+        .and_then(|hv| hv.to_str().ok())
+        .ok_or_else(|| {
+            DomainError::new_bad_input_error("Cookie header not set".to_owned())
+        })?;
+
+    let token = header
+        .split(';')
+        .map(|s| s.trim()) // Trim whitespace around each cookie token
+        .filter_map(|cookie_str| {
+            // Try to parse each cookie fragment
+            awc::cookie::Cookie::parse_encoded(cookie_str.to_owned()).ok()
+        })
+        .find_map(|cookie| {
+            if cookie.name() == "X-AUTH-TOKEN" {
+                Some(cookie.value().to_string())
+            } else {
+                None
+            }
+        })
+        .ok_or_else(|| {
+            DomainError::new_auth_error("X-AUTH-TOKEN not found".to_owned())
+        })?;
+
+    Ok(token)
 }
