@@ -7,9 +7,11 @@ use crate::AppData;
 use actix_http::header::{HeaderName, HeaderValue};
 use actix_http::Payload;
 use actix_web::dev::ServiceRequest;
+use actix_web::error::ErrorUnauthorized;
 use actix_web::web::{self, Data};
 use actix_web::{Error, HttpResponse};
 use actix_web_httpauth::extractors::bearer::BearerAuth;
+use awc::cookie::{Cookie, SameSite};
 use bcrypt::verify;
 use jwt_simple::prelude::*;
 
@@ -34,12 +36,17 @@ pub async fn extract(
     req: &mut ServiceRequest,
 ) -> Result<HashSet<RoleEnum>, Error> {
     let app_data = req.app_data::<Data<AppData>>().cloned().unwrap();
-    let bearer = req.extract::<BearerAuth>().await?;
-    let claims = get_claims(&app_data.jwt_key, bearer.token())?;
-    let roles: HashSet<RoleEnum> = claims.custom.roles.into_iter().collect(); // Convert Vec to HashSet
+
+    // Extract token from cookie
+    let cookie = req
+        .cookie("auth_token")
+        .ok_or_else(|| ErrorUnauthorized("Missing auth cookie"))?;
+    let token = cookie.value();
+
+    let claims = get_claims(&app_data.jwt_key, token)?;
+    let roles: HashSet<RoleEnum> = claims.custom.roles.into_iter().collect();
 
     let user_id = claims.custom.user_id.to_string();
-
     req.headers_mut().insert(
         HeaderName::from_static("x-auth-user"),
         HeaderValue::from_str(&user_id).unwrap(),
@@ -134,7 +141,11 @@ pub async fn login(
     } else {
         Err(DomainError::new_auth_error("Wrong password".to_owned()))
     }?;
-    Ok(HttpResponse::Ok()
-        .insert_header(("X-AUTH-TOKEN", token))
-        .finish())
+    let cookie = Cookie::build("auth_token", &token)
+        .http_only(true)
+        .secure(true)
+        .same_site(SameSite::Strict)
+        .path("/")
+        .finish();
+    Ok(HttpResponse::Ok().cookie(cookie).finish())
 }

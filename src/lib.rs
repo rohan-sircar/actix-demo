@@ -27,7 +27,9 @@ use actix_extensible_rate_limit::{
 };
 use actix_files as fs;
 use actix_http::header::{HeaderName, HeaderValue, RETRY_AFTER};
-use actix_web::{web, App, HttpServer};
+
+use actix_web::middleware::{from_fn, ErrorHandlerResponse};
+use actix_web::{middleware, web, App, HttpServer};
 use actix_web::{
     web::{Data, ServiceConfig},
     HttpResponse,
@@ -242,10 +244,16 @@ pub fn configure_app(
             .service(
                 web::scope("/api")
                     .wrap(api_rate_limiter())
-                    .wrap(HttpAuthentication::bearer(bearer_auth))
+                    // .wrap(HttpAuthentication::bearer(bearer_auth))
                     .wrap(GrantsMiddleware::with_extractor(
                         routes::auth::extract,
                     ))
+                    .wrap(middleware::Condition::new(
+                        true, // Always enabled
+                        middleware::DefaultHeaders::new()
+                            .add(("Vary", "Cookie")),
+                    ))
+                    .wrap(from_fn(utils::cookie_auth))
                     .route("/cmd", web::post().to(routes::command::run_command))
                     .route(
                         "/cmd/{job_id}",
