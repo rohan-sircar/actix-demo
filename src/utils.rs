@@ -22,7 +22,7 @@ pub use self::regex::*;
 pub use self::ws::{msg_receive_loop, ws_loop};
 
 mod cookie_auth;
-pub use cookie_auth::{cookie_auth, CookieAuth};
+pub use cookie_auth::{cookie_auth, extract_auth_token, CookieAuth};
 
 pub async fn get_pubsub(app_data: Arc<AppData>) -> Result<PubSub, DomainError> {
     let client = app_data.redis_conn_factory.clone().ok_or_else(|| {

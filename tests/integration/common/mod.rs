@@ -1,5 +1,6 @@
 extern crate actix_demo;
 use actix_demo::actions::misc::create_database_if_needed;
+use actix_demo::errors::DomainError;
 use actix_demo::models::rate_limit::{
     KeyStrategy, RateLimitConfig, RateLimitPolicy,
 };
@@ -16,6 +17,7 @@ use actix_web::{test, web};
 
 use actix_web::web::Data;
 use anyhow::Context;
+use awc::cookie::Cookie;
 use awc::{Client, ClientRequest};
 use derive_builder::Builder;
 use diesel::r2d2::{self, ConnectionManager};
@@ -329,14 +331,10 @@ pub async fn get_token(
         .uri("/api/login")
         .to_request();
     let resp: ServiceResponse<_> = test_app.call(req).await.unwrap();
-    // let body: ApiResponse<String> = test::read_body_json(resp).await;
-    // println!("{:?}", body);
-    resp.headers()
-        .get("X-AUTH-TOKEN")
-        .unwrap()
-        .to_str()
-        .unwrap()
-        .to_string()
+    // Get the underlying HttpResponse
+    let http_resp = resp.response();
+
+    utils::extract_auth_token(http_resp.headers()).unwrap()
 }
 
 pub async fn get_default_token(
@@ -382,13 +380,13 @@ pub trait WithToken {
 
 impl WithToken for TestRequest {
     fn with_token(self, token: &str) -> Self {
-        self.append_header(("Authorization", format! {"Bearer {}", token}))
+        self.cookie(Cookie::new("X-AUTH-TOKEN", token))
     }
 }
 
 impl WithToken for ClientRequest {
     fn with_token(self, token: &str) -> Self {
-        self.append_header(("Authorization", format! {"Bearer {}", token}))
+        self.cookie(Cookie::new("X-AUTH-TOKEN", token))
     }
 }
 
@@ -406,12 +404,7 @@ pub async fn get_http_token(
         ))
         .await
         .map_err(|err| anyhow::anyhow!("{err}"))?;
-    let token = resp
-        .headers()
-        .get("X-AUTH-TOKEN")
-        .unwrap()
-        .to_str()?
-        .to_owned();
+    let token = utils::extract_auth_token(resp.headers())?;
     Ok(token)
 }
 

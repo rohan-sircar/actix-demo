@@ -39,7 +39,7 @@ pub async fn extract(
 
     // Extract token from cookie
     let cookie = req
-        .cookie("auth_token")
+        .cookie("X-AUTH-TOKEN")
         .ok_or_else(|| ErrorUnauthorized("Missing auth cookie"))?;
     let token = cookie.value();
 
@@ -141,7 +141,7 @@ pub async fn login(
     } else {
         Err(DomainError::new_auth_error("Wrong password".to_owned()))
     }?;
-    let cookie = Cookie::build("auth_token", &token)
+    let cookie = Cookie::build("X-AUTH-TOKEN", &token)
         .http_only(true)
         .secure(true)
         .same_site(SameSite::Strict)
