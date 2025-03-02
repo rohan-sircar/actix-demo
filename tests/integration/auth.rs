@@ -77,22 +77,7 @@ mod tests {
 
                     let headers = resp.headers();
 
-                    // Check for the existence of rate limiting headers
-                    assert!(
-                        headers.contains_key(common::X_RATELIMIT_LIMIT),
-                        "Expected the '{}' header to be present",
-                        common::X_RATELIMIT_LIMIT
-                    );
-                    assert!(
-                        headers.contains_key(common::X_RATELIMIT_REMAINING),
-                        "Expected the '{}' header to be present",
-                        common::X_RATELIMIT_REMAINING
-                    );
-                    assert!(
-                        headers.contains_key(common::X_RATELIMIT_RESET),
-                        "Expected the '{}' header to be present",
-                        common::X_RATELIMIT_RESET
-                    );
+                    common::assert_rate_limit_headers(headers);
                 }
 
                 // Send 6th login attempt which should be rate limited
@@ -108,22 +93,7 @@ mod tests {
 
                 let headers = resp.headers();
 
-                // Check for the existence of rate limiting headers
-                assert!(
-                    headers.contains_key(common::X_RATELIMIT_LIMIT),
-                    "Expected the '{}' header to be present",
-                    common::X_RATELIMIT_LIMIT
-                );
-                assert!(
-                    headers.contains_key(common::X_RATELIMIT_REMAINING),
-                    "Expected the '{}' header to be present",
-                    common::X_RATELIMIT_REMAINING
-                );
-                assert!(
-                    headers.contains_key(common::X_RATELIMIT_RESET),
-                    "Expected the '{}' header to be present",
-                    common::X_RATELIMIT_RESET
-                );
+                common::assert_rate_limit_headers(headers);
 
                 assert_eq!(
                     resp.status(),
