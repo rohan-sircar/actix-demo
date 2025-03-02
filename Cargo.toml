@@ -83,8 +83,8 @@ features = ['runtime']
 [dependencies.derive-new]
 version = "0.7.0"
 
-[build-dependencies]
-build-info-build = { version = "0.0.40" }
-
 [dependencies.diesel-derive-newtype]
 version = "2.1.2"
+
+[build-dependencies]
+build-info-build = { version = "0.0.40" }
