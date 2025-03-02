@@ -111,16 +111,17 @@ fn build_input_function(
     app_data: &web::Data<AppData>,
     input_fn_builder: SimpleInputFunctionBuilder,
 ) -> SimpleInputFunctionBuilder {
-    if app_data.config.rate_limit.key_strategy == KeyStrategy::Ip {
-        input_fn_builder.real_ip_key()
-    } else {
-        let random_suffix: String = rand::thread_rng()
-            .sample_iter(&Alphanumeric)
-            .take(10)
-            .map(char::from)
-            .collect();
-        let unique_key = format!("{}-{}", "test", random_suffix);
-        input_fn_builder.custom_key(&unique_key)
+    match app_data.config.rate_limit.key_strategy {
+        KeyStrategy::Ip => input_fn_builder.real_ip_key(),
+        KeyStrategy::Random => {
+            let random_suffix: String = rand::thread_rng()
+                .sample_iter(&Alphanumeric)
+                .take(10)
+                .map(char::from)
+                .collect();
+            let unique_key = format!("{}-{}", "test", random_suffix);
+            input_fn_builder.custom_key(&unique_key)
+        }
     }
 }
 
