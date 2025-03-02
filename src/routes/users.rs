@@ -1,4 +1,4 @@
-use actix_web::{post, web, HttpResponse};
+use actix_web::{web, HttpResponse};
 
 use crate::actions;
 use crate::models::misc::{Pagination, SearchQuery};
@@ -77,7 +77,6 @@ pub async fn search_users(
 }
 
 /// Inserts a new user
-#[post("/api/registration")]
 #[tracing::instrument(level = "info", skip(app_data))]
 pub async fn add_user(
     app_data: web::Data<AppData>,

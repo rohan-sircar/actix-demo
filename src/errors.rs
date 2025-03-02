@@ -19,7 +19,8 @@ custom_error! { #[derive(new)] #[allow(clippy::enum_variant_names)]
     WsProtocolError {source: actix_ws::ProtocolError} = "WS Protocol Error = {source}",
     UninitializedError { message: String } = "A required component was not initialized - {message}",
     JoinError {source: tokio::task::JoinError } = "Join error - {source}",
-    InternalError {message: String} = "An internal error occured - {message}"
+    InternalError {message: String} = "An internal error occured - {message}",
+    RateLimitError {message: String} = "Rate limit exceeded: {message}"
 }
 
 impl DomainError {
@@ -60,8 +61,10 @@ impl ResponseError for DomainError {
                 HttpResponse::InternalServerError()
                     .json(ErrorResponse::new("Blocking Error".to_owned()))
             }
-            DomainError::AuthError { message: _ } => HttpResponse::Forbidden()
-                .json(ErrorResponse::new(self.to_string())),
+            DomainError::AuthError { message: _ } => {
+                HttpResponse::Unauthorized()
+                    .json(ErrorResponse::new(self.to_string()))
+            }
             DomainError::FieldValidationError { message: _ } => {
                 HttpResponse::BadRequest()
                     .json(ErrorResponse::new(self.to_string()))
@@ -71,6 +74,10 @@ impl ResponseError for DomainError {
             DomainError::RedisError { source: _ } => {
                 HttpResponse::InternalServerError()
                     .json(ErrorResponse::new("Failure in Redis"))
+            }
+            DomainError::RateLimitError { message: _ } => {
+                HttpResponse::TooManyRequests()
+                    .json(ErrorResponse::new(self.to_string()))
             }
             DomainError::UninitializedError { message } => {
                 HttpResponse::InternalServerError()

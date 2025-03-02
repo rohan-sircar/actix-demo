@@ -1,6 +1,9 @@
 #![forbid(unsafe_code)]
 #![allow(clippy::let_unit_value)]
 use actix_demo::actions::misc::create_database_if_needed;
+use actix_demo::models::rate_limit::{
+    KeyStrategy, RateLimitConfig, RateLimitPolicy,
+};
 use actix_demo::utils::redis_credentials_repo::RedisCredentialsRepo;
 use actix_demo::{utils, AppConfig, AppData, EnvConfig, LoggerFormat};
 use actix_web::web::Data;
@@ -69,10 +72,24 @@ async fn main() -> anyhow::Result<()> {
         RedisCredentialsRepo::new(redis_prefix(&"user-sessions"), cm.clone());
     let jwt_key = HS256Key::from_bytes(env_config.jwt_key.as_bytes());
 
+    let rate_limit_config = RateLimitConfig {
+        key_strategy: KeyStrategy::Ip, // Default to IP-based rate limiting
+        auth: RateLimitPolicy {
+            max_requests: env_config.rate_limit_auth_max_requests,
+            window_secs: env_config.rate_limit_auth_window_secs,
+        },
+        api: RateLimitPolicy {
+            max_requests: env_config.rate_limit_api_max_requests,
+            window_secs: env_config.rate_limit_api_window_secs,
+        },
+        disable: env_config.rate_limit_disable,
+    };
+
     let app_data = Data::new(AppData {
         config: AppConfig {
             hash_cost: env_config.hash_cost,
             job_bin_path: env_config.job_bin_path,
+            rate_limit: rate_limit_config,
         },
         pool,
         credentials_repo,

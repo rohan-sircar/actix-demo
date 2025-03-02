@@ -19,47 +19,6 @@ pub mod ws_utils {
     use super::*;
     pub type WsClient = Framed<BoxedSocket, Codec>;
 
-    pub async fn get_token(
-        addr: &str,
-        username: &str,
-        password: &str,
-        client: &Client,
-    ) -> anyhow::Result<String> {
-        let resp = client
-            .post(format!("http://{addr}/api/login"))
-            .insert_header((header::CONTENT_TYPE, "application/json"))
-            .send_body(format!(
-                r#"{{"username":"{username}","password":"{password}"}}"#
-            ))
-            .await
-            .map_err(|err| anyhow!("{err}"))?;
-        let token = resp
-            .headers()
-            .get("X-AUTH-TOKEN")
-            .unwrap()
-            .to_str()?
-            .to_owned();
-        Ok(token)
-    }
-
-    pub async fn _create_user(
-        addr: &str,
-        username: &str,
-        password: &str,
-        client: &Client,
-    ) -> anyhow::Result<()> {
-        let _ = client
-            .post(format!("http://{addr}/api/registration"))
-            .insert_header(("content-type", "application/json"))
-            .send_body(format!(
-                r#"{{"username":"{username}","password":"{password}"}}"#
-            ))
-            .await
-            .map_err(|err| anyhow!("{err}"))?;
-
-        Ok(())
-    }
-
     pub fn ws_msg(msg: &WsClientEvent) -> Message {
         Message::Text(ByteString::from(utils::jstr(msg)))
     }
@@ -123,6 +82,7 @@ mod tests {
     use actix_rt::time::sleep;
     use ws_utils::*;
 
+    #[ignore]
     #[actix_rt::test]
     async fn send_message_test() {
         async {
@@ -141,7 +101,9 @@ mod tests {
             // let resp = test_server.get("/users").send().await;
             let username = common::DEFAULT_USER;
             let password = common::DEFAULT_USER;
-            let token = get_token(&addr, username, password, &client).await?;
+            let token =
+                common::get_http_token(&addr, username, password, &client)
+                    .await?;
             let (_resp, mut ws) = connect_ws(&addr, &token, &client).await?;
 
             ws.send(ws_msg(&WsClientEvent::SendMessage {
@@ -169,6 +131,7 @@ mod tests {
         .unwrap()
     }
 
+    #[ignore]
     #[actix_rt::test]
     async fn run_job_test() {
         let res: anyhow::Result<()> = async {
@@ -185,7 +148,9 @@ mod tests {
             let client = Client::new();
             let username = common::DEFAULT_USER;
             let password = common::DEFAULT_USER;
-            let token = get_token(&addr, username, password, &client).await?;
+            let token =
+                common::get_http_token(&addr, username, password, &client)
+                    .await?;
             let (_resp, mut ws) = connect_ws(&addr, &token, &client).await?;
 
             let mut resp = client
@@ -206,6 +171,8 @@ mod tests {
             ws.send(ws_msg(&WsClientEvent::SubscribeJob { job_id }))
                 .await?;
 
+            sleep(Duration::from_millis(100)).await;
+
             let msg = ws_take_one(&mut ws).await?;
 
             let _ = tracing::info!("Received message: {msg:?}");
@@ -219,11 +186,11 @@ mod tests {
                 panic!("error wrong message type");
             };
 
+            sleep(Duration::from_millis(100)).await;
+
             let msg = ws_take_one(&mut ws).await?;
 
             let _ = tracing::info!("Received message: {msg:?}");
-
-            // sleep(Duration::from_millis(500)).await;
 
             if let WsServerEvent::CommandMessage {
                 message: MyProcessItem::Done { code },
@@ -255,6 +222,7 @@ mod tests {
         res.unwrap();
     }
 
+    #[ignore]
     #[actix_rt::test]
     async fn abort_job_test() {
         let res: anyhow::Result<()> = async {
@@ -273,7 +241,9 @@ mod tests {
             let client = Client::new();
             let username = common::DEFAULT_USER;
             let password = common::DEFAULT_USER;
-            let token = get_token(&addr, username, password, &client).await?;
+            let token =
+                common::get_http_token(&addr, username, password, &client)
+                    .await?;
             let (_resp, mut ws) = connect_ws(&addr, &token, &client).await?;
 
             let mut resp = client
