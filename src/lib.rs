@@ -78,6 +78,7 @@ pub struct EnvConfig {
     pub rate_limit_api_max_requests: u32,
     #[serde(default = "models::defaults::default_rate_limit_api_window_secs")]
     pub rate_limit_api_window_secs: u64,
+    pub rate_limit_disable: bool,
 }
 
 #[derive(Deserialize, Debug, Clone)]
