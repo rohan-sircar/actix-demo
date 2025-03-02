@@ -65,7 +65,7 @@ impl TryFrom<u32> for UserId {
     }
 }
 #[derive(Validator, Debug, Clone, DieselNewType, PartialEq, Eq)]
-#[validator(regex(regex::USERNAME_REG))]
+#[validator(regex(regex(regex::USERNAME_REG)))]
 pub struct Username(String);
 impl Username {
     pub fn as_str(&self) -> &str {

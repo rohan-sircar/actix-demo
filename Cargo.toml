@@ -72,9 +72,9 @@ tracing-subscriber = { version = "0.3.16", features = [
     "env-filter",
 ] }
 uuid = { version = "1.13.1", features = ["v4", "serde"] }
-url = { version = "1.4.0" }
-validators = { version = "0.24.3", features = ["serde"] }
-validators-derive = { version = "0.24.1", features = ["serde"] }
+url = { version = "2.5.4" }
+validators = { version = "0.25.3", features = ["serde"] }
+validators-derive = { version = "0.25.2", features = ["serde"] }
 
 [dev-dependencies]
 actix-codec = "0.5.0"
