@@ -7,10 +7,13 @@ mod tests {
     use anyhow::anyhow;
     use awc::Client;
 
-    use common::TestAppOptions;
     use std::time::Duration;
 
     mod login_rate_limiting {
+        use actix_demo::models::rate_limit::RateLimitPolicy;
+
+        use crate::common::TestAppOptionsBuilder;
+
         use super::*;
 
         #[actix_rt::test]
@@ -24,7 +27,14 @@ mod tests {
                 let test_server = common::test_http_app(
                     &pg_connstr,
                     &redis_connstr,
-                    TestAppOptions::default(),
+                    TestAppOptionsBuilder::default()
+                        .auth_rate_limit(RateLimitPolicy {
+                            max_requests: 5,
+                            window_secs: 2,
+                        })
+                        .rate_limit_disabled(false)
+                        .build()
+                        .unwrap(),
                 )
                 .await?;
 
@@ -123,7 +133,7 @@ mod tests {
 
                 // Optional: Test rate limit expiration
                 // Sleep for window_secs + 1 seconds to allow rate limit window to expire
-                let _sleep = tokio::time::sleep(Duration::from_secs(3)).await;
+                let _ = tokio::time::sleep(Duration::from_secs(3)).await;
 
                 // Try login with correct password after window expiration
                 let resp = client

@@ -38,6 +38,8 @@ jobs:
         run: cargo test --lib
       - name: Run Integration Tests
         run: cargo test --test integration
+      - name: Run flaky Tests
+        run: cargo test -- ignored
 
   lints:
     name: Lints

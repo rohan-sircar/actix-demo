@@ -8,6 +8,7 @@ use actix_demo::models::users::{NewUser, Password, Username};
 use actix_demo::telemetry::DomainRootSpanBuilder;
 use actix_demo::utils::redis_credentials_repo::RedisCredentialsRepo;
 use actix_demo::{utils, AppConfig, AppData};
+use actix_http::header::HeaderMap;
 use actix_web::dev::ServiceResponse;
 use actix_web::test::TestRequest;
 use actix_web::App;
@@ -15,7 +16,7 @@ use actix_web::{test, web};
 
 use actix_web::web::Data;
 use anyhow::Context;
-use awc::Client;
+use awc::{Client, ClientRequest};
 use derive_builder::Builder;
 use diesel::r2d2::{self, ConnectionManager};
 use diesel_migrations::{FileBasedMigrations, MigrationHarness};
@@ -136,6 +137,12 @@ static CREATE_BIN_FILES: Lazy<anyhow::Result<()>> = Lazy::new(|| {
 pub struct TestAppOptions {
     #[builder(default = "self.default_bin_file()")]
     pub bin_file: BinFile,
+    #[builder(default = "self.default_api_rate_limit()")]
+    pub api_rate_limit: RateLimitPolicy,
+    #[builder(default = "self.default_auth_rate_limit()")]
+    pub auth_rate_limit: RateLimitPolicy,
+    #[builder(default = "true")]
+    pub rate_limit_disabled: bool,
 }
 
 impl Default for TestAppOptions {
@@ -148,20 +155,27 @@ impl TestAppOptionsBuilder {
     fn default_bin_file(&self) -> BinFile {
         echo_bin_file()
     }
+    fn default_api_rate_limit(&self) -> RateLimitPolicy {
+        RateLimitPolicy {
+            max_requests: 1000,
+            window_secs: 60,
+        }
+    }
+    fn default_auth_rate_limit(&self) -> RateLimitPolicy {
+        RateLimitPolicy {
+            max_requests: 1000,
+            window_secs: 60,
+        }
+    }
 }
 
 /// Create a new RateLimitConfig with custom settings for tests
-pub fn create_rate_limit_config() -> RateLimitConfig {
+pub fn create_rate_limit_config(options: TestAppOptions) -> RateLimitConfig {
     RateLimitConfig {
         key_strategy: KeyStrategy::Random,
-        auth: RateLimitPolicy {
-            max_requests: 5,
-            window_secs: 2,
-        },
-        api: RateLimitPolicy {
-            max_requests: 200,
-            window_secs: 60,
-        },
+        auth: options.auth_rate_limit,
+        api: options.api_rate_limit,
+        disable: options.rate_limit_disabled,
     }
 }
 
@@ -177,7 +191,7 @@ pub async fn app_data(
     let config = AppConfig {
         hash_cost: 4,
         job_bin_path: options.bin_file.location.clone(),
-        rate_limit: create_rate_limit_config(),
+        rate_limit: create_rate_limit_config(options),
     };
 
     let client = redis::Client::open(redis_connstr)
@@ -372,6 +386,12 @@ impl WithToken for TestRequest {
     }
 }
 
+impl WithToken for ClientRequest {
+    fn with_token(self, token: &str) -> Self {
+        self.append_header(("Authorization", format! {"Bearer {}", token}))
+    }
+}
+
 pub async fn get_http_token(
     addr: &str,
     username: &str,
@@ -411,4 +431,23 @@ pub async fn create_http_user(
         .map_err(|err| anyhow::anyhow!("{err}"))?;
 
     Ok(())
+}
+
+pub fn assert_rate_limit_headers(headers: &HeaderMap) {
+    // Check for the existence of rate limiting headers
+    assert!(
+        headers.contains_key(X_RATELIMIT_LIMIT),
+        "Expected the '{}' header to be present",
+        X_RATELIMIT_LIMIT
+    );
+    assert!(
+        headers.contains_key(X_RATELIMIT_REMAINING),
+        "Expected the '{}' header to be present",
+        X_RATELIMIT_REMAINING
+    );
+    assert!(
+        headers.contains_key(X_RATELIMIT_RESET),
+        "Expected the '{}' header to be present",
+        X_RATELIMIT_RESET
+    );
 }

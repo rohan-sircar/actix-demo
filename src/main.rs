@@ -82,6 +82,7 @@ async fn main() -> anyhow::Result<()> {
             max_requests: env_config.rate_limit_api_max_requests,
             window_secs: env_config.rate_limit_api_window_secs,
         },
+        disable: false,
     };
 
     let app_data = Data::new(AppData {

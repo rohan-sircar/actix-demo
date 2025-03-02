@@ -22,6 +22,7 @@ pub struct RateLimitConfig {
     pub api: RateLimitPolicy,
     // /// Redis-specific rate limiting configuration
     // pub redis: RedisRateLimitConfig,
+    pub disable: bool,
 }
 
 /// Policy configuration for a rate-limited endpoint
@@ -72,6 +73,7 @@ impl Default for RateLimitConfig {
             //     key_ttl_secs: 600, // 10 minutes
             //     cluster_mode: false,
             // },
+            disable: false,
         }
     }
 }

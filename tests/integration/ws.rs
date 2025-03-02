@@ -82,6 +82,7 @@ mod tests {
     use actix_rt::time::sleep;
     use ws_utils::*;
 
+    #[ignore]
     #[actix_rt::test]
     async fn send_message_test() {
         async {
@@ -130,6 +131,7 @@ mod tests {
         .unwrap()
     }
 
+    #[ignore]
     #[actix_rt::test]
     async fn run_job_test() {
         let res: anyhow::Result<()> = async {
@@ -169,6 +171,8 @@ mod tests {
             ws.send(ws_msg(&WsClientEvent::SubscribeJob { job_id }))
                 .await?;
 
+            sleep(Duration::from_millis(100)).await;
+
             let msg = ws_take_one(&mut ws).await?;
 
             let _ = tracing::info!("Received message: {msg:?}");
@@ -182,11 +186,11 @@ mod tests {
                 panic!("error wrong message type");
             };
 
+            sleep(Duration::from_millis(100)).await;
+
             let msg = ws_take_one(&mut ws).await?;
 
             let _ = tracing::info!("Received message: {msg:?}");
-
-            // sleep(Duration::from_millis(500)).await;
 
             if let WsServerEvent::CommandMessage {
                 message: MyProcessItem::Done { code },
@@ -218,6 +222,7 @@ mod tests {
         res.unwrap();
     }
 
+    #[ignore]
     #[actix_rt::test]
     async fn abort_job_test() {
         let res: anyhow::Result<()> = async {

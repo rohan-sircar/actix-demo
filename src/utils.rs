@@ -14,6 +14,12 @@ use serde::Serialize;
 use crate::errors::DomainError;
 use crate::AppData;
 
+mod no_op_rate_limiter;
+pub use self::no_op_rate_limiter::NoopBackend;
+
+mod rate_limit_backend;
+pub use self::rate_limit_backend::RateLimitBackend;
+
 pub use self::redis_channel_reader::*;
 pub use self::regex::*;
 pub use self::ws::{msg_receive_loop, ws_loop};

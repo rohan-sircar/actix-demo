@@ -20,11 +20,13 @@ pub mod telemetry;
 pub mod types;
 pub mod utils;
 
+use actix_extensible_rate_limit::HeaderCompatibleOutput;
 use actix_extensible_rate_limit::{
-    backend::{redis::RedisBackend, SimpleInputFunctionBuilder},
+    backend::{redis::RedisBackend, SimpleInputFunctionBuilder, SimpleOutput},
     RateLimiter,
 };
 use actix_files as fs;
+use actix_http::header::{HeaderName, HeaderValue, RETRY_AFTER};
 use actix_web::{web, App, HttpServer};
 use actix_web::{
     web::{Data, ServiceConfig},
@@ -42,9 +44,8 @@ use routes::auth::bearer_auth;
 use serde::Deserialize;
 use std::io;
 use tracing_actix_web::TracingLogger;
-use utils::redis_credentials_repo::RedisCredentialsRepo;
-
 use types::{DbPool, RedisPrefixFn};
+use utils::redis_credentials_repo::RedisCredentialsRepo;
 
 use crate::telemetry::DomainRootSpanBuilder;
 
@@ -123,16 +124,33 @@ fn build_input_function(
     }
 }
 
+#[allow(clippy::declare_interior_mutable_const)]
+pub const X_RATELIMIT_LIMIT: HeaderName =
+    HeaderName::from_static("x-ratelimit-limit");
+#[allow(clippy::declare_interior_mutable_const)]
+pub const X_RATELIMIT_REMAINING: HeaderName =
+    HeaderName::from_static("x-ratelimit-remaining");
+#[allow(clippy::declare_interior_mutable_const)]
+pub const X_RATELIMIT_RESET: HeaderName =
+    HeaderName::from_static("x-ratelimit-reset");
+
+fn make_denied_response(status: &SimpleOutput) -> HttpResponse {
+    let mut response = HttpResponse::TooManyRequests().finish();
+    let map = response.headers_mut();
+    map.insert(X_RATELIMIT_LIMIT, HeaderValue::from(status.limit()));
+    map.insert(X_RATELIMIT_REMAINING, HeaderValue::from(status.remaining()));
+    let seconds: u64 = status.seconds_until_reset();
+    map.insert(X_RATELIMIT_RESET, HeaderValue::from(seconds));
+    map.insert(RETRY_AFTER, HeaderValue::from(seconds));
+    response
+}
+
 pub fn configure_app(
     app_data: Data<AppData>,
 ) -> Box<dyn Fn(&mut ServiceConfig)> {
     Box::new(move |cfg: &mut ServiceConfig| {
         // Configure rate limiter for login endpoint
         let login_limiter = {
-            let redis_cm = app_data
-                .get_redis_conn()
-                .expect("Redis connection required for rate limiting");
-            let backend = RedisBackend::builder(redis_cm).build();
             let input_fn_builder = SimpleInputFunctionBuilder::new(
                 std::time::Duration::from_secs(
                     app_data.config.rate_limit.auth.window_secs,
@@ -141,26 +159,43 @@ pub fn configure_app(
             );
             let input_fn =
                 build_input_function(&app_data, input_fn_builder).build();
+
+            let backend = if app_data.config.rate_limit.disable {
+                utils::RateLimitBackend::Noop
+            } else {
+                let redis_cm = app_data
+                    .get_redis_conn()
+                    .expect("Redis connection required for rate limiting");
+                utils::RateLimitBackend::Redis(
+                    RedisBackend::builder(redis_cm).build(),
+                )
+            };
+
             RateLimiter::builder(backend, input_fn)
-                // Rollback rate limit count if response status is not 401 (Unauthorized)
-                // This means the login was successful
                 .rollback_condition(Some(|status| {
                     status != actix_web::http::StatusCode::UNAUTHORIZED
                 }))
                 .add_headers()
-                .request_denied_response(|_output| {
-                    tracing::warn!("Reached rate limit for login");
-                    HttpResponse::TooManyRequests().finish()
+                .request_denied_response(|status| {
+                    let _ = tracing::warn!("Reached rate limit for login");
+                    make_denied_response(status)
                 })
                 .build()
         };
 
         // Configure rate limiter for other endpoints
         let api_rate_limiter = || {
-            let redis_cm = app_data
-                .get_redis_conn()
-                .expect("Redis connection required for rate limiting");
-            let backend = RedisBackend::builder(redis_cm).build();
+            let backend = if app_data.config.rate_limit.disable {
+                utils::RateLimitBackend::Noop
+            } else {
+                let redis_cm = app_data
+                    .get_redis_conn()
+                    .expect("Redis connection required for rate limiting");
+                utils::RateLimitBackend::Redis(
+                    RedisBackend::builder(redis_cm).build(),
+                )
+            };
+
             let input_fn_builder = SimpleInputFunctionBuilder::new(
                 std::time::Duration::from_secs(
                     app_data.config.rate_limit.api.window_secs,
@@ -171,9 +206,9 @@ pub fn configure_app(
                 build_input_function(&app_data, input_fn_builder).build();
             RateLimiter::builder(backend, input_fn)
                 .add_headers()
-                .request_denied_response(|_output| {
-                    tracing::warn!("Reached rate limit for login");
-                    HttpResponse::TooManyRequests().finish()
+                .request_denied_response(|status| {
+                    let _ = tracing::warn!("Reached rate limit for api");
+                    make_denied_response(status)
                 })
                 .build()
         };
