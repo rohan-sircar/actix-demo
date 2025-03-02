@@ -88,7 +88,7 @@ RUN \
     "linux/ppc64le") cp target/powerpc64le-unknown-linux-gnu/${RELEASEPATH}/actix-demo target/actix-demo ;; \
     esac 
 
-FROM debian:bullseye-slim
+FROM debian:stable-slim
 ARG APP=/usr/src/app
 
 RUN apt-get update && \
