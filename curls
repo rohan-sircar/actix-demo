@@ -1,0 +1,3 @@
+http POST localhost:7800/api/registration Content-Type:application/json username=footestuser password=test
+http POST localhost:7800/api/login Content-Type:application/json username=footestuser password=test
+http GET "localhost:7800/api/users?page=0&limit=5" "Authorization: Bearer $TOKEN"
