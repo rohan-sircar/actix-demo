@@ -146,7 +146,7 @@ mod tests {
                 .rate_limit_disabled(false)
                 .build()
                 .unwrap();
-            
+
                 let test_server = common::test_http_app(
                     &pg_connstr,
                     &redis_connstr,
