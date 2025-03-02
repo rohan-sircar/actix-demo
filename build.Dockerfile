@@ -13,7 +13,7 @@ RUN \
 RUN \ 
     case ${TARGETPLATFORM} in \
     "linux/amd64") GCC="gcc"  ;; \
-    "linux/arm64") GCC="g++-aarch64-linux-gnu"  ;; \
+    "linux/arm64") GCC="gcc-aarch64-linux-gnu"  ;; \
     "linux/ppc64le") GCC="gcc-powerpc64le-linux-gnu"  ;; \
     esac && \
     apt-get update && \
@@ -29,10 +29,7 @@ RUN \
     apt-get update && \
     apt-get install -y  \
     libpq-dev:${ARCH} \
-    libz-dev:${ARCH} \
-    cmake:${ARCH} \
-    # clang:${ARCH} \
-    libclang-rt-14-dev:${ARCH}
+    libz-dev:${ARCH} 
 
 
 RUN USER=root cargo new --bin actix-demo
@@ -47,7 +44,7 @@ RUN \
     esac && \ 
     case ${TARGETPLATFORM} in \
     "linux/amd64") BUILDFLAGS=""  ;; \
-    "linux/arm64") BUILDFLAGS="-C linker=aarch64-linux-gnu-g++"  ;; \
+    "linux/arm64") BUILDFLAGS="-C linker=aarch64-linux-gnu-gcc"  ;; \
     "linux/ppc64le") BUILDFLAGS="-C linker=powerpc64le-linux-gnu-gcc"  ;; \
     esac && \
     case ${TARGETPLATFORM} in \
@@ -59,11 +56,6 @@ RUN \
 RUN rm -r src/*.rs
 COPY ./src ./src
 COPY ./build.rs ./build.rs
-# RUN case ${PROFILE} in \
-#     "debug") RELEASEPATH="debug"  ;; \
-#     "release") RELEASEPATH="release"  ;; \
-#     esac && \
-#     rm ./target/$RELEASEPATH/deps/actix_demo*
 RUN \
     case ${PROFILE} in \
     "debug") CARGOFLAGS=""  ;; \
@@ -71,7 +63,7 @@ RUN \
     esac && \ 
     case ${TARGETPLATFORM} in \
     "linux/amd64") BUILDFLAGS=""  ;; \
-    "linux/arm64") BUILDFLAGS="-C linker=aarch64-linux-gnu-g++"  ;; \
+    "linux/arm64") BUILDFLAGS="-C linker=aarch64-linux-gnu-gcc"  ;; \
     "linux/ppc64le") BUILDFLAGS="-C linker=powerpc64le-linux-gnu-gcc"  ;; \
     esac && \
     case ${TARGETPLATFORM} in \
