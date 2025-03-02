@@ -31,7 +31,6 @@ dependencies = [
  "actix-test",
  "actix-web",
  "actix-web-grants",
- "actix-web-httpauth",
  "actix-ws",
  "anyhow",
  "awc",
@@ -358,21 +357,6 @@ checksum = "e219c908910b6daa44bf95dbd5e4a8d8e1bea6c246a5c74e5e0ce54374812fe3"
 dependencies = [
  "actix-web",
  "protect-endpoints-proc-macro",
-]
-
-[[package]]
-name = "actix-web-httpauth"
-version = "0.8.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "456348ed9dcd72a13a1f4a660449fafdecee9ac8205552e286809eb5b0b29bd3"
-dependencies = [
- "actix-utils",
- "actix-web",
- "base64 0.22.1",
- "futures-core",
- "futures-util",
- "log",
- "pin-project-lite",
 ]
 
 [[package]]

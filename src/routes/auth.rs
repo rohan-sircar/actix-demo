@@ -5,12 +5,10 @@ use crate::models::users::{UserId, UserLogin, Username};
 use crate::utils::redis_credentials_repo::RedisCredentialsRepo;
 use crate::AppData;
 use actix_http::header::{HeaderName, HeaderValue};
-use actix_http::Payload;
 use actix_web::dev::ServiceRequest;
 use actix_web::error::ErrorUnauthorized;
 use actix_web::web::{self, Data};
 use actix_web::{Error, HttpResponse};
-use actix_web_httpauth::extractors::bearer::BearerAuth;
 use awc::cookie::{Cookie, SameSite};
 use bcrypt::verify;
 use jwt_simple::prelude::*;
@@ -78,28 +76,6 @@ pub async fn validate_token(
         Ok(())
     } else {
         Err(DomainError::new_auth_error("Invalid token".to_owned()))
-    }
-}
-
-#[tracing::instrument(level = "info", skip(req))]
-pub async fn bearer_auth(
-    req: ServiceRequest,
-    credentials: BearerAuth,
-) -> Result<ServiceRequest, (Error, ServiceRequest)> {
-    let app_data = &req
-        .app_data::<Data<AppData>>()
-        .cloned()
-        .expect("AppData not initialized");
-    let credentials_repo = &app_data.credentials_repo;
-    let jwt_key = &app_data.jwt_key;
-    let token: String = credentials.token().into();
-    let (http_req, payload) = req.into_parts();
-    match validate_token(credentials_repo, jwt_key, token).await {
-        Ok(_) => Ok(ServiceRequest::from_parts(http_req, payload)),
-        Err(err) => Err((
-            Error::from(err),
-            ServiceRequest::from_parts(http_req.clone(), Payload::None),
-        )),
     }
 }
 

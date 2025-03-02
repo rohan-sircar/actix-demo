@@ -125,7 +125,7 @@ pub fn extract_auth_token(headers: &HeaderMap) -> Result<String, DomainError> {
         .get("cookie")
         .and_then(|hv| hv.to_str().ok())
         .ok_or_else(|| {
-            DomainError::new_bad_input_error(format!("Cookie header not set"))
+            DomainError::new_bad_input_error("Cookie header not set".to_owned())
         })?;
 
     let token = header

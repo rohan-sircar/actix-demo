@@ -242,7 +242,6 @@ pub fn configure_app(
             .service(
                 web::scope("/api")
                     .wrap(api_rate_limiter())
-                    // .wrap(HttpAuthentication::bearer(bearer_auth))
                     .wrap(GrantsMiddleware::with_extractor(
                         routes::auth::extract,
                     ))
