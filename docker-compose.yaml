@@ -4,7 +4,7 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: actix_demo_database
+      POSTGRES_DB: actix_demo
     ports:
       - "5432:5432"
 
