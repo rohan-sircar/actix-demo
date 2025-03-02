@@ -37,7 +37,8 @@ use actix_web_httpauth::middleware::HttpAuthentication;
 use errors::DomainError;
 use jwt_simple::prelude::HS256Key;
 use models::rate_limit::{KeyStrategy, RateLimitConfig};
-use rand::{distributions::Alphanumeric, Rng};
+use rand::distr::Alphanumeric;
+use rand::Rng;
 use redis::aio::ConnectionManager;
 use redis::Client;
 use routes::auth::bearer_auth;
@@ -115,7 +116,7 @@ fn build_input_function(
     match app_data.config.rate_limit.key_strategy {
         KeyStrategy::Ip => input_fn_builder.real_ip_key(),
         KeyStrategy::Random => {
-            let random_suffix: String = rand::thread_rng()
+            let random_suffix: String = rand::rng()
                 .sample_iter(&Alphanumeric)
                 .take(10)
                 .map(char::from)

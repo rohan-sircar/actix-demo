@@ -30,11 +30,14 @@ pub fn get_claims(
 }
 
 #[tracing::instrument(level = "info", skip(req))]
-pub async fn extract(req: &mut ServiceRequest) -> Result<Vec<RoleEnum>, Error> {
+pub async fn extract(
+    req: &mut ServiceRequest,
+) -> Result<HashSet<RoleEnum>, Error> {
     let app_data = req.app_data::<Data<AppData>>().cloned().unwrap();
     let bearer = req.extract::<BearerAuth>().await?;
     let claims = get_claims(&app_data.jwt_key, bearer.token())?;
-    let roles = claims.custom.roles;
+    let roles: HashSet<RoleEnum> = claims.custom.roles.into_iter().collect(); // Convert Vec to HashSet
+
     let user_id = claims.custom.user_id.to_string();
 
     req.headers_mut().insert(

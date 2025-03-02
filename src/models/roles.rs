@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use super::users::UserId;
 
-#[derive(DbEnum, Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
+#[derive(DbEnum, Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Hash)]
 #[allow(clippy::enum_variant_names)]
 #[serde(rename_all = "snake_case")]
 #[ExistingTypePath = "crate::schema::sql_types::RoleName"]
