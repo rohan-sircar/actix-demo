@@ -83,6 +83,7 @@ mod tests {
     };
     use actix_http::StatusCode;
     use actix_rt::time::sleep;
+    use jwt_simple::prelude::HS256Key;
     use ws_utils::*;
 
     #[ignore]
@@ -154,6 +155,10 @@ mod tests {
             let token =
                 common::get_http_token(&addr, username, password, &client)
                     .await?;
+            let jwt_key = HS256Key::from_bytes("test".as_bytes());
+
+            let claims = utils::get_claims(&jwt_key, &token)?;
+            let user_id = claims.custom.user_id;
 
             let _ = tracing::info!("Connecting to WebSocket...");
             let (_resp, mut ws) = connect_ws(&addr, &token, &client).await?;
@@ -168,7 +173,7 @@ mod tests {
                 .map_err(|err| anyhow!("{err}"))?;
             let job_resp = resp.json::<Job>().await?;
             let job_id = job_resp.job_id;
-            assert_eq!(job_resp.started_by.as_str(), common::DEFAULT_USER);
+            assert_eq!(job_resp.started_by, user_id);
             assert_eq!(job_resp.status, JobStatus::Pending);
 
             let _ = tracing::info!(
@@ -225,7 +230,7 @@ mod tests {
                 .await
                 .map_err(|err| anyhow!("{err}"))?;
             let job_resp = resp.json::<Job>().await?;
-            assert_eq!(job_resp.started_by.as_str(), common::DEFAULT_USER);
+            assert_eq!(job_resp.started_by, user_id);
             assert_eq!(job_resp.status, JobStatus::Completed);
 
             let _ =
@@ -261,6 +266,10 @@ mod tests {
             let token =
                 common::get_http_token(&addr, username, password, &client)
                     .await?;
+            let jwt_key = HS256Key::from_bytes("test".as_bytes());
+
+            let claims = utils::get_claims(&jwt_key, &token)?;
+            let user_id = claims.custom.user_id;
             let (_resp, mut ws) = connect_ws(&addr, &token, &client).await?;
 
             let mut resp = client
@@ -272,7 +281,7 @@ mod tests {
                 .map_err(|err| anyhow!("{err}"))?;
             let job_resp = resp.json::<Job>().await?;
             let job_id = job_resp.job_id;
-            assert_eq!(job_resp.started_by.as_str(), common::DEFAULT_USER);
+            assert_eq!(job_resp.started_by, user_id);
             assert_eq!(job_resp.status, JobStatus::Pending);
 
             ws.send(ws_msg(&WsClientEvent::SubscribeJob { job_id }))
@@ -300,7 +309,7 @@ mod tests {
                 .await
                 .map_err(|err| anyhow!("{err}"))?;
             let job_resp = resp.json::<Job>().await?;
-            assert_eq!(job_resp.started_by.as_str(), common::DEFAULT_USER);
+            assert_eq!(job_resp.started_by, user_id);
             assert_eq!(job_resp.status, JobStatus::Aborted);
             Ok(())
         }

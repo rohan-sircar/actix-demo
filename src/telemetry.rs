@@ -5,7 +5,6 @@ use actix_web::Error;
 use tracing::Span;
 use tracing_actix_web::{DefaultRootSpanBuilder, RootSpanBuilder};
 
-use crate::routes::auth::get_claims;
 use crate::{utils, AppData};
 
 pub struct DomainRootSpanBuilder;
@@ -18,7 +17,7 @@ impl RootSpanBuilder for DomainRootSpanBuilder {
             .expect("AppData not initialized");
         let jwt_key = &app_data.jwt_key;
         let claims = utils::extract_auth_token(req.headers())
-            .and_then(|token| get_claims(jwt_key, &token));
+            .and_then(|token| utils::get_claims(jwt_key, &token));
 
         let auth_user_id = claims.map(|c| c.custom.user_id.as_uint()).ok();
         tracing_actix_web::root_span!(req, auth_user_id,)

@@ -22,7 +22,7 @@ pub fn get_jobs(
         .select((
             jobs::id,
             jobs::job_id,
-            users::username,
+            users::id,
             jobs::status,
             jobs::status_message,
             jobs::created_at,
@@ -41,7 +41,7 @@ pub fn get_jobs_by_user(
         .select((
             jobs::id,
             jobs::job_id,
-            users::username,
+            users::id,
             jobs::status,
             jobs::status_message,
             jobs::created_at,
@@ -61,7 +61,7 @@ pub fn get_job_by_uuid(
         .select((
             jobs::id,
             jobs::job_id,
-            users::username,
+            users::id,
             jobs::status,
             jobs::status_message,
             jobs::created_at,

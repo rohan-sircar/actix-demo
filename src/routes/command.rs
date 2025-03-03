@@ -12,7 +12,7 @@ use crate::{
     actions,
     errors::DomainError,
     models::{
-        misc::{JobStatus, NewJob},
+        misc::{Job, JobStatus, NewJob},
         users::UserId,
         ws::MyProcessItem,
     },
@@ -42,7 +42,7 @@ pub struct RunCommandRequest {
 /// 4. Handles job abort requests
 /// 5. Updates job status on completion
 #[tracing::instrument(level = "info", skip_all, fields(payload))]
-pub async fn run_command(
+pub async fn handle_run_command(
     req: HttpRequest,
     app_data: web::Data<AppData>,
     payload: web::Json<RunCommandRequest>,
@@ -140,16 +140,13 @@ pub async fn run_command(
                     while let Some(msg) = r_stream.next().await {
                         // Safely handle message payload
                         let msg = msg.get_payload::<String>().unwrap_or_default();
-                        
+
                         if msg == "done" {
-                            let _ = tracing::info!("Received abort signal for job {}", job_id);
-                            
+                            let _ = tracing::info!("Received abort signal for job {}", job_id);                           
                             // Abort the process
                             let _ = proc2.borrow().abort();
-                            
                             // Update abort state
                             *aborted2.borrow_mut() = true;
-                            
                             // Update job status in database
                             let pool2 = pool.clone();
                             web::block(move || {
@@ -167,9 +164,8 @@ pub async fn run_command(
                                     "Failed to update job status: {err}"
                                 ))
                             })??;
-                            
                             break;
-                        }
+                                                }
                     }
                     Ok(())
                 }
@@ -212,7 +208,6 @@ pub async fn run_command(
                     while let Some(rcm) = stream.next().await {
                         tracing::trace!("Publishing process output: {:?}", &rcm);
                         let () = conn.publish(&job_chan_name, utils::jstr(&rcm)).await?;
-                        
                         // Handle process completion
                         if let MyProcessItem::Done { code } = rcm {
                             let code = code.parse::<i32>().map_err(|err| {
@@ -242,7 +237,9 @@ pub async fn run_command(
             aborter.abort();
             tracing::debug!("Abort handler terminated");
 
-            // Determine final job status
+            // Update job status in database if not already aborted
+            if !*aborted.borrow() {
+                // Determine final job status
             let (status, msg) = match res {
                 Ok(_) => {
                     tracing::info!("Job {} completed successfully", job_id);
@@ -254,9 +251,6 @@ pub async fn run_command(
                     (JobStatus::Failed, Some(msg))
                 }
             };
-
-            // Update job status in database if not already aborted
-            if !*aborted.borrow() {
                 tracing::debug!("Updating job {} status to {:?}", job_id, status);
                 let mut conn = pool2.get()?;
                 web::block(move || {
@@ -271,7 +265,6 @@ pub async fn run_command(
     );
     Ok(HttpResponse::Ok().json(job))
 }
-
 
 /// Retrieves a job from the database by its UUID.
 ///
@@ -288,40 +281,39 @@ pub async fn run_command(
 ///
 /// * `DomainError` - If the provided job ID is not a valid UUID, or if the job does not exist.
 #[tracing::instrument(level = "info", skip(app_data))]
-pub async fn get_job(
+pub async fn handle_get_job(
     app_data: web::Data<AppData>,
     job_id: web::Path<String>,
 ) -> Result<HttpResponse, DomainError> {
+    // Parse the job ID from the path parameter as a UUID.
+    let job_id = Uuid::parse_str(&job_id.into_inner()).map_err(|err| {
+        DomainError::new_bad_input_error(format!("Expected UUID: {err}"))
+    })?;
+
+    let job = fetch_job_by_uuid(job_id, app_data.as_ref()).await?;
+
+    Ok(HttpResponse::Ok().json(job))
+}
+
+async fn fetch_job_by_uuid(
+    job_id: Uuid,
+    app_data: &AppData,
+) -> Result<Job, DomainError> {
     let pool = app_data.pool.clone();
 
-    // Parse the job ID from the path parameter as a UUID.
-    let job_id = Uuid::parse_str(&job_id.into_inner())
-        .map_err(|err| {
-            DomainError::new_bad_input_error(format!("Expected UUID: {err}"))
-        })?;
-
-    // Fetch the job from the database in a blocking context.
-    let job = web::block(move || {
+    web::block(move || {
         let mut conn = pool.get()?;
         actions::misc::get_job_by_uuid(job_id, &mut conn)
     })
-    .await??;
-
-    // Match on the result to determine if the job was found.
-    match job {
-        Some(job) => {
-            tracing::info!("Found job with id: {}", job.job_id);
-            tracing::debug!("Found job: {job:?}");
-            Ok(HttpResponse::Ok().json(job))
-        }
-        None => {
-            let _ = tracing::warn!("Job with uuid: {} does not exist", job_id);
-            Err(DomainError::new_entity_does_not_exist_error(format!(
-                "No jobs with uuid: {job_id}"
-            )))
-        }
-    }
+    .await??
+    .ok_or_else(|| {
+        DomainError::new_entity_does_not_exist_error(format!(
+            "No jobs with uuid: {job_id}"
+        ))
+    })
 }
+
+// You can then call `fetch_job_by_uuid` from your original function
 
 /// Aborts a command by sending a message to the Redis channel associated with the job.
 ///
@@ -338,18 +330,52 @@ pub async fn get_job(
 ///
 /// * `DomainError` - If there is an error publishing to the Redis channel.
 #[tracing::instrument(level = "info", skip(app_data))]
-pub async fn abort_command(
+pub async fn handle_abort_job(
+    req: HttpRequest,
     app_data: web::Data<AppData>,
     job_id: web::Path<String>,
 ) -> Result<HttpResponse, DomainError> {
+    // Extract and validate user ID from auth header
+    let user_id = req
+        .headers()
+        .get("x-auth-user")
+        .ok_or_else(|| {
+            DomainError::new_auth_error("Missing x-auth-user header".to_owned())
+        })
+        .and_then(|hv| {
+            hv.to_str().map_err(|err| {
+                DomainError::new_bad_input_error(format!(
+                    "x-auth-user header is not a valid UTF-8 string: {err}"
+                ))
+            })
+        })
+        .and_then(|str| {
+            UserId::from_str(str).map_err(|err| {
+                DomainError::new_bad_input_error(format!(
+                    "Invalid UserId format in x-auth-user header: {err}"
+                ))
+            })
+        })?;
+
     // Get a Redis connection from the app_data.
     let mut conn = app_data.get_redis_conn()?;
 
-    // Convert the Path<String> to String.
-    let job_id = job_id.into_inner();
+    // Parse the job ID from the path parameter as a UUID.
+    let job_id = Uuid::parse_str(&job_id.into_inner()).map_err(|err| {
+        DomainError::new_bad_input_error(format!("Expected UUID: {err}"))
+    })?;
+
+    let job = fetch_job_by_uuid(job_id, app_data.as_ref()).await?;
+
+    if user_id != job.started_by {
+        return Err(DomainError::new_auth_error(
+            "Forbidden: Tried to abort job of a different user".to_owned(),
+        ));
+    };
 
     // Construct the Redis channel name for aborting the job.
-    let abort_chan_name = (app_data.redis_prefix)(&format!("job.{job_id}.abort"));
+    let abort_chan_name =
+        (app_data.redis_prefix)(&format!("job.{job_id}.abort"));
 
     // Publish a message to the Redis channel to abort the job.
     let () = conn.publish(abort_chan_name, "done").await?;

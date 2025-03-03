@@ -251,14 +251,17 @@ pub fn configure_app(
                             .add(("Vary", "Cookie")),
                     ))
                     .wrap(from_fn(utils::cookie_auth))
-                    .route("/cmd", web::post().to(routes::command::run_command))
                     .route(
-                        "/cmd/{job_id}",
-                        web::get().to(routes::command::get_job),
+                        "/cmd",
+                        web::post().to(routes::command::handle_run_command),
                     )
                     .route(
                         "/cmd/{job_id}",
-                        web::delete().to(routes::command::abort_command),
+                        web::get().to(routes::command::handle_get_job),
+                    )
+                    .route(
+                        "/cmd/{job_id}",
+                        web::delete().to(routes::command::handle_abort_job),
                     )
                     .service(
                         web::scope("/users")

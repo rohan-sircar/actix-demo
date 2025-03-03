@@ -3,7 +3,7 @@ use crate::errors::DomainError;
 use crate::models::roles::RoleEnum;
 use crate::models::users::{UserId, UserLogin, Username};
 use crate::utils::redis_credentials_repo::RedisCredentialsRepo;
-use crate::AppData;
+use crate::{utils, AppData};
 use actix_http::header::{HeaderName, HeaderValue};
 use actix_web::dev::ServiceRequest;
 use actix_web::error::ErrorUnauthorized;
@@ -20,15 +20,6 @@ pub struct VerifiedAuthDetails {
     pub roles: Vec<RoleEnum>,
 }
 
-pub fn get_claims(
-    jwt_key: &HS256Key,
-    token: &str,
-) -> Result<JWTClaims<VerifiedAuthDetails>, DomainError> {
-    jwt_key
-        .verify_token::<VerifiedAuthDetails>(token, None)
-        .map_err(|err| DomainError::anyhow_auth("Failed to verify token", err))
-}
-
 #[tracing::instrument(level = "info", skip(req))]
 pub async fn extract(
     req: &mut ServiceRequest,
@@ -41,7 +32,7 @@ pub async fn extract(
         .ok_or_else(|| ErrorUnauthorized("Missing auth cookie"))?;
     let token = cookie.value();
 
-    let claims = get_claims(&app_data.jwt_key, token)?;
+    let claims = utils::get_claims(&app_data.jwt_key, token)?;
     let roles: HashSet<RoleEnum> = claims.custom.roles.into_iter().collect();
 
     let user_id = claims.custom.user_id.to_string();
@@ -58,7 +49,7 @@ pub async fn validate_token(
     jwt_key: &HS256Key,
     token: String,
 ) -> Result<(), DomainError> {
-    let claims = get_claims(jwt_key, &token)?;
+    let claims = utils::get_claims(jwt_key, &token)?;
     let user_id = claims.custom.user_id;
 
     let session_token =
