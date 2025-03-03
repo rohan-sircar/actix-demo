@@ -9,6 +9,16 @@ use tracing_futures::Instrument;
 
 use super::auth::get_claims;
 
+/// Handles incoming WebSocket connections
+///
+/// # Flow
+/// 1. Extracts and validates authentication token from request headers
+/// 2. Establishes WebSocket connection
+/// 3. Spawns three concurrent workers:
+///    - Message receiver: Handles incoming messages from Redis
+///    - WebSocket loop: Manages WebSocket communication
+///    - Heartbeat: Maintains connection health
+/// 4. Returns HTTP response with established WebSocket connection
 #[tracing::instrument(level = "info", skip_all, fields(auth_user_id))]
 pub async fn ws(
     req: HttpRequest,
@@ -17,19 +27,25 @@ pub async fn ws(
 ) -> Result<HttpResponse, actix_web::Error> {
     let headers = req.headers();
 
+    let _ = tracing::debug!("Extracting auth token from headers");
     let token = extract_auth_token(headers)?;
+    let _ = tracing::debug!("Successfully extracted auth token");
 
+    let _ = tracing::debug!("Validating JWT claims");
     let claims = get_claims(&app_data.jwt_key, &token)?;
-
     let user_id = claims.custom.user_id;
+    let _ =
+        tracing::debug!("Successfully validated claims for user {}", user_id);
 
     let _ = tracing::Span::current().record("auth_user_id", user_id.as_uint());
 
-    let _ = tracing::info!("Initiating websocket connection");
+    let _ =
+        tracing::info!("Initiating websocket connection for user {}", user_id);
 
     let (response, session, msg_stream) = actix_ws::handle(&req, body)?;
 
-    let _ = tracing::info!("Websocket connection initiated");
+    let _ =
+        tracing::info!("Websocket connection established for user {}", user_id);
 
     let session2 = session.clone();
     let cm = utils::get_new_redis_conn(app_data.clone().into_inner()).await?;
@@ -39,19 +55,21 @@ pub async fn ws(
     let app_data2 = app_data.clone().into_inner();
     let handles = Rc::new(RefCell::new(Vec::new()));
 
-    let _ = tracing::info!("Starting message receiver");
+    let _ = tracing::info!("Starting message receiver for user {}", user_id);
     let msg_receiver = Rc::new(actix_rt::spawn(
         async move {
+            let _ = tracing::debug!("Entering message receive loop");
             let res =
                 utils::ws::msg_receive_loop(user_id, cm, session2, app_data2)
                     .await;
             let _ = match res {
                 Ok(_) => {
-                    let _ = tracing::info!("Msg receive loop ended successful");
+                    let _ = tracing::info!("Message receive loop ended successfully for user {}", user_id);
                 }
                 Err(err) => {
                     let _ = tracing::error!(
-                        "Msg receive loop ended with error {:?}",
+                        "Message receive loop ended with error for user {}: {:?}",
+                        user_id,
                         err
                     );
                 }
@@ -66,10 +84,16 @@ pub async fn ws(
     let session2 = session.clone();
     let mut pub_cm =
         utils::get_new_redis_conn(app_data.clone().into_inner()).await?;
-    let _ = tracing::info!("Connected to Redis PubSub");
+    let _ = tracing::info!("Connected to Redis PubSub for user {}", user_id);
+
+    // Handles WebSocket communication with the client
+    //
+    // Responsibilities:
+    // 1. Processes incoming WebSocket messages
+    // 2. Handles graceful shutdown on errors
     let ws_loop = Rc::new(actix_rt::spawn(
         async move {
-            tracing::info!("Starting websocket loop");
+            tracing::info!("Starting websocket loop for user {}", user_id);
             let res = utils::ws::ws_loop(
                 session2.clone(),
                 msg_stream,
@@ -81,17 +105,21 @@ pub async fn ws(
             let _ = match res {
                 Ok(_) => {
                     let _ = tracing::info!(
-                        "Websocket connection ended successfully"
+                        "Websocket connection ended successfully for user {}",
+                        user_id
                     );
                 }
                 Err(err) => {
                     let _ = tracing::error!(
-                        "Websocket connection ended with error {err:?}"
+                        "Websocket connection ended with error for user {}: {err:?}",
+                        user_id
                     );
                 }
             };
 
+            let _ = tracing::debug!("Closing WebSocket session for user {}", user_id);
             let _ = session2.close(None).await;
+            let _ = tracing::debug!("Aborting message receiver for user {}", user_id);
             let _ = msg_receiver.abort();
         }
         .instrument(tracing::info_span!("ws_loop")),
@@ -99,18 +127,31 @@ pub async fn ws(
     let _ = {
         handles.borrow_mut().push(ws_loop);
     };
+
     let mut session2 = session.clone();
+    // Maintains WebSocket connection health
+    //
+    // Responsibilities:
+    // 1. Sends periodic ping messages to client
+    // 2. Detects connection failures
+    // 3. Cleans up resources on connection loss
     let _hb = actix_rt::spawn(
         async move {
+            let _ = tracing::debug!("Starting heartbeat for user {}", user_id);
             loop {
                 sleep(Duration::from_secs(30)).await;
                 if session2.ping(b"").await.is_err() {
+                    let _ = tracing::warn!(
+                        "Heartbeat failed for user {}, cleaning up resources",
+                        user_id
+                    );
                     for h in handles.borrow().iter() {
                         h.abort();
                     }
                     break;
                 }
             }
+            let _ = tracing::debug!("Heartbeat stopped for user {}", user_id);
         }
         .instrument(tracing::info_span!("ws_hb")),
     );

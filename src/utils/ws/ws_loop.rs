@@ -11,6 +11,20 @@ use actix_ws::{Message, MessageStream, Session};
 use futures::StreamExt;
 use redis::aio::ConnectionManager;
 
+/// Main WebSocket message processing loop
+///
+/// Handles incoming WebSocket messages and processes them accordingly.
+/// Manages the WebSocket session and connection state.
+///
+/// # Arguments
+/// * `session` - WebSocket session
+/// * `msg_stream` - Stream of incoming WebSocket messages
+/// * `conn` - Redis connection manager
+/// * `user_id` - ID of the connected user
+/// * `app_data` - Shared application data
+///
+/// # Returns
+/// Result indicating success or failure of the WebSocket session
 pub async fn ws_loop(
     mut session: Session,
     mut msg_stream: MessageStream,
@@ -18,26 +32,38 @@ pub async fn ws_loop(
     user_id: UserId,
     app_data: Arc<AppData>,
 ) -> Result<(), DomainError> {
+    tracing::info!("Starting WebSocket loop for user {}", user_id);
+
     while let Some(item) = msg_stream.next().await {
         match item {
             Ok(Message::Ping(bytes)) => {
+                tracing::debug!("Received ping message");
                 if session.pong(&bytes).await.is_err() {
+                    tracing::warn!("Failed to send pong, closing connection");
                     break;
                 }
             }
             Ok(Message::Text(s)) => {
-                tracing::info!("Received message");
+                tracing::info!("Received text message from user {}", user_id);
                 tracing::debug!("Message content: {}", s);
+
                 let res = match serde_json::from_str::<WsClientEvent>(&s) {
-                    Ok(ws_msg) => Ok(ws::process_client_msg(
-                        ws_msg,
-                        session.clone(),
-                        conn,
-                        user_id,
-                        app_data.clone(),
-                    )
-                    .await?),
+                    Ok(ws_msg) => {
+                        tracing::debug!(
+                            "Processing client message: {:?}",
+                            ws_msg
+                        );
+                        Ok(ws::process_client_msg(
+                            ws_msg,
+                            session.clone(),
+                            conn,
+                            user_id,
+                            app_data.clone(),
+                        )
+                        .await?)
+                    }
                     Err(err) => {
+                        tracing::warn!("Failed to parse message: {}", err);
                         let err = &WsServerEvent::Error {
                             id: None,
                             cause: err.to_string(),
@@ -48,20 +74,29 @@ pub async fn ws_loop(
                 };
 
                 if res.is_err() {
+                    tracing::warn!(
+                        "Error processing message, closing connection"
+                    );
                     break;
                 }
             }
             Ok(Message::Close(reason)) => {
-                tracing::info!("Received close, reason={:?}", reason);
+                tracing::info!("Received close message, reason={:?}", reason);
                 break;
             }
             Ok(_) => {
+                tracing::warn!(
+                    "Received unexpected message type, closing connection"
+                );
                 break;
             }
             Err(_) => {
+                tracing::warn!("Error receiving message, closing connection");
                 break;
             }
         }
     }
+
+    tracing::info!("WebSocket loop ended for user {}", user_id);
     Ok(())
 }
