@@ -309,4 +309,62 @@ mod tests {
         tracing::info!("{res:?}");
         res.unwrap();
     }
+
+    #[ignore]
+    #[actix_rt::test]
+    async fn subscribe_job_invalid_job_id_test() {
+        let res: anyhow::Result<()> = async {
+            let (pg_connstr, _pg) = common::test_with_postgres().await?;
+            let (redis_connstr, _redis) = common::test_with_redis().await?;
+            let test_server = common::test_http_app(
+                &pg_connstr,
+                &redis_connstr,
+                TestAppOptions::default(),
+            )
+            .await?;
+
+            let addr = test_server.addr().to_string();
+            let client = Client::new();
+            let username = common::DEFAULT_USER;
+            let password = common::DEFAULT_USER;
+            let token =
+                common::get_http_token(&addr, username, password, &client)
+                    .await?;
+
+            let (_resp, mut ws) = connect_ws(&addr, &token, &client).await?;
+            let _ = tracing::info!("Connected to WebSocket");
+
+            let invalid_job_id = uuid::Uuid::new_v4(); // Create a random UUID that doesn't exist
+            let _ =
+                tracing::info!("Generated invalid job ID: {}", invalid_job_id);
+
+            ws.send(ws_msg(&WsClientEvent::SubscribeJob {
+                job_id: invalid_job_id,
+            }))
+            .await?;
+            let _ = tracing::info!(
+                "Sent SubscribeJob message with invalid job ID."
+            );
+
+            let msg = ws_take_one(&mut ws).await?;
+            let _ = tracing::info!("Received message: {:?}", msg);
+
+            if let WsServerEvent::Error { id: _, cause } = msg {
+                assert!(cause.contains("Job with id:"));
+                assert!(cause.contains("does not exist"));
+                let _ = tracing::info!(
+                    "Received expected error message: {}",
+                    cause
+                );
+            } else {
+                panic!("error wrong message type: {:?}", msg);
+            }
+
+            Ok(())
+        }
+        .await;
+
+        tracing::info!("{res:?}");
+        res.unwrap();
+    }
 }
