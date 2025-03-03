@@ -2,7 +2,7 @@ use crate::schema::jobs;
 use diesel_derive_enum::DbEnum;
 use serde::{Deserialize, Serialize};
 
-use super::users::{UserId, Username};
+use super::users::UserId;
 
 #[derive(Eq, PartialEq, Debug, Clone, Serialize, Deserialize, new)]
 pub struct ErrorResponse<T> {
@@ -120,7 +120,7 @@ pub enum JobStatus {
 pub struct Job {
     pub id: i32,
     pub job_id: uuid::Uuid,
-    pub started_by: Username,
+    pub started_by: UserId,
     pub status: JobStatus,
     pub status_message: Option<String>,
     pub created_at: chrono::NaiveDateTime,

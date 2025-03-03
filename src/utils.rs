@@ -7,11 +7,14 @@ pub mod ws;
 use std::fmt::Display;
 use std::sync::Arc;
 
+use jwt_simple::claims::JWTClaims;
+use jwt_simple::prelude::*;
 use redis::aio::ConnectionManager;
 use redis::aio::PubSub;
 use serde::Serialize;
 
 use crate::errors::DomainError;
+use crate::routes::auth::VerifiedAuthDetails;
 use crate::AppData;
 
 mod rate_limit_backend;
@@ -64,4 +67,13 @@ where
         tracing::error!("Error deserializing: {:?}", err);
         mk_default(())
     })
+}
+
+pub fn get_claims(
+    jwt_key: &HS256Key,
+    token: &str,
+) -> Result<JWTClaims<VerifiedAuthDetails>, DomainError> {
+    jwt_key
+        .verify_token::<VerifiedAuthDetails>(token, None)
+        .map_err(|err| DomainError::anyhow_auth("Failed to verify token", err))
 }

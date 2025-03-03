@@ -12,11 +12,13 @@ mod tests {
 
     use super::*;
     use actix_demo::models::misc::{Job, JobStatus};
+    use actix_demo::utils;
     use actix_http::header;
     use actix_rt::time::sleep;
     use actix_web::dev::Service as _;
     use actix_web::http::StatusCode;
     use actix_web::test;
+    use jwt_simple::prelude::HS256Key;
 
     #[actix_rt::test]
     async fn get_build_info_should_succeed() {
@@ -54,6 +56,10 @@ mod tests {
                     .await
                     .unwrap();
             let token = common::get_default_token(&test_app).await;
+            let jwt_key = HS256Key::from_bytes("test".as_bytes());
+
+            let claims = utils::get_claims(&jwt_key, &token)?;
+            let user_id = claims.custom.user_id;
             let req = test::TestRequest::post()
                 .append_header((header::CONTENT_TYPE, "application/json"))
                 .uri("/api/cmd")
@@ -65,7 +71,7 @@ mod tests {
             let job_resp: Job = test::read_body_json(resp).await;
 
             let job_id = job_resp.job_id.to_string();
-            assert_eq!(job_resp.started_by.as_str(), common::DEFAULT_USER);
+            assert_eq!(job_resp.started_by, user_id);
             assert_eq!(job_resp.status, JobStatus::Pending);
 
             sleep(Duration::from_millis(500)).await;
@@ -78,7 +84,7 @@ mod tests {
             assert_eq!(resp.status(), StatusCode::OK);
             let job_resp: Job = test::read_body_json(resp).await;
 
-            assert_eq!(job_resp.started_by.as_str(), common::DEFAULT_USER);
+            assert_eq!(job_resp.started_by, user_id);
             assert_eq!(job_resp.status, JobStatus::Failed);
             Ok(())
         }
