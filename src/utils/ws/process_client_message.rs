@@ -36,12 +36,11 @@ pub async fn process_client_msg(
             Ok(())
         }
         WsClientEvent::SubscribeJob { job_id } => {
-            let chan_name = redis_prefix(&format!("job.{job_id}"));
-            let _ = tracing::info!("Subscribing {chan_name}");
             actix_rt::spawn(
                 async move {
                     let res =
-                        ws::subscribe_job(session, chan_name, app_data).await;
+                        ws::handle_subscribe_job(session, job_id, app_data)
+                            .await;
                     tracing::info!("Job subscription ended: {res:?}");
                 }
                 .instrument(tracing::info_span!("job_subscribe_loop")),

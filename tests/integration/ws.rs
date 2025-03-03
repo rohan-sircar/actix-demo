@@ -154,7 +154,10 @@ mod tests {
             let token =
                 common::get_http_token(&addr, username, password, &client)
                     .await?;
+
+            let _ = tracing::info!("Connecting to WebSocket...");
             let (_resp, mut ws) = connect_ws(&addr, &token, &client).await?;
+            let _ = tracing::info!("Successfully connected to WebSocket.");
 
             let mut resp = client
                 .post(format!("http://{addr}/api/cmd"))
@@ -168,14 +171,23 @@ mod tests {
             assert_eq!(job_resp.started_by.as_str(), common::DEFAULT_USER);
             assert_eq!(job_resp.status, JobStatus::Pending);
 
+            let _ = tracing::info!(
+                "Sending SubscribeJob message with job_id: {}",
+                job_id
+            );
             ws.send(ws_msg(&WsClientEvent::SubscribeJob { job_id }))
                 .await?;
+            let _ = tracing::info!("Finished sending SubscribeJob message.");
 
             sleep(Duration::from_millis(100)).await;
 
+            let _ = tracing::info!("Waiting for first message...");
             let msg = ws_take_one(&mut ws).await?;
+            let _ = tracing::info!("Received first message: {msg:?}");
 
-            let _ = tracing::info!("Received message: {msg:?}");
+            let _ = tracing::info!("Waiting for second message...");
+            let msg = ws_take_one(&mut ws).await?;
+            let _ = tracing::info!("Received second message: {msg:?}");
 
             if let WsServerEvent::CommandMessage {
                 message: MyProcessItem::Line { value },
@@ -201,6 +213,10 @@ mod tests {
                 panic!("error wrong message type");
             };
 
+            let _ = tracing::info!(
+                "Verifying that job status was set to completed"
+            );
+
             let mut resp = client
                 .get(format!("http://{addr}/api/cmd/{job_id}"))
                 .append_header((header::CONTENT_TYPE, "application/json"))
@@ -211,6 +227,10 @@ mod tests {
             let job_resp = resp.json::<Job>().await?;
             assert_eq!(job_resp.started_by.as_str(), common::DEFAULT_USER);
             assert_eq!(job_resp.status, JobStatus::Completed);
+
+            let _ =
+                tracing::info!("Verified that job status was set to completed");
+
             Ok(())
         }
         .await;
