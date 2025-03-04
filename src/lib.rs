@@ -44,11 +44,10 @@ use redis::aio::ConnectionManager;
 use redis::Client;
 use serde::Deserialize;
 use std::io;
+use telemetry::DomainRootSpanBuilder;
 use tracing_actix_web::TracingLogger;
 use types::{DbPool, RedisPrefixFn};
 use utils::redis_credentials_repo::RedisCredentialsRepo;
-
-use crate::telemetry::DomainRootSpanBuilder;
 
 build_info::build_info!(pub fn get_build_info);
 
@@ -110,7 +109,7 @@ impl AppData {
 }
 
 fn build_input_function(
-    app_data: &web::Data<AppData>,
+    app_data: &AppData,
     input_fn_builder: SimpleInputFunctionBuilder,
 ) -> SimpleInputFunctionBuilder {
     match app_data.config.rate_limit.key_strategy {
