@@ -7,6 +7,8 @@ use actix_web::{web, HttpRequest, HttpResponse};
 
 use tracing_futures::Instrument;
 
+use super::auth::validate_token;
+
 /// Handles incoming WebSocket connections
 ///
 /// # Flow
@@ -29,9 +31,18 @@ pub async fn ws(
     let token = extract_auth_token(headers)?;
     let _ = tracing::debug!("Successfully extracted auth token");
 
+    // Validate token using existing logic
+    let credentials_repo = &app_data.credentials_repo;
+    let jwt_key = &app_data.jwt_key;
+
+    let _ = tracing::debug!("Validating user session");
+
+    let _ = validate_token(credentials_repo, jwt_key, token.clone()).await?;
+
     let _ = tracing::debug!("Validating JWT claims");
     let claims = utils::get_claims(&app_data.jwt_key, &token)?;
     let user_id = claims.custom.user_id;
+
     let _ =
         tracing::debug!("Successfully validated claims for user {}", user_id);
 
