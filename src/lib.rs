@@ -250,6 +250,17 @@ pub fn configure_app(
                             .add(("Vary", "Cookie")),
                     ))
                     .wrap(from_fn(utils::cookie_auth))
+                    // .service(
+                    //     web::scope("sessions")
+                    //         .route("", web::get().to(list_sessions))
+                    //         .route(
+                    //             "/{token}",
+                    //             web::delete().to(revoke_session),
+                    //         ), // .route(
+                    //     "/revoke-others",
+                    //     web::post().to(revoke_other_sessions),
+                    // ),
+                    // )
                     .route(
                         "/cmd",
                         web::post().to(routes::command::handle_run_command),

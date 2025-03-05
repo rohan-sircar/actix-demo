@@ -129,6 +129,7 @@ pub struct UserLogin {
     pub username: Username,
     #[serde(skip_serializing)]
     pub password: Password,
+    pub device_name: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Queryable)]

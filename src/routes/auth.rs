@@ -2,22 +2,42 @@ use crate::actions::users::get_user_auth_details;
 use crate::errors::DomainError;
 use crate::models::roles::RoleEnum;
 use crate::models::users::{UserId, UserLogin, Username};
-use crate::utils::redis_credentials_repo::RedisCredentialsRepo;
+use crate::utils::redis_credentials_repo::{RedisCredentialsRepo, SessionInfo};
 use crate::{utils, AppData};
 use actix_http::header::{HeaderName, HeaderValue};
 use actix_web::dev::ServiceRequest;
 use actix_web::error::ErrorUnauthorized;
 use actix_web::web::{self, Data};
-use actix_web::{Error, HttpResponse};
+use actix_web::{Error, HttpRequest, HttpResponse};
 use awc::cookie::{Cookie, SameSite};
 use bcrypt::verify;
 use jwt_simple::prelude::*;
+
+use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
+use std::str::FromStr;
+use uuid::Uuid;
 
 #[derive(Serialize, Deserialize)]
 pub struct VerifiedAuthDetails {
     pub user_id: UserId,
     pub username: Username,
     pub roles: Vec<RoleEnum>,
+    pub device_id: String,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct SessionResponse {
+    pub token: String,
+    pub device_id: String,
+    pub device_name: Option<String>,
+    pub created_at: chrono::NaiveDateTime,
+    pub last_used_at: chrono::NaiveDateTime,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct SessionsResponse {
+    pub sessions: Vec<SessionResponse>,
 }
 
 #[tracing::instrument(level = "info", skip(req))]
@@ -41,6 +61,14 @@ pub async fn extract(
         HeaderValue::from_str(&user_id).unwrap(),
     );
 
+    // Also add device ID to headers
+    req.headers_mut().insert(
+        HeaderName::from_static("x-auth-device"),
+        HeaderValue::from_str(&claims.custom.device_id).map_err(|err| {
+            ErrorUnauthorized(format!("Invalid device ID: {err}"))
+        })?,
+    );
+
     Ok(roles)
 }
 
@@ -52,67 +80,229 @@ pub async fn validate_token(
     let claims = utils::get_claims(jwt_key, &token)?;
     let user_id = claims.custom.user_id;
 
-    let session_token =
-        credentials_repo.load(&user_id).await?.ok_or_else(|| {
-            DomainError::new_auth_error(format!(
-                "Session does not exist for user id - {}",
-                &user_id
-            ))
-        })?;
+    // Check if this specific token exists in the user's sessions
+    let session_info = credentials_repo.load_session(&user_id, &token).await?;
 
-    if token.eq(&session_token) {
-        // Refresh TTL on valid token
-        let ttl_seconds: u64 = 1800; // 30 minutes
-        credentials_repo.save(&user_id, &token, ttl_seconds).await?;
-        Ok(())
-    } else {
-        Err(DomainError::new_auth_error("Invalid token".to_owned()))
+    match session_info {
+        Some(_) => {
+            // Update last used time
+            credentials_repo
+                .update_session_last_used(&user_id, &token)
+                .await?;
+            Ok(())
+        }
+        None => Err(DomainError::new_auth_error(format!(
+            "Session does not exist for user id - {}",
+            &user_id
+        ))),
     }
 }
 
-#[tracing::instrument(level = "info", skip(app_data))]
+#[tracing::instrument(level = "info", skip(app_data, login_request))]
 pub async fn login(
-    user_login: web::Json<UserLogin>,
+    login_request: web::Json<UserLogin>,
     app_data: web::Data<AppData>,
 ) -> Result<HttpResponse, DomainError> {
-    let user_login = user_login.into_inner().clone();
     let credentials_repo = &app_data.credentials_repo;
     let pool = app_data.pool.clone();
+
+    let login_request = login_request.into_inner();
+
     let mb_user = web::block(move || {
         let mut conn = pool.get()?;
-        get_user_auth_details(&user_login.username, &mut conn)
+        get_user_auth_details(&login_request.username, &mut conn)
     })
     .await??;
+
     let user = mb_user.ok_or_else(|| DomainError::AuthError {
         message: "User does not exist".to_owned(),
     })?;
+
     let valid = web::block(move || {
-        verify(user_login.password.as_str(), user.password.as_str())
+        verify(login_request.password.as_str(), user.password.as_str())
     })
     .await??;
+
     let token = if valid {
+        // Generate a unique device ID if not provided
+        let device_id = Uuid::new_v4().to_string();
+
         let auth_data = VerifiedAuthDetails {
             user_id: user.id,
             username: user.username,
             roles: user.roles,
+            device_id: device_id.clone(),
         };
+
         let claims =
             Claims::with_custom_claims(auth_data, Duration::from_days(30));
         let token = app_data.jwt_key.authenticate(claims).map_err(|err| {
             DomainError::anyhow_auth("Failed to deserialize token", err)
         })?;
 
+        // Create session info
+        let now = chrono::Utc::now().naive_utc();
+        let session_info = SessionInfo {
+            device_id,
+            device_name: login_request.device_name.clone(),
+            created_at: now,
+            last_used_at: now,
+        };
+
         let ttl_seconds: u64 = 86400; // 24 hours
-        let _ = credentials_repo.save(&user.id, &token, ttl_seconds).await?;
+        let _ = credentials_repo
+            .save_session(&user.id, &token, &session_info, ttl_seconds)
+            .await?;
+
         Ok(token)
     } else {
         Err(DomainError::new_auth_error("Wrong password".to_owned()))
     }?;
+
     let cookie = Cookie::build("X-AUTH-TOKEN", &token)
         .http_only(true)
         .secure(true)
         .same_site(SameSite::Strict)
         .path("/")
         .finish();
+
     Ok(HttpResponse::Ok().cookie(cookie).finish())
+}
+
+// New endpoint to list all active sessions for a user
+#[tracing::instrument(level = "info", skip(app_data, req))]
+pub async fn list_sessions(
+    req: HttpRequest,
+    app_data: web::Data<AppData>,
+) -> Result<HttpResponse, DomainError> {
+    let user_id = req
+        .headers()
+        .get("x-auth-user")
+        .ok_or_else(|| {
+            DomainError::new_auth_error("Missing x-auth-user header".to_owned())
+        })
+        .and_then(|hv| {
+            hv.to_str().map_err(|err| {
+                DomainError::new_bad_input_error(format!(
+                    "x-auth-user header is not a valid UTF-8 string: {err}"
+                ))
+            })
+        })
+        .and_then(|str| {
+            UserId::from_str(str).map_err(|err| {
+                DomainError::new_bad_input_error(format!(
+                    "Invalid UserId format in x-auth-user header: {err}"
+                ))
+            })
+        })?;
+    let credentials_repo = &app_data.credentials_repo;
+
+    let sessions = credentials_repo.load_all_sessions(&user_id).await?;
+
+    let session_responses: Vec<SessionResponse> = sessions
+        .into_iter()
+        .map(|(token, info)| SessionResponse {
+            token,
+            device_id: info.device_id,
+            device_name: info.device_name,
+            created_at: info.created_at,
+            last_used_at: info.last_used_at,
+        })
+        .collect();
+
+    Ok(HttpResponse::Ok().json(SessionsResponse {
+        sessions: session_responses,
+    }))
+}
+
+// New endpoint to revoke a specific session
+#[tracing::instrument(level = "info", skip(app_data, req))]
+pub async fn revoke_session(
+    req: HttpRequest,
+    token: web::Path<String>,
+    app_data: web::Data<AppData>,
+) -> Result<HttpResponse, DomainError> {
+    let user_id = req
+        .headers()
+        .get("x-auth-user")
+        .ok_or_else(|| {
+            DomainError::new_auth_error("Missing x-auth-user header".to_owned())
+        })
+        .and_then(|hv| {
+            hv.to_str().map_err(|err| {
+                DomainError::new_bad_input_error(format!(
+                    "x-auth-user header is not a valid UTF-8 string: {err}"
+                ))
+            })
+        })
+        .and_then(|str| {
+            UserId::from_str(str).map_err(|err| {
+                DomainError::new_bad_input_error(format!(
+                    "Invalid UserId format in x-auth-user header: {err}"
+                ))
+            })
+        })?;
+    let credentials_repo = &app_data.credentials_repo;
+
+    // Check if the session exists
+    let session = credentials_repo.load_session(&user_id, &token).await?;
+    if session.is_none() {
+        return Err(DomainError::new_auth_error(
+            "Session not found".to_owned(),
+        ));
+    }
+
+    // Delete the session
+    let _ = credentials_repo.delete_session(&user_id, &token).await?;
+
+    Ok(HttpResponse::Ok().finish())
+}
+
+// New endpoint to revoke all sessions except the current one
+#[tracing::instrument(level = "info", skip(app_data, req))]
+pub async fn revoke_other_sessions(
+    req: HttpRequest,
+    app_data: web::Data<AppData>,
+) -> Result<HttpResponse, DomainError> {
+    let user_id = req
+        .headers()
+        .get("x-auth-user")
+        .ok_or_else(|| {
+            DomainError::new_auth_error("Missing x-auth-user header".to_owned())
+        })
+        .and_then(|hv| {
+            hv.to_str().map_err(|err| {
+                DomainError::new_bad_input_error(format!(
+                    "x-auth-user header is not a valid UTF-8 string: {err}"
+                ))
+            })
+        })
+        .and_then(|str| {
+            UserId::from_str(str).map_err(|err| {
+                DomainError::new_bad_input_error(format!(
+                    "Invalid UserId format in x-auth-user header: {err}"
+                ))
+            })
+        })?;
+    let credentials_repo = &app_data.credentials_repo;
+
+    // Get the current token from cookie
+    let current_token = req
+        .cookie("X-AUTH-TOKEN")
+        .map(|c| c.value().to_string())
+        .ok_or_else(|| {
+            DomainError::new_auth_error("Missing auth cookie".to_owned())
+        })?;
+
+    // Get all sessions
+    let sessions = credentials_repo.load_all_sessions(&user_id).await?;
+
+    // Delete all sessions except the current one
+    for (token, _) in sessions {
+        if token != current_token {
+            credentials_repo.delete_session(&user_id, &token).await?;
+        }
+    }
+
+    Ok(HttpResponse::Ok().finish())
 }
