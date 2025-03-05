@@ -40,6 +40,22 @@ impl RedisCredentialsRepo {
     //     Ok(sessions.keys().next().map(|s| s.to_string()))
     // }
 
+    // Method to check if a token is expired
+    pub async fn is_token_expired(
+        &self,
+        user_id: &UserId,
+        token: &str,
+    ) -> Result<bool, DomainError> {
+        let expiry_key = self.get_expiry_key(user_id, token);
+        let exists: bool =
+            self.redis.clone().exists(expiry_key).await.map_err(|err| {
+                DomainError::new_bad_input_error(format!(
+                    "Failed to check if expiry key exists: {err}"
+                ))
+            })?;
+        Ok(exists)
+    }
+
     // Load a specific session by token
     pub async fn load_session(
         &self,

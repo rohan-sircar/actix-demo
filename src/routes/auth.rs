@@ -80,12 +80,26 @@ pub async fn validate_token(
     let claims = utils::get_claims(jwt_key, &token)?;
     let user_id = claims.custom.user_id;
 
+    // Clean up expired tokens first
+    credentials_repo.cleanup_expired_tokens(&user_id).await?;
+
     // Check if this specific token exists in the user's sessions
     let session_info = credentials_repo.load_session(&user_id, &token).await?;
 
     match session_info {
         Some(_) => {
-            // Update last used time
+            // Check if the expiry key exists
+            let exists: bool =
+                credentials_repo.is_token_expired(&user_id, &token).await?;
+            if !exists {
+                // Token has expired
+                credentials_repo.delete_session(&user_id, &token).await?;
+                return Err(DomainError::new_auth_error(
+                    "Token has expired".to_owned(),
+                ));
+            }
+
+            // Update last used time and refresh TTL
             credentials_repo
                 .update_session_last_used(&user_id, &token)
                 .await?;
