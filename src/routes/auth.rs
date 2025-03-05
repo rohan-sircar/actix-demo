@@ -213,6 +213,34 @@ pub async fn list_sessions(
 
 // New endpoint to revoke a specific session
 #[tracing::instrument(level = "info", skip(app_data, req))]
+pub async fn logout(
+    req: HttpRequest,
+    app_data: web::Data<AppData>,
+) -> Result<HttpResponse, DomainError> {
+    // Extract token from cookie
+    let cookie = req.cookie("X-AUTH-TOKEN").ok_or_else(|| {
+        DomainError::new_auth_error("Missing auth token".to_owned())
+    })?;
+    let token = cookie.value();
+    let credentials_repo = &app_data.credentials_repo;
+    let jwt_key = &app_data.jwt_key;
+    let claims = utils::get_claims(jwt_key, token)?;
+    let user_id = claims.custom.user_id;
+    // Check if the session exists
+    let session = credentials_repo.load_session(&user_id, &token).await?;
+    if session.is_none() {
+        return Err(DomainError::new_auth_error(
+            "Session not found".to_owned(),
+        ));
+    }
+    // Delete the session
+    let _ = credentials_repo.delete_session(&user_id, &token).await?;
+
+    Ok(HttpResponse::Ok().finish())
+}
+
+// New endpoint to revoke a specific session
+#[tracing::instrument(level = "info", skip(app_data, token, req))]
 pub async fn revoke_session(
     req: HttpRequest,
     token: web::Path<String>,

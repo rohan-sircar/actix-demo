@@ -239,8 +239,13 @@ pub fn configure_app(
         cfg.app_data(app_data.clone())
             .service(
                 web::resource("/api/login")
-                    .wrap(login_limiter)
-                    .route(web::post().to(routes::auth::login)), // reference the function directly
+                    .wrap(login_limiter.clone())
+                    .route(web::post().to(routes::auth::login)),
+            )
+            .service(
+                web::resource("/api/logout")
+                    .wrap(api_rate_limiter())
+                    .route(web::post().to(routes::auth::logout)),
             )
             .service(
                 web::resource("/api/registration")
