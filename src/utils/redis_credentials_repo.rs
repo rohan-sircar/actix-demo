@@ -2,6 +2,7 @@ use redis::aio::ConnectionManager;
 use redis::AsyncCommands;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use uuid::Uuid;
 
 use crate::errors::DomainError;
 use crate::models::users::UserId;
@@ -14,6 +15,7 @@ pub struct RedisCredentialsRepo {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SessionInfo {
+    pub session_id: Uuid,
     pub device_id: String,
     pub device_name: Option<String>,
     pub created_at: chrono::NaiveDateTime,

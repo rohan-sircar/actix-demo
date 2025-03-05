@@ -28,20 +28,6 @@ pub struct VerifiedAuthDetails {
     pub device_id: String,
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct SessionResponse {
-    pub token: String,
-    pub device_id: String,
-    pub device_name: Option<String>,
-    pub created_at: chrono::NaiveDateTime,
-    pub last_used_at: chrono::NaiveDateTime,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct SessionsResponse {
-    pub sessions: Vec<SessionResponse>,
-}
-
 #[tracing::instrument(level = "info", skip(req))]
 pub async fn extract(
     req: &mut ServiceRequest,
@@ -160,7 +146,9 @@ pub async fn login(
 
         // Create session info
         let now = chrono::Utc::now().naive_utc();
+        let session_id = Uuid::new_v4();
         let session_info = SessionInfo {
+            session_id,
             device_id,
             device_name: login_request.device_name.clone(),
             created_at: now,
@@ -217,20 +205,10 @@ pub async fn list_sessions(
 
     let sessions = credentials_repo.load_all_sessions(&user_id).await?;
 
-    let session_responses: Vec<SessionResponse> = sessions
-        .into_iter()
-        .map(|(token, info)| SessionResponse {
-            token,
-            device_id: info.device_id,
-            device_name: info.device_name,
-            created_at: info.created_at,
-            last_used_at: info.last_used_at,
-        })
-        .collect();
+    let sessions: Vec<_> =
+        sessions.into_iter().map(|(_token, info)| info).collect();
 
-    Ok(HttpResponse::Ok().json(SessionsResponse {
-        sessions: session_responses,
-    }))
+    Ok(HttpResponse::Ok().json(sessions))
 }
 
 // New endpoint to revoke a specific session
