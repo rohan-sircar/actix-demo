@@ -4,6 +4,7 @@ use actix_demo::actions::misc::create_database_if_needed;
 use actix_demo::models::rate_limit::{
     KeyStrategy, RateLimitConfig, RateLimitPolicy,
 };
+use actix_demo::models::session::{SessionConfig, SessionRenewalPolicy};
 use actix_demo::utils::redis_credentials_repo::RedisCredentialsRepo;
 use actix_demo::{utils, AppConfig, AppData, EnvConfig, LoggerFormat};
 use actix_web::web::Data;
@@ -90,6 +91,17 @@ async fn main() -> anyhow::Result<()> {
             hash_cost: env_config.hash_cost,
             job_bin_path: env_config.job_bin_path,
             rate_limit: rate_limit_config,
+            session: SessionConfig {
+                expiration_secs: env_config.session_expiration_secs,
+                renewal: SessionRenewalPolicy {
+                    enabled: env_config.session_renewal_enabled,
+                    renewal_window_secs: env_config.session_renewal_window_secs,
+                    max_renewals: env_config.session_max_renewals,
+                },
+                cleanup_interval_secs: env_config.session_cleanup_interval_secs,
+                max_concurrent_sessions: env_config.max_concurrent_sessions,
+                disable: env_config.session_disable,
+            },
         },
         pool,
         credentials_repo,

@@ -54,8 +54,12 @@ pub async fn cookie_auth(
     // Validate token using existing logic
     let credentials_repo = &app_data.credentials_repo;
     let jwt_key = &app_data.jwt_key;
+    let refresh_ttl_seconds =
+        app_data.config.session.renewal.renewal_window_secs;
 
-    match validate_token(credentials_repo, jwt_key, token).await {
+    match validate_token(credentials_repo, jwt_key, token, refresh_ttl_seconds)
+        .await
+    {
         Ok(_) => Ok(next.call(req).await?),
         Err(err) => Err(Error::from(err)),
     }

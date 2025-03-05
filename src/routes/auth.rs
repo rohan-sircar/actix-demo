@@ -2,7 +2,9 @@ use crate::actions::users::get_user_auth_details;
 use crate::errors::DomainError;
 use crate::models::roles::RoleEnum;
 use crate::models::users::{UserId, UserLogin, Username};
-use crate::utils::redis_credentials_repo::{RedisCredentialsRepo, SessionInfo};
+use crate::utils::redis_credentials_repo::{
+    RedisCredentialsRepo, SessionInfo, SessionStatus,
+};
 use crate::{utils, AppData};
 use actix_http::header::{HeaderName, HeaderValue};
 use actix_web::dev::ServiceRequest;
@@ -76,12 +78,13 @@ pub async fn validate_token(
     credentials_repo: &RedisCredentialsRepo,
     jwt_key: &HS256Key,
     token: String,
+    refresh_ttl_seconds: u64,
 ) -> Result<(), DomainError> {
     let claims = utils::get_claims(jwt_key, &token)?;
     let user_id = claims.custom.user_id;
 
     // Clean up expired tokens first
-    credentials_repo.cleanup_expired_tokens(&user_id).await?;
+    let _ = credentials_repo.cleanup_expired_tokens(&user_id).await?;
 
     // Check if this specific token exists in the user's sessions
     let session_info = credentials_repo.load_session(&user_id, &token).await?;
@@ -89,19 +92,20 @@ pub async fn validate_token(
     match session_info {
         Some(_) => {
             // Check if the expiry key exists
-            let exists: bool =
+            let status =
                 credentials_repo.is_token_expired(&user_id, &token).await?;
-            if !exists {
+            if status == SessionStatus::Expired {
                 // Token has expired
-                credentials_repo.delete_session(&user_id, &token).await?;
+                let _ =
+                    credentials_repo.delete_session(&user_id, &token).await?;
                 return Err(DomainError::new_auth_error(
                     "Token has expired".to_owned(),
                 ));
             }
 
             // Update last used time and refresh TTL
-            credentials_repo
-                .update_session_last_used(&user_id, &token)
+            let _ = credentials_repo
+                .update_session_last_used(&user_id, &token, refresh_ttl_seconds)
                 .await?;
             Ok(())
         }
@@ -163,7 +167,7 @@ pub async fn login(
             last_used_at: now,
         };
 
-        let ttl_seconds: u64 = 86400; // 24 hours
+        let ttl_seconds = app_data.config.session.expiration_secs;
         let _ = credentials_repo
             .save_session(&user.id, &token, &session_info, ttl_seconds)
             .await?;

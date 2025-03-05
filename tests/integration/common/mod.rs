@@ -4,6 +4,7 @@ use actix_demo::models::rate_limit::{
     KeyStrategy, RateLimitConfig, RateLimitPolicy,
 };
 use actix_demo::models::roles::RoleEnum;
+use actix_demo::models::session::{SessionConfig, SessionConfigBuilder};
 use actix_demo::models::users::{NewUser, Password, Username};
 use actix_demo::telemetry::DomainRootSpanBuilder;
 use actix_demo::utils::redis_credentials_repo::RedisCredentialsRepo;
@@ -144,6 +145,8 @@ pub struct TestAppOptions {
     pub auth_rate_limit: RateLimitPolicy,
     #[builder(default = "true")]
     pub rate_limit_disabled: bool,
+    #[builder(default = "self.default_session_config()")]
+    pub session_config: SessionConfig,
 }
 
 impl Default for TestAppOptions {
@@ -167,6 +170,9 @@ impl TestAppOptionsBuilder {
             max_requests: 1000,
             window_secs: 60,
         }
+    }
+    fn default_session_config(&self) -> SessionConfig {
+        SessionConfigBuilder::default().build().unwrap()
     }
 }
 
@@ -192,7 +198,8 @@ pub async fn app_data(
     let config = AppConfig {
         hash_cost: 4,
         job_bin_path: options.bin_file.location.clone(),
-        rate_limit: create_rate_limit_config(options),
+        rate_limit: create_rate_limit_config(options.clone()),
+        session: options.session_config.clone(),
     };
 
     let client = redis::Client::open(redis_connstr)

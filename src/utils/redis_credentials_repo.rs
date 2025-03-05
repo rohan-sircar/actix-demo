@@ -20,6 +20,21 @@ pub struct SessionInfo {
     pub last_used_at: chrono::NaiveDateTime,
 }
 
+#[derive(PartialEq)]
+pub enum SessionStatus {
+    Expired,
+    Alive,
+}
+impl SessionStatus {
+    pub fn from_exists(exists: bool) -> SessionStatus {
+        if exists {
+            SessionStatus::Alive
+        } else {
+            SessionStatus::Expired
+        }
+    }
+}
+
 impl RedisCredentialsRepo {
     pub fn get_key(&self, user_id: &UserId) -> String {
         format!("{}.{user_id}", self.base_key)
@@ -45,7 +60,7 @@ impl RedisCredentialsRepo {
         &self,
         user_id: &UserId,
         token: &str,
-    ) -> Result<bool, DomainError> {
+    ) -> Result<SessionStatus, DomainError> {
         let expiry_key = self.get_expiry_key(user_id, token);
         let exists: bool =
             self.redis.clone().exists(expiry_key).await.map_err(|err| {
@@ -53,7 +68,8 @@ impl RedisCredentialsRepo {
                     "Failed to check if expiry key exists: {err}"
                 ))
             })?;
-        Ok(exists)
+        // let sta
+        Ok(SessionStatus::from_exists(exists))
     }
 
     // Load a specific session by token
@@ -217,18 +233,24 @@ impl RedisCredentialsRepo {
         &self,
         user_id: &UserId,
         token: &str,
+        refresh_ttl_seconds: u64,
     ) -> Result<(), DomainError> {
         let session = self.load_session(user_id, token).await?;
 
         if let Some(mut session_info) = session {
             session_info.last_used_at = chrono::Utc::now().naive_utc();
 
-            // Always extend by 30 minutes (1800 seconds)
-            let ttl_seconds: u64 = 1800;
+            // // Always extend by 30 minutes (1800 seconds)
+            // let ttl_seconds: u64 = 1800;
 
             // Update the session info and refresh the expiry
-            self.save_session(user_id, token, &session_info, ttl_seconds)
-                .await?;
+            self.save_session(
+                user_id,
+                token,
+                &session_info,
+                refresh_ttl_seconds,
+            )
+            .await?;
         }
 
         Ok(())
