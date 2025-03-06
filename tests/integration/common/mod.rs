@@ -36,7 +36,7 @@ use tracing::subscriber::set_global_default;
 use tracing_actix_web::TracingLogger;
 use tracing_log::LogTracer;
 use tracing_subscriber::fmt::{format::FmtSpan, Subscriber as FmtSubscriber};
-use tracing_subscriber::{layer::SubscriberExt, EnvFilter};
+use tracing_subscriber::EnvFilter;
 use validators::prelude::*;
 
 use actix_demo::configure_app;
@@ -108,9 +108,10 @@ static TRACING: Lazy<anyhow::Result<()>> = Lazy::new(|| {
     let subscriber = FmtSubscriber::builder()
         .pretty()
         .with_test_writer()
-        .with_span_events(FmtSpan::NEW | FmtSpan::CLOSE)
-        .finish()
-        .with(env_filter);
+        // .with_span_events(FmtSpan::NEW | FmtSpan::CLOSE)
+        .with_span_events(FmtSpan::NONE)
+        .with_env_filter(env_filter)
+        .finish();
 
     let _ =
         set_global_default(subscriber).context("Failed to set subscriber")?;

@@ -166,7 +166,8 @@ impl RedisCredentialsRepo {
             })?;
 
         // Add to hash (without expiry)
-        self.redis
+        let () = self
+            .redis
             .clone()
             .hset::<String, &str, String, ()>(key, token, session_info_str)
             .await
@@ -176,17 +177,56 @@ impl RedisCredentialsRepo {
                 ))
             })?;
 
-        // Set expiry for this specific token using a separate key
+        // Get expiry key
         let expiry_key = self.get_expiry_key(user_id, token);
-        self.redis
+
+        // Try to get TTL and handle based on result
+        let value = self
+            .redis
             .clone()
-            .set_ex::<String, &str, ()>(expiry_key, "1", ttl_seconds)
+            .ttl::<String, i64>(expiry_key.clone())
             .await
             .map_err(|err| {
                 DomainError::new_internal_error(format!(
-                    "Failed to set expiry on Redis key: {err}"
+                    "Failed to get ttl of key: {err}"
                 ))
             })?;
+        if value > 0 {
+            // Calculate new TTL
+            let existing_ttl = value;
+            tracing::debug!(
+                "Existing TTL for key {expiry_key}: {existing_ttl} seconds",
+            );
+            let new_ttl: i64 = existing_ttl + ttl_seconds as i64;
+
+            tracing::debug!(
+                "Setting new TTL for key {expiry_key}: {new_ttl} seconds",
+            );
+
+            // Update expiry
+            let () = self
+                .redis
+                .clone()
+                .expire(expiry_key.clone(), new_ttl)
+                .await
+                .map_err(|err| {
+                    DomainError::new_internal_error(format!(
+                        "Failed to update expiry on Redis key: {err}"
+                    ))
+                })?;
+        } else {
+            // Set expiry for the first time
+            let () = self
+                .redis
+                .clone()
+                .set_ex::<String, &str, ()>(expiry_key, "1", ttl_seconds)
+                .await
+                .map_err(|err| {
+                    DomainError::new_internal_error(format!(
+                        "Failed to set expiry on Redis key: {err}"
+                    ))
+                })?;
+        };
 
         Ok(())
     }

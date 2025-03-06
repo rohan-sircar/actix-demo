@@ -70,7 +70,7 @@ pub async fn validate_token(
     let user_id = claims.custom.user_id;
 
     // Clean up expired tokens first
-    let _ = credentials_repo.cleanup_expired_tokens(&user_id).await?;
+    // let _ = credentials_repo.cleanup_expired_tokens(&user_id).await?;
 
     // Check if this specific token exists in the user's sessions
     let session_info = credentials_repo.load_session(&user_id, &token).await?;

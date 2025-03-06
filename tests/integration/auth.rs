@@ -130,4 +130,99 @@ mod tests {
             res.unwrap();
         }
     }
+
+    mod token_expiration {
+        use crate::common::{TestAppOptionsBuilder, WithToken};
+
+        use super::*;
+        use actix_demo::models::session::{
+            SessionConfigBuilder, SessionRenewalPolicyBuilder,
+        };
+        use actix_http::StatusCode;
+        use anyhow::anyhow;
+        use awc::Client;
+        use std::time::Duration;
+
+        #[actix_rt::test]
+        async fn should_expire_jwt_token_after_ttl() {
+            let res: anyhow::Result<()> = async {
+                // Set up test infrastructure with 5-second token expiration
+                let (pg_connstr, _pg) = common::test_with_postgres().await?;
+                let (redis_connstr, _redis) = common::test_with_redis().await?;
+
+                // Create test app with session expiration configuration
+                let test_server = common::test_http_app(
+                    &pg_connstr,
+                    &redis_connstr,
+                    TestAppOptionsBuilder::default()
+                        .session_config(
+                            SessionConfigBuilder::default()
+                                .expiration_secs(2)
+                                .renewal(
+                                    SessionRenewalPolicyBuilder::default()
+                                        .renewal_window_secs(0)
+                                        .build()
+                                        .unwrap(),
+                                )
+                                .build()
+                                .unwrap(),
+                        )
+                        .build()
+                        .unwrap(),
+                )
+                .await?;
+
+                let addr = test_server.addr().to_string();
+                let client = Client::new();
+
+                // Create test user
+                let username = "ttltestuser";
+                let password = "test_password";
+                let _ = common::create_http_user(
+                    &addr, username, password, &client,
+                )
+                .await?;
+
+                // Login to get token
+                let token =
+                    common::get_http_token(&addr, username, password, &client)
+                        .await?;
+
+                // Make valid request immediately
+                let resp = client
+                    .get(format!("http://{addr}/api/users?page=0&limit=5"))
+                    .with_token(&token)
+                    .send()
+                    .await
+                    .map_err(|err| anyhow!("{err}"))?;
+
+                assert_eq!(
+                    resp.status(),
+                    StatusCode::OK,
+                    "Expected 200 OK for valid token"
+                );
+
+                // Wait for token expiration
+                let _ = tokio::time::sleep(Duration::from_secs(3)).await;
+
+                // Make request with expired token
+                let resp = client
+                    .get(format!("http://{addr}/api/users?page=0&limit=5"))
+                    .with_token(&token)
+                    .send()
+                    .await
+                    .map_err(|err| anyhow!("{err}"))?;
+
+                assert_eq!(
+                    resp.status(),
+                    StatusCode::UNAUTHORIZED,
+                    "Expected 401 Unauthorized after token expiration"
+                );
+                Ok(())
+            }
+            .await;
+            tracing::info!("{res:?}");
+            res.unwrap();
+        }
+    }
 }
