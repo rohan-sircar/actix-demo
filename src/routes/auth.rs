@@ -226,12 +226,12 @@ pub async fn logout(
     let claims = utils::get_claims(jwt_key, token)?;
     let user_id = claims.custom.user_id;
     // Check if the session exists
-    let session = credentials_repo.load_session(&user_id, token).await?;
-    if session.is_none() {
-        return Err(DomainError::new_auth_error(
-            "Session not found".to_owned(),
-        ));
-    }
+    let _session = credentials_repo
+        .load_session(&user_id, token)
+        .await?
+        .ok_or_else(|| {
+            DomainError::new_auth_error("Session not found".to_owned())
+        })?;
     // Delete the session
     let _ = credentials_repo.delete_session(&user_id, token).await?;
 
