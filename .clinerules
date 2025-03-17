@@ -3,6 +3,23 @@
 - Use idiomatic Rust always
   - e.g. Do not use `return`, try to convert the error to a value. If it does
     not seem possible, ask the user what they would like to do.
+- For log statements using `tracing` crate, use the qualified name of the crate:
+  `tracing::info!` insteaed of just `info!` to indicate that we are not using
+  the default `log` crate
+  - Also inline variables into the format string when logging like this
+  ```rust
+     let _ = tracing::info!(
+         "Initiating websocket connection for user {user_id} on device {device_id} ({device_name})"
+     );
+  ```
+  - If the variable is part of the request context and/or repeated in every log statement,
+    add it to the span context like this
+    `let _ = tracing::Span::current().record("device_id", &device_id);`
+  - Consider the lifetimes of the variables when doing this, use clone when necessary
+- Follow the principles of functional programming as much as possible
+  - For operations doing side effects like logging or launching a task, indicate
+    that a side effect is occuring by using the syntax `let _ = {{side effect operation}}`
+    like `let _ = tracing::info!("message");`
 - In closures, keep the parameter name of the closure small e.g. `hv` instead of
   `header_value`
 - For error handling, consult `src/errors.rs` for built-in error types. Convert
