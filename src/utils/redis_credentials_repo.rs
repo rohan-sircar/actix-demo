@@ -47,16 +47,6 @@ impl RedisCredentialsRepo {
         format!("{}.{user_id}.expiry.{token}", self.base_key)
     }
 
-    // For backward compatibility
-    // pub async fn load(
-    //     &self,
-    //     user_id: &UserId,
-    // ) -> Result<Option<String>, DomainError> {
-    //     let sessions = self.load_all_sessions(user_id).await?;
-    //     // Return the first token if any exists
-    //     Ok(sessions.keys().next().map(|s| s.to_string()))
-    // }
-
     // Method to check if a token is expired
     pub async fn is_token_expired(
         &self,
@@ -128,24 +118,6 @@ impl RedisCredentialsRepo {
 
         Ok(result)
     }
-
-    // For backward compatibility
-    // pub async fn save(
-    //     &self,
-    //     user_id: &UserId,
-    //     jwt: &str,
-    //     ttl_seconds: u64,
-    // ) -> Result<(), DomainError> {
-    //     let session_info = SessionInfo {
-    //         device_id: Uuid::new_v4().to_string(),
-    //         device_name: None,
-    //         created_at: chrono::Utc::now().timestamp(),
-    //         last_used_at: chrono::Utc::now().timestamp(),
-    //     };
-
-    //     self.save_session(user_id, jwt, &session_info, ttl_seconds)
-    //         .await
-    // }
 
     // Modified save_session method
     pub async fn save_session(
@@ -219,6 +191,7 @@ impl RedisCredentialsRepo {
             let () = self
                 .redis
                 .clone()
+                // exact value of the key is not important, we just need to set the expiry
                 .set_ex::<String, &str, ()>(expiry_key, "1", ttl_seconds)
                 .await
                 .map_err(|err| {
@@ -281,9 +254,6 @@ impl RedisCredentialsRepo {
 
         if let Some(mut session_info) = session {
             session_info.last_used_at = chrono::Utc::now().naive_utc();
-
-            // // Always extend by 30 minutes (1800 seconds)
-            // let ttl_seconds: u64 = 1800;
 
             // Update the session info and refresh the expiry
             self.save_session(
