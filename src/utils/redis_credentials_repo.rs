@@ -11,6 +11,7 @@ use crate::models::users::UserId;
 pub struct RedisCredentialsRepo {
     base_key: String,
     redis: ConnectionManager,
+    max_sessions: u8,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -128,6 +129,24 @@ impl RedisCredentialsRepo {
         ttl_seconds: u64,
     ) -> Result<(), DomainError> {
         let key = self.get_key(user_id);
+
+        // Get current session count and attempt to add new session
+        let current_count: i64 =
+            self.redis.clone().hlen(&key).await.map_err(|err| {
+                DomainError::new_internal_error(format!(
+                    "Redis pipeline failed: {err}"
+                ))
+            })?;
+
+        let _ = tracing::info!("User has {current_count} sessions currently");
+
+        // Check if limit exceeded
+        if current_count >= self.max_sessions as i64 {
+            return Err(DomainError::new_rate_limit_error(format!(
+                "Maximum concurrent sessions ({}) exceeded",
+                self.max_sessions
+            )));
+        }
 
         // Serialize session info
         let session_info_str =

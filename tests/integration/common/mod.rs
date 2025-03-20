@@ -250,8 +250,11 @@ pub async fn app_data(
 
     let redis_prefix = Box::new(utils::get_redis_prefix("app"));
 
-    let credentials_repo =
-        RedisCredentialsRepo::new(redis_prefix(&"user-sessions"), cm.clone());
+    let credentials_repo = RedisCredentialsRepo::new(
+        redis_prefix(&"user-sessions"),
+        cm.clone(),
+        5,
+    );
 
     let key = HS256Key::from_bytes("test".as_bytes());
 

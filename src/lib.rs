@@ -90,7 +90,7 @@ pub struct EnvConfig {
     )]
     pub session_cleanup_interval_secs: u64,
     #[serde(default = "models::defaults::default_max_concurrent_sessions")]
-    pub max_concurrent_sessions: u32,
+    pub max_concurrent_sessions: u8,
     #[serde(default = "models::defaults::default_session_renewal_enabled")]
     pub session_renewal_enabled: bool,
     #[serde(default = "models::defaults::default_session_renewal_window_secs")]
