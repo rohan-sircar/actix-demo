@@ -311,4 +311,181 @@ mod tests {
             res.unwrap();
         }
     }
+    mod session_renewal {
+        use super::*;
+        use crate::common::{TestAppOptionsBuilder, WithToken};
+        use actix_demo::models::session::{
+            SessionConfigBuilder, SessionRenewalPolicyBuilder,
+        };
+        use actix_http::StatusCode;
+        use anyhow::anyhow;
+        use awc::Client;
+        use std::time::Duration;
+
+        #[actix_rt::test]
+        async fn should_handle_session_renewal() {
+            let res: anyhow::Result<()> = async {
+                // Set up test infrastructure with session renewal configuration
+                let (pg_connstr, _pg) = common::test_with_postgres().await?;
+                let (redis_connstr, _redis) = common::test_with_redis().await?;
+
+                // Create test app with session renewal policy
+                let test_server = common::test_http_app(
+                    &pg_connstr,
+                    &redis_connstr,
+                    TestAppOptionsBuilder::default()
+                        .session_config(
+                            SessionConfigBuilder::default()
+                                // Sessions expire after 2 seconds by default
+                                .expiration_secs(2)
+                                .renewal(
+                                    SessionRenewalPolicyBuilder::default()
+                                        // Each successful request extends expiration by 2 seconds
+                                        // New expiration = remaining_time + renewal_window_secs
+                                        .renewal_window_secs(2)
+                                        .build()
+                                        .unwrap(),
+                                )
+                                .build()
+                                .unwrap(),
+                        )
+                        .build()
+                        .unwrap(),
+                )
+                .await?;
+
+                let addr = test_server.addr().to_string();
+                let client = Client::new();
+
+                // Create test user
+                let username = "renewal.test.user";
+                let password = "test_password";
+                common::create_http_user(&addr, username, password, &client)
+                    .await?;
+
+                //// first test that token expires at >4 seconds because of no renewal ////
+                // Login to get initial token
+                let token =
+                    common::get_http_token(&addr, username, password, &client)
+                        .await?;
+
+                // Initial valid request
+                let resp = client
+                    .get(format!("http://{addr}/api/users?page=0&limit=5"))
+                    .with_token(&token)
+                    .send()
+                    .await
+                    .map_err(|err| anyhow!("{err}"))?;
+                assert_eq!(
+                    resp.status(),
+                    StatusCode::OK,
+                    "Initial request should succeed"
+                );
+
+                // Wait until renewal window (2 seconds passed, 3 seconds remaining)
+                let _ = tokio::time::sleep(Duration::from_secs(6)).await;
+
+                // Verify expiration
+                let resp = client
+                    .get(format!("http://{addr}/api/users?page=0&limit=5"))
+                    .with_token(&token)
+                    .send()
+                    .await
+                    .map_err(|err| anyhow!("{err}"))?;
+                assert_eq!(
+                    resp.status(),
+                    StatusCode::UNAUTHORIZED,
+                    "Should expire after awaiting beyond TTL"
+                );
+
+                ////// Now test that renewal extends the expiration duration /////
+
+                // Login to get initial token
+                let token =
+                    common::get_http_token(&addr, username, password, &client)
+                        .await?;
+
+                // Initial request should succeed
+                let resp = client
+                    .get(format!("http://{addr}/api/users?page=0&limit=5"))
+                    .with_token(&token)
+                    .send()
+                    .await
+                    .map_err(|err| anyhow!("{err}"))?;
+                assert_eq!(
+                    resp.status(),
+                    StatusCode::OK,
+                    "Initial request should succeed"
+                );
+
+                // t=0: Initial token with 2s expiration
+                // Wait 1s, then make request that should extend expiration by 2s
+                // New expiration will be at t=3s (remaining 1s + 2s renewal)
+                let _ = tokio::time::sleep(Duration::from_secs(1)).await;
+
+                // Renewal request should succeed
+                let resp = client
+                    .get(format!("http://{addr}/api/users?page=0&limit=5"))
+                    .with_token(&token)
+                    .send()
+                    .await
+                    .map_err(|err| anyhow!("{err}"))?;
+                assert_eq!(
+                    resp.status(),
+                    StatusCode::OK,
+                    "Renewal request should succeed"
+                );
+
+                // t=2s: Make second request that extends expiration again
+                // Previous expiration was at t=3s, this will add 2s more
+                // New expiration will be at t=5s (remaining 1s + 2s renewal)
+                let _ = tokio::time::sleep(Duration::from_secs(1)).await;
+
+                // Verify token is still valid and will be renewed again
+                // Current time t=2s, still within renewed expiration (t=5s)
+                // This request will extend expiration to t=7s (remaining 3s + 2s renewal)
+                let resp = client
+                    .get(format!("http://{addr}/api/users?page=0&limit=5"))
+                    .with_token(&token)
+                    .send()
+                    .await
+                    .map_err(|err| anyhow!("{err}"))?;
+                assert_eq!(
+                    resp.status(),
+                    StatusCode::OK,
+                    "Should be valid after renewal"
+                );
+
+                // Wait until after final expiration
+                // Current time t=2s, final expiration at t=7s
+                // Wait 6s to ensure we're past expiration (t=8s)
+                let _ = tokio::time::sleep(Duration::from_secs(6)).await;
+
+                // Verify token has expired
+                // Current time t=8s, which is past final expiration at t=7s
+                // Timeline of events:
+                // t=0s: Initial token (exp t=2s)
+                // t=1s: First renewal (exp t=3s)
+                // t=2s: Second renewal (exp t=5s)
+                // t=2s: Third renewal (exp t=7s)
+                // t=8s: Current time (token expired)
+                let resp = client
+                    .get(format!("http://{addr}/api/users?page=0&limit=5"))
+                    .with_token(&token)
+                    .send()
+                    .await
+                    .map_err(|err| anyhow!("{err}"))?;
+                assert_eq!(
+                    resp.status(),
+                    StatusCode::UNAUTHORIZED,
+                    "Should expire after awaiting beyond renewed TTL"
+                );
+
+                Ok(())
+            }
+            .await;
+            tracing::info!("{res:?}");
+            res.unwrap()
+        }
+    }
 }
