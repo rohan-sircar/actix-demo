@@ -30,7 +30,7 @@ pub struct SessionRenewalPolicy {
     /// Whether session renewal is enabled
     #[builder(default = "true")]
     pub enabled: bool,
-    /// Time window in seconds before expiration when renewal is allowed
+    /// Time window in seconds that session gets extended by on each successful authentication
     #[builder(default = "1800")] // 30 minutes
     pub renewal_window_secs: u64,
     /// Maximum number of renewals allowed per session

@@ -21,6 +21,8 @@ pub struct SessionInfo {
     pub device_name: Option<String>,
     pub created_at: chrono::NaiveDateTime,
     pub last_used_at: chrono::NaiveDateTime,
+    #[serde(skip)] // Skip serialization/deserialization
+    pub ttl_remaining: Option<i64>,
 }
 
 #[derive(PartialEq)]
@@ -71,22 +73,31 @@ impl RedisCredentialsRepo {
         user_id: &UserId,
         token: &str,
     ) -> Result<Option<SessionInfo>, DomainError> {
-        let key = self.get_key(user_id);
-        let session_info_str: Option<String> =
-            self.redis.clone().hget(key, token).await.map_err(|err| {
+        let session_key = self.get_key(user_id);
+        let expiry_key = self.get_expiry_key(user_id, token);
+
+        let mut pipe = redis::pipe();
+        pipe.hget(&session_key, token).ttl(&expiry_key);
+        let (mb_session_info_str, ttl): (Option<String>, i64) = pipe
+            .query_async(&mut self.redis.clone())
+            .await
+            .map_err(|err| {
                 DomainError::new_internal_error(format!(
-                    "Failed to get session from Redis: {err}"
+                    "Failed to get session info and TTL: {err}"
                 ))
             })?;
 
-        match session_info_str {
+        match mb_session_info_str {
             Some(info_str) => {
-                let session_info: SessionInfo = serde_json::from_str(&info_str)
-                    .map_err(|err| {
+                let mut session_info: SessionInfo =
+                    serde_json::from_str(&info_str).map_err(|err| {
                         DomainError::new_internal_error(format!(
                             "Failed to deserialize session info: {err}"
                         ))
                     })?;
+
+                // add time left till expiry
+                session_info.ttl_remaining = Some(ttl);
                 Ok(Some(session_info))
             }
             None => Ok(None),
@@ -263,7 +274,7 @@ impl RedisCredentialsRepo {
     }
 
     // Update last used time for a session
-    pub async fn update_session_last_used(
+    pub async fn update_session_last_used_ws(
         &self,
         user_id: &UserId,
         token: &str,
@@ -285,6 +296,23 @@ impl RedisCredentialsRepo {
         }
 
         Ok(())
+    }
+
+    // Update last used time for a session
+    pub async fn update_session_last_used(
+        &self,
+        mut session_info: SessionInfo,
+        user_id: &UserId,
+        token: &str,
+        refresh_ttl_seconds: u64,
+    ) -> Result<SessionInfo, DomainError> {
+        session_info.last_used_at = chrono::Utc::now().naive_utc();
+
+        // Update the session info and refresh the expiry
+        self.save_session(user_id, token, &session_info, refresh_ttl_seconds)
+            .await?;
+
+        Ok(session_info)
     }
 
     // Add a cleanup method to be called periodically or during token validation

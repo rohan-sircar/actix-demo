@@ -65,7 +65,7 @@ pub async fn validate_token(
     jwt_key: &HS256Key,
     token: String,
     refresh_ttl_seconds: u64,
-) -> Result<(), DomainError> {
+) -> Result<SessionInfo, DomainError> {
     let claims = utils::get_claims(jwt_key, &token)?;
     let user_id = claims.custom.user_id;
 
@@ -73,10 +73,13 @@ pub async fn validate_token(
     // let _ = credentials_repo.cleanup_expired_tokens(&user_id).await?;
 
     // Check if this specific token exists in the user's sessions
-    let session_info = credentials_repo.load_session(&user_id, &token).await?;
+    let mb_session_info =
+        credentials_repo.load_session(&user_id, &token).await?;
 
-    match session_info {
-        Some(_) => {
+    let _ = tracing::debug!("Retrieved session info {mb_session_info:?}");
+
+    match mb_session_info {
+        Some(session_info) => {
             // Check if the expiry key exists
             let status =
                 credentials_repo.is_token_expired(&user_id, &token).await?;
@@ -90,10 +93,15 @@ pub async fn validate_token(
             }
 
             // Update last used time and refresh TTL
-            let _ = credentials_repo
-                .update_session_last_used(&user_id, &token, refresh_ttl_seconds)
+            let session_info = credentials_repo
+                .update_session_last_used(
+                    session_info,
+                    &user_id,
+                    &token,
+                    refresh_ttl_seconds,
+                )
                 .await?;
-            Ok(())
+            Ok(session_info)
         }
         None => Err(DomainError::new_auth_error(format!(
             "Session does not exist for user id - {}",
@@ -147,15 +155,16 @@ pub async fn login(
         // Create session info
         let now = chrono::Utc::now().naive_utc();
         let session_id = Uuid::new_v4();
+        let ttl_seconds = app_data.config.session.expiration_secs;
         let session_info = SessionInfo {
             session_id,
             device_id,
             device_name: login_request.device_name.clone(),
             created_at: now,
             last_used_at: now,
+            ttl_remaining: Some(ttl_seconds as i64),
         };
 
-        let ttl_seconds = app_data.config.session.expiration_secs;
         let _ = credentials_repo
             .save_session(&user.id, &token, &session_info, ttl_seconds)
             .await?;

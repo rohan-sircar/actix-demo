@@ -187,7 +187,7 @@ pub async fn ws(
             loop {
                 sleep(Duration::from_secs(30)).await;
                 // Refresh session TTL on each heartbeat
-                let refresh_result = credentials_repo_clone.update_session_last_used(&user_id, &token, refresh_ttl_seconds).await;
+                let refresh_result = credentials_repo_clone.update_session_last_used_ws(&user_id, &token, refresh_ttl_seconds).await;
                 if let Err(err) = refresh_result {
                     let _ = tracing::warn!("Failed to refresh session for user {} on device {}: {:?}",
                         user_id, device_id_clone, err
