@@ -280,16 +280,13 @@ impl RedisCredentialsRepo {
         token: &str,
         refresh_ttl_seconds: u64,
     ) -> Result<(), DomainError> {
-        let session = self.load_session(user_id, token).await?;
+        let mb_session_info = self.load_session(user_id, token).await?;
 
-        if let Some(mut session_info) = session {
-            session_info.last_used_at = chrono::Utc::now().naive_utc();
-
-            // Update the session info and refresh the expiry
-            self.save_session(
+        if let Some(session_info) = mb_session_info {
+            self.update_session_last_used(
+                session_info,
                 user_id,
                 token,
-                &session_info,
                 refresh_ttl_seconds,
             )
             .await?;

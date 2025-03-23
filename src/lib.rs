@@ -257,8 +257,6 @@ pub fn configure_app(
                     .wrap(api_rate_limiter())
                     .route("", web::get().to(routes::ws::ws)),
             )
-            // TODO Implement logout
-            // .service(routes::auth::logout)
             // public endpoint - not implemented yet
             .service(web::scope("/api/public").wrap(api_rate_limiter()).route(
                 "/build-info",
