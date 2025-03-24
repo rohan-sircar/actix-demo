@@ -1,7 +1,7 @@
 use std::future::{ready, Ready};
 
 use actix_http::{
-    header::{self, HeaderMap},
+    header::{self, HeaderMap, HeaderName},
     Payload,
 };
 use actix_web::{
@@ -11,7 +11,7 @@ use actix_web::{
     web::Data,
     Error, FromRequest, HttpRequest,
 };
-use awc::{body::MessageBody, cookie::Cookie};
+use awc::{body::MessageBody, cookie::Cookie, error::HeaderValue};
 
 use crate::{errors::DomainError, routes::auth::validate_token, AppData};
 
@@ -35,6 +35,38 @@ impl FromRequest for CookieAuth {
     }
 }
 
+trait HeaderMapExt {
+    fn insert_header(
+        &mut self,
+        name: &'static str,
+        value: &str,
+    ) -> Result<&mut Self, DomainError>;
+}
+
+impl HeaderMapExt for HeaderMap {
+    fn insert_header(
+        &mut self,
+        name: &'static str,
+        value: &str,
+    ) -> Result<&mut Self, DomainError> {
+        self.insert(
+            HeaderName::from_static(name),
+            HeaderValue::try_from(value)
+                .map_err(|err| {
+                    DomainError::new_internal_error(format!(
+                        "Invalid header value {value}: {err}"
+                    ))
+                })
+                .map_err(|err| {
+                    DomainError::new_internal_error(format!(
+                        "Failed to set header {name}: {err}"
+                    ))
+                })?,
+        );
+        Ok(self)
+    }
+}
+
 pub async fn cookie_auth(
     req: ServiceRequest,
     next: Next<impl MessageBody>,
@@ -54,9 +86,51 @@ pub async fn cookie_auth(
     // Validate token using existing logic
     let credentials_repo = &app_data.credentials_repo;
     let jwt_key = &app_data.jwt_key;
+    let refresh_ttl_seconds =
+        app_data.config.session.renewal.renewal_window_secs;
 
-    match validate_token(credentials_repo, jwt_key, token).await {
-        Ok(_) => Ok(next.call(req).await?),
+    match validate_token(credentials_repo, jwt_key, token, refresh_ttl_seconds)
+        .await
+    {
+        Ok(session_info) => {
+            let mut res = next.call(req).await?;
+            // Add custom headers based on session_info
+            // Insert session headers
+            res.headers_mut()
+                .insert_header(
+                    "x-session-id",
+                    &session_info.session_id.to_string(),
+                )?
+                .insert_header("x-session-device-id", &session_info.device_id)?
+                .insert_header(
+                    "x-session-created-at",
+                    &session_info
+                        .created_at
+                        .format("%Y-%m-%d %H:%M:%S")
+                        .to_string(),
+                )?
+                .insert_header(
+                    "x-session-last-used-at",
+                    &session_info
+                        .last_used_at
+                        .format("%Y-%m-%d %H:%M:%S")
+                        .to_string(),
+                )?;
+
+            if let Some(device_name) = &session_info.device_name {
+                res.headers_mut()
+                    .insert_header("x-session-device-name", device_name)?;
+            }
+
+            if let Some(ttl_remaining) = &session_info.ttl_remaining {
+                res.headers_mut().insert_header(
+                    "x-session-ttl-remaining",
+                    &ttl_remaining.to_string(),
+                )?;
+            }
+
+            Ok(res)
+        }
         Err(err) => Err(Error::from(err)),
     }
 }

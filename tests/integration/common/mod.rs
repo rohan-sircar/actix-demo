@@ -4,6 +4,7 @@ use actix_demo::models::rate_limit::{
     KeyStrategy, RateLimitConfig, RateLimitPolicy,
 };
 use actix_demo::models::roles::RoleEnum;
+use actix_demo::models::session::{SessionConfig, SessionConfigBuilder};
 use actix_demo::models::users::{NewUser, Password, Username};
 use actix_demo::telemetry::DomainRootSpanBuilder;
 use actix_demo::utils::redis_credentials_repo::RedisCredentialsRepo;
@@ -35,7 +36,7 @@ use tracing::subscriber::set_global_default;
 use tracing_actix_web::TracingLogger;
 use tracing_log::LogTracer;
 use tracing_subscriber::fmt::{format::FmtSpan, Subscriber as FmtSubscriber};
-use tracing_subscriber::{layer::SubscriberExt, EnvFilter};
+use tracing_subscriber::EnvFilter;
 use validators::prelude::*;
 
 use actix_demo::configure_app;
@@ -107,9 +108,10 @@ static TRACING: Lazy<anyhow::Result<()>> = Lazy::new(|| {
     let subscriber = FmtSubscriber::builder()
         .pretty()
         .with_test_writer()
-        .with_span_events(FmtSpan::NEW | FmtSpan::CLOSE)
-        .finish()
-        .with(env_filter);
+        // .with_span_events(FmtSpan::NEW | FmtSpan::CLOSE)
+        .with_span_events(FmtSpan::NONE)
+        .with_env_filter(env_filter)
+        .finish();
 
     let _ =
         set_global_default(subscriber).context("Failed to set subscriber")?;
@@ -144,6 +146,8 @@ pub struct TestAppOptions {
     pub auth_rate_limit: RateLimitPolicy,
     #[builder(default = "true")]
     pub rate_limit_disabled: bool,
+    #[builder(default = "self.default_session_config()")]
+    pub session_config: SessionConfig,
 }
 
 impl Default for TestAppOptions {
@@ -167,6 +171,9 @@ impl TestAppOptionsBuilder {
             max_requests: 1000,
             window_secs: 60,
         }
+    }
+    fn default_session_config(&self) -> SessionConfig {
+        SessionConfigBuilder::default().build().unwrap()
     }
 }
 
@@ -192,7 +199,8 @@ pub async fn app_data(
     let config = AppConfig {
         hash_cost: 4,
         job_bin_path: options.bin_file.location.clone(),
-        rate_limit: create_rate_limit_config(options),
+        rate_limit: create_rate_limit_config(options.clone()),
+        session: options.session_config.clone(),
     };
 
     let client = redis::Client::open(redis_connstr)
@@ -242,8 +250,11 @@ pub async fn app_data(
 
     let redis_prefix = Box::new(utils::get_redis_prefix("app"));
 
-    let credentials_repo =
-        RedisCredentialsRepo::new(redis_prefix(&"user-sessions"), cm.clone());
+    let credentials_repo = RedisCredentialsRepo::new(
+        redis_prefix(&"user-sessions"),
+        cm.clone(),
+        5,
+    );
 
     let key = HS256Key::from_bytes("test".as_bytes());
 

@@ -129,6 +129,7 @@ pub struct UserLogin {
     pub username: Username,
     #[serde(skip_serializing)]
     pub password: Password,
+    pub device_name: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Queryable)]
@@ -179,7 +180,7 @@ mod test {
         let mb_user = serde_json::from_str::<User>(
             r#"{"id":1,"username":"chew.bacca","password":"aeqfq3fq","role":"role_user","created_at":"2021-05-12T12:37:56"}"#,
         );
-        assert!(mb_user.is_err());
+        assert!(mb_user.is_ok());
         let mb_user = serde_json::from_str::<User>(
             r#"{"id":-1,"username":"chewbacca","password":"aeqfq3fq","role":"role_user","created_at":"2021-05-12T12:37:56"}"#,
         );

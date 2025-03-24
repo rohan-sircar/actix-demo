@@ -38,6 +38,7 @@ use actix_web_grants::GrantsMiddleware;
 use errors::DomainError;
 use jwt_simple::prelude::HS256Key;
 use models::rate_limit::{KeyStrategy, RateLimitConfig};
+use models::session::SessionConfig;
 use rand::distr::Alphanumeric;
 use rand::Rng;
 use redis::aio::ConnectionManager;
@@ -60,6 +61,7 @@ pub enum LoggerFormat {
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct EnvConfig {
+    // system
     pub database_url: String,
     pub http_host: String,
     #[serde(default = "models::defaults::default_hash_cost")]
@@ -71,6 +73,7 @@ pub struct EnvConfig {
     #[serde(
         default = "models::defaults::default_rate_limit_auth_max_requests"
     )]
+    // rate limit
     pub rate_limit_auth_max_requests: u32,
     #[serde(default = "models::defaults::default_rate_limit_auth_window_secs")]
     pub rate_limit_auth_window_secs: u64,
@@ -79,6 +82,23 @@ pub struct EnvConfig {
     #[serde(default = "models::defaults::default_rate_limit_api_window_secs")]
     pub rate_limit_api_window_secs: u64,
     pub rate_limit_disable: bool,
+    // session
+    #[serde(default = "models::defaults::default_session_expiration_secs")]
+    pub session_expiration_secs: u64,
+    #[serde(
+        default = "models::defaults::default_session_cleanup_interval_secs"
+    )]
+    pub session_cleanup_interval_secs: u64,
+    #[serde(default = "models::defaults::default_max_concurrent_sessions")]
+    pub max_concurrent_sessions: u8,
+    #[serde(default = "models::defaults::default_session_renewal_enabled")]
+    pub session_renewal_enabled: bool,
+    #[serde(default = "models::defaults::default_session_renewal_window_secs")]
+    pub session_renewal_window_secs: u64,
+    #[serde(default = "models::defaults::default_session_max_renewals")]
+    pub session_max_renewals: u32,
+    #[serde(default)]
+    pub session_disable: bool,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -86,6 +106,7 @@ pub struct AppConfig {
     pub hash_cost: u32,
     pub job_bin_path: String,
     pub rate_limit: RateLimitConfig,
+    pub session: SessionConfig,
 }
 
 pub struct AppData {
@@ -218,8 +239,13 @@ pub fn configure_app(
         cfg.app_data(app_data.clone())
             .service(
                 web::resource("/api/login")
-                    .wrap(login_limiter)
-                    .route(web::post().to(routes::auth::login)), // reference the function directly
+                    .wrap(login_limiter.clone())
+                    .route(web::post().to(routes::auth::login)),
+            )
+            .service(
+                web::resource("/api/logout")
+                    .wrap(api_rate_limiter())
+                    .route(web::post().to(routes::auth::logout)),
             )
             .service(
                 web::resource("/api/registration")
@@ -231,8 +257,6 @@ pub fn configure_app(
                     .wrap(api_rate_limiter())
                     .route("", web::get().to(routes::ws::ws)),
             )
-            // TODO Implement logout
-            // .service(routes::auth::logout)
             // public endpoint - not implemented yet
             .service(web::scope("/api/public").wrap(api_rate_limiter()).route(
                 "/build-info",
@@ -250,6 +274,17 @@ pub fn configure_app(
                             .add(("Vary", "Cookie")),
                     ))
                     .wrap(from_fn(utils::cookie_auth))
+                    // .service(
+                    //     web::scope("sessions")
+                    //         .route("", web::get().to(list_sessions))
+                    //         .route(
+                    //             "/{token}",
+                    //             web::delete().to(revoke_session),
+                    //         ), // .route(
+                    //     "/revoke-others",
+                    //     web::post().to(revoke_other_sessions),
+                    // ),
+                    // )
                     .route(
                         "/cmd",
                         web::post().to(routes::command::handle_run_command),
