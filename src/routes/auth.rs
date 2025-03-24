@@ -17,7 +17,6 @@ use jwt_simple::prelude::*;
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
-use std::str::FromStr;
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize)]
@@ -190,26 +189,8 @@ pub async fn list_sessions(
     req: HttpRequest,
     app_data: web::Data<AppData>,
 ) -> Result<HttpResponse, DomainError> {
-    let user_id = req
-        .headers()
-        .get("x-auth-user")
-        .ok_or_else(|| {
-            DomainError::new_auth_error("Missing x-auth-user header".to_owned())
-        })
-        .and_then(|hv| {
-            hv.to_str().map_err(|err| {
-                DomainError::new_bad_input_error(format!(
-                    "x-auth-user header is not a valid UTF-8 string: {err}"
-                ))
-            })
-        })
-        .and_then(|str| {
-            UserId::from_str(str).map_err(|err| {
-                DomainError::new_bad_input_error(format!(
-                    "Invalid UserId format in x-auth-user header: {err}"
-                ))
-            })
-        })?;
+    let user_id = utils::extract_user_id_from_header(req.headers())?;
+
     let credentials_repo = &app_data.credentials_repo;
 
     let sessions = credentials_repo.load_all_sessions(&user_id).await?;
@@ -254,26 +235,8 @@ pub async fn revoke_session(
     token: web::Path<String>,
     app_data: web::Data<AppData>,
 ) -> Result<HttpResponse, DomainError> {
-    let user_id = req
-        .headers()
-        .get("x-auth-user")
-        .ok_or_else(|| {
-            DomainError::new_auth_error("Missing x-auth-user header".to_owned())
-        })
-        .and_then(|hv| {
-            hv.to_str().map_err(|err| {
-                DomainError::new_bad_input_error(format!(
-                    "x-auth-user header is not a valid UTF-8 string: {err}"
-                ))
-            })
-        })
-        .and_then(|str| {
-            UserId::from_str(str).map_err(|err| {
-                DomainError::new_bad_input_error(format!(
-                    "Invalid UserId format in x-auth-user header: {err}"
-                ))
-            })
-        })?;
+    let user_id = utils::extract_user_id_from_header(req.headers())?;
+
     let credentials_repo = &app_data.credentials_repo;
 
     // Check if the session exists
@@ -296,26 +259,8 @@ pub async fn revoke_other_sessions(
     req: HttpRequest,
     app_data: web::Data<AppData>,
 ) -> Result<HttpResponse, DomainError> {
-    let user_id = req
-        .headers()
-        .get("x-auth-user")
-        .ok_or_else(|| {
-            DomainError::new_auth_error("Missing x-auth-user header".to_owned())
-        })
-        .and_then(|hv| {
-            hv.to_str().map_err(|err| {
-                DomainError::new_bad_input_error(format!(
-                    "x-auth-user header is not a valid UTF-8 string: {err}"
-                ))
-            })
-        })
-        .and_then(|str| {
-            UserId::from_str(str).map_err(|err| {
-                DomainError::new_bad_input_error(format!(
-                    "Invalid UserId format in x-auth-user header: {err}"
-                ))
-            })
-        })?;
+    let user_id = utils::extract_user_id_from_header(req.headers())?;
+
     let credentials_repo = &app_data.credentials_repo;
 
     // Get the current token from cookie

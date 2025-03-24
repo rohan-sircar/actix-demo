@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc, str::FromStr};
+use std::{cell::RefCell, rc::Rc};
 
 use actix_web::{web, HttpRequest, HttpResponse};
 use futures::StreamExt;
@@ -13,11 +13,11 @@ use crate::{
     errors::DomainError,
     models::{
         misc::{Job, JobStatus, NewJob},
-        users::UserId,
         ws::MyProcessItem,
     },
     types::Task,
-    utils, AppData,
+    utils::{self, extract_user_id_from_header},
+    AppData,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -63,26 +63,8 @@ pub async fn handle_run_command(
     let payload = payload.into_inner();
     let args = payload.args;
     // Extract and validate user ID from auth header
-    let user_id = req
-        .headers()
-        .get("x-auth-user")
-        .ok_or_else(|| {
-            DomainError::new_auth_error("Missing x-auth-user header".to_owned())
-        })
-        .and_then(|hv| {
-            hv.to_str().map_err(|err| {
-                DomainError::new_bad_input_error(format!(
-                    "x-auth-user header is not a valid UTF-8 string: {err}"
-                ))
-            })
-        })
-        .and_then(|str| {
-            UserId::from_str(str).map_err(|err| {
-                DomainError::new_bad_input_error(format!(
-                    "Invalid UserId format in x-auth-user header: {err}"
-                ))
-            })
-        })?;
+    let user_id = extract_user_id_from_header(req.headers())?;
+
     tracing::debug!("Authenticated user ID: {}", user_id);
 
     // Create new job record in database
@@ -336,26 +318,7 @@ pub async fn handle_abort_job(
     job_id: web::Path<String>,
 ) -> Result<HttpResponse, DomainError> {
     // Extract and validate user ID from auth header
-    let user_id = req
-        .headers()
-        .get("x-auth-user")
-        .ok_or_else(|| {
-            DomainError::new_auth_error("Missing x-auth-user header".to_owned())
-        })
-        .and_then(|hv| {
-            hv.to_str().map_err(|err| {
-                DomainError::new_bad_input_error(format!(
-                    "x-auth-user header is not a valid UTF-8 string: {err}"
-                ))
-            })
-        })
-        .and_then(|str| {
-            UserId::from_str(str).map_err(|err| {
-                DomainError::new_bad_input_error(format!(
-                    "Invalid UserId format in x-auth-user header: {err}"
-                ))
-            })
-        })?;
+    let user_id = utils::extract_user_id_from_header(req.headers())?;
 
     // Get a Redis connection from the app_data.
     let mut conn = app_data.get_redis_conn()?;
