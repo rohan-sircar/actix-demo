@@ -1,10 +1,9 @@
 use crate::actions::users::get_user_auth_details;
 use crate::errors::DomainError;
 use crate::models::roles::RoleEnum;
+use crate::models::session::{SessionInfo, SessionStatus};
 use crate::models::users::{UserId, UserLogin, Username};
-use crate::utils::redis_credentials_repo::{
-    RedisCredentialsRepo, SessionInfo, SessionStatus,
-};
+use crate::utils::redis_credentials_repo::RedisCredentialsRepo;
 use crate::{utils, AppData};
 use actix_http::header::{HeaderName, HeaderValue};
 use actix_web::dev::ServiceRequest;

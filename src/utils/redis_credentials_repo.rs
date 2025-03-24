@@ -1,10 +1,9 @@
 use redis::aio::ConnectionManager;
 use redis::AsyncCommands;
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use uuid::Uuid;
 
 use crate::errors::DomainError;
+use crate::models::session::{SessionInfo, SessionStatus};
 use crate::models::users::UserId;
 
 #[derive(new, Clone)]
@@ -13,33 +12,6 @@ pub struct RedisCredentialsRepo {
     redis: ConnectionManager,
     max_sessions: u8,
     refresh_ttl_seconds: u64,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct SessionInfo {
-    pub session_id: Uuid,
-    pub device_id: String,
-    pub device_name: Option<String>,
-    pub created_at: chrono::NaiveDateTime,
-    pub last_used_at: chrono::NaiveDateTime,
-    #[serde(skip)] // Skip serialization/deserialization
-    pub ttl_remaining: Option<i64>,
-}
-
-#[derive(PartialEq)]
-pub enum SessionStatus {
-    Expired,
-    Alive,
-}
-
-impl SessionStatus {
-    pub fn from_exists(exists: bool) -> SessionStatus {
-        if exists {
-            SessionStatus::Alive
-        } else {
-            SessionStatus::Expired
-        }
-    }
 }
 
 impl RedisCredentialsRepo {
