@@ -44,4 +44,4 @@ args = ["test", "--test", "integration"]
 dependencies = ["flaky-test"]
 
 [tasks.stage]
-dependencies = ["lint-check", "compile", "test", "it-test"]
+dependencies = ["lint-check", "compile", "test", "it-all-test"]
