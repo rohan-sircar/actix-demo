@@ -85,6 +85,7 @@ async fn main() -> anyhow::Result<()> {
         redis_prefix(&"user-sessions"),
         cm.clone(),
         session_config.max_concurrent_sessions,
+        session_config.renewal.renewal_window_secs,
     );
     let jwt_key = HS256Key::from_bytes(env_config.jwt_key.as_bytes());
 

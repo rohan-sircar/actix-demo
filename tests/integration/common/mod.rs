@@ -253,7 +253,8 @@ pub async fn app_data(
     let credentials_repo = RedisCredentialsRepo::new(
         redis_prefix(&"user-sessions"),
         cm.clone(),
-        5,
+        options.session_config.max_concurrent_sessions,
+        options.session_config.renewal.renewal_window_secs,
     );
 
     let key = HS256Key::from_bytes("test".as_bytes());

@@ -63,7 +63,6 @@ pub async fn validate_token(
     credentials_repo: &RedisCredentialsRepo,
     jwt_key: &HS256Key,
     token: String,
-    refresh_ttl_seconds: u64,
 ) -> Result<SessionInfo, DomainError> {
     let claims = utils::get_claims(jwt_key, &token)?;
     let user_id = claims.custom.user_id;
@@ -93,12 +92,7 @@ pub async fn validate_token(
 
             // Update last used time and refresh TTL
             let session_info = credentials_repo
-                .update_session_last_used(
-                    session_info,
-                    &user_id,
-                    &token,
-                    refresh_ttl_seconds,
-                )
+                .update_session_last_used(session_info, &user_id, &token)
                 .await?;
             Ok(session_info)
         }
@@ -165,7 +159,7 @@ pub async fn login(
         };
 
         let _ = credentials_repo
-            .save_session(&user.id, &token, &session_info, ttl_seconds)
+            .create_session(&user.id, &token, &session_info, ttl_seconds)
             .await?;
 
         Ok(token)
@@ -195,7 +189,7 @@ pub async fn list_sessions(
 
     let sessions = credentials_repo.load_all_sessions(&user_id).await?;
 
-    let sessions: Vec<_> = sessions.into_values().collect();
+    // let sessions: Vec<_> = sessions.into_values().collect();
 
     Ok(HttpResponse::Ok().json(sessions))
 }
