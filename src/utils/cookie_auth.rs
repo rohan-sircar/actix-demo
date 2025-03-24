@@ -97,7 +97,10 @@ pub async fn cookie_auth(
                     "x-session-id",
                     &session_info.session_id.to_string(),
                 )?
-                .insert_header("x-session-device-id", &session_info.device_id)?
+                .insert_header(
+                    "x-session-device-id",
+                    &session_info.device_id.to_string(),
+                )?
                 .insert_header(
                     "x-session-created-at",
                     &session_info

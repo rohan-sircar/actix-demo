@@ -48,6 +48,7 @@ pub async fn ws(
     let claims = utils::get_claims(&app_data.jwt_key, &token)?;
     let user_id = claims.custom.user_id;
     let device_id = claims.custom.device_id.clone();
+    let session_id = claims.custom.session_id;
 
     let _ = tracing::debug!("Successfully validated claims for user {user_id} on device {device_id}");
 
@@ -55,7 +56,8 @@ pub async fn ws(
     let _ = tracing::Span::current().record("device_id", &device_id);
 
     // Load session info to get device name for logging
-    let session_info = credentials_repo.load_session(&user_id, &token).await?;
+    let session_info =
+        credentials_repo.load_session(&user_id, &session_id).await?;
     if let Some(info) = session_info {
         if let Some(device_name) = &info.device_name {
             let _ = tracing::info!(
@@ -178,7 +180,7 @@ pub async fn ws(
             loop {
                 sleep(Duration::from_secs(30)).await;
                 // Refresh session TTL on each heartbeat
-                let refresh_result = credentials_repo_clone.update_session_last_used_ws(&user_id, &token).await;
+                let refresh_result = credentials_repo_clone.update_session_last_used_ws(&user_id, &session_id).await;
                 if let Err(err) = refresh_result {
                     let _ = tracing::warn!("Failed to refresh session for user {} on device {}: {:?}",
                         user_id, device_id_clone, err

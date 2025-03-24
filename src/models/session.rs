@@ -42,10 +42,11 @@ pub struct SessionRenewalPolicy {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SessionInfo {
     pub session_id: Uuid,
-    pub device_id: String,
+    pub device_id: Uuid,
     pub device_name: Option<String>,
     pub created_at: chrono::NaiveDateTime,
     pub last_used_at: chrono::NaiveDateTime,
+    pub token: String,
     #[serde(skip)] // Skip serialization/deserialization
     pub ttl_remaining: Option<i64>,
 }
