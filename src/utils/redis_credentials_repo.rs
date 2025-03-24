@@ -140,6 +140,8 @@ impl RedisCredentialsRepo {
         ttl_seconds: u64,
     ) -> Result<(), DomainError> {
         let key = self.get_key(user_id);
+        // Get expiry key
+        let expiry_key = self.get_expiry_key(user_id, token);
 
         // Get current session count and attempt to add new session
         let current_count: i64 =
@@ -167,35 +169,27 @@ impl RedisCredentialsRepo {
                 ))
             })?;
 
-        // Add to hash (without expiry)
-        let () = self
-            .redis
-            .clone()
-            .hset::<String, &str, String, ()>(key, token, session_info_str)
+        // Create a pipeline
+        // First check the TTL of the expiry key
+        let mut pipe = redis::pipe();
+
+        pipe.atomic()
+            .hset(key, token, session_info_str)
+            .ttl(&expiry_key);
+
+        let (_, ttl): ((), i64) = pipe
+            .query_async(&mut self.redis.clone())
             .await
             .map_err(|err| {
                 DomainError::new_internal_error(format!(
-                    "Failed to save session to Redis: {err}"
+                    "Error while trying to save the session: {err}"
                 ))
             })?;
 
-        // Get expiry key
-        let expiry_key = self.get_expiry_key(user_id, token);
-
-        // Try to get TTL and handle based on result
-        let value = self
-            .redis
-            .clone()
-            .ttl::<String, i64>(expiry_key.clone())
-            .await
-            .map_err(|err| {
-                DomainError::new_internal_error(format!(
-                    "Failed to get ttl of key: {err}"
-                ))
-            })?;
-        if value > 0 {
+        // TTL returns -2 if key doesn't exist, -1 if no expiry, or remaining TTL in seconds
+        if ttl > 0 {
             // Calculate new TTL
-            let existing_ttl = value;
+            let existing_ttl = ttl;
             tracing::debug!(
                 "Existing TTL for key {expiry_key}: {existing_ttl} seconds",
             );
@@ -209,7 +203,7 @@ impl RedisCredentialsRepo {
             let () = self
                 .redis
                 .clone()
-                .expire(expiry_key.clone(), new_ttl)
+                .expire(expiry_key, new_ttl)
                 .await
                 .map_err(|err| {
                     DomainError::new_internal_error(format!(
@@ -222,7 +216,7 @@ impl RedisCredentialsRepo {
                 .redis
                 .clone()
                 // exact value of the key is not important, we just need to set the expiry
-                .set_ex::<String, &str, ()>(expiry_key, "1", ttl_seconds)
+                .set_ex(expiry_key, "1", ttl_seconds)
                 .await
                 .map_err(|err| {
                     DomainError::new_internal_error(format!(
