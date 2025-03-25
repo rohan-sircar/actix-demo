@@ -95,7 +95,7 @@ pub async fn validate_token(
 
             // Update last used time and refresh TTL
             let session_info = credentials_repo
-                .update_session_last_used(session_info, &user_id)
+                .update_session_last_used(&session_id, session_info, &user_id)
                 .await?;
             Ok(session_info)
         }
@@ -193,8 +193,6 @@ pub async fn list_sessions(
 
     let sessions = credentials_repo.load_all_sessions(&user_id).await?;
 
-    // let sessions: Vec<_> = sessions.into_values().collect();
-
     Ok(HttpResponse::Ok().json(sessions))
 }
 
@@ -241,7 +239,11 @@ pub async fn revoke_session(
     let credentials_repo = &app_data.credentials_repo;
 
     let session_id = session_id.into_inner();
-    let session_id = Uuid::parse_str(&session_id).unwrap();
+    let session_id = Uuid::parse_str(&session_id).map_err(|err| {
+        DomainError::new_bad_input_error(format!(
+            "Invalid session id: {session_id} err: {err}"
+        ))
+    })?;
 
     // Check if the session exists
     let session = credentials_repo.load_session(&user_id, &session_id).await?;
@@ -259,33 +261,34 @@ pub async fn revoke_session(
     Ok(HttpResponse::Ok().finish())
 }
 
-// // New endpoint to revoke all sessions except the current one
-// #[tracing::instrument(level = "info", skip(app_data, req))]
-// pub async fn revoke_other_sessions(
-//     req: HttpRequest,
-//     app_data: web::Data<AppData>,
-// ) -> Result<HttpResponse, DomainError> {
-//     let user_id = utils::extract_user_id_from_header(req.headers())?;
+// New endpoint to revoke all sessions except the current one
+#[tracing::instrument(level = "info", skip(app_data, req))]
+pub async fn revoke_other_sessions(
+    req: HttpRequest,
+    app_data: web::Data<AppData>,
+) -> Result<HttpResponse, DomainError> {
+    let user_id = utils::extract_user_id_from_header(req.headers())?;
+    // Extract token from cookie
+    let cookie = req.cookie("X-AUTH-TOKEN").ok_or_else(|| {
+        DomainError::new_auth_error("Missing auth token".to_owned())
+    })?;
+    let current_token = cookie.value();
+    let credentials_repo = &app_data.credentials_repo;
+    let jwt_key = &app_data.jwt_key;
+    let claims = utils::get_claims(jwt_key, current_token)?;
+    let current_session_id = claims.custom.session_id;
 
-//     let credentials_repo = &app_data.credentials_repo;
+    // Get all sessions
+    let sessions = credentials_repo.load_all_sessions(&user_id).await?;
 
-//     // Get the current token from cookie
-//     let current_token = req
-//         .cookie("X-AUTH-TOKEN")
-//         .map(|c| c.value().to_string())
-//         .ok_or_else(|| {
-//             DomainError::new_auth_error("Missing auth cookie".to_owned())
-//         })?;
+    // Delete all sessions except the current one
+    for (session_id, _) in sessions {
+        if session_id != current_session_id {
+            credentials_repo
+                .delete_session(&user_id, &session_id)
+                .await?;
+        }
+    }
 
-//     // Get all sessions
-//     let sessions = credentials_repo.load_all_sessions(&user_id).await?;
-
-//     // Delete all sessions except the current one
-//     for (token, _) in sessions {
-//         if token != current_token {
-//             credentials_repo.delete_session(&user_id, &token).await?;
-//         }
-//     }
-
-//     Ok(HttpResponse::Ok().finish())
-// }
+    Ok(HttpResponse::Ok().finish())
+}

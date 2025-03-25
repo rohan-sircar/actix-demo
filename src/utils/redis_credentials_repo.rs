@@ -38,7 +38,7 @@ impl RedisCredentialsRepo {
         let expiry_key = self.get_expiry_key(user_id, session_id);
         let exists: bool =
             self.redis.clone().exists(expiry_key).await.map_err(|err| {
-                DomainError::new_bad_input_error(format!(
+                DomainError::new_internal_error(format!(
                     "Failed to check if expiry key exists: {err}"
                 ))
             })?;
@@ -53,7 +53,7 @@ impl RedisCredentialsRepo {
     ) -> Result<Option<SessionInfo>, DomainError> {
         let session_key = self.get_key(user_id);
         let session_id_str = session_id.to_string();
-        let expiry_key = self.get_expiry_key(user_id, &session_id);
+        let expiry_key = self.get_expiry_key(user_id, session_id);
 
         let mut pipe = redis::pipe();
         pipe.hget(&session_key, &session_id_str).ttl(&expiry_key);
@@ -124,7 +124,7 @@ impl RedisCredentialsRepo {
     ) -> Result<(), DomainError> {
         let key = self.get_key(user_id);
         let session_id_str = session_id.to_string();
-        let expiry_key = self.get_expiry_key(user_id, &session_id);
+        let expiry_key = self.get_expiry_key(user_id, session_id);
 
         // Check if session already exists
         let exists: bool = self
@@ -199,7 +199,7 @@ impl RedisCredentialsRepo {
     ) -> Result<(), DomainError> {
         let key = self.get_key(user_id);
         let session_id_str = session_id.to_string();
-        let expiry_key = self.get_expiry_key(user_id, &session_id);
+        let expiry_key = self.get_expiry_key(user_id, session_id);
 
         // Check if session exists
         let exists: bool = self
@@ -289,7 +289,8 @@ impl RedisCredentialsRepo {
         let mb_session_info = self.load_session(user_id, session_id).await?;
 
         if let Some(session_info) = mb_session_info {
-            self.update_session_last_used(session_info, user_id).await?;
+            self.update_session_last_used(session_id, session_info, user_id)
+                .await?;
         }
 
         Ok(())
@@ -298,13 +299,14 @@ impl RedisCredentialsRepo {
     // Update last used time for a session
     pub async fn update_session_last_used(
         &self,
+        session_id: &Uuid,
         mut session_info: SessionInfo,
         user_id: &UserId,
     ) -> Result<SessionInfo, DomainError> {
         session_info.last_used_at = chrono::Utc::now().naive_utc();
 
         // Update the session info and refresh the expiry
-        self.update_session(user_id, &session_info.session_id, &session_info)
+        self.update_session(user_id, session_id, &session_info)
             .await?;
 
         Ok(session_info)
