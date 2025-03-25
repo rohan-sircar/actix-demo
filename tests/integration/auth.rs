@@ -1,231 +1,164 @@
 mod session;
 
-use crate::common;
+use crate::common::{self, TestAppOptionsBuilder, TestContext};
 
 #[cfg(test)]
 mod tests {
+    use crate::common::WithToken;
+
     use super::*;
+    use actix_demo::models::rate_limit::RateLimitPolicy;
     use actix_http::{header, StatusCode};
-    use anyhow::anyhow;
-    use awc::Client;
 
     use std::time::Duration;
 
-    mod login_rate_limiting {
-        use actix_demo::models::rate_limit::RateLimitPolicy;
+    #[actix_rt::test]
+    async fn should_rate_limit_failed_login_attempts() {
+        // Create test context with custom rate limit policy
+        let options = TestAppOptionsBuilder::default()
+            .auth_rate_limit(RateLimitPolicy {
+                max_requests: 5,
+                window_secs: 2,
+            })
+            .rate_limit_disabled(false)
+            .build()
+            .unwrap();
 
-        use crate::common::TestAppOptionsBuilder;
+        let ctx = TestContext::new(Some(options)).await;
 
-        use super::*;
+        // Create test user
+        let username = "test.user.1";
+        let correct_password = "correct_password";
+        let wrong_password = "wrong_password";
 
-        #[actix_rt::test]
-        async fn should_rate_limit_failed_login_attempts() {
-            let res: anyhow::Result<()> = async {
-                // Set up test infrastructure
-                let (pg_connstr, _pg) =
-                    common::test_with_postgres().await.unwrap();
-                let (redis_connstr, _redis) = common::test_with_redis().await?;
+        common::create_http_user(
+            &ctx.addr,
+            username,
+            correct_password,
+            &ctx.client,
+        )
+        .await
+        .unwrap();
 
-                // Create test app instance
-                let test_server = common::test_http_app(
-                    &pg_connstr,
-                    &redis_connstr,
-                    TestAppOptionsBuilder::default()
-                        .auth_rate_limit(RateLimitPolicy {
-                            max_requests: 5,
-                            window_secs: 2,
-                        })
-                        .rate_limit_disabled(false)
-                        .build()
-                        .unwrap(),
-                )
-                .await?;
-
-                let addr = test_server.addr().to_string();
-                let client = Client::new();
-
-                // Create test user
-                let username = "test.user.1";
-                let correct_password = "correct_password";
-
-                common::create_http_user(
-                    &addr,
-                    username,
-                    correct_password,
-                    &client,
-                )
-                .await?;
-
-                // Send 5 failed login attempts
-                let wrong_password = "wrong_password";
-                for _ in 0..5 {
-                    let resp = client
-                        .post(format!("http://{addr}/api/login"))
-                        .append_header((
-                            header::CONTENT_TYPE,
-                            "application/json",
-                        ))
-                        .send_json(&serde_json::json!({
-                            "username": username,
-                            "password": wrong_password
-                        }))
-                        .await
-                        .map_err(|err| anyhow!("{err}"))?;
-
-                    assert_eq!(
-                        resp.status(),
-                        StatusCode::UNAUTHORIZED,
-                        "Expected 401 Unauthorized for failed login attempt"
-                    );
-
-                    let headers = resp.headers();
-
-                    common::assert_rate_limit_headers(headers);
-                }
-
-                // Send 6th login attempt which should be rate limited
-                let resp = client
-                    .post(format!("http://{addr}/api/login"))
-                    .append_header((header::CONTENT_TYPE, "application/json"))
-                    .send_json(&serde_json::json!({
-                        "username": username,
-                        "password": wrong_password
-                    }))
-                    .await
-                    .map_err(|err| anyhow!("{err}"))?;
-
-                let headers = resp.headers();
-
-                common::assert_rate_limit_headers(headers);
-
-                assert_eq!(
-                    resp.status(),
-                    StatusCode::TOO_MANY_REQUESTS,
-                    "Expected 429 Too Many Requests after rate limit exceeded"
-                );
-
-                // Optional: Test rate limit expiration
-                // Sleep for window_secs + 1 seconds to allow rate limit window to expire
-                let _ = tokio::time::sleep(Duration::from_secs(3)).await;
-
-                // Try login with correct password after window expiration
-                let resp = client
-                    .post(format!("http://{addr}/api/login"))
-                    .append_header((header::CONTENT_TYPE, "application/json"))
-                    .send_json(&serde_json::json!({
-                        "username": username,
-                        "password": correct_password
-                    }))
-                    .await
-                    .map_err(|err| anyhow!("{err}"))?;
-
-                assert_eq!(
-                    resp.status(),
-                    StatusCode::OK,
-                    "Expected successful login after rate limit window expired"
-                );
-
-                Ok(())
-            }
-            .await;
-
-            tracing::info!("{res:?}");
-            res.unwrap();
+        // Send 5 failed login attempts
+        for _ in 0..5 {
+            let (status, headers) =
+                login_attempt(&ctx, username, wrong_password).await;
+            assert_eq!(
+                status,
+                StatusCode::UNAUTHORIZED,
+                "Expected 401 Unauthorized for failed login attempt"
+            );
+            common::assert_rate_limit_headers(&headers);
         }
+
+        // Send 6th login attempt which should be rate limited
+        let (status, headers) =
+            login_attempt(&ctx, username, wrong_password).await;
+        common::assert_rate_limit_headers(&headers);
+        assert_eq!(
+            status,
+            StatusCode::TOO_MANY_REQUESTS,
+            "Expected 429 Too Many Requests after rate limit exceeded"
+        );
+
+        // Wait for rate limit window to expire
+        tokio::time::sleep(Duration::from_secs(3)).await;
+
+        // Try login with correct password after window expiration
+        let (status, _) = login_attempt(&ctx, username, correct_password).await;
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "Expected successful login after rate limit window expired"
+        );
     }
 
-    mod token_expiration {
-        use crate::common::{TestAppOptionsBuilder, WithToken};
-
-        use super::*;
+    #[actix_rt::test]
+    async fn should_expire_jwt_token_after_ttl() {
         use actix_demo::models::session::{
             SessionConfigBuilder, SessionRenewalPolicyBuilder,
         };
-        use actix_http::StatusCode;
-        use anyhow::anyhow;
-        use awc::Client;
-        use std::time::Duration;
 
-        #[actix_rt::test]
-        async fn should_expire_jwt_token_after_ttl() {
-            let res: anyhow::Result<()> = async {
-                // Set up test infrastructure with 5-second token expiration
-                let (pg_connstr, _pg) = common::test_with_postgres().await?;
-                let (redis_connstr, _redis) = common::test_with_redis().await?;
+        // Create test context with custom session config
+        let options = TestAppOptionsBuilder::default()
+            .session_config(
+                SessionConfigBuilder::default()
+                    .expiration_secs(2)
+                    .renewal(
+                        SessionRenewalPolicyBuilder::default()
+                            .renewal_window_secs(0)
+                            .build()
+                            .unwrap(),
+                    )
+                    .build()
+                    .unwrap(),
+            )
+            .build()
+            .unwrap();
 
-                // Create test app with session expiration configuration
-                let test_server = common::test_http_app(
-                    &pg_connstr,
-                    &redis_connstr,
-                    TestAppOptionsBuilder::default()
-                        .session_config(
-                            SessionConfigBuilder::default()
-                                .expiration_secs(2)
-                                .renewal(
-                                    SessionRenewalPolicyBuilder::default()
-                                        .renewal_window_secs(0)
-                                        .build()
-                                        .unwrap(),
-                                )
-                                .build()
-                                .unwrap(),
-                        )
-                        .build()
-                        .unwrap(),
-                )
-                .await?;
+        let ctx = TestContext::new(Some(options)).await;
 
-                let addr = test_server.addr().to_string();
-                let client = Client::new();
+        // Get token
+        let token = common::get_http_token(
+            &ctx.addr,
+            &ctx.username,
+            &ctx.password,
+            &ctx.client,
+        )
+        .await
+        .unwrap();
 
-                // Create test user
-                let username = "ttl.test.user";
-                let password = "test_password";
-                let _ = common::create_http_user(
-                    &addr, username, password, &client,
-                )
-                .await?;
+        // Make valid request immediately
+        let status = get_users_with_token(&ctx, &token).await;
+        assert_eq!(status, StatusCode::OK, "Expected 200 OK for valid token");
 
-                // Login to get token
-                let token =
-                    common::get_http_token(&addr, username, password, &client)
-                        .await?;
+        // Wait for token expiration
+        tokio::time::sleep(Duration::from_secs(3)).await;
 
-                // Make valid request immediately
-                let resp = client
-                    .get(format!("http://{addr}/api/users?page=0&limit=5"))
-                    .with_token(&token)
-                    .send()
-                    .await
-                    .map_err(|err| anyhow!("{err}"))?;
+        // Make request with expired token
+        let status = get_users_with_token(&ctx, &token).await;
+        assert_eq!(
+            status,
+            StatusCode::UNAUTHORIZED,
+            "Expected 401 Unauthorized after token expiration"
+        );
+    }
 
-                assert_eq!(
-                    resp.status(),
-                    StatusCode::OK,
-                    "Expected 200 OK for valid token"
-                );
+    async fn login_attempt(
+        ctx: &TestContext,
+        username: &str,
+        password: &str,
+    ) -> (StatusCode, header::HeaderMap) {
+        let resp = ctx
+            .client
+            .post(format!("http://{}/api/login", ctx.addr))
+            .append_header((header::CONTENT_TYPE, "application/json"))
+            .send_json(&serde_json::json!({
+                "username": username,
+                "password": password
+            }))
+            .await
+            .unwrap();
 
-                // Wait for token expiration
-                let _ = tokio::time::sleep(Duration::from_secs(3)).await;
+        let status = resp.status();
+        let headers = resp.headers().clone();
 
-                // Make request with expired token
-                let resp = client
-                    .get(format!("http://{addr}/api/users?page=0&limit=5"))
-                    .with_token(&token)
-                    .send()
-                    .await
-                    .map_err(|err| anyhow!("{err}"))?;
+        (status, headers)
+    }
 
-                assert_eq!(
-                    resp.status(),
-                    StatusCode::UNAUTHORIZED,
-                    "Expected 401 Unauthorized after token expiration"
-                );
-                Ok(())
-            }
-            .await;
-            tracing::info!("{res:?}");
-            res.unwrap();
-        }
+    async fn get_users_with_token(
+        ctx: &TestContext,
+        token: &str,
+    ) -> StatusCode {
+        let resp = ctx
+            .client
+            .get(format!("http://{}/api/users?page=0&limit=5", ctx.addr))
+            .with_token(token)
+            .send()
+            .await
+            .unwrap();
+
+        resp.status()
     }
 }
