@@ -7,7 +7,7 @@ use actix_demo::models::roles::RoleEnum;
 use actix_demo::models::session::{
     SessionConfig, SessionConfigBuilder, SessionInfo,
 };
-use actix_demo::models::users::{NewUser, Password, Username};
+use actix_demo::models::users::{NewUser, Password, User, Username};
 use actix_demo::telemetry::DomainRootSpanBuilder;
 use actix_demo::utils::redis_credentials_repo::RedisCredentialsRepo;
 use actix_demo::{utils, AppConfig, AppData};
@@ -550,50 +550,70 @@ impl TestContext {
         assert_eq!(resp.status(), StatusCode::OK, "Failed to delete session");
     }
 
-    pub async fn attempt_login(
+    pub async fn _get_users(
         &self,
-        device_name: &str,
-    ) -> (StatusCode, Option<String>) {
-        let resp = self
+        page: i8,
+        limit: i8,
+        token: &str,
+    ) -> Vec<User> {
+        let mut resp = self
             .client
-            .post(format!("http://{}/api/login", self.addr))
-            .append_header((header::CONTENT_TYPE, "application/json"))
-            .send_json(&serde_json::json!({
-                "username": self.username,
-                "password": self.password,
-                "device_name": device_name
-            }))
+            .get(format!(
+                "http://{}/api/users?page={page}&limit={limit}",
+                self.addr
+            ))
+            .with_token(&token)
+            .send()
             .await
             .unwrap();
 
-        let status = resp.status();
-        let token = if status == StatusCode::OK {
-            Some(utils::extract_auth_token(resp.headers()).unwrap())
-        } else {
-            None
-        };
-
-        (status, token)
+        assert_eq!(resp.status(), StatusCode::OK, "Failed to get users");
+        resp.json().await.unwrap()
     }
+}
 
-    pub async fn create_concurrent_sessions(
-        &mut self,
-        count: usize,
-    ) -> anyhow::Result<Vec<String>> {
-        let mut tokens = Vec::new();
+pub fn assert_session_headers(headers: &HeaderMap) {
+    assert!(
+        headers.contains_key("x-session-id"),
+        "Missing session ID header"
+    );
+    assert!(
+        headers.contains_key("x-session-device-id"),
+        "Missing device ID header"
+    );
+    assert!(
+        headers.contains_key("x-session-created-at"),
+        "Missing created at header"
+    );
+    assert!(
+        headers.contains_key("x-session-last-used-at"),
+        "Missing last used header"
+    );
+    assert!(
+        headers.contains_key("x-session-ttl-remaining"),
+        "Missing TTL remaining header"
+    );
+}
 
-        for i in 0..count {
-            let (status, token) =
-                self.attempt_login(&format!("Test Device {i}")).await;
-            assert_eq!(
-                status,
-                StatusCode::OK,
-                "Expected successful login for attempt {}",
-                i + 1
-            );
-            tokens.push(token.unwrap());
-        }
+pub fn get_ttl_remaining(headers: &HeaderMap) -> Option<i64> {
+    headers
+        .get("x-session-ttl-remaining")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.parse::<i64>().ok())
+}
 
-        Ok(tokens)
-    }
+pub fn get_session_metadata(headers: &HeaderMap) -> Option<(String, String)> {
+    let session_id =
+        headers.get("x-session-id").and_then(|v| v.to_str().ok())?;
+    let device_id = headers
+        .get("x-session-device-id")
+        .and_then(|v| v.to_str().ok())?;
+    Some((session_id.to_string(), device_id.to_string()))
+}
+
+pub fn get_last_used_timestamp(headers: &HeaderMap) -> Option<String> {
+    headers
+        .get("x-session-last-used-at")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string())
 }
