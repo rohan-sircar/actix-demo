@@ -307,11 +307,12 @@ pub fn configure_app(
                             .route(
                                 "/{token}",
                                 web::delete().to(routes::auth::revoke_session),
-                            ), // .route(
-                               //     "/revoke-others",
-                               //     web::post()
-                               //         .to(routes::auth::revoke_other_sessions),
-                               // ),
+                            )
+                            .route(
+                                "/revoke-others",
+                                web::post()
+                                    .to(routes::auth::revoke_other_sessions),
+                            ),
                     ),
             )
             .service(fs::Files::new("/", "./static").index_file("index.html"));
