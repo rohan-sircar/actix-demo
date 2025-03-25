@@ -549,4 +549,51 @@ impl TestContext {
 
         assert_eq!(resp.status(), StatusCode::OK, "Failed to delete session");
     }
+
+    pub async fn attempt_login(
+        &self,
+        device_name: &str,
+    ) -> (StatusCode, Option<String>) {
+        let resp = self
+            .client
+            .post(format!("http://{}/api/login", self.addr))
+            .append_header((header::CONTENT_TYPE, "application/json"))
+            .send_json(&serde_json::json!({
+                "username": self.username,
+                "password": self.password,
+                "device_name": device_name
+            }))
+            .await
+            .unwrap();
+
+        let status = resp.status();
+        let token = if status == StatusCode::OK {
+            Some(utils::extract_auth_token(resp.headers()).unwrap())
+        } else {
+            None
+        };
+
+        (status, token)
+    }
+
+    pub async fn create_concurrent_sessions(
+        &mut self,
+        count: usize,
+    ) -> anyhow::Result<Vec<String>> {
+        let mut tokens = Vec::new();
+
+        for i in 0..count {
+            let (status, token) =
+                self.attempt_login(&format!("Test Device {i}")).await;
+            assert_eq!(
+                status,
+                StatusCode::OK,
+                "Expected successful login for attempt {}",
+                i + 1
+            );
+            tokens.push(token.unwrap());
+        }
+
+        Ok(tokens)
+    }
 }
