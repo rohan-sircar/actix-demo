@@ -118,7 +118,7 @@ pub struct AppData {
     pub redis_conn_factory: Option<Client>,
     pub redis_conn_manager: Option<ConnectionManager>,
     pub redis_prefix: RedisPrefixFn,
-    pub sessions_cleanup_worker_handle: JoinHandle<()>,
+    pub sessions_cleanup_worker_handle: Option<JoinHandle<()>>,
 }
 
 impl AppData {

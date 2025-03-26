@@ -148,7 +148,7 @@ async fn main() -> anyhow::Result<()> {
         redis_conn_factory: Some(client.clone()),
         redis_conn_manager: Some(cm.clone()),
         redis_prefix,
-        sessions_cleanup_worker_handle,
+        sessions_cleanup_worker_handle: Some(sessions_cleanup_worker_handle),
     });
 
     Ok(
