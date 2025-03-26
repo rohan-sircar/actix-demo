@@ -102,6 +102,21 @@ pub struct EnvConfig {
     pub session_max_renewals: u32,
     #[serde(default)]
     pub session_disable: bool,
+    // worker
+    #[serde(
+        default = "models::defaults::default_worker_initial_interval_secs"
+    )]
+    pub worker_initial_interval_secs: u64,
+    #[serde(default = "models::defaults::default_worker_multiplier")]
+    pub worker_multiplier: f64,
+    #[serde(default = "models::defaults::default_worker_max_interval_secs")]
+    pub worker_max_interval_secs: u64,
+    #[serde(
+        default = "models::defaults::default_worker_max_elapsed_time_secs"
+    )]
+    pub worker_max_elapsed_time_secs: u64,
+    #[serde(default = "models::defaults::default_worker_run_interval_secs")]
+    pub worker_run_interval_secs: u8,
 }
 
 #[derive(Deserialize, Debug, Clone)]

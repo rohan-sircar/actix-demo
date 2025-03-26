@@ -6,6 +6,7 @@ use actix_demo::models::rate_limit::{
     KeyStrategy, RateLimitConfig, RateLimitPolicy,
 };
 use actix_demo::models::session::{SessionConfig, SessionRenewalPolicy};
+use actix_demo::models::worker::{WorkerBackoffConfig, WorkerConfig};
 use actix_demo::utils::redis_credentials_repo::RedisCredentialsRepo;
 use actix_demo::{utils, workers, AppConfig, AppData, EnvConfig, LoggerFormat};
 use actix_web::web::Data;
@@ -107,12 +108,23 @@ async fn main() -> anyhow::Result<()> {
     let credentials_repo_clone = credentials_repo.clone();
     let pool_clone = pool.clone();
 
-    let sessions_cleanup_worker_handle: JoinHandle<()> =
+    let sessions_cleanup_worker_handle: JoinHandle<()> = {
+        let config = WorkerConfig {
+            backoff: WorkerBackoffConfig {
+                initial_interval_secs: env_config.worker_initial_interval_secs,
+                multiplier: env_config.worker_multiplier,
+                max_interval_secs: env_config.worker_max_interval_secs,
+                max_elapsed_time_secs: env_config.worker_max_elapsed_time_secs,
+            },
+            run_interval: env_config.worker_run_interval_secs,
+        };
         workers::start_sessions_cleanup_worker(
+            config,
             credentials_repo_clone,
             pool_clone,
         )
-        .await;
+        .await
+    };
 
     let app_data = Data::new(AppData {
         config: AppConfig {
@@ -134,7 +146,6 @@ async fn main() -> anyhow::Result<()> {
         actix_demo::run(format!("{}:7800", env_config.http_host), app_data)
             .await?;
 
-    // let _ = futures::try_join!(worker, app)?;
     Ok(())
 }
 

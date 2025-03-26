@@ -41,3 +41,23 @@ pub fn default_session_renewal_window_secs() -> u64 {
 pub fn default_session_max_renewals() -> u32 {
     3
 }
+
+pub fn default_worker_initial_interval_secs() -> u64 {
+    3
+}
+
+pub fn default_worker_multiplier() -> f64 {
+    2.0
+}
+
+pub fn default_worker_max_interval_secs() -> u64 {
+    30
+}
+
+pub fn default_worker_max_elapsed_time_secs() -> u64 {
+    300
+}
+
+pub fn default_worker_run_interval_secs() -> u8 {
+    10
+}
