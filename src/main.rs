@@ -1,18 +1,21 @@
 #![forbid(unsafe_code)]
 #![allow(clippy::let_unit_value)]
+use std::time::Duration;
+
 use actix_demo::actions::misc::create_database_if_needed;
 use actix_demo::models::rate_limit::{
     KeyStrategy, RateLimitConfig, RateLimitPolicy,
 };
 use actix_demo::models::session::{SessionConfig, SessionRenewalPolicy};
 use actix_demo::utils::redis_credentials_repo::RedisCredentialsRepo;
-use actix_demo::{utils, AppConfig, AppData, EnvConfig, LoggerFormat};
+use actix_demo::{actions, utils, AppConfig, AppData, EnvConfig, LoggerFormat};
 use actix_web::web::Data;
 use anyhow::Context;
 use diesel::r2d2::ConnectionManager;
 use diesel_migrations::{FileBasedMigrations, MigrationHarness};
 use diesel_tracing::pg::InstrumentedPgConnection;
 use jwt_simple::prelude::HS256Key;
+use tokio::task::JoinHandle;
 use tracing::subscriber::set_global_default;
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer};
@@ -102,6 +105,36 @@ async fn main() -> anyhow::Result<()> {
         disable: env_config.rate_limit_disable,
     };
 
+    let credentials_repo_clone = credentials_repo.clone();
+    let pool_clone = pool.clone();
+
+    let sessions_cleanup_worker_handle: JoinHandle<()> =
+        tokio::spawn(async move {
+            loop {
+                let _ = tracing::info!("Running sessions cleanup");
+                let mut conn = pool_clone
+                    .get()
+                    .context("Failed to get connection")
+                    .unwrap();
+                let user_ids = actions::users::get_all_user_ids(&mut conn)
+                    .expect("Failed to get user_ids");
+                for user_id in user_ids {
+                    let _ = tracing::info!(
+                        "Clearing expired sessions for user_id: {user_id}"
+                    );
+                    let res = credentials_repo_clone
+                        .cleanup_expired_session_ids(&user_id)
+                        .await;
+                    if res.is_err() {
+                        tracing::warn!(
+                    "Failed to clean expired sessions for user id: {user_id}"
+                );
+                    }
+                }
+                tokio::time::sleep(Duration::from_secs(10)).await;
+            }
+        });
+
     let app_data = Data::new(AppData {
         config: AppConfig {
             hash_cost: env_config.hash_cost,
@@ -115,6 +148,7 @@ async fn main() -> anyhow::Result<()> {
         redis_conn_factory: Some(client.clone()),
         redis_conn_manager: Some(cm.clone()),
         redis_prefix,
+        sessions_cleanup_worker_handle,
     });
 
     Ok(

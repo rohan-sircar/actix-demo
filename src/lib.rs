@@ -46,6 +46,7 @@ use redis::Client;
 use serde::Deserialize;
 use std::io;
 use telemetry::DomainRootSpanBuilder;
+use tokio::task::JoinHandle;
 use tracing_actix_web::TracingLogger;
 use types::{DbPool, RedisPrefixFn};
 use utils::redis_credentials_repo::RedisCredentialsRepo;
@@ -117,6 +118,7 @@ pub struct AppData {
     pub redis_conn_factory: Option<Client>,
     pub redis_conn_manager: Option<ConnectionManager>,
     pub redis_prefix: RedisPrefixFn,
+    pub sessions_cleanup_worker_handle: JoinHandle<()>,
 }
 
 impl AppData {

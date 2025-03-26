@@ -26,7 +26,7 @@ impl RedisCredentialsRepo {
         user_id: &UserId,
         session_id: &Uuid,
     ) -> String {
-        format!("{}.{user_id}.expiry.{session_id}", self.base_key)
+        format!("{}.expiry.{user_id}.{session_id}", self.base_key)
     }
 
     // Method to check if a token is expired
@@ -351,46 +351,54 @@ impl RedisCredentialsRepo {
         Ok(())
     }
 
-    // // Add a cleanup method to be called periodically or during token validation
-    // pub async fn cleanup_expired_tokens(
-    //     &self,
-    //     user_id: &UserId,
-    // ) -> Result<(), DomainError> {
-    //     let key = self.get_key(user_id);
+    // Add a cleanup method to be called periodically or during token validation
+    pub async fn cleanup_expired_session_ids(
+        &self,
+        user_id: &UserId,
+    ) -> Result<(), DomainError> {
+        let key = self.get_key(user_id);
+        // let key = self.base_key.clone();
 
-    //     // Get all tokens for this user
-    //     let tokens: Vec<String> =
-    //         self.redis.clone().hkeys(key.clone()).await.map_err(|err| {
-    //             DomainError::new_internal_error(format!(
-    //                 "Failed to get tokens from Redis: {err}"
-    //             ))
-    //         })?;
+        // Get all session_ids for this user
+        let session_ids: Vec<String> =
+            self.redis.clone().hkeys(&key).await.map_err(|err| {
+                DomainError::new_internal_error(format!(
+                    "Failed to get session_ids from Redis: {err}"
+                ))
+            })?;
 
-    //     // Check each token's expiry key
-    //     for token in tokens {
-    //         let expiry_key = self.get_expiry_key(user_id, &session_id);
-    //         let exists: bool =
-    //             self.redis.clone().exists(expiry_key).await.map_err(|err| {
-    //                 DomainError::new_internal_error(format!(
-    //                     "Failed to check if expiry key exists: {err}"
-    //                 ))
-    //             })?;
+        let mut expired_count = 0;
+        // Check each token's expiry key
+        for session_id_str in session_ids {
+            let session_id = Uuid::parse_str(&session_id_str)
+                .expect("Expected valid session_id");
+            let expiry_key = self.get_expiry_key(user_id, &session_id);
+            let exists: bool =
+                self.redis.clone().exists(expiry_key).await.map_err(|err| {
+                    DomainError::new_internal_error(format!(
+                        "Failed to check if expiry key exists: {err}"
+                    ))
+                })?;
 
-    //         // If expiry key doesn't exist, token has expired
-    //         if !exists {
-    //             // Remove the token from the hash
-    //             self.redis
-    //                 .clone()
-    //                 .hdel::<String, &str, ()>(key.clone(), &token)
-    //                 .await
-    //                 .map_err(|err| {
-    //                     DomainError::new_internal_error(format!(
-    //                         "Failed to delete expired token: {err}"
-    //                     ))
-    //                 })?;
-    //         }
-    //     }
+            // If expiry key doesn't exist, token has expired
+            if !exists {
+                // Remove the token from the hash
+                let () = self
+                    .redis
+                    .clone()
+                    .hdel(&key, &session_id_str)
+                    .await
+                    .map_err(|err| {
+                    DomainError::new_internal_error(format!(
+                        "Failed to delete expired token: {err}"
+                    ))
+                })?;
+                expired_count += 1;
+            }
+        }
 
-    //     Ok(())
-    // }
+        let _ = tracing::info!("Removed {expired_count} expired sessions");
+
+        Ok(())
+    }
 }

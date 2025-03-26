@@ -138,6 +138,19 @@ pub fn get_all_users(
     })
 }
 
+pub fn get_all_user_ids(
+    conn: &mut PooledConnection<ConnectionManager<InstrumentedPgConnection>>,
+) -> Result<Vec<UserId>, DomainError> {
+    use crate::schema::users::dsl as users;
+
+    let users = users::users
+        .select(users::id)
+        .order_by(users::created_at)
+        .load::<UserId>(conn)?;
+
+    Ok(users)
+}
+
 pub fn search_users(
     query: &str,
     pagination: &Pagination,
