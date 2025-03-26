@@ -38,7 +38,6 @@ use actix_web::{
     HttpResponse,
 };
 use actix_web_grants::GrantsMiddleware;
-use apalis_redis::RedisStorage;
 use errors::DomainError;
 use jwt_simple::prelude::HS256Key;
 use models::rate_limit::{KeyStrategy, RateLimitConfig};
@@ -53,7 +52,6 @@ use tokio::task::JoinHandle;
 use tracing_actix_web::TracingLogger;
 use types::{DbPool, RedisPrefixFn};
 use utils::redis_credentials_repo::RedisCredentialsRepo;
-use workers::SessionsCleanup;
 
 build_info::build_info!(pub fn get_build_info);
 
@@ -123,7 +121,6 @@ pub struct AppData {
     pub redis_conn_manager: Option<ConnectionManager>,
     pub redis_prefix: RedisPrefixFn,
     pub sessions_cleanup_worker_handle: Option<JoinHandle<()>>,
-    pub sessions_cleanup_worker_storage: Option<RedisStorage<SessionsCleanup>>,
 }
 
 impl AppData {

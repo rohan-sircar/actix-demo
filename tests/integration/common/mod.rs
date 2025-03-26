@@ -272,7 +272,6 @@ pub async fn app_data(
         redis_conn_manager: Some(cm.clone()),
         redis_prefix,
         sessions_cleanup_worker_handle: None,
-        sessions_cleanup_worker_storage: None,
     });
     Ok(data)
 }

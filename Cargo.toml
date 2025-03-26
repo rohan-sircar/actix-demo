@@ -13,8 +13,6 @@ actix-web = "4.9.0"
 actix-web-grants = "4.1.2"
 actix-ws = "0.3.0"
 anyhow = "1.0.66"
-apalis = { version = "0.6", features = ["limit", "retry"] }
-apalis-redis = { version = "0.6" }
 awc = "3.5.1"
 backoff = { version = "0.4", features = ["tokio"] }
 bcrypt = "0.17.0"

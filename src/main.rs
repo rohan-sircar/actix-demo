@@ -1,17 +1,13 @@
 #![forbid(unsafe_code)]
 #![allow(clippy::let_unit_value)]
-use std::time::Duration;
 
 use actix_demo::actions::misc::create_database_if_needed;
-use actix_demo::errors::DomainError;
 use actix_demo::models::rate_limit::{
     KeyStrategy, RateLimitConfig, RateLimitPolicy,
 };
 use actix_demo::models::session::{SessionConfig, SessionRenewalPolicy};
 use actix_demo::utils::redis_credentials_repo::RedisCredentialsRepo;
-use actix_demo::{
-    actions, utils, workers, AppConfig, AppData, EnvConfig, LoggerFormat,
-};
+use actix_demo::{utils, workers, AppConfig, AppData, EnvConfig, LoggerFormat};
 use actix_web::web::Data;
 use anyhow::Context;
 use diesel::r2d2::ConnectionManager;
@@ -112,18 +108,11 @@ async fn main() -> anyhow::Result<()> {
     let pool_clone = pool.clone();
 
     let sessions_cleanup_worker_handle: JoinHandle<()> =
-        workers::start_sessions_cleanup_worker2(
+        workers::start_sessions_cleanup_worker(
             credentials_repo_clone,
             pool_clone,
         )
         .await;
-
-    // let sessions_cleanup_worker_storage =
-    //     workers::start_sessions_cleanup_worker(
-    //         credentials_repo_clone,
-    //         pool_clone,
-    //     )
-    //     .await?;
 
     let app_data = Data::new(AppData {
         config: AppConfig {
@@ -139,7 +128,6 @@ async fn main() -> anyhow::Result<()> {
         redis_conn_manager: Some(cm.clone()),
         redis_prefix,
         sessions_cleanup_worker_handle: Some(sessions_cleanup_worker_handle),
-        sessions_cleanup_worker_storage: None,
     });
 
     let _app =
