@@ -86,12 +86,8 @@ pub async fn cookie_auth(
     // Validate token using existing logic
     let credentials_repo = &app_data.credentials_repo;
     let jwt_key = &app_data.jwt_key;
-    let refresh_ttl_seconds =
-        app_data.config.session.renewal.renewal_window_secs;
 
-    match validate_token(credentials_repo, jwt_key, token, refresh_ttl_seconds)
-        .await
-    {
+    match validate_token(credentials_repo, jwt_key, token).await {
         Ok(session_info) => {
             let mut res = next.call(req).await?;
             // Add custom headers based on session_info
@@ -101,7 +97,10 @@ pub async fn cookie_auth(
                     "x-session-id",
                     &session_info.session_id.to_string(),
                 )?
-                .insert_header("x-session-device-id", &session_info.device_id)?
+                .insert_header(
+                    "x-session-device-id",
+                    &session_info.device_id.to_string(),
+                )?
                 .insert_header(
                     "x-session-created-at",
                     &session_info

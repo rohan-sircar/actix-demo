@@ -4,8 +4,10 @@ use actix_demo::models::rate_limit::{
     KeyStrategy, RateLimitConfig, RateLimitPolicy,
 };
 use actix_demo::models::roles::RoleEnum;
-use actix_demo::models::session::{SessionConfig, SessionConfigBuilder};
-use actix_demo::models::users::{NewUser, Password, Username};
+use actix_demo::models::session::{
+    SessionConfig, SessionConfigBuilder, SessionInfo,
+};
+use actix_demo::models::users::{NewUser, Password, User, Username};
 use actix_demo::telemetry::DomainRootSpanBuilder;
 use actix_demo::utils::redis_credentials_repo::RedisCredentialsRepo;
 use actix_demo::{utils, AppConfig, AppData};
@@ -25,6 +27,7 @@ use diesel_migrations::{FileBasedMigrations, MigrationHarness};
 use diesel_tracing::pg::InstrumentedPgConnection;
 use jwt_simple::prelude::HS256Key;
 use once_cell::sync::Lazy;
+use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
 use std::os::unix::prelude::OpenOptionsExt;
@@ -37,13 +40,14 @@ use tracing_actix_web::TracingLogger;
 use tracing_log::LogTracer;
 use tracing_subscriber::fmt::{format::FmtSpan, Subscriber as FmtSubscriber};
 use tracing_subscriber::EnvFilter;
+use uuid::Uuid;
 use validators::prelude::*;
 
 use actix_demo::configure_app;
 
 use testcontainers_modules::testcontainers::ImageExt;
 
-use actix_http::{header, Request};
+use actix_http::{header, Request, StatusCode};
 use actix_test::TestServer;
 use actix_web::body::MessageBody;
 use actix_web::{dev::*, Error as AxError};
@@ -253,7 +257,8 @@ pub async fn app_data(
     let credentials_repo = RedisCredentialsRepo::new(
         redis_prefix(&"user-sessions"),
         cm.clone(),
-        5,
+        options.session_config.max_concurrent_sessions,
+        options.session_config.renewal.renewal_window_secs,
     );
 
     let key = HS256Key::from_bytes("test".as_bytes());
@@ -453,4 +458,162 @@ pub fn assert_rate_limit_headers(headers: &HeaderMap) {
         "Expected the '{}' header to be present",
         X_RATELIMIT_RESET
     );
+}
+
+pub struct TestContext {
+    pub username: String,
+    pub password: String,
+    pub addr: String,
+    pub client: Client,
+    pub _pg: ContainerAsync<Postgres>,
+    pub _redis: ContainerAsync<Redis>,
+    pub _test_server: TestServer,
+}
+
+impl TestContext {
+    pub async fn new(options: Option<TestAppOptions>) -> Self {
+        let (pg_connstr, _pg) = test_with_postgres().await.unwrap();
+        let (redis_connstr, _redis) = test_with_redis().await.unwrap();
+
+        let _test_server = test_http_app(
+            &pg_connstr,
+            &redis_connstr,
+            options
+                .unwrap_or(TestAppOptionsBuilder::default().build().unwrap()),
+        )
+        .await
+        .unwrap();
+
+        let addr = _test_server.addr().to_string();
+        let client = Client::new();
+        let username = Uuid::new_v4().to_string();
+        let password = "password".to_string();
+
+        create_http_user(&addr, &username, &password, &client)
+            .await
+            .unwrap();
+
+        Self {
+            addr,
+            client,
+            username,
+            password,
+            _pg,
+            _redis,
+            _test_server,
+        }
+    }
+
+    pub async fn create_tokens(&mut self, count: usize) -> Vec<String> {
+        let mut tokens = Vec::new();
+
+        for _ in 0..count {
+            let token = get_http_token(
+                &self.addr,
+                &self.username,
+                &self.password,
+                &self.client,
+            )
+            .await
+            .unwrap();
+            tokens.push(token);
+        }
+
+        tokens
+    }
+
+    pub async fn get_sessions(
+        &self,
+        token: &str,
+    ) -> HashMap<Uuid, SessionInfo> {
+        let mut resp = self
+            .client
+            .get(format!("http://{}/api/sessions", self.addr))
+            .with_token(token)
+            .send()
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::OK, "Failed to get sessions");
+        resp.json().await.unwrap()
+    }
+
+    pub async fn delete_session(&self, session_id: Uuid, token: &str) {
+        let resp = self
+            .client
+            .delete(format!("http://{}/api/sessions/{}", self.addr, session_id))
+            .with_token(token)
+            .send()
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::OK, "Failed to delete session");
+    }
+
+    pub async fn _get_users(
+        &self,
+        page: i8,
+        limit: i8,
+        token: &str,
+    ) -> Vec<User> {
+        let mut resp = self
+            .client
+            .get(format!(
+                "http://{}/api/users?page={page}&limit={limit}",
+                self.addr
+            ))
+            .with_token(&token)
+            .send()
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::OK, "Failed to get users");
+        resp.json().await.unwrap()
+    }
+}
+
+pub fn assert_session_headers(headers: &HeaderMap) {
+    assert!(
+        headers.contains_key("x-session-id"),
+        "Missing session ID header"
+    );
+    assert!(
+        headers.contains_key("x-session-device-id"),
+        "Missing device ID header"
+    );
+    assert!(
+        headers.contains_key("x-session-created-at"),
+        "Missing created at header"
+    );
+    assert!(
+        headers.contains_key("x-session-last-used-at"),
+        "Missing last used header"
+    );
+    assert!(
+        headers.contains_key("x-session-ttl-remaining"),
+        "Missing TTL remaining header"
+    );
+}
+
+pub fn get_ttl_remaining(headers: &HeaderMap) -> Option<i64> {
+    headers
+        .get("x-session-ttl-remaining")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.parse::<i64>().ok())
+}
+
+pub fn get_session_metadata(headers: &HeaderMap) -> Option<(String, String)> {
+    let session_id =
+        headers.get("x-session-id").and_then(|v| v.to_str().ok())?;
+    let device_id = headers
+        .get("x-session-device-id")
+        .and_then(|v| v.to_str().ok())?;
+    Some((session_id.to_string(), device_id.to_string()))
+}
+
+pub fn get_last_used_timestamp(headers: &HeaderMap) -> Option<String> {
+    headers
+        .get("x-session-last-used-at")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string())
 }

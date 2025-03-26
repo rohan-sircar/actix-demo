@@ -1,5 +1,6 @@
 use derive_builder::Builder;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 /// Configuration for session management
 #[derive(Debug, Clone, Deserialize, Builder)]
@@ -36,4 +37,32 @@ pub struct SessionRenewalPolicy {
     /// Maximum number of renewals allowed per session
     #[builder(default = "3")]
     pub max_renewals: u32,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SessionInfo {
+    pub session_id: Uuid,
+    pub device_id: Uuid,
+    pub device_name: Option<String>,
+    pub created_at: chrono::NaiveDateTime,
+    pub last_used_at: chrono::NaiveDateTime,
+    pub token: String,
+    #[serde(skip)] // Skip serialization/deserialization
+    pub ttl_remaining: Option<i64>,
+}
+
+#[derive(PartialEq)]
+pub enum SessionStatus {
+    Expired,
+    Alive,
+}
+
+impl SessionStatus {
+    pub fn from_exists(exists: bool) -> SessionStatus {
+        if exists {
+            SessionStatus::Alive
+        } else {
+            SessionStatus::Expired
+        }
+    }
 }
