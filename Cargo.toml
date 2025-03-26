@@ -13,7 +13,10 @@ actix-web = "4.9.0"
 actix-web-grants = "4.1.2"
 actix-ws = "0.3.0"
 anyhow = "1.0.66"
+apalis = { version = "0.6", features = ["limit", "retry"] }
+apalis-redis = { version = "0.6" }
 awc = "3.5.1"
+backoff = { version = "0.4", features = ["tokio"] }
 bcrypt = "0.17.0"
 chrono = { version = "0.4.40", features = ['serde'] }
 custom_error = "1.9.2"
@@ -87,3 +90,4 @@ version = "2.1.2"
 
 [build-dependencies]
 build-info-build = { version = "0.0.40" }
+backoff = { version = "0.4", features = ["tokio"] }

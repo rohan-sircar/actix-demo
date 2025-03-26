@@ -19,6 +19,9 @@ mod schema;
 pub mod telemetry;
 pub mod types;
 pub mod utils;
+pub mod workers;
+
+use std::time::Duration;
 
 use actix_extensible_rate_limit::HeaderCompatibleOutput;
 use actix_extensible_rate_limit::{
@@ -35,6 +38,7 @@ use actix_web::{
     HttpResponse,
 };
 use actix_web_grants::GrantsMiddleware;
+use apalis_redis::RedisStorage;
 use errors::DomainError;
 use jwt_simple::prelude::HS256Key;
 use models::rate_limit::{KeyStrategy, RateLimitConfig};
@@ -44,12 +48,12 @@ use rand::Rng;
 use redis::aio::ConnectionManager;
 use redis::Client;
 use serde::Deserialize;
-use std::io;
 use telemetry::DomainRootSpanBuilder;
 use tokio::task::JoinHandle;
 use tracing_actix_web::TracingLogger;
 use types::{DbPool, RedisPrefixFn};
 use utils::redis_credentials_repo::RedisCredentialsRepo;
+use workers::SessionsCleanup;
 
 build_info::build_info!(pub fn get_build_info);
 
@@ -119,6 +123,7 @@ pub struct AppData {
     pub redis_conn_manager: Option<ConnectionManager>,
     pub redis_prefix: RedisPrefixFn,
     pub sessions_cleanup_worker_handle: Option<JoinHandle<()>>,
+    pub sessions_cleanup_worker_storage: Option<RedisStorage<SessionsCleanup>>,
 }
 
 impl AppData {
@@ -222,9 +227,7 @@ pub fn configure_app(
             };
 
             let input_fn_builder = SimpleInputFunctionBuilder::new(
-                std::time::Duration::from_secs(
-                    app_data.config.rate_limit.api.window_secs,
-                ),
+                Duration::from_secs(app_data.config.rate_limit.api.window_secs),
                 app_data.config.rate_limit.api.max_requests.into(),
             );
             let input_fn =
@@ -321,7 +324,7 @@ pub fn configure_app(
     })
 }
 
-pub async fn run(addr: String, app_data: Data<AppData>) -> io::Result<()> {
+pub async fn run(addr: String, app_data: Data<AppData>) -> anyhow::Result<()> {
     let bi = get_build_info();
     let _ = tracing::info!(
         "Starting {} {}",
@@ -343,5 +346,9 @@ pub async fn run(addr: String, app_data: Data<AppData>) -> io::Result<()> {
             .configure(configure_app(app_data.clone()))
             .wrap(TracingLogger::<DomainRootSpanBuilder>::new())
     };
-    HttpServer::new(app).bind(addr)?.run().await
+    HttpServer::new(app)
+        .bind(addr)?
+        .run()
+        .await
+        .map_err(|err| anyhow::anyhow!(err))
 }
