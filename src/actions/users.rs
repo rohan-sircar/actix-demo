@@ -11,6 +11,8 @@ use crate::models::users::{
     UserWithRoles, Username,
 };
 use bcrypt::hash;
+use cached::proc_macro::io_cached;
+use cached::{IOCached, RedisCache};
 use do_notation::m;
 use validators::prelude::*;
 
@@ -138,6 +140,23 @@ pub fn get_all_users(
     })
 }
 
+fn build_user_ids_cache() -> RedisCache<String, Vec<UserId>> {
+    RedisCache::new("user_ids", 3600)
+        .build()
+        .map_err(|e| {
+            DomainError::new_internal_error(format!(
+                "Failed to build cache: {e:?}"
+            ))
+        })
+        .expect("Failed to create Redis cache")
+}
+
+#[io_cached(
+    map_error = r##"|e| DomainError::new_internal_error(format!("Redis error: {:?}", e))"##,
+    ty = "RedisCache<String, Vec<UserId>>",
+    create = r##" { build_user_ids_cache() } "##,
+    convert = r#"{ "user_id".to_string() }"#
+)]
 pub fn get_all_user_ids(
     conn: &mut PooledConnection<ConnectionManager<InstrumentedPgConnection>>,
 ) -> Result<Vec<UserId>, DomainError> {
@@ -189,6 +208,9 @@ pub fn insert_new_user(
         })?;
         nu2
     };
+
+    // Get cache instance
+    let cache = build_user_ids_cache();
     conn.transaction(|conn| {
         let _ = diesel::insert_into(users::users)
             .values(&nu)
@@ -211,12 +233,21 @@ pub fn insert_new_user(
 
         let roles = get_roles_for_user(&user.id, conn)?;
 
-        Ok(UserWithRoles {
+        let user_with_roles = UserWithRoles {
             id: user.id,
             username: user.username,
             created_at: user.created_at,
             roles,
-        })
+        };
+
+        // Invalidate the cache since we've added a new user
+        let _ = cache.cache_remove(&"user_id".to_string()).map_err(|e| {
+            DomainError::new_internal_error(format!(
+                "Failed to invalidate cache: {e:?}"
+            ))
+        })?;
+
+        Ok(user_with_roles)
     })
 }
 

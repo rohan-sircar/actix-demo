@@ -16,6 +16,12 @@ anyhow = "1.0.66"
 awc = "3.5.1"
 backoff = { version = "0.4", features = ["tokio"] }
 bcrypt = "0.17.0"
+cached = { version = "0.55.1", features = [
+    "redis_store",
+    "redis_tokio",
+    "redis_connection_manager",
+    "proc_macro",
+] }
 chrono = { version = "0.4.40", features = ['serde'] }
 custom_error = "1.9.2"
 derive_builder = "0.20.2"
