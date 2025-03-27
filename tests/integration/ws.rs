@@ -99,7 +99,7 @@ mod tests {
             )
             .await?;
 
-            let addr = test_server.addr().to_string();
+            let addr = test_server.0.addr().to_string();
             // tracing::info!("Addr: {addr}");
             let client = Client::new();
             // let resp = test_server.get("/users").send().await;
@@ -148,7 +148,7 @@ mod tests {
             )
             .await?;
 
-            let addr = test_server.addr().to_string();
+            let addr = test_server.0.addr().to_string();
             let client = Client::new();
             let username = common::DEFAULT_USER;
             let password = common::DEFAULT_USER;
@@ -259,7 +259,7 @@ mod tests {
                 common::test_http_app(&pg_connstr, &redis_connstr, options)
                     .await?;
 
-            let addr = test_server.addr().to_string();
+            let addr = test_server.0.addr().to_string();
             let client = Client::new();
             let username = common::DEFAULT_USER;
             let password = common::DEFAULT_USER;
@@ -332,7 +332,7 @@ mod tests {
             )
             .await?;
 
-            let addr = test_server.addr().to_string();
+            let addr = test_server.0.addr().to_string();
             let client = Client::new();
             let username = common::DEFAULT_USER;
             let password = common::DEFAULT_USER;

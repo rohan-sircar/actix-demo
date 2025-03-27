@@ -8,6 +8,7 @@ use actix_demo::models::session::{
     SessionConfig, SessionConfigBuilder, SessionInfo,
 };
 use actix_demo::models::users::{NewUser, Password, User, Username};
+use actix_demo::models::worker::{WorkerBackoffConfig, WorkerConfig};
 use actix_demo::telemetry::DomainRootSpanBuilder;
 use actix_demo::utils::redis_credentials_repo::RedisCredentialsRepo;
 use actix_demo::{utils, AppConfig, AppData};
@@ -152,6 +153,8 @@ pub struct TestAppOptions {
     pub rate_limit_disabled: bool,
     #[builder(default = "self.default_session_config()")]
     pub session_config: SessionConfig,
+    #[builder(default = "self.default_session_cleanup_worker_config()")]
+    pub sessions_cleanup_worker_config: WorkerConfig,
 }
 
 impl Default for TestAppOptions {
@@ -178,6 +181,17 @@ impl TestAppOptionsBuilder {
     }
     fn default_session_config(&self) -> SessionConfig {
         SessionConfigBuilder::default().build().unwrap()
+    }
+    fn default_session_cleanup_worker_config(&self) -> WorkerConfig {
+        WorkerConfig {
+            backoff: WorkerBackoffConfig {
+                initial_interval_secs: 1,
+                multiplier: 1.0,
+                max_interval_secs: 30,
+                max_elapsed_time_secs: 30,
+            },
+            run_interval: 2,
+        }
     }
 }
 
@@ -271,6 +285,7 @@ pub async fn app_data(
         redis_conn_factory: Some(client.clone()),
         redis_conn_manager: Some(cm.clone()),
         redis_prefix,
+        sessions_cleanup_worker_handle: None,
     });
     Ok(data)
 }
@@ -299,14 +314,15 @@ pub async fn test_http_app(
     pg_connstr: &str,
     redis_connstr: &str,
     options: TestAppOptions,
-) -> anyhow::Result<TestServer> {
+) -> anyhow::Result<(TestServer, web::Data<AppData>)> {
     let data = app_data(pg_connstr, redis_connstr, options).await?;
+    let data_clone = data.clone();
     let test_app = move || {
         App::new()
-            .configure(configure_app(data.clone()))
+            .configure(configure_app(data_clone.clone()))
             .wrap(TracingLogger::<DomainRootSpanBuilder>::new())
     };
-    Ok(actix_test::start(test_app))
+    Ok((actix_test::start(test_app), data))
 }
 
 pub async fn create_user(
@@ -468,6 +484,7 @@ pub struct TestContext {
     pub _pg: ContainerAsync<Postgres>,
     pub _redis: ContainerAsync<Redis>,
     pub _test_server: TestServer,
+    pub app_data: web::Data<AppData>,
 }
 
 impl TestContext {
@@ -475,7 +492,7 @@ impl TestContext {
         let (pg_connstr, _pg) = test_with_postgres().await.unwrap();
         let (redis_connstr, _redis) = test_with_redis().await.unwrap();
 
-        let _test_server = test_http_app(
+        let (_test_server, app_data) = test_http_app(
             &pg_connstr,
             &redis_connstr,
             options
@@ -501,6 +518,7 @@ impl TestContext {
             _pg,
             _redis,
             _test_server,
+            app_data,
         }
     }
 

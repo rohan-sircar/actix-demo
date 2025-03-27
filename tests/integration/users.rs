@@ -154,7 +154,7 @@ mod tests {
                 )
                 .await?;
 
-                let addr = test_server.addr().to_string();
+                let addr = test_server.0.addr().to_string();
                 let client = Client::new();
 
                 // Create test user and get token

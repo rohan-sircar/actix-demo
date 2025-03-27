@@ -1,18 +1,21 @@
 #![forbid(unsafe_code)]
 #![allow(clippy::let_unit_value)]
+
 use actix_demo::actions::misc::create_database_if_needed;
 use actix_demo::models::rate_limit::{
     KeyStrategy, RateLimitConfig, RateLimitPolicy,
 };
 use actix_demo::models::session::{SessionConfig, SessionRenewalPolicy};
+use actix_demo::models::worker::{WorkerBackoffConfig, WorkerConfig};
 use actix_demo::utils::redis_credentials_repo::RedisCredentialsRepo;
-use actix_demo::{utils, AppConfig, AppData, EnvConfig, LoggerFormat};
+use actix_demo::{utils, workers, AppConfig, AppData, EnvConfig, LoggerFormat};
 use actix_web::web::Data;
 use anyhow::Context;
 use diesel::r2d2::ConnectionManager;
 use diesel_migrations::{FileBasedMigrations, MigrationHarness};
 use diesel_tracing::pg::InstrumentedPgConnection;
 use jwt_simple::prelude::HS256Key;
+use tokio::task::JoinHandle;
 use tracing::subscriber::set_global_default;
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer};
@@ -102,6 +105,27 @@ async fn main() -> anyhow::Result<()> {
         disable: env_config.rate_limit_disable,
     };
 
+    let credentials_repo_clone = credentials_repo.clone();
+    let pool_clone = pool.clone();
+
+    let sessions_cleanup_worker_handle: JoinHandle<()> = {
+        let config = WorkerConfig {
+            backoff: WorkerBackoffConfig {
+                initial_interval_secs: env_config.worker_initial_interval_secs,
+                multiplier: env_config.worker_multiplier,
+                max_interval_secs: env_config.worker_max_interval_secs,
+                max_elapsed_time_secs: env_config.worker_max_elapsed_time_secs,
+            },
+            run_interval: env_config.worker_run_interval_secs,
+        };
+        workers::start_sessions_cleanup_worker(
+            config,
+            credentials_repo_clone,
+            pool_clone,
+        )
+        .await
+    };
+
     let app_data = Data::new(AppData {
         config: AppConfig {
             hash_cost: env_config.hash_cost,
@@ -115,12 +139,14 @@ async fn main() -> anyhow::Result<()> {
         redis_conn_factory: Some(client.clone()),
         redis_conn_manager: Some(cm.clone()),
         redis_prefix,
+        sessions_cleanup_worker_handle: Some(sessions_cleanup_worker_handle),
     });
 
-    Ok(
+    let _app =
         actix_demo::run(format!("{}:7800", env_config.http_host), app_data)
-            .await?,
-    )
+            .await?;
+
+    Ok(())
 }
 
 pub fn setup_logger(format: LoggerFormat) -> anyhow::Result<WorkerGuard> {
