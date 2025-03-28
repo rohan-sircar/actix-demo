@@ -1,5 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
+use crate::metrics::JOB_COUNTER;
 use actix_web::{web, HttpRequest, HttpResponse};
 use futures::StreamExt;
 use process_stream::{Process, ProcessExt, ProcessItem};
@@ -84,6 +85,9 @@ pub async fn handle_run_command(
     .await??;
     tracing::info!("Successfully created job with ID: {}", job.job_id);
 
+    // Track job creation
+    JOB_COUNTER.with_label_values(&["pending"]).inc();
+
     let pool2 = pool.clone();
     let _task: Task<()> = actix_rt::spawn(
         async move {
@@ -93,6 +97,9 @@ pub async fn handle_run_command(
                 tracing::debug!("Setting process arguments: {:?}", args);
                 let _ = proc.borrow_mut().args(&args);
             }
+            
+            // Track job start
+            JOB_COUNTER.with_label_values(&["running"]).inc();
             let proc2 = proc.clone();
 
             // Track abort state
@@ -146,7 +153,10 @@ pub async fn handle_run_command(
                                     "Failed to update job status: {err}"
                                 ))
                             })??;
+                             // Track job abort
+                             JOB_COUNTER.with_label_values(&["aborted"]).inc();
                             break;
+                            
                                                 }
                     }
                     Ok(())
@@ -225,11 +235,13 @@ pub async fn handle_run_command(
             let (status, msg) = match res {
                 Ok(_) => {
                     tracing::info!("Job {} completed successfully", job_id);
+                    JOB_COUNTER.with_label_values(&["completed"]).inc();
                     (JobStatus::Completed, None)
                 },
                 Err(err) => {
                     let msg = format!("Error running job: {err:?}");
                     tracing::error!("Job {} failed: {}", job_id, msg);
+                    JOB_COUNTER.with_label_values(&["failed"]).inc();
                     (JobStatus::Failed, Some(msg))
                 }
             };
