@@ -37,10 +37,21 @@ pub async fn start_sessions_cleanup_worker(
                 }
             };
 
-            let user_ids = match actions::users::get_all_user_ids(&mut conn) {
-                Ok(ids) => ids,
-                Err(err) => {
+            let user_ids = match tokio::task::spawn_blocking(move || {
+                actions::users::get_all_user_ids(&mut conn)
+            })
+            .await
+            {
+                Ok(Ok(ids)) => ids,
+                Ok(Err(err)) => {
                     let _ = tracing::error!("Failed to get user IDs: {err}");
+                    tokio::time::sleep(Duration::from_secs(5)).await;
+                    continue;
+                }
+                Err(err) => {
+                    let _ = tracing::error!(
+                        "Failed to execute blocking task: {err}"
+                    );
                     tokio::time::sleep(Duration::from_secs(5)).await;
                     continue;
                 }
