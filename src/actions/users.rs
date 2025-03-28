@@ -1,7 +1,4 @@
 use diesel::prelude::*;
-use diesel::r2d2::ConnectionManager;
-use diesel_tracing::pg::InstrumentedPgConnection;
-use r2d2::PooledConnection;
 
 use crate::errors::DomainError;
 use crate::models::misc::Pagination;
@@ -10,6 +7,7 @@ use crate::models::users::{
     NewUser, Password, User, UserAuthDetails, UserAuthDetailsWithRoles, UserId,
     UserWithRoles, Username,
 };
+use crate::types::DbConnection;
 use bcrypt::hash;
 use cached::proc_macro::io_cached;
 use cached::{IOCached, RedisCache};
@@ -18,7 +16,7 @@ use validators::prelude::*;
 
 pub fn get_roles_for_user(
     uid: &UserId,
-    conn: &mut PooledConnection<ConnectionManager<InstrumentedPgConnection>>,
+    conn: &mut DbConnection,
 ) -> Result<Vec<RoleEnum>, DomainError> {
     use crate::schema::roles::dsl as roles;
     use crate::schema::users_roles::dsl as users_roles;
@@ -31,7 +29,7 @@ pub fn get_roles_for_user(
 
 pub fn get_roles_for_users(
     users: Vec<User>,
-    conn: &mut PooledConnection<ConnectionManager<InstrumentedPgConnection>>,
+    conn: &mut DbConnection,
 ) -> Result<Vec<UserWithRoles>, DomainError> {
     users
         .into_iter()
@@ -44,7 +42,7 @@ pub fn get_roles_for_users(
 
 pub fn find_user_by_uid(
     uid: &UserId,
-    conn: &mut PooledConnection<ConnectionManager<InstrumentedPgConnection>>,
+    conn: &mut DbConnection,
 ) -> Result<Option<UserWithRoles>, DomainError> {
     use crate::schema::users::dsl as users;
 
@@ -63,7 +61,7 @@ pub fn find_user_by_uid(
 
 pub fn find_user_by_name(
     user_name: &Username,
-    conn: &mut PooledConnection<ConnectionManager<InstrumentedPgConnection>>,
+    conn: &mut DbConnection,
 ) -> Result<Option<UserWithRoles>, DomainError> {
     use crate::schema::users::dsl as users;
 
@@ -96,7 +94,7 @@ pub fn find_user_by_name(
 
 pub fn get_user_auth_details(
     user_name: &Username,
-    conn: &mut PooledConnection<ConnectionManager<InstrumentedPgConnection>>,
+    conn: &mut DbConnection,
 ) -> Result<Option<UserAuthDetailsWithRoles>, DomainError> {
     use crate::schema::users::dsl as users;
 
@@ -124,7 +122,7 @@ pub fn get_user_auth_details(
 
 pub fn get_all_users(
     pagination: &Pagination,
-    conn: &mut PooledConnection<ConnectionManager<InstrumentedPgConnection>>,
+    conn: &mut DbConnection,
 ) -> Result<Vec<UserWithRoles>, DomainError> {
     use crate::schema::users::dsl as users;
 
@@ -163,7 +161,7 @@ lazy_static::lazy_static! {
     convert = r#"{ "user_id".to_string() }"#  // Static key for the entire user list
 )]
 pub fn get_all_user_ids(
-    conn: &mut PooledConnection<ConnectionManager<InstrumentedPgConnection>>,
+    conn: &mut DbConnection,
 ) -> Result<Vec<UserId>, DomainError> {
     use crate::schema::users::dsl as users;
 
@@ -178,7 +176,7 @@ pub fn get_all_user_ids(
 pub fn search_users(
     query: &str,
     pagination: &Pagination,
-    conn: &mut PooledConnection<ConnectionManager<InstrumentedPgConnection>>,
+    conn: &mut DbConnection,
 ) -> Result<Vec<UserWithRoles>, DomainError> {
     use crate::schema::users::dsl as users;
 
@@ -199,7 +197,7 @@ pub fn insert_new_user(
     nu: NewUser,
     role: RoleEnum,
     hash_cost: u32,
-    conn: &mut PooledConnection<ConnectionManager<InstrumentedPgConnection>>,
+    conn: &mut DbConnection,
 ) -> Result<UserWithRoles, DomainError> {
     use crate::schema::roles::dsl as roles;
     use crate::schema::users::dsl as users;
@@ -255,7 +253,7 @@ pub fn insert_new_user(
 pub fn insert_new_regular_user(
     nu: NewUser,
     hash_cost: u32,
-    conn: &mut PooledConnection<ConnectionManager<InstrumentedPgConnection>>,
+    conn: &mut DbConnection,
 ) -> Result<UserWithRoles, DomainError> {
     insert_new_user(nu, RoleEnum::RoleUser, hash_cost, conn)
 }

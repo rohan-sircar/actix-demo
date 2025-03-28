@@ -1,8 +1,6 @@
 mod create_database;
 pub use create_database::*;
-use diesel::{prelude::*, r2d2::ConnectionManager};
-use diesel_tracing::pg::InstrumentedPgConnection;
-use r2d2::PooledConnection;
+use diesel::prelude::*;
 
 use crate::{
     errors::DomainError,
@@ -10,11 +8,10 @@ use crate::{
         misc::{Job, JobStatus, NewJob},
         users::UserId,
     },
+    types::DbConnection,
 };
 
-pub fn get_jobs(
-    conn: &mut PooledConnection<ConnectionManager<InstrumentedPgConnection>>,
-) -> Result<Vec<Job>, DomainError> {
+pub fn get_jobs(conn: &mut DbConnection) -> Result<Vec<Job>, DomainError> {
     use crate::schema::jobs::dsl as jobs;
     use crate::schema::users::dsl as users;
     Ok(jobs::jobs
@@ -32,7 +29,7 @@ pub fn get_jobs(
 
 pub fn get_jobs_by_user(
     user_id: &UserId,
-    conn: &mut PooledConnection<ConnectionManager<InstrumentedPgConnection>>,
+    conn: &mut DbConnection,
 ) -> Result<Vec<Job>, DomainError> {
     use crate::schema::jobs::dsl as jobs;
     use crate::schema::users::dsl as users;
@@ -52,7 +49,7 @@ pub fn get_jobs_by_user(
 
 pub fn get_job_by_uuid(
     job_id: uuid::Uuid,
-    conn: &mut PooledConnection<ConnectionManager<InstrumentedPgConnection>>,
+    conn: &mut DbConnection,
 ) -> Result<Option<Job>, DomainError> {
     use crate::schema::jobs::dsl as jobs;
     use crate::schema::users::dsl as users;
@@ -75,7 +72,7 @@ pub fn update_job_status(
     job_id: uuid::Uuid,
     new_status: JobStatus,
     status_message: Option<String>,
-    conn: &mut PooledConnection<ConnectionManager<InstrumentedPgConnection>>,
+    conn: &mut DbConnection,
 ) -> Result<(), DomainError> {
     use crate::schema::jobs::dsl as jobs;
     diesel::update(jobs::jobs.filter(jobs::job_id.eq(job_id)))
@@ -89,7 +86,7 @@ pub fn update_job_status(
 
 pub fn create_job(
     new_job: &NewJob,
-    conn: &mut PooledConnection<ConnectionManager<InstrumentedPgConnection>>,
+    conn: &mut DbConnection,
 ) -> Result<Job, DomainError> {
     use crate::schema::jobs::dsl as jobs;
     let job = conn
