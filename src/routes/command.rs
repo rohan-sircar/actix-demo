@@ -84,12 +84,6 @@ pub async fn handle_run_command(
     .await??;
     tracing::info!("Successfully created job with ID: {}", job.job_id);
 
-    let job_counter = app_data.metrics.job_counter.clone();
-    let job_counter_clone = job_counter.clone();
-
-    // Track job creation
-    job_counter.with_label_values(&["pending"]).inc();
-
     let pool2 = pool.clone();
     let _task: Task<()> = actix_rt::spawn(
         async move {
@@ -100,7 +94,6 @@ pub async fn handle_run_command(
                 let _ = proc.borrow_mut().args(&args);
             }
            // Track job start
-            job_counter.with_label_values(&["running"]).inc();
             let proc2 = proc.clone();
 
             // Track abort state
@@ -155,7 +148,6 @@ pub async fn handle_run_command(
                                 ))
                             })??;
                              // Track job abort
-                            job_counter.with_label_values(&["aborted"]).inc();
                             break;
                         }
                     }
@@ -235,13 +227,11 @@ pub async fn handle_run_command(
             let (status, msg) = match res {
                 Ok(_) => {
                     tracing::info!("Job {} completed successfully", job_id);
-                   job_counter_clone.with_label_values(&["completed"]).inc();
                     (JobStatus::Completed, None)
                 },
                 Err(err) => {
                     let msg = format!("Error running job: {err:?}");
                     tracing::error!("Job {} failed: {}", job_id, msg);
-                   job_counter_clone.with_label_values(&["failed"]).inc();
                     (JobStatus::Failed, Some(msg))
                 }
             };
