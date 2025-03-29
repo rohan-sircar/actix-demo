@@ -135,6 +135,12 @@ pub struct NewJob {
     pub status_message: Option<String>,
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize, Queryable)]
+pub struct JobCount {
+    status: JobStatus,
+    count: i64,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

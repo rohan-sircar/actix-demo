@@ -307,7 +307,11 @@ async fn fetch_job_by_uuid(
     })
 }
 
-// You can then call `fetch_job_by_uuid` from your original function
+#[derive(Deserialize, Debug)]
+pub struct MetricsQuery {
+    hours_since: Option<i8>,
+    since_time: Option<chrono::NaiveDateTime>,
+}
 
 /// Returns current job counts by status
 ///
@@ -321,13 +325,17 @@ async fn fetch_job_by_uuid(
 #[tracing::instrument(level = "info", skip(app_data))]
 pub async fn handle_get_job_metrics(
     app_data: web::Data<AppData>,
+    query: web::Query<MetricsQuery>,
 ) -> Result<HttpResponse, DomainError> {
     let pool = app_data.pool.clone();
 
     let metrics = web::block(move || {
         let mut conn = pool.get()?;
-
-        actions::misc::get_metrics(&mut conn)
+        actions::misc::get_job_metrics(
+            &mut conn,
+            query.hours_since,
+            query.since_time,
+        )
     })
     .await??;
 
