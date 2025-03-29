@@ -104,3 +104,16 @@ pub fn create_job(
         })?;
     Ok(job)
 }
+
+pub fn get_metrics(
+    conn: &mut DbConnection,
+) -> Result<Vec<(JobStatus, i64)>, DomainError> {
+    use crate::schema::jobs::dsl as jobs;
+    use diesel::dsl::count;
+
+    let res = jobs::jobs
+        .group_by(jobs::status)
+        .select((jobs::status, count(jobs::id)))
+        .load::<(JobStatus, i64)>(conn)?;
+    Ok(res)
+}

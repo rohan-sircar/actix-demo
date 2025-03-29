@@ -309,6 +309,31 @@ async fn fetch_job_by_uuid(
 
 // You can then call `fetch_job_by_uuid` from your original function
 
+/// Returns current job counts by status
+///
+/// # Arguments
+///
+/// * `app_data` - Shared application data, including database pool.
+///
+/// # Returns
+///
+/// * `Result<HttpResponse, DomainError>` - HTTP response with job counts by status
+#[tracing::instrument(level = "info", skip(app_data))]
+pub async fn handle_get_job_metrics(
+    app_data: web::Data<AppData>,
+) -> Result<HttpResponse, DomainError> {
+    let pool = app_data.pool.clone();
+
+    let metrics = web::block(move || {
+        let mut conn = pool.get()?;
+
+        actions::misc::get_metrics(&mut conn)
+    })
+    .await??;
+
+    Ok(HttpResponse::Ok().json(metrics))
+}
+
 /// Aborts a command by sending a message to the Redis channel associated with the job.
 ///
 /// # Arguments

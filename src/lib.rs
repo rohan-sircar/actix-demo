@@ -172,10 +172,18 @@ pub fn configure_app(
                     .wrap(api_rate_limiter())
                     .route("", web::get().to(routes::ws::ws)),
             )
-            .service(web::scope("/api/public").wrap(api_rate_limiter()).route(
-                "/build-info",
-                web::get().to(routes::misc::build_info_req),
-            ))
+            .service(
+                web::scope("/api/public")
+                    .wrap(api_rate_limiter())
+                    .route(
+                        "/build-info",
+                        web::get().to(routes::misc::build_info_req),
+                    )
+                    .route(
+                        "/metrics/cmd",
+                        web::get().to(routes::command::handle_get_job_metrics),
+                    ),
+            )
             .service(
                 web::scope("/api")
                     .wrap(api_rate_limiter())
