@@ -12,7 +12,7 @@ extern crate diesel_derive_newtype;
 pub mod actions;
 pub mod errors;
 // mod middlewares;
-mod metrics;
+pub mod metrics;
 pub mod models;
 mod rate_limit;
 mod routes;
@@ -24,7 +24,7 @@ pub mod utils;
 pub mod workers;
 
 use actix_files as fs;
-use actix_web_prom::PrometheusMetricsBuilder;
+use actix_web_prom::PrometheusMetrics;
 
 use actix_web::middleware::from_fn;
 use actix_web::web::{Data, ServiceConfig};
@@ -126,6 +126,8 @@ pub struct AppData {
     pub redis_conn_manager: Option<ConnectionManager>,
     pub redis_prefix: RedisPrefixFn,
     pub sessions_cleanup_worker_handle: Option<JoinHandle<()>>,
+    pub metrics: metrics::Metrics,
+    pub prometheus: PrometheusMetrics,
 }
 
 impl AppData {
@@ -141,11 +143,6 @@ impl AppData {
 pub fn configure_app(
     app_data: Data<AppData>,
 ) -> Box<dyn Fn(&mut ServiceConfig)> {
-    let prometheus = PrometheusMetricsBuilder::new("api")
-        .endpoint("/metrics")
-        .build()
-        .unwrap();
-
     Box::new(move |cfg: &mut ServiceConfig| {
         // Configure rate limiter for login endpoint
         let login_limiter = rate_limit::create_login_rate_limiter(&app_data);
@@ -175,14 +172,12 @@ pub fn configure_app(
                     .wrap(api_rate_limiter())
                     .route("", web::get().to(routes::ws::ws)),
             )
-            // public endpoint - not implemented yet
             .service(web::scope("/api/public").wrap(api_rate_limiter()).route(
                 "/build-info",
                 web::get().to(routes::misc::build_info_req),
             ))
             .service(
                 web::scope("/api")
-                    .wrap(prometheus.clone())
                     .wrap(api_rate_limiter())
                     .wrap(GrantsMiddleware::with_extractor(
                         routes::auth::extract,
@@ -239,9 +234,6 @@ pub fn configure_app(
 }
 
 pub async fn run(addr: String, app_data: Data<AppData>) -> anyhow::Result<()> {
-    // Register custom metrics before starting the server
-    metrics::register_custom_metrics();
-
     let bi = get_build_info();
     let _ = tracing::info!(
         "Starting {} {}",
@@ -260,6 +252,7 @@ pub async fn run(addr: String, app_data: Data<AppData>) -> anyhow::Result<()> {
     );
     let app = move || {
         App::new()
+            .wrap(app_data.prometheus.clone())
             .configure(configure_app(app_data.clone()))
             .wrap(TracingLogger::<DomainRootSpanBuilder>::new())
     };

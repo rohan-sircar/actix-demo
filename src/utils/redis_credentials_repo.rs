@@ -1,10 +1,10 @@
+use prometheus::GaugeVec;
 use redis::aio::ConnectionManager;
 use redis::AsyncCommands;
 use std::collections::HashMap;
 use uuid::Uuid;
 
 use crate::errors::DomainError;
-use crate::metrics::ACTIVE_SESSIONS;
 use crate::models::session::{SessionInfo, SessionStatus};
 use crate::models::users::UserId;
 
@@ -14,6 +14,7 @@ pub struct RedisCredentialsRepo {
     redis: ConnectionManager,
     max_sessions: u8,
     refresh_ttl_seconds: u64,
+    active_sessions: GaugeVec,
 }
 
 impl RedisCredentialsRepo {
@@ -134,9 +135,8 @@ impl RedisCredentialsRepo {
                 session_info.ttl_remaining = Some(ttls[i]);
             }
         }
-
         // Update active sessions metric for this user
-        ACTIVE_SESSIONS
+        self.active_sessions
             .with_label_values(&[&user_id.to_string()])
             .set(result.len() as f64);
 
@@ -211,7 +211,7 @@ impl RedisCredentialsRepo {
             })?;
 
         // Update active sessions metric for this user
-        ACTIVE_SESSIONS
+        self.active_sessions
             .with_label_values(&[&user_id.to_string()])
             .set(count as f64);
 
@@ -362,7 +362,7 @@ impl RedisCredentialsRepo {
             })?;
 
         // Update active sessions metric for this user
-        ACTIVE_SESSIONS
+        self.active_sessions
             .with_label_values(&[&user_id.to_string()])
             .set(count as f64);
 
@@ -389,7 +389,7 @@ impl RedisCredentialsRepo {
             })?;
 
         // Update active sessions metric for this user
-        ACTIVE_SESSIONS
+        self.active_sessions
             .with_label_values(&[&user_id.to_string()])
             .set(count as f64);
 
@@ -446,7 +446,7 @@ impl RedisCredentialsRepo {
                 })?;
 
             // Update active sessions metric for this user
-            ACTIVE_SESSIONS
+            self.active_sessions
                 .with_label_values(&[&user_id.to_string()])
                 .set(count as f64);
 
