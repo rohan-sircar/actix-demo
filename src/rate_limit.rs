@@ -69,7 +69,7 @@ pub fn create_login_rate_limiter(
         ),
         app_data.config.rate_limit.auth.max_requests.into(),
     );
-    let input_fn = build_input_function(&app_data, input_fn_builder).build();
+    let input_fn = build_input_function(app_data, input_fn_builder).build();
 
     let backend = if app_data.config.rate_limit.disable {
         utils::RateLimitBackend::Noop
@@ -80,7 +80,7 @@ pub fn create_login_rate_limiter(
         utils::RateLimitBackend::Redis(RedisBackend::builder(redis_cm).build())
     };
 
-    let limiter = RateLimiter::builder(backend, input_fn)
+    RateLimiter::builder(backend, input_fn)
         .rollback_condition(Some(|status| {
             status != actix_web::http::StatusCode::UNAUTHORIZED
         }))
@@ -89,9 +89,7 @@ pub fn create_login_rate_limiter(
             let _ = tracing::warn!("Reached rate limit for login");
             make_denied_response(status)
         })
-        .build();
-
-    limiter
+        .build()
 }
 
 pub fn create_api_rate_limiter(
@@ -116,7 +114,7 @@ pub fn create_api_rate_limiter(
         Duration::from_secs(app_data.config.rate_limit.api.window_secs),
         app_data.config.rate_limit.api.max_requests.into(),
     );
-    let input_fn = build_input_function(&app_data, input_fn_builder).build();
+    let input_fn = build_input_function(app_data, input_fn_builder).build();
     RateLimiter::builder(backend, input_fn)
         .add_headers()
         .request_denied_response(|status| {

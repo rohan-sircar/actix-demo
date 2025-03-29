@@ -99,8 +99,7 @@ pub async fn handle_run_command(
                 tracing::debug!("Setting process arguments: {:?}", args);
                 let _ = proc.borrow_mut().args(&args);
             }
-            
-            // Track job start
+           // Track job start
             job_counter.with_label_values(&["running"]).inc();
             let proc2 = proc.clone();
 
@@ -158,8 +157,7 @@ pub async fn handle_run_command(
                              // Track job abort
                             job_counter.with_label_values(&["aborted"]).inc();
                             break;
-                            
-                                                }
+                        }
                     }
                     Ok(())
                 }
