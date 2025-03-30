@@ -84,10 +84,12 @@ pub async fn add_user(
 ) -> Result<HttpResponse, DomainError> {
     let user = web::block(move || {
         let pool = &app_data.pool;
+        let user_ids_cache = &app_data.user_ids_cache;
         let mut conn = pool.get()?;
         actions::users::insert_new_regular_user(
             form.0,
             app_data.config.hash_cost,
+            user_ids_cache,
             &mut conn,
         )
     })

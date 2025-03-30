@@ -23,17 +23,20 @@ pub mod types;
 pub mod utils;
 pub mod workers;
 
-use actix_files as fs;
+use std::sync::Arc;
+
 use actix_web_prom::PrometheusMetrics;
 
 use actix_web::middleware::from_fn;
 use actix_web::web::{Data, ServiceConfig};
 use actix_web::{middleware, web, App, HttpServer};
 use actix_web_grants::GrantsMiddleware;
+use cached::RedisCache;
 use errors::DomainError;
 use jwt_simple::prelude::HS256Key;
 use models::rate_limit::RateLimitConfig;
 use models::session::SessionConfig;
+use models::users::UserId;
 use redis::aio::ConnectionManager;
 use redis::Client;
 use serde::Deserialize;
@@ -128,6 +131,7 @@ pub struct AppData {
     pub sessions_cleanup_worker_handle: Option<JoinHandle<()>>,
     pub metrics: metrics::Metrics,
     pub prometheus: PrometheusMetrics,
+    pub user_ids_cache: Arc<RedisCache<String, Vec<UserId>>>,
 }
 
 impl AppData {
@@ -236,8 +240,7 @@ pub fn configure_app(
                                     .to(routes::auth::revoke_other_sessions),
                             ),
                     ),
-            )
-            .service(fs::Files::new("/", "./static").index_file("index.html"));
+            );
     })
 }
 

@@ -196,6 +196,7 @@ mod tests {
             workers::start_sessions_cleanup_worker(
                 config,
                 ctx.app_data.credentials_repo.clone(),
+                ctx.app_data.user_ids_cache.clone(),
                 ctx.app_data.pool.clone(),
             )
             .await

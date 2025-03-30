@@ -23,6 +23,7 @@ use actix_web_prom::PrometheusMetricsBuilder;
 use anyhow::Context;
 use awc::cookie::Cookie;
 use awc::{Client, ClientRequest};
+use cached::stores::RedisCacheBuilder;
 use derive_builder::Builder;
 use diesel::r2d2::{self, ConnectionManager};
 use diesel_migrations::{FileBasedMigrations, MigrationHarness};
@@ -33,6 +34,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
 use std::os::unix::prelude::OpenOptionsExt;
+use std::sync::Arc;
 use testcontainers_modules::postgres::{self, Postgres};
 use testcontainers_modules::redis::{Redis, REDIS_PORT};
 use testcontainers_modules::testcontainers::runners::AsyncRunner;
@@ -237,8 +239,16 @@ pub async fn app_data(
         .build(manager)
         .context("Failed to create pool")?;
 
+    let user_ids_cache = Arc::new(
+        RedisCacheBuilder::new("test_user_ids", 3600)
+            .set_connection_string(&redis_connstr)
+            .build()
+            .unwrap(),
+    );
+
     let _ = {
         let pool = pool.clone();
+        let user_ids_cache = user_ids_cache.clone();
         let _ = web::block(move || {
             let _ = {
                 let mut conn =
@@ -258,6 +268,7 @@ pub async fn app_data(
                     },
                     RoleEnum::RoleAdmin,
                     config.hash_cost,
+                    &user_ids_cache,
                     &mut conn,
                 )?;
             };
@@ -297,6 +308,7 @@ pub async fn app_data(
         sessions_cleanup_worker_handle: None,
         metrics,
         prometheus,
+        user_ids_cache,
     });
     Ok(data)
 }

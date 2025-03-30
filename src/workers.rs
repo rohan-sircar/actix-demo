@@ -1,15 +1,20 @@
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
+use cached::RedisCache;
 use tokio::task::JoinHandle;
 
 use crate::{
-    actions, errors::DomainError, models::worker::WorkerConfig, types::DbPool,
+    actions,
+    errors::DomainError,
+    models::{users::UserId, worker::WorkerConfig},
+    types::DbPool,
     utils::redis_credentials_repo::RedisCredentialsRepo,
 };
 
 pub async fn start_sessions_cleanup_worker(
     config: WorkerConfig,
     credentials_repo: RedisCredentialsRepo,
+    user_ids_cache: Arc<RedisCache<String, Vec<UserId>>>,
     pool: DbPool,
 ) -> JoinHandle<()> {
     tokio::spawn(async move {
@@ -27,7 +32,7 @@ pub async fn start_sessions_cleanup_worker(
             .build();
 
         loop {
-            let _ = tracing::info!("Running sessions cleanup");
+            let _ = tracing::debug!("Running sessions cleanup");
             let mut conn = match pool.get() {
                 Ok(conn) => conn,
                 Err(err) => {
@@ -37,8 +42,10 @@ pub async fn start_sessions_cleanup_worker(
                 }
             };
 
+            let user_ids_cache = user_ids_cache.clone();
+
             let user_ids = match tokio::task::spawn_blocking(move || {
-                actions::users::get_all_user_ids(&mut conn)
+                actions::users::get_all_user_ids(&user_ids_cache, &mut conn)
             })
             .await
             {
@@ -59,7 +66,7 @@ pub async fn start_sessions_cleanup_worker(
 
             for user_id in user_ids {
                 let operation = || async {
-                    let _ = tracing::info!(
+                    let _ = tracing::debug!(
                     "Attempting to clear expired sessions for user: {user_id}"
                 );
 

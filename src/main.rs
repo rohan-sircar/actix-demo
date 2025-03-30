@@ -1,6 +1,8 @@
 #![forbid(unsafe_code)]
 #![allow(clippy::let_unit_value)]
 
+use std::sync::Arc;
+
 use actix_demo::actions::misc::create_database_if_needed;
 use actix_demo::models::rate_limit::{
     KeyStrategy, RateLimitConfig, RateLimitPolicy,
@@ -12,6 +14,7 @@ use actix_demo::{utils, workers, AppConfig, AppData, EnvConfig, LoggerFormat};
 use actix_web::web::Data;
 use actix_web_prom::PrometheusMetricsBuilder;
 use anyhow::Context;
+use cached::stores::RedisCacheBuilder;
 use diesel::r2d2::ConnectionManager;
 use diesel_migrations::{FileBasedMigrations, MigrationHarness};
 use diesel_tracing::pg::InstrumentedPgConnection;
@@ -117,6 +120,15 @@ async fn main() -> anyhow::Result<()> {
     let credentials_repo_clone = credentials_repo.clone();
     let pool_clone = pool.clone();
 
+    let user_ids_cache = Arc::new(
+        RedisCacheBuilder::new("user_ids", 3600)
+            .set_connection_string(&env_config.redis_url)
+            .build()
+            .map_err(|e| {
+                anyhow::anyhow!("Failed to build user_ids cache: {:?}", e)
+            })?,
+    );
+
     let sessions_cleanup_worker_handle: JoinHandle<()> = {
         let config = WorkerConfig {
             backoff: WorkerBackoffConfig {
@@ -130,6 +142,7 @@ async fn main() -> anyhow::Result<()> {
         workers::start_sessions_cleanup_worker(
             config,
             credentials_repo_clone,
+            user_ids_cache.clone(),
             pool_clone,
         )
         .await
@@ -151,6 +164,7 @@ async fn main() -> anyhow::Result<()> {
         sessions_cleanup_worker_handle: Some(sessions_cleanup_worker_handle),
         metrics,
         prometheus,
+        user_ids_cache,
     });
 
     let _app =
