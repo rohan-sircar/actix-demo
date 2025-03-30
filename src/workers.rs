@@ -1,6 +1,5 @@
-use std::{sync::Arc, time::Duration};
+use std::time::Duration;
 
-use cached::RedisCache;
 use tokio::task::JoinHandle;
 
 use crate::{
@@ -8,13 +7,15 @@ use crate::{
     errors::DomainError,
     models::{users::UserId, worker::WorkerConfig},
     types::DbPool,
-    utils::redis_credentials_repo::RedisCredentialsRepo,
+    utils::{
+        redis_credentials_repo::RedisCredentialsRepo, InstrumentedRedisCache,
+    },
 };
 
 pub async fn start_sessions_cleanup_worker(
     config: WorkerConfig,
     credentials_repo: RedisCredentialsRepo,
-    user_ids_cache: Arc<RedisCache<String, Vec<UserId>>>,
+    user_ids_cache: InstrumentedRedisCache<String, Vec<UserId>>,
     pool: DbPool,
 ) -> JoinHandle<()> {
     tokio::spawn(async move {

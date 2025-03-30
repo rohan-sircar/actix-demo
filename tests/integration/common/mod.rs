@@ -11,6 +11,7 @@ use actix_demo::models::users::{NewUser, Password, User, Username};
 use actix_demo::models::worker::{WorkerBackoffConfig, WorkerConfig};
 use actix_demo::telemetry::DomainRootSpanBuilder;
 use actix_demo::utils::redis_credentials_repo::RedisCredentialsRepo;
+use actix_demo::utils::InstrumentedRedisCache;
 use actix_demo::{utils, AppConfig, AppData};
 use actix_http::header::HeaderMap;
 use actix_web::dev::ServiceResponse;
@@ -34,7 +35,6 @@ use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
 use std::os::unix::prelude::OpenOptionsExt;
-use std::sync::Arc;
 use testcontainers_modules::postgres::{self, Postgres};
 use testcontainers_modules::redis::{Redis, REDIS_PORT};
 use testcontainers_modules::testcontainers::runners::AsyncRunner;
@@ -239,9 +239,9 @@ pub async fn app_data(
         .build(manager)
         .context("Failed to create pool")?;
 
-    let user_ids_cache = Arc::new(
+    let user_ids_cache = InstrumentedRedisCache::new(
         RedisCacheBuilder::new("test_user_ids", 3600)
-            .set_connection_string(&redis_connstr)
+            .set_connection_string(redis_connstr)
             .build()
             .unwrap(),
     );
@@ -603,7 +603,7 @@ impl TestContext {
                 "http://{}/api/users?page={page}&limit={limit}",
                 self.addr
             ))
-            .with_token(&token)
+            .with_token(token)
             .send()
             .await
             .unwrap();

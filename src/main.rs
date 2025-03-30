@@ -1,8 +1,6 @@
 #![forbid(unsafe_code)]
 #![allow(clippy::let_unit_value)]
 
-use std::sync::Arc;
-
 use actix_demo::actions::misc::create_database_if_needed;
 use actix_demo::models::rate_limit::{
     KeyStrategy, RateLimitConfig, RateLimitPolicy,
@@ -10,6 +8,7 @@ use actix_demo::models::rate_limit::{
 use actix_demo::models::session::{SessionConfig, SessionRenewalPolicy};
 use actix_demo::models::worker::{WorkerBackoffConfig, WorkerConfig};
 use actix_demo::utils::redis_credentials_repo::RedisCredentialsRepo;
+use actix_demo::utils::InstrumentedRedisCache;
 use actix_demo::{utils, workers, AppConfig, AppData, EnvConfig, LoggerFormat};
 use actix_web::web::Data;
 use actix_web_prom::PrometheusMetricsBuilder;
@@ -120,7 +119,7 @@ async fn main() -> anyhow::Result<()> {
     let credentials_repo_clone = credentials_repo.clone();
     let pool_clone = pool.clone();
 
-    let user_ids_cache = Arc::new(
+    let user_ids_cache = InstrumentedRedisCache::new(
         RedisCacheBuilder::new("user_ids", 3600)
             .set_connection_string(&env_config.redis_url)
             .build()

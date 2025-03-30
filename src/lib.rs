@@ -23,15 +23,12 @@ pub mod types;
 pub mod utils;
 pub mod workers;
 
-use std::sync::Arc;
-
 use actix_web_prom::PrometheusMetrics;
 
 use actix_web::middleware::from_fn;
 use actix_web::web::{Data, ServiceConfig};
 use actix_web::{middleware, web, App, HttpServer};
 use actix_web_grants::GrantsMiddleware;
-use cached::RedisCache;
 use errors::DomainError;
 use jwt_simple::prelude::HS256Key;
 use models::rate_limit::RateLimitConfig;
@@ -45,6 +42,7 @@ use tokio::task::JoinHandle;
 use tracing_actix_web::TracingLogger;
 use types::{DbPool, RedisPrefixFn};
 use utils::redis_credentials_repo::RedisCredentialsRepo;
+use utils::InstrumentedRedisCache;
 
 build_info::build_info!(pub fn get_build_info);
 
@@ -131,7 +129,7 @@ pub struct AppData {
     pub sessions_cleanup_worker_handle: Option<JoinHandle<()>>,
     pub metrics: metrics::Metrics,
     pub prometheus: PrometheusMetrics,
-    pub user_ids_cache: Arc<RedisCache<String, Vec<UserId>>>,
+    pub user_ids_cache: InstrumentedRedisCache<String, Vec<UserId>>,
 }
 
 impl AppData {

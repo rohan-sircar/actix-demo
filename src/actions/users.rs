@@ -8,8 +8,8 @@ use crate::models::users::{
     UserWithRoles, Username,
 };
 use crate::types::DbConnection;
+use crate::utils::InstrumentedRedisCache;
 use bcrypt::hash;
-use cached::IOCached;
 use do_notation::m;
 use validators::prelude::*;
 
@@ -138,32 +138,31 @@ pub fn get_all_users(
 }
 
 pub fn get_all_user_ids(
-    cache: &cached::RedisCache<String, Vec<UserId>>,
+    cache: &InstrumentedRedisCache<String, Vec<UserId>>,
     conn: &mut DbConnection,
 ) -> Result<Vec<UserId>, DomainError> {
     use crate::schema::users::dsl as users;
 
-    if let Ok(Some(cached)) = cache.cache_get(&"user_ids".to_owned()) {
-        tracing::debug!("cache hit");
+    if let Ok(Some(cached)) = cache.get(&"user_ids".to_owned()) {
         tracing::debug!("cache size: {}", cached.len());
         tracing::trace!("cache: {:?}", cached);
-        return Ok(cached);
+        Ok(cached)
+    } else {
+        let users = users::users
+            .select(users::id)
+            .order_by(users::created_at)
+            .load::<UserId>(conn)?;
+
+        cache
+            .set("user_ids".to_owned(), users.clone())
+            .map_err(|e| {
+                DomainError::new_internal_error(format!(
+                    "Failed to set cache: {e:?}"
+                ))
+            })?;
+
+        Ok(users)
     }
-
-    let users = users::users
-        .select(users::id)
-        .order_by(users::created_at)
-        .load::<UserId>(conn)?;
-
-    cache
-        .cache_set("user_ids".to_owned(), users.clone())
-        .map_err(|e| {
-            DomainError::new_internal_error(format!(
-                "Failed to set cache: {e:?}"
-            ))
-        })?;
-
-    Ok(users)
 }
 
 pub fn search_users(
@@ -190,7 +189,7 @@ pub fn insert_new_user(
     nu: NewUser,
     role: RoleEnum,
     hash_cost: u32,
-    user_ids_cache: &cached::RedisCache<String, Vec<UserId>>,
+    user_ids_cache: &InstrumentedRedisCache<String, Vec<UserId>>,
     conn: &mut DbConnection,
 ) -> Result<UserWithRoles, DomainError> {
     use crate::schema::roles::dsl as roles;
@@ -236,7 +235,7 @@ pub fn insert_new_user(
         };
 
         // Invalidate the cache since we've added a new user
-        if let Err(e) = user_ids_cache.cache_remove(&"user_id".to_owned()) {
+        if let Err(e) = user_ids_cache.remove(&"user_id".to_owned()) {
             tracing::error!(error = %e, "Failed to invalidate user IDs cache");
         }
 
@@ -247,7 +246,7 @@ pub fn insert_new_user(
 pub fn insert_new_regular_user(
     nu: NewUser,
     hash_cost: u32,
-    user_ids_cache: &cached::RedisCache<String, Vec<UserId>>,
+    user_ids_cache: &InstrumentedRedisCache<String, Vec<UserId>>,
     conn: &mut DbConnection,
 ) -> Result<UserWithRoles, DomainError> {
     insert_new_user(nu, RoleEnum::RoleUser, hash_cost, user_ids_cache, conn)
