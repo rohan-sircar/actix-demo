@@ -1,0 +1,75 @@
+{
+  "dashboard": {
+    "title": "API Metrics Dashboard",
+    "panels": [
+      {
+        "type": "graph",
+        "title": "Request Duration (p50, p90, p99)",
+        "datasource": "Prometheus",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, sum(rate(api_http_requests_duration_seconds_bucket[1m])) by (le))",
+            "legendFormat": "p50"
+          },
+          {
+            "expr": "histogram_quantile(0.90, sum(rate(api_http_requests_duration_seconds_bucket[1m])) by (le))",
+            "legendFormat": "p90"
+          },
+          {
+            "expr": "histogram_quantile(0.99, sum(rate(api_http_requests_duration_seconds_bucket[1m])) by (le))",
+            "legendFormat": "p99"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "s",
+            "label": "Duration"
+          }
+        ]
+      },
+      {
+        "type": "graph",
+        "title": "Request Rate",
+        "datasource": "Prometheus",
+        "targets": [
+          {
+            "expr": "rate(api_http_requests_total[1m])",
+            "legendFormat": "{{endpoint}}"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "reqps",
+            "label": "Requests/s"
+          }
+        ]
+      },
+      {
+        "type": "table",
+        "title": "Request Counts",
+        "datasource": "Prometheus",
+        "targets": [
+          {
+            "expr": "sum(api_http_requests_total) by (endpoint, status)",
+            "format": "table",
+            "instant": true
+          }
+        ],
+        "columns": [
+          {
+            "text": "Endpoint",
+            "type": "string"
+          },
+          {
+            "text": "Status",
+            "type": "string"
+          },
+          {
+            "text": "Count",
+            "type": "number"
+          }
+        ]
+      }
+    ]
+  }
+}
