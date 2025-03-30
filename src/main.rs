@@ -92,7 +92,9 @@ async fn main() -> anyhow::Result<()> {
     let prometheus = PrometheusMetricsBuilder::new("api")
         .endpoint("/metrics")
         .build()
-        .unwrap();
+        .map_err(|e| anyhow::anyhow!(e))
+        .context("Failed to build prometheus metrics registry")?;
+
     let metrics =
         actix_demo::metrics::Metrics::new(prometheus.clone().registry);
 
