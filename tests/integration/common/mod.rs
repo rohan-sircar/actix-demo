@@ -239,11 +239,19 @@ pub async fn app_data(
         .build(manager)
         .context("Failed to create pool")?;
 
+    let prometheus = PrometheusMetricsBuilder::new("api")
+        .endpoint("/metrics")
+        .build()
+        .unwrap();
+    let metrics =
+        actix_demo::metrics::Metrics::new(prometheus.clone().registry);
+
     let user_ids_cache = InstrumentedRedisCache::new(
         RedisCacheBuilder::new("test_user_ids", 3600)
             .set_connection_string(redis_connstr)
             .build()
             .unwrap(),
+        metrics.cache.clone(),
     );
 
     let _ = {
@@ -279,13 +287,6 @@ pub async fn app_data(
     };
 
     let redis_prefix = Box::new(utils::get_redis_prefix("app"));
-
-    let prometheus = PrometheusMetricsBuilder::new("api")
-        .endpoint("/metrics")
-        .build()
-        .unwrap();
-    let metrics =
-        actix_demo::metrics::Metrics::new(prometheus.clone().registry);
 
     let credentials_repo = RedisCredentialsRepo::new(
         redis_prefix(&"user-sessions"),

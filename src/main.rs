@@ -130,6 +130,7 @@ async fn main() -> anyhow::Result<()> {
             .map_err(|e| {
                 anyhow::anyhow!("Failed to build user_ids cache: {:?}", e)
             })?,
+        metrics.cache.clone(),
     );
 
     let sessions_cleanup_worker_handle: JoinHandle<()> = {
