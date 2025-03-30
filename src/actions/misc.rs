@@ -1,11 +1,12 @@
 mod create_database;
+use chrono::Duration;
 pub use create_database::*;
 use diesel::prelude::*;
 
 use crate::{
     errors::DomainError,
     models::{
-        misc::{Job, JobStatus, NewJob},
+        misc::{Job, JobCount, JobStatus, NewJob},
         users::UserId,
     },
     types::DbConnection,
@@ -103,4 +104,33 @@ pub fn create_job(
             )
         })?;
     Ok(job)
+}
+
+pub fn get_job_metrics(
+    conn: &mut DbConnection,
+    hours_since: Option<i8>,
+    since_time: Option<chrono::NaiveDateTime>,
+) -> Result<Vec<JobCount>, DomainError> {
+    use crate::schema::jobs::dsl as jobs;
+    use diesel::dsl::count;
+
+    let mut query = jobs::jobs
+        .group_by(jobs::status)
+        .select((jobs::status, count(jobs::id)))
+        .into_boxed();
+
+    // Apply hours_since filter if provided
+    if let Some(hours) = hours_since {
+        let cutoff =
+            chrono::Utc::now().naive_utc() - Duration::hours(hours as i64);
+        query = query.filter(jobs::created_at.ge(cutoff));
+    } else {
+        // Apply specific timestamp filter if provided
+        if let Some(time) = since_time {
+            query = query.filter(jobs::created_at.ge(time));
+        }
+    }
+
+    let res = query.load::<JobCount>(conn)?;
+    Ok(res)
 }

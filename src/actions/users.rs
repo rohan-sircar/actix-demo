@@ -154,6 +154,7 @@ lazy_static::lazy_static! {
         build_user_ids_cache();
 }
 
+//TODO replace this with manual implementation
 #[io_cached(
     map_error = r##"|e| DomainError::new_internal_error(format!("Redis error: {:?}", e))"##,
     ty = "RedisCache<String, Vec<UserId>>",

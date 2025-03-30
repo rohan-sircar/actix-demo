@@ -10,6 +10,7 @@ use actix_demo::models::worker::{WorkerBackoffConfig, WorkerConfig};
 use actix_demo::utils::redis_credentials_repo::RedisCredentialsRepo;
 use actix_demo::{utils, workers, AppConfig, AppData, EnvConfig, LoggerFormat};
 use actix_web::web::Data;
+use actix_web_prom::PrometheusMetricsBuilder;
 use anyhow::Context;
 use diesel::r2d2::ConnectionManager;
 use diesel_migrations::{FileBasedMigrations, MigrationHarness};
@@ -84,11 +85,19 @@ async fn main() -> anyhow::Result<()> {
         disable: env_config.session_disable,
     };
 
+    let prometheus = PrometheusMetricsBuilder::new("api")
+        .endpoint("/metrics")
+        .build()
+        .unwrap();
+    let metrics =
+        actix_demo::metrics::Metrics::new(prometheus.clone().registry);
+
     let credentials_repo = RedisCredentialsRepo::new(
         redis_prefix(&"user-sessions"),
         cm.clone(),
         session_config.max_concurrent_sessions,
         session_config.renewal.renewal_window_secs,
+        metrics.active_sessions.clone(),
     );
     let jwt_key = HS256Key::from_bytes(env_config.jwt_key.as_bytes());
 
@@ -140,6 +149,8 @@ async fn main() -> anyhow::Result<()> {
         redis_conn_manager: Some(cm.clone()),
         redis_prefix,
         sessions_cleanup_worker_handle: Some(sessions_cleanup_worker_handle),
+        metrics,
+        prometheus,
     });
 
     let _app =

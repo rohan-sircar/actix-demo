@@ -1,3 +1,4 @@
+use prometheus::GaugeVec;
 use redis::aio::ConnectionManager;
 use redis::AsyncCommands;
 use std::collections::HashMap;
@@ -13,6 +14,7 @@ pub struct RedisCredentialsRepo {
     redis: ConnectionManager,
     max_sessions: u8,
     refresh_ttl_seconds: u64,
+    active_sessions: GaugeVec,
 }
 
 impl RedisCredentialsRepo {
@@ -97,8 +99,12 @@ impl RedisCredentialsRepo {
             })?;
 
         let mut result = HashMap::new();
+        let mut pipe = redis::pipe();
+
+        // First pass: deserialize session info and prepare TTL checks
+        let mut expiry_keys = Vec::new();
         for (session_id, session_info_str) in sessions {
-            let mut session_info: SessionInfo =
+            let session_info: SessionInfo =
                 serde_json::from_str(&session_info_str).map_err(|err| {
                     DomainError::new_internal_error(format!(
                         "Failed to deserialize session info: {err}"
@@ -106,10 +112,33 @@ impl RedisCredentialsRepo {
                 })?;
             let session_id = Uuid::parse_str(&session_id).unwrap();
             let expiry_key = self.get_expiry_key(user_id, &session_id);
-            let ttl: i64 = self.redis.clone().ttl(&expiry_key).await?;
-            session_info.ttl_remaining = Some(ttl);
+            expiry_keys.push(expiry_key.clone());
+            pipe.ttl(&expiry_key);
             result.insert(session_id, session_info);
         }
+
+        // Execute batch TTL checks
+        if !expiry_keys.is_empty() {
+            let ttls: Vec<i64> = pipe
+                .query_async(&mut self.redis.clone())
+                .await
+                .map_err(|err| {
+                    DomainError::new_internal_error(format!(
+                        "Failed to get batch TTLs: {err}"
+                    ))
+                })?;
+
+            // Apply TTLs to corresponding sessions
+            for (i, (_session_id, session_info)) in
+                result.iter_mut().enumerate()
+            {
+                session_info.ttl_remaining = Some(ttls[i]);
+            }
+        }
+        // Update active sessions metric for this user
+        self.active_sessions
+            .with_label_values(&[&user_id.to_string()])
+            .set(result.len() as f64);
 
         Ok(result)
     }
@@ -126,15 +155,16 @@ impl RedisCredentialsRepo {
         let session_id_str = session_id.to_string();
         let expiry_key = self.get_expiry_key(user_id, session_id);
 
-        // Check if session already exists
-        let exists: bool = self
-            .redis
-            .clone()
-            .hexists(&key, &session_id_str)
+        // Create pipeline to check session existence and get count
+        let mut pipe = redis::pipe();
+        pipe.atomic().hexists(&key, &session_id_str).hlen(&key);
+
+        let (exists, current_count): (bool, i64) = pipe
+            .query_async(&mut self.redis.clone())
             .await
             .map_err(|err| {
                 DomainError::new_internal_error(format!(
-                    "Failed to check if session exists: {err}"
+                    "Failed to check session existence and count: {err}"
                 ))
             })?;
 
@@ -143,14 +173,6 @@ impl RedisCredentialsRepo {
                 "Session already exists".to_string(),
             ));
         }
-
-        // Get current session count
-        let current_count: i64 =
-            self.redis.clone().hlen(&key).await.map_err(|err| {
-                DomainError::new_internal_error(format!(
-                    "Failed to get session count: {err}"
-                ))
-            })?;
 
         let _ = tracing::info!("User has {current_count} sessions currently");
 
@@ -173,19 +195,25 @@ impl RedisCredentialsRepo {
         // Create a pipeline for atomic operations
         let mut pipe = redis::pipe();
         pipe.atomic()
-            .hset(key, &session_id_str, session_info_str)
-            .set_ex(expiry_key, "1", ttl_seconds);
+            .hset(&key, &session_id_str, session_info_str)
+            .set_ex(expiry_key, "1", ttl_seconds)
+            .hlen(&key);
 
         let _ = tracing::info!("Creating user session");
 
-        let () =
-            pipe.query_async(&mut self.redis.clone())
-                .await
-                .map_err(|err| {
-                    DomainError::new_internal_error(format!(
-                        "Failed to create session: {err}"
-                    ))
-                })?;
+        let ((), (), count): (_, _, i32) = pipe
+            .query_async(&mut self.redis.clone())
+            .await
+            .map_err(|err| {
+                DomainError::new_internal_error(format!(
+                    "Failed to create session: {err}"
+                ))
+            })?;
+
+        // Update active sessions metric for this user
+        self.active_sessions
+            .with_label_values(&[&user_id.to_string()])
+            .set(count as f64);
 
         Ok(())
     }
@@ -319,15 +347,24 @@ impl RedisCredentialsRepo {
         session_id: &Uuid,
     ) -> Result<(), DomainError> {
         let key = self.get_key(user_id);
-        self.redis
-            .clone()
-            .hdel::<String, &str, ()>(key, &session_id.to_string())
+        let session_id_str = session_id.to_string();
+
+        let mut pipe = redis::pipe();
+        pipe.atomic().hdel(&key, &session_id_str).hlen(&key);
+
+        let (_, count): ((), i32) = pipe
+            .query_async(&mut self.redis.clone())
             .await
             .map_err(|err| {
                 DomainError::new_internal_error(format!(
                     "Failed to delete session from Redis: {err}"
                 ))
             })?;
+
+        // Update active sessions metric for this user
+        self.active_sessions
+            .with_label_values(&[&user_id.to_string()])
+            .set(count as f64);
 
         Ok(())
     }
@@ -338,15 +375,23 @@ impl RedisCredentialsRepo {
         user_id: &UserId,
     ) -> Result<(), DomainError> {
         let key = self.get_key(user_id);
-        self.redis
-            .clone()
-            .del::<String, ()>(key)
+
+        let mut pipe = redis::pipe();
+        pipe.atomic().del(&key).hlen(&key);
+
+        let (_, count): ((), i32) = pipe
+            .query_async(&mut self.redis.clone())
             .await
             .map_err(|err| {
                 DomainError::new_internal_error(format!(
                     "Failed to delete sessions from Redis: {err}"
                 ))
             })?;
+
+        // Update active sessions metric for this user
+        self.active_sessions
+            .with_label_values(&[&user_id.to_string()])
+            .set(count as f64);
 
         Ok(())
     }
@@ -357,7 +402,6 @@ impl RedisCredentialsRepo {
         user_id: &UserId,
     ) -> Result<(), DomainError> {
         let key = self.get_key(user_id);
-        // let key = self.base_key.clone();
 
         // Get all session_ids for this user
         let session_ids: Vec<String> =
@@ -367,8 +411,10 @@ impl RedisCredentialsRepo {
                 ))
             })?;
 
+        let mut pipe = redis::pipe();
         let mut expired_count = 0;
-        // Check each token's expiry key
+
+        // Check each token's expiry key and queue deletions
         for session_id_str in session_ids {
             let session_id = Uuid::parse_str(&session_id_str)
                 .expect("Expected valid session_id");
@@ -382,22 +428,30 @@ impl RedisCredentialsRepo {
 
             // If expiry key doesn't exist, token has expired
             if !exists {
-                // Remove the token from the hash
-                let () = self
-                    .redis
-                    .clone()
-                    .hdel(&key, &session_id_str)
-                    .await
-                    .map_err(|err| {
-                    DomainError::new_internal_error(format!(
-                        "Failed to delete expired token: {err}"
-                    ))
-                })?;
+                pipe.hdel(&key, &session_id_str);
                 expired_count += 1;
             }
         }
 
-        let _ = tracing::info!("Removed {expired_count} expired sessions");
+        // Execute batch deletions if any expired sessions found
+        if expired_count > 0 {
+            pipe.atomic().hlen(&key);
+            let count: i32 = pipe
+                .query_async(&mut self.redis.clone())
+                .await
+                .map_err(|err| {
+                    DomainError::new_internal_error(format!(
+                        "Failed to delete expired sessions: {err}"
+                    ))
+                })?;
+
+            // Update active sessions metric for this user
+            self.active_sessions
+                .with_label_values(&[&user_id.to_string()])
+                .set(count as f64);
+
+            let _ = tracing::info!("Removed {expired_count} expired sessions, {count} active sessions remaining");
+        }
 
         Ok(())
     }

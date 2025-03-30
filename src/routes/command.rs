@@ -93,6 +93,7 @@ pub async fn handle_run_command(
                 tracing::debug!("Setting process arguments: {:?}", args);
                 let _ = proc.borrow_mut().args(&args);
             }
+           // Track job start
             let proc2 = proc.clone();
 
             // Track abort state
@@ -146,8 +147,9 @@ pub async fn handle_run_command(
                                     "Failed to update job status: {err}"
                                 ))
                             })??;
+                             // Track job abort
                             break;
-                                                }
+                        }
                     }
                     Ok(())
                 }
@@ -295,7 +297,40 @@ async fn fetch_job_by_uuid(
     })
 }
 
-// You can then call `fetch_job_by_uuid` from your original function
+#[derive(Deserialize, Debug)]
+pub struct MetricsQuery {
+    hours_since: Option<i8>,
+    since_time: Option<chrono::NaiveDateTime>,
+}
+
+/// Returns current job counts by status
+///
+/// # Arguments
+///
+/// * `app_data` - Shared application data, including database pool.
+///
+/// # Returns
+///
+/// * `Result<HttpResponse, DomainError>` - HTTP response with job counts by status
+#[tracing::instrument(level = "info", skip(app_data))]
+pub async fn handle_get_job_metrics(
+    app_data: web::Data<AppData>,
+    query: web::Query<MetricsQuery>,
+) -> Result<HttpResponse, DomainError> {
+    let pool = app_data.pool.clone();
+
+    let metrics = web::block(move || {
+        let mut conn = pool.get()?;
+        actions::misc::get_job_metrics(
+            &mut conn,
+            query.hours_since,
+            query.since_time,
+        )
+    })
+    .await??;
+
+    Ok(HttpResponse::Ok().json(metrics))
+}
 
 /// Aborts a command by sending a message to the Redis channel associated with the job.
 ///

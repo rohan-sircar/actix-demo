@@ -19,6 +19,7 @@ use actix_web::App;
 use actix_web::{test, web};
 
 use actix_web::web::Data;
+use actix_web_prom::PrometheusMetricsBuilder;
 use anyhow::Context;
 use awc::cookie::Cookie;
 use awc::{Client, ClientRequest};
@@ -268,11 +269,19 @@ pub async fn app_data(
 
     let redis_prefix = Box::new(utils::get_redis_prefix("app"));
 
+    let prometheus = PrometheusMetricsBuilder::new("api")
+        .endpoint("/metrics")
+        .build()
+        .unwrap();
+    let metrics =
+        actix_demo::metrics::Metrics::new(prometheus.clone().registry);
+
     let credentials_repo = RedisCredentialsRepo::new(
         redis_prefix(&"user-sessions"),
         cm.clone(),
         options.session_config.max_concurrent_sessions,
         options.session_config.renewal.renewal_window_secs,
+        metrics.active_sessions.clone(),
     );
 
     let key = HS256Key::from_bytes("test".as_bytes());
@@ -286,6 +295,8 @@ pub async fn app_data(
         redis_conn_manager: Some(cm.clone()),
         redis_prefix,
         sessions_cleanup_worker_handle: None,
+        metrics,
+        prometheus,
     });
     Ok(data)
 }
