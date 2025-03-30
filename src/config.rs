@@ -1,7 +1,5 @@
-
 use crate::*;
 use serde::Deserialize;
-
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct EnvConfig {
