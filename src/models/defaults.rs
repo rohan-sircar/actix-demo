@@ -26,7 +26,7 @@ pub fn default_session_cleanup_interval_secs() -> u64 {
     600
 }
 
-pub fn default_max_concurrent_sessions() -> u8 {
+pub fn default_max_concurrent_sessions() -> usize {
     5
 }
 

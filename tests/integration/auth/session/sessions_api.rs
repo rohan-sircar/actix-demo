@@ -1,16 +1,34 @@
 mod tests {
     mod sessions_api {
 
-        use crate::common;
+        use actix_demo::models::session::SessionConfigBuilder;
+
+        use crate::common::{self, TestAppOptionsBuilder};
 
         #[actix_rt::test]
         async fn should_work() {
-            let mut ctx = common::TestContext::new(None).await;
-            let tokens = ctx.create_tokens(5).await;
+            let sessions_count = 50;
+            let mut ctx = common::TestContext::new(Some(
+                TestAppOptionsBuilder::default()
+                    .session_config(
+                        SessionConfigBuilder::default()
+                            .max_concurrent_sessions(sessions_count)
+                            .build()
+                            .unwrap(),
+                    )
+                    .build()
+                    .unwrap(),
+            ))
+            .await;
+            let tokens = ctx.create_tokens(sessions_count).await;
 
             // Get initial sessions list
             let sessions = ctx.get_sessions(&tokens[0]).await;
-            assert_eq!(sessions.len(), 5, "Expected 5 active sessions");
+            assert_eq!(
+                sessions.len(),
+                sessions_count,
+                "Expected {sessions_count} active sessions"
+            );
 
             // Delete last session
             let session_id = sessions.keys().last().unwrap();
@@ -20,8 +38,9 @@ mod tests {
             let sessions = ctx.get_sessions(&tokens[0]).await;
             assert_eq!(
                 sessions.len(),
-                4,
-                "Expected 4 active sessions after deletion"
+                sessions_count - 1,
+                "Expected {} active sessions after deletion",
+                sessions_count - 1
             );
         }
     }

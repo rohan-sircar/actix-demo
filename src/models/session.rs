@@ -19,7 +19,7 @@ pub struct SessionConfig {
     pub cleanup_interval_secs: u64,
     /// Maximum number of concurrent sessions per user
     #[builder(default = "5")]
-    pub max_concurrent_sessions: u8,
+    pub max_concurrent_sessions: usize,
     /// Whether session management is disabled
     #[builder(default = "false")]
     pub disable: bool,

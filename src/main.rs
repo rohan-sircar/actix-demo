@@ -8,10 +8,14 @@ use actix_demo::models::rate_limit::{
 use actix_demo::models::session::{SessionConfig, SessionRenewalPolicy};
 use actix_demo::models::worker::{WorkerBackoffConfig, WorkerConfig};
 use actix_demo::utils::redis_credentials_repo::RedisCredentialsRepo;
-use actix_demo::{utils, workers, AppConfig, AppData, EnvConfig, LoggerFormat};
+use actix_demo::utils::InstrumentedRedisCache;
+use actix_demo::{
+    config::EnvConfig, utils, workers, AppConfig, AppData, LoggerFormat,
+};
 use actix_web::web::Data;
 use actix_web_prom::PrometheusMetricsBuilder;
 use anyhow::Context;
+use cached::stores::RedisCacheBuilder;
 use diesel::r2d2::ConnectionManager;
 use diesel_migrations::{FileBasedMigrations, MigrationHarness};
 use diesel_tracing::pg::InstrumentedPgConnection;
@@ -88,7 +92,9 @@ async fn main() -> anyhow::Result<()> {
     let prometheus = PrometheusMetricsBuilder::new("api")
         .endpoint("/metrics")
         .build()
-        .unwrap();
+        .map_err(|e| anyhow::anyhow!(e))
+        .context("Failed to build prometheus metrics registry")?;
+
     let metrics =
         actix_demo::metrics::Metrics::new(prometheus.clone().registry);
 
@@ -117,6 +123,16 @@ async fn main() -> anyhow::Result<()> {
     let credentials_repo_clone = credentials_repo.clone();
     let pool_clone = pool.clone();
 
+    let user_ids_cache = InstrumentedRedisCache::new(
+        RedisCacheBuilder::new("user_ids", 3600)
+            .set_connection_string(&env_config.redis_url)
+            .build()
+            .map_err(|e| {
+                anyhow::anyhow!("Failed to build user_ids cache: {:?}", e)
+            })?,
+        metrics.cache.clone(),
+    );
+
     let sessions_cleanup_worker_handle: JoinHandle<()> = {
         let config = WorkerConfig {
             backoff: WorkerBackoffConfig {
@@ -130,6 +146,7 @@ async fn main() -> anyhow::Result<()> {
         workers::start_sessions_cleanup_worker(
             config,
             credentials_repo_clone,
+            user_ids_cache.clone(),
             pool_clone,
         )
         .await
@@ -151,6 +168,7 @@ async fn main() -> anyhow::Result<()> {
         sessions_cleanup_worker_handle: Some(sessions_cleanup_worker_handle),
         metrics,
         prometheus,
+        user_ids_cache,
     });
 
     let _app =

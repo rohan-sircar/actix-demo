@@ -1,8 +1,10 @@
 // pub mod broadcast_demo;
+pub mod instrumented_redis_cache;
 pub mod redis_channel_reader;
 pub mod redis_credentials_repo;
 pub mod regex;
 pub mod ws;
+pub use self::instrumented_redis_cache::InstrumentedRedisCache;
 
 use std::fmt::Display;
 use std::str::FromStr;

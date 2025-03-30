@@ -12,6 +12,7 @@ extern crate diesel_derive_newtype;
 pub mod actions;
 pub mod errors;
 // mod middlewares;
+pub mod config;
 pub mod metrics;
 pub mod models;
 mod rate_limit;
@@ -23,7 +24,6 @@ pub mod types;
 pub mod utils;
 pub mod workers;
 
-use actix_files as fs;
 use actix_web_prom::PrometheusMetrics;
 
 use actix_web::middleware::from_fn;
@@ -34,6 +34,7 @@ use errors::DomainError;
 use jwt_simple::prelude::HS256Key;
 use models::rate_limit::RateLimitConfig;
 use models::session::SessionConfig;
+use models::users::UserId;
 use redis::aio::ConnectionManager;
 use redis::Client;
 use serde::Deserialize;
@@ -42,6 +43,7 @@ use tokio::task::JoinHandle;
 use tracing_actix_web::TracingLogger;
 use types::{DbPool, RedisPrefixFn};
 use utils::redis_credentials_repo::RedisCredentialsRepo;
+use utils::InstrumentedRedisCache;
 
 build_info::build_info!(pub fn get_build_info);
 
@@ -50,63 +52,6 @@ build_info::build_info!(pub fn get_build_info);
 pub enum LoggerFormat {
     Json,
     Pretty,
-}
-
-#[derive(Deserialize, Debug, Clone)]
-pub struct EnvConfig {
-    // system
-    pub database_url: String,
-    pub http_host: String,
-    #[serde(default = "models::defaults::default_hash_cost")]
-    pub hash_cost: u32,
-    pub logger_format: LoggerFormat,
-    pub jwt_key: String,
-    pub redis_url: String,
-    pub job_bin_path: String,
-    #[serde(
-        default = "models::defaults::default_rate_limit_auth_max_requests"
-    )]
-    // rate limit
-    pub rate_limit_auth_max_requests: u32,
-    #[serde(default = "models::defaults::default_rate_limit_auth_window_secs")]
-    pub rate_limit_auth_window_secs: u64,
-    #[serde(default = "models::defaults::default_rate_limit_api_max_requests")]
-    pub rate_limit_api_max_requests: u32,
-    #[serde(default = "models::defaults::default_rate_limit_api_window_secs")]
-    pub rate_limit_api_window_secs: u64,
-    pub rate_limit_disable: bool,
-    // session
-    #[serde(default = "models::defaults::default_session_expiration_secs")]
-    pub session_expiration_secs: u64,
-    #[serde(
-        default = "models::defaults::default_session_cleanup_interval_secs"
-    )]
-    pub session_cleanup_interval_secs: u64,
-    #[serde(default = "models::defaults::default_max_concurrent_sessions")]
-    pub max_concurrent_sessions: u8,
-    #[serde(default = "models::defaults::default_session_renewal_enabled")]
-    pub session_renewal_enabled: bool,
-    #[serde(default = "models::defaults::default_session_renewal_window_secs")]
-    pub session_renewal_window_secs: u64,
-    #[serde(default = "models::defaults::default_session_max_renewals")]
-    pub session_max_renewals: u32,
-    #[serde(default)]
-    pub session_disable: bool,
-    // worker
-    #[serde(
-        default = "models::defaults::default_worker_initial_interval_secs"
-    )]
-    pub worker_initial_interval_secs: u64,
-    #[serde(default = "models::defaults::default_worker_multiplier")]
-    pub worker_multiplier: f64,
-    #[serde(default = "models::defaults::default_worker_max_interval_secs")]
-    pub worker_max_interval_secs: u64,
-    #[serde(
-        default = "models::defaults::default_worker_max_elapsed_time_secs"
-    )]
-    pub worker_max_elapsed_time_secs: u64,
-    #[serde(default = "models::defaults::default_worker_run_interval_secs")]
-    pub worker_run_interval_secs: u8,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -128,6 +73,7 @@ pub struct AppData {
     pub sessions_cleanup_worker_handle: Option<JoinHandle<()>>,
     pub metrics: metrics::Metrics,
     pub prometheus: PrometheusMetrics,
+    pub user_ids_cache: InstrumentedRedisCache<String, Vec<UserId>>,
 }
 
 impl AppData {
@@ -236,8 +182,7 @@ pub fn configure_app(
                                     .to(routes::auth::revoke_other_sessions),
                             ),
                     ),
-            )
-            .service(fs::Files::new("/", "./static").index_file("index.html"));
+            );
     })
 }
 
