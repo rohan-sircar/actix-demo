@@ -6,11 +6,11 @@ mod tests {
         #[actix_rt::test]
         async fn should_work() {
             let mut ctx = common::TestContext::new(None).await;
-            let tokens = ctx.create_tokens(5).await;
+            let tokens = ctx.create_tokens(20).await;
 
             // Get initial sessions list
             let sessions = ctx.get_sessions(&tokens[0]).await;
-            assert_eq!(sessions.len(), 5, "Expected 5 active sessions");
+            assert_eq!(sessions.len(), 20, "Expected 20 active sessions");
 
             // Delete last session
             let session_id = sessions.keys().last().unwrap();
@@ -20,8 +20,8 @@ mod tests {
             let sessions = ctx.get_sessions(&tokens[0]).await;
             assert_eq!(
                 sessions.len(),
-                4,
-                "Expected 4 active sessions after deletion"
+                19,
+                "Expected 19 active sessions after deletion"
             );
         }
     }

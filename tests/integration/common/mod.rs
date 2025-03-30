@@ -183,7 +183,10 @@ impl TestAppOptionsBuilder {
         }
     }
     fn default_session_config(&self) -> SessionConfig {
-        SessionConfigBuilder::default().build().unwrap()
+        SessionConfigBuilder::default()
+            .max_concurrent_sessions(20)
+            .build()
+            .unwrap()
     }
     fn default_session_cleanup_worker_config(&self) -> WorkerConfig {
         WorkerConfig {
