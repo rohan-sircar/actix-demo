@@ -12,7 +12,7 @@ use crate::models::users::UserId;
 pub struct RedisCredentialsRepo {
     base_key: String,
     redis: ConnectionManager,
-    max_sessions: u8,
+    max_sessions: usize,
     refresh_ttl_seconds: u64,
     active_sessions: GaugeVec,
 }
