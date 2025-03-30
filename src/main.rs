@@ -9,7 +9,9 @@ use actix_demo::models::session::{SessionConfig, SessionRenewalPolicy};
 use actix_demo::models::worker::{WorkerBackoffConfig, WorkerConfig};
 use actix_demo::utils::redis_credentials_repo::RedisCredentialsRepo;
 use actix_demo::utils::InstrumentedRedisCache;
-use actix_demo::{utils, workers, AppConfig, AppData, EnvConfig, LoggerFormat};
+use actix_demo::{
+    config::EnvConfig, utils, workers, AppConfig, AppData, LoggerFormat,
+};
 use actix_web::web::Data;
 use actix_web_prom::PrometheusMetricsBuilder;
 use anyhow::Context;
