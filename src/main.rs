@@ -2,6 +2,7 @@
 #![allow(clippy::let_unit_value)]
 
 use actix_demo::actions::misc::create_database_if_needed;
+use actix_demo::health::HealthCheckers;
 use actix_demo::models::rate_limit::{
     KeyStrategy, RateLimitConfig, RateLimitPolicy,
 };
@@ -151,6 +152,8 @@ async fn main() -> anyhow::Result<()> {
         .await
     };
 
+    let health_checkers = Some(HealthCheckers::new(pool.clone()));
+
     let app_data = Data::new(AppData {
         config: AppConfig {
             hash_cost: env_config.hash_cost,
@@ -168,6 +171,7 @@ async fn main() -> anyhow::Result<()> {
         metrics,
         prometheus,
         user_ids_cache,
+        health_checkers,
     });
 
     let _app =

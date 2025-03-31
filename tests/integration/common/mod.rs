@@ -310,6 +310,7 @@ pub async fn app_data(
         metrics,
         prometheus,
         user_ids_cache,
+        health_checkers: None,
     });
     Ok(data)
 }

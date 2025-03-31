@@ -13,6 +13,7 @@ pub mod actions;
 pub mod errors;
 // mod middlewares;
 pub mod config;
+pub mod health;
 pub mod metrics;
 pub mod models;
 mod rate_limit;
@@ -31,6 +32,7 @@ use actix_web::web::{Data, ServiceConfig};
 use actix_web::{middleware, web, App, HttpServer};
 use actix_web_grants::GrantsMiddleware;
 use errors::DomainError;
+use health::HealthCheckers;
 use jwt_simple::prelude::HS256Key;
 use models::rate_limit::RateLimitConfig;
 use models::session::SessionConfig;
@@ -74,6 +76,7 @@ pub struct AppData {
     pub metrics: metrics::Metrics,
     pub prometheus: PrometheusMetrics,
     pub user_ids_cache: InstrumentedRedisCache<String, Vec<UserId>>,
+    pub health_checkers: Option<HealthCheckers>,
 }
 
 impl AppData {
@@ -128,6 +131,10 @@ pub fn configure_app(
                     .route(
                         "/metrics/cmd",
                         web::get().to(routes::command::handle_get_job_metrics),
+                    )
+                    .route(
+                        "/hc",
+                        web::get().to(routes::healthcheck::healthcheck),
                     ),
             )
             .service(

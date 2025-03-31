@@ -44,11 +44,11 @@ Response Content-Type: `application/json`
 
 ## Implementation Steps
 
-1. [] Add new `healthcheck` module in src/routes/
-2. [] Create service check traits for unified interface
-3. [] Create dummy (Ok()) hc function and add endpoint to misc routes
+1. [x] Add new `healthcheck` module in src/routes/
+2. [x] Create dummy (Ok()) hc function and add endpoint to misc routes
+3. [x] Create service check traits for unified interface
 4. Create each service hc impl one by one
-   1. [] create basic healthcheck response (HTTP 200 response only)
+   1. [x] create basic healthcheck response (HTTP 200 response only)
    2. [] create postgres hc impl and add to route
    3. [] create redis hc implementation and add to route
 5. [] Implement parallel checks using tokio::join!
