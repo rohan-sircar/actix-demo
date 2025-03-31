@@ -1,6 +1,8 @@
 use std::time::Duration;
+use url::Url;
 
 use redis::aio::ConnectionManager;
+use reqwest::Client;
 use tokio::time::error::Elapsed;
 
 use crate::errors::DomainError;
@@ -36,7 +38,7 @@ impl HealthCheckError {
     }
 }
 
-pub trait HealthCheckable {
+pub trait HealthCheckable: Send + Sync {
     fn check_health(
         &self,
         timeout: Duration,
@@ -120,9 +122,53 @@ impl HealthCheckable for RedisHealthChecker {
         .map_err(|e| HealthCheckError::Timeout(e))?
     }
 }
+
+#[derive(Clone)]
+pub struct LokiHealthChecker {
+    client: Client,
+    endpoint: Url,
+}
+
+impl LokiHealthChecker {
+    pub fn new(client: Client, endpoint: Url) -> Self {
+        Self { client, endpoint }
+    }
+}
+
+impl HealthCheckable for LokiHealthChecker {
+    async fn check_health(
+        &self,
+        timeout: Duration,
+    ) -> Result<(), HealthCheckError> {
+        let client = self.client.clone();
+        tokio::time::timeout(timeout, async move {
+            let response =
+                client.get(self.endpoint.clone()).send().await.map_err(
+                    |e| {
+                        HealthCheckError::ServiceError(format!(
+                            "Failed to send request to Loki: {e}"
+                        ))
+                    },
+                )?;
+
+            if response.status().is_success() {
+                Ok(())
+            } else {
+                Err(HealthCheckError::ServiceError(format!(
+                    "Loki health check failed with status: {}",
+                    response.status()
+                )))
+            }
+        })
+        .await
+        .map_err(|e| HealthCheckError::Timeout(e))?
+    }
+}
+
 pub enum HealthChecker {
     Postgres(PostgresHealthChecker),
     Redis(RedisHealthChecker),
+    Loki(LokiHealthChecker),
 }
 
 impl HealthCheckable for HealthChecker {
@@ -137,27 +183,34 @@ impl HealthCheckable for HealthChecker {
             HealthChecker::Redis(checker) => {
                 checker.check_health(timeout).await
             }
+            HealthChecker::Loki(checker) => checker.check_health(timeout).await,
         }
     }
 }
 
-pub struct HealthCheckers {
-    pub postgres: PostgresHealthChecker,
-    pub redis: RedisHealthChecker,
-}
+pub type HealthcheckName = &'static str;
 
-impl HealthCheckers {
-    pub fn new(pool: DbPool, conn_manager: ConnectionManager) -> Self {
-        Self {
-            postgres: PostgresHealthChecker::new(pool),
-            redis: RedisHealthChecker::new(conn_manager),
-        }
-    }
-
-    pub fn get_checkers(&self) -> Vec<(&'static str, HealthChecker)> {
-        vec![
-            ("postgresql", HealthChecker::Postgres(self.postgres.clone())),
-            ("redis", HealthChecker::Redis(self.redis.clone())),
-        ]
-    }
+pub fn create_health_checkers(
+    pool: DbPool,
+    conn_manager: ConnectionManager,
+    loki_endpoint: url::Url,
+    client: Client,
+) -> Vec<(HealthcheckName, HealthChecker)> {
+    let ep = loki_endpoint
+        .join("/ready")
+        .expect("Expect valid loki endpoint");
+    vec![
+        (
+            "postgresql",
+            HealthChecker::Postgres(PostgresHealthChecker::new(pool)),
+        ),
+        (
+            "redis",
+            HealthChecker::Redis(RedisHealthChecker::new(conn_manager)),
+        ),
+        (
+            "loki",
+            HealthChecker::Loki(LokiHealthChecker::new(client, ep)),
+        ),
+    ]
 }

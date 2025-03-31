@@ -222,6 +222,7 @@ pub async fn app_data(
         job_bin_path: options.bin_file.location.clone(),
         rate_limit: create_rate_limit_config(options.clone()),
         session: options.session_config.clone(),
+        health_check_timeout_secs: 10,
     };
 
     let client = redis::Client::open(redis_connstr)

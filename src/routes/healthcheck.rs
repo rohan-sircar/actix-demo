@@ -2,7 +2,7 @@ use std::{collections::HashMap, time::SystemTime};
 
 use crate::{
     get_build_info,
-    health::{HealthCheckable, HealthCheckers},
+    health::{HealthCheckable, HealthChecker, HealthcheckName},
     AppData,
 };
 use actix_web::{web::Data, HttpResponse, Responder};
@@ -26,8 +26,8 @@ struct HealthCheckResponse {
 
 fn get_health_checkers(
     data: &Data<AppData>,
-) -> Result<&HealthCheckers, ServiceStatus> {
-    data.health_checkers.as_ref().ok_or_else(|| {
+) -> Result<&[(HealthcheckName, HealthChecker)], ServiceStatus> {
+    data.health_checkers.as_deref().ok_or_else(|| {
         ServiceStatus::Unhealthy("Health checkers not initialized".to_string())
     })
 }
@@ -44,10 +44,8 @@ pub async fn healthcheck(data: Data<AppData>) -> impl Responder {
 
     let mut services = HashMap::new();
 
-    let services_to_check = checkers.get_checkers();
-
     let mut success = true;
-    for (service_name, checker) in services_to_check {
+    for (service_name, checker) in checkers {
         let result = checker
             .check_health(std::time::Duration::from_secs(5))
             .await;

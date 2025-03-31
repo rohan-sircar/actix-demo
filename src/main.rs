@@ -2,7 +2,7 @@
 #![allow(clippy::let_unit_value)]
 
 use actix_demo::actions::misc::create_database_if_needed;
-use actix_demo::health::HealthCheckers;
+use actix_demo::health::create_health_checkers;
 use actix_demo::models::rate_limit::{
     KeyStrategy, RateLimitConfig, RateLimitPolicy,
 };
@@ -21,6 +21,7 @@ use diesel::r2d2::ConnectionManager;
 use diesel_migrations::{FileBasedMigrations, MigrationHarness};
 use diesel_tracing::pg::InstrumentedPgConnection;
 use jwt_simple::prelude::HS256Key;
+use reqwest::Client;
 use tokio::task::JoinHandle;
 use tracing::subscriber::set_global_default;
 use tracing_appender::non_blocking::WorkerGuard;
@@ -38,8 +39,10 @@ async fn main() -> anyhow::Result<()> {
         .context("Failed to parse config")?;
 
     //bind guard to variable instead of _
-    let _guard =
-        setup_logger(env_config.logger_format.clone(), env_config.loki_url)?;
+    let _guard = setup_logger(
+        env_config.logger_format.clone(),
+        env_config.loki_url.clone(),
+    )?;
 
     // tracing::error!("config: {:?}", env_config);
 
@@ -152,7 +155,17 @@ async fn main() -> anyhow::Result<()> {
         .await
     };
 
-    let health_checkers = Some(HealthCheckers::new(pool.clone(), cm.clone()));
+    let http_client = Client::builder()
+        .timeout(std::time::Duration::from_secs(5))
+        .build()
+        .context("Failed to create HTTP client")?;
+
+    let health_checkers = Some(create_health_checkers(
+        pool.clone(),
+        cm.clone(),
+        env_config.loki_url.clone(),
+        http_client,
+    ));
 
     let app_data = Data::new(AppData {
         config: AppConfig {
@@ -160,6 +173,7 @@ async fn main() -> anyhow::Result<()> {
             job_bin_path: env_config.job_bin_path,
             rate_limit: rate_limit_config,
             session: session_config,
+            health_check_timeout_secs: env_config.health_check_timeout_secs,
         },
         pool,
         credentials_repo,

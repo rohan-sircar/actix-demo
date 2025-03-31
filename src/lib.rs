@@ -32,7 +32,7 @@ use actix_web::web::{Data, ServiceConfig};
 use actix_web::{middleware, web, App, HttpServer};
 use actix_web_grants::GrantsMiddleware;
 use errors::DomainError;
-use health::HealthCheckers;
+use health::{HealthChecker, HealthcheckName};
 use jwt_simple::prelude::HS256Key;
 use models::rate_limit::RateLimitConfig;
 use models::session::SessionConfig;
@@ -62,6 +62,7 @@ pub struct AppConfig {
     pub job_bin_path: String,
     pub rate_limit: RateLimitConfig,
     pub session: SessionConfig,
+    pub health_check_timeout_secs: u8,
 }
 
 pub struct AppData {
@@ -76,7 +77,7 @@ pub struct AppData {
     pub metrics: metrics::Metrics,
     pub prometheus: PrometheusMetrics,
     pub user_ids_cache: InstrumentedRedisCache<String, Vec<UserId>>,
-    pub health_checkers: Option<HealthCheckers>,
+    pub health_checkers: Option<Vec<(HealthcheckName, HealthChecker)>>,
 }
 
 impl AppData {

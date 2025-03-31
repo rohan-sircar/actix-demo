@@ -61,3 +61,7 @@ pub fn default_worker_max_elapsed_time_secs() -> u64 {
 pub fn default_worker_run_interval_secs() -> u8 {
     10
 }
+
+pub fn default_health_check_timeout_secs() -> u8 {
+    10
+}

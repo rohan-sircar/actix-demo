@@ -57,4 +57,6 @@ pub struct EnvConfig {
     pub worker_max_elapsed_time_secs: u64,
     #[serde(default = "models::defaults::default_worker_run_interval_secs")]
     pub worker_run_interval_secs: u8,
+    #[serde(default = "models::defaults::default_health_check_timeout_secs")]
+    pub health_check_timeout_secs: u8,
 }
