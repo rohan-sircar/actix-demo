@@ -26,9 +26,7 @@ use tracing_appender::non_blocking::WorkerGuard;
 use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer};
 use tracing_log::LogTracer;
 use tracing_subscriber::fmt::format::FmtSpan;
-use tracing_subscriber::{
-    layer::SubscriberExt, EnvFilter, FmtSubscriber, Registry,
-};
+use tracing_subscriber::{layer::SubscriberExt, EnvFilter, Registry};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
@@ -39,7 +37,8 @@ async fn main() -> anyhow::Result<()> {
         .context("Failed to parse config")?;
 
     //bind guard to variable instead of _
-    let _guard = setup_logger(env_config.clone().logger_format)?;
+    let _guard =
+        setup_logger(env_config.logger_format.clone(), env_config.loki_url)?;
 
     // tracing::error!("config: {:?}", env_config);
 
@@ -178,7 +177,10 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn setup_logger(format: LoggerFormat) -> anyhow::Result<WorkerGuard> {
+pub fn setup_logger(
+    format: LoggerFormat,
+    loki_url: url::Url,
+) -> anyhow::Result<(WorkerGuard, JoinHandle<()>)> {
     let env_filter = EnvFilter::try_from_env("ACTIX_DEMO_RUST_LOG")
         .context("Failed to set up env logger")?;
 
@@ -189,32 +191,38 @@ pub fn setup_logger(format: LoggerFormat) -> anyhow::Result<WorkerGuard> {
 
     let bi = actix_demo::get_build_info();
 
+    let (loki_layer, loki_task) = tracing_loki::builder()
+        .label("host", "mine")?
+        .extra_field("pid", format!("{}", std::process::id()))?
+        .label("app", format!("actix-demo-{}", bi.crate_info.version))?
+        .build_url(loki_url)?;
+
+    let subscriber = Registry::default().with(env_filter).with(loki_layer);
+
     let _ = match format {
         LoggerFormat::Json => {
             let formatting_layer = BunyanFormattingLayer::new(
                 format!("actix-demo-{}", bi.crate_info.version),
-                // Output the formatted spans to non-blocking writer
                 non_blocking,
             );
-            let subscriber = Registry::default()
-                .with(env_filter)
-                .with(JsonStorageLayer)
-                .with(formatting_layer);
+            let subscriber =
+                subscriber.with(JsonStorageLayer).with(formatting_layer);
             let _ = set_global_default(subscriber)
                 .context("Failed to set subscriber")?;
         }
 
         LoggerFormat::Pretty => {
-            let subscriber = FmtSubscriber::builder()
+            let pretty_formatter = tracing_subscriber::fmt::Layer::new()
                 .pretty()
                 .with_span_events(FmtSpan::NEW | FmtSpan::CLOSE)
-                .with_env_filter(env_filter)
                 .with_writer(non_blocking)
-                .with_thread_names(true)
-                .finish();
+                .with_thread_names(true);
+            let subscriber = subscriber.with(pretty_formatter);
             let _ = set_global_default(subscriber)
                 .context("Failed to set subscriber")?;
         }
     };
-    Ok(_guard)
+
+    let loki_guard = tokio::spawn(loki_task);
+    Ok((_guard, loki_guard))
 }

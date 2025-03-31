@@ -3,6 +3,7 @@ use prometheus::{opts, GaugeVec, HistogramVec, IntCounterVec, Registry};
 #[derive(Clone)]
 pub struct Metrics {
     pub active_sessions: GaugeVec,
+    pub active_ws_connections: GaugeVec,
     pub cache: CacheMetrics,
 }
 
@@ -20,13 +21,26 @@ impl Metrics {
         )
         .unwrap();
 
+        let active_ws_connections = GaugeVec::new(
+            opts!(
+                "active_ws_connections_total",
+                "Currently active WebSocket connections"
+            ),
+            &["user_id"],
+        )
+        .unwrap();
+
         registry.register(Box::new(job_counter.clone())).unwrap();
         registry
             .register(Box::new(active_sessions.clone()))
             .unwrap();
+        registry
+            .register(Box::new(active_ws_connections.clone()))
+            .unwrap();
 
         Self {
             active_sessions,
+            active_ws_connections,
             cache: CacheMetrics::new(&registry),
         }
     }
