@@ -2,7 +2,7 @@ use std::{collections::HashMap, time::SystemTime};
 
 use crate::{
     get_build_info,
-    health::{HealthCheckable, HealthChecker, HealthcheckName},
+    health::{HealthChecker, HealthcheckName},
     AppData,
 };
 use actix_web::{web::Data, HttpResponse, Responder};

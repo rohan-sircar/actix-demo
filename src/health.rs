@@ -38,13 +38,6 @@ impl HealthCheckError {
     }
 }
 
-pub trait HealthCheckable: Send + Sync {
-    fn check_health(
-        &self,
-        timeout: Duration,
-    ) -> impl std::future::Future<Output = Result<(), HealthCheckError>> + Send;
-}
-
 #[derive(Debug, Clone)]
 pub struct PostgresHealthChecker {
     pool: DbPool,
@@ -54,10 +47,8 @@ impl PostgresHealthChecker {
     pub fn new(pool: DbPool) -> Self {
         Self { pool }
     }
-}
 
-impl HealthCheckable for PostgresHealthChecker {
-    async fn check_health(
+    pub async fn check_health(
         &self,
         timeout: Duration,
     ) -> Result<(), HealthCheckError> {
@@ -87,7 +78,7 @@ impl HealthCheckable for PostgresHealthChecker {
             Ok(())
         })
         .await
-        .map_err(|e| HealthCheckError::Timeout(e))?
+        .map_err(HealthCheckError::Timeout)?
     }
 }
 
@@ -100,10 +91,8 @@ impl RedisHealthChecker {
     pub fn new(conn_manager: ConnectionManager) -> Self {
         Self { conn_manager }
     }
-}
 
-impl HealthCheckable for RedisHealthChecker {
-    async fn check_health(
+    pub async fn check_health(
         &self,
         timeout: Duration,
     ) -> Result<(), HealthCheckError> {
@@ -119,7 +108,7 @@ impl HealthCheckable for RedisHealthChecker {
             Ok(())
         })
         .await
-        .map_err(|e| HealthCheckError::Timeout(e))?
+        .map_err(HealthCheckError::Timeout)?
     }
 }
 
@@ -133,10 +122,8 @@ impl LokiHealthChecker {
     pub fn new(client: Client, endpoint: Url) -> Self {
         Self { client, endpoint }
     }
-}
 
-impl HealthCheckable for LokiHealthChecker {
-    async fn check_health(
+    pub async fn check_health(
         &self,
         timeout: Duration,
     ) -> Result<(), HealthCheckError> {
@@ -161,7 +148,7 @@ impl HealthCheckable for LokiHealthChecker {
             }
         })
         .await
-        .map_err(|e| HealthCheckError::Timeout(e))?
+        .map_err(HealthCheckError::Timeout)?
     }
 }
 
@@ -171,8 +158,8 @@ pub enum HealthChecker {
     Loki(LokiHealthChecker),
 }
 
-impl HealthCheckable for HealthChecker {
-    async fn check_health(
+impl HealthChecker {
+    pub async fn check_health(
         &self,
         timeout: Duration,
     ) -> Result<(), HealthCheckError> {
