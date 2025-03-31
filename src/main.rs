@@ -37,7 +37,8 @@ async fn main() -> anyhow::Result<()> {
         .context("Failed to parse config")?;
 
     //bind guard to variable instead of _
-    let _guard = setup_logger(env_config.clone().logger_format)?;
+    let _guard =
+        setup_logger(env_config.logger_format.clone(), env_config.loki_url)?;
 
     // tracing::error!("config: {:?}", env_config);
 
@@ -178,6 +179,7 @@ async fn main() -> anyhow::Result<()> {
 
 pub fn setup_logger(
     format: LoggerFormat,
+    loki_url: url::Url,
 ) -> anyhow::Result<(WorkerGuard, JoinHandle<()>)> {
     let env_filter = EnvFilter::try_from_env("ACTIX_DEMO_RUST_LOG")
         .context("Failed to set up env logger")?;
@@ -193,7 +195,7 @@ pub fn setup_logger(
         .label("host", "mine")?
         .extra_field("pid", format!("{}", std::process::id()))?
         .label("app", format!("actix-demo-{}", bi.crate_info.version))?
-        .build_url(url::Url::parse("http://127.0.0.1:3100").unwrap())?;
+        .build_url(loki_url)?;
 
     let subscriber = Registry::default().with(env_filter).with(loki_layer);
 
