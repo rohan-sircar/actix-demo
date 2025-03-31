@@ -27,7 +27,7 @@ impl<'a> WsConnectionGuard<'a> {
     }
 }
 
-impl<'a> Drop for WsConnectionGuard<'a> {
+impl Drop for WsConnectionGuard<'_> {
     fn drop(&mut self) {
         let _ = self.metrics.with_label_values(&[&self.user_id]).dec();
     }

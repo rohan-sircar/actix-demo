@@ -11,6 +11,17 @@ services:
     networks:
       - metrics-net
 
+  loki:
+    image: grafana/loki:latest
+    container_name: loki
+    ports:
+      - "3100:3100"
+    # volumes:
+    #   - ./loki-config.yaml:/etc/loki/local-config.yaml
+    # command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - metrics-net
+
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
@@ -25,6 +36,7 @@ services:
       - metrics-net
     depends_on:
       - prometheus
+      - loki
 
 volumes:
   grafana-storage:
