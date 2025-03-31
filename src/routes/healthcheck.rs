@@ -44,19 +44,24 @@ pub async fn healthcheck(data: Data<AppData>) -> impl Responder {
 
     let mut services = HashMap::new();
 
-    let pg_result = checkers
-        .postgres
-        .check_health(std::time::Duration::from_secs(5))
-        .await;
+    let services_to_check = checkers.get_checkers();
 
-    let pg_status = match pg_result {
-        Ok(_) => ServiceStatus::Healthy,
-        Err(ref e) => ServiceStatus::Unhealthy(e.to_string()),
-    };
+    let mut success = true;
+    for (service_name, checker) in services_to_check {
+        let result = checker
+            .check_health(std::time::Duration::from_secs(5))
+            .await;
 
-    services.insert("postgresql".to_string(), pg_status);
+        let status = match result {
+            Ok(_) => ServiceStatus::Healthy,
+            Err(ref e) => {
+                success = false;
+                ServiceStatus::Unhealthy(e.to_string())
+            }
+        };
 
-    let success = pg_result.is_ok();
+        services.insert(service_name.to_string(), status);
+    }
 
     let response = HealthCheckResponse {
         version: bi.crate_info.version.to_string(),

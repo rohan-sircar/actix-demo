@@ -152,7 +152,7 @@ async fn main() -> anyhow::Result<()> {
         .await
     };
 
-    let health_checkers = Some(HealthCheckers::new(pool.clone()));
+    let health_checkers = Some(HealthCheckers::new(pool.clone(), cm.clone()));
 
     let app_data = Data::new(AppData {
         config: AppConfig {

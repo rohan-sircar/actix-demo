@@ -123,6 +123,7 @@ pub fn configure_app(
             )
             .service(
                 web::scope("/api/public")
+                    // TODO use separate limits for publi endpoint
                     .wrap(api_rate_limiter())
                     .route(
                         "/build-info",

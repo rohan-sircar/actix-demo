@@ -49,8 +49,9 @@ Response Content-Type: `application/json`
 3. [x] Create service check traits for unified interface
 4. Create each service hc impl one by one
    1. [x] create basic healthcheck response (HTTP 200 response only)
-   2. [] create postgres hc impl and add to route
-   3. [] create redis hc implementation and add to route
+   2. [x] create postgres hc impl and add to route
+   3. [x] create redis hc implementation and add to route
+   4. [ ] create loki hc implementation and add to route
 5. [] Implement parallel checks using tokio::join!
 6. [] Update OpenAPI documentation
 7. [] Integration tests with mocked dependencies

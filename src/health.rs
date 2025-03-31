@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use redis::aio::ConnectionManager;
 use tokio::time::error::Elapsed;
 
 use crate::errors::DomainError;
@@ -42,6 +43,7 @@ pub trait HealthCheckable {
     ) -> impl std::future::Future<Output = Result<(), HealthCheckError>> + Send;
 }
 
+#[derive(Debug, Clone)]
 pub struct PostgresHealthChecker {
     pool: DbPool,
 }
@@ -87,14 +89,75 @@ impl HealthCheckable for PostgresHealthChecker {
     }
 }
 
+#[derive(Clone)]
+pub struct RedisHealthChecker {
+    conn_manager: ConnectionManager,
+}
+
+impl RedisHealthChecker {
+    pub fn new(conn_manager: ConnectionManager) -> Self {
+        Self { conn_manager }
+    }
+}
+
+impl HealthCheckable for RedisHealthChecker {
+    async fn check_health(
+        &self,
+        timeout: Duration,
+    ) -> Result<(), HealthCheckError> {
+        tokio::time::timeout(timeout, async move {
+            let mut conn = self.conn_manager.clone();
+            let () = redis::cmd("PING").query_async(&mut conn).await.map_err(
+                |e| {
+                    HealthCheckError::ServiceError(format!(
+                        "Redis ping failed: {e}"
+                    ))
+                },
+            )?;
+            Ok(())
+        })
+        .await
+        .map_err(|e| HealthCheckError::Timeout(e))?
+    }
+}
+pub enum HealthChecker {
+    Postgres(PostgresHealthChecker),
+    Redis(RedisHealthChecker),
+}
+
+impl HealthCheckable for HealthChecker {
+    async fn check_health(
+        &self,
+        timeout: Duration,
+    ) -> Result<(), HealthCheckError> {
+        match self {
+            HealthChecker::Postgres(checker) => {
+                checker.check_health(timeout).await
+            }
+            HealthChecker::Redis(checker) => {
+                checker.check_health(timeout).await
+            }
+        }
+    }
+}
+
 pub struct HealthCheckers {
     pub postgres: PostgresHealthChecker,
+    pub redis: RedisHealthChecker,
 }
 
 impl HealthCheckers {
-    pub fn new(pool: DbPool) -> Self {
+    pub fn new(pool: DbPool, conn_manager: ConnectionManager) -> Self {
         Self {
             postgres: PostgresHealthChecker::new(pool),
+            redis: RedisHealthChecker::new(conn_manager),
         }
+    }
+
+    pub fn get_checkers(&self) -> Vec<(&'static str, HealthChecker)> {
+        vec![
+            ("postgresql", HealthChecker::Postgres(self.postgres.clone())),
+            ("redis", HealthChecker::Redis(self.redis.clone())),
+        ]
     }
 }
