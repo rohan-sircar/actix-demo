@@ -52,7 +52,7 @@ Response Content-Type: `application/json`
    2. [x] create postgres hc impl and add to route
    3. [x] create redis hc implementation and add to route
    4. [x] create loki hc implementation and add to route
-   5. [ ] create prometheus hc impl
+   5. [x] create prometheus hc impl
 5. [x] Implement parallel checks using tokio::join!
 6. [] Update OpenAPI documentation
 7. [] Integration tests with mocked dependencies

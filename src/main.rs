@@ -156,7 +156,9 @@ async fn main() -> anyhow::Result<()> {
     };
 
     let http_client = Client::builder()
-        .timeout(std::time::Duration::from_secs(5))
+        .timeout(std::time::Duration::from_secs(
+            env_config.health_check_timeout_secs.into(),
+        ))
         .build()
         .context("Failed to create HTTP client")?;
 
@@ -164,6 +166,7 @@ async fn main() -> anyhow::Result<()> {
         pool.clone(),
         cm.clone(),
         env_config.loki_url.clone(),
+        env_config.prometheus_url.clone(),
         http_client,
     ));
 

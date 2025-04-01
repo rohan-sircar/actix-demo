@@ -113,14 +113,19 @@ impl RedisHealthChecker {
 }
 
 #[derive(Clone)]
-pub struct LokiHealthChecker {
+pub struct UrlHealthChecker {
     client: Client,
     endpoint: Url,
+    service_name: String,
 }
 
-impl LokiHealthChecker {
-    pub fn new(client: Client, endpoint: Url) -> Self {
-        Self { client, endpoint }
+impl UrlHealthChecker {
+    pub fn new(client: Client, endpoint: Url, service_name: String) -> Self {
+        Self {
+            client,
+            endpoint,
+            service_name,
+        }
     }
 
     pub async fn check_health(
@@ -133,7 +138,8 @@ impl LokiHealthChecker {
                 client.get(self.endpoint.clone()).send().await.map_err(
                     |e| {
                         HealthCheckError::ServiceError(format!(
-                            "Failed to send request to Loki: {e}"
+                            "Failed to send request to {}: {e}",
+                            self.service_name
                         ))
                     },
                 )?;
@@ -142,7 +148,8 @@ impl LokiHealthChecker {
                 Ok(())
             } else {
                 Err(HealthCheckError::ServiceError(format!(
-                    "Loki health check failed with status: {}",
+                    "{} health check failed with status: {}",
+                    self.service_name,
                     response.status()
                 )))
             }
@@ -155,7 +162,8 @@ impl LokiHealthChecker {
 pub enum HealthChecker {
     Postgres(PostgresHealthChecker),
     Redis(RedisHealthChecker),
-    Loki(LokiHealthChecker),
+    Loki(UrlHealthChecker),
+    Prometheus(UrlHealthChecker),
 }
 
 impl HealthChecker {
@@ -171,6 +179,9 @@ impl HealthChecker {
                 checker.check_health(timeout).await
             }
             HealthChecker::Loki(checker) => checker.check_health(timeout).await,
+            HealthChecker::Prometheus(checker) => {
+                checker.check_health(timeout).await
+            }
         }
     }
 }
@@ -181,11 +192,15 @@ pub fn create_health_checkers(
     pool: DbPool,
     conn_manager: ConnectionManager,
     loki_endpoint: url::Url,
+    prometheus_endpoint: url::Url,
     client: Client,
 ) -> Vec<(HealthcheckName, HealthChecker)> {
-    let ep = loki_endpoint
+    let loki_hc = loki_endpoint
         .join("/ready")
         .expect("Expect valid loki endpoint");
+    let prometheus_hc = prometheus_endpoint
+        .join("/-/healthy")
+        .expect("Expect valid prometheus endpoint");
     vec![
         (
             "postgresql",
@@ -197,7 +212,19 @@ pub fn create_health_checkers(
         ),
         (
             "loki",
-            HealthChecker::Loki(LokiHealthChecker::new(client, ep)),
+            HealthChecker::Loki(UrlHealthChecker::new(
+                client.clone(),
+                loki_hc,
+                "Loki".to_owned(),
+            )),
+        ),
+        (
+            "prometheus",
+            HealthChecker::Prometheus(UrlHealthChecker::new(
+                client,
+                prometheus_hc,
+                "Prometheus".to_owned(),
+            )),
         ),
     ]
 }

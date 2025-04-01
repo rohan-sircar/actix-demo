@@ -5,6 +5,7 @@ use serde::Deserialize;
 pub struct EnvConfig {
     // system
     pub loki_url: url::Url,
+    pub prometheus_url: url::Url,
     pub database_url: String,
     pub http_host: String,
     #[serde(default = "models::defaults::default_hash_cost")]
