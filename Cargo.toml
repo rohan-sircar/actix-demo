@@ -75,6 +75,7 @@ url = { version = "2.5.4" }
 uuid = { version = "1.13.1", features = ["v4", "serde"] }
 validators = { version = "0.25.3", features = ["serde"] }
 thiserror = "2.0.12"
+minior = "=0.1.16"
 
 [dev-dependencies]
 actix-codec = "0.5.0"
