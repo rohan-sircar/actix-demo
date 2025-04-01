@@ -42,7 +42,7 @@ pub async fn healthcheck(data: Data<AppData>) -> impl Responder {
     let checkers = get_health_checkers(&data)
         .expect("health checkers should be initialized");
 
-    let check_futures = checkers.into_iter().map(|(service_name, checker)| {
+    let check_futures = checkers.iter().map(|(service_name, checker)| {
         let service_name = service_name.to_string();
         let timeout_duration = std::time::Duration::from_secs(
             data.config.health_check_timeout_secs.into(),
