@@ -1,6 +1,8 @@
 #![forbid(unsafe_code)]
 #![allow(clippy::let_unit_value)]
 
+use std::time::SystemTime;
+
 use actix_demo::actions::misc::create_database_if_needed;
 use actix_demo::health::create_health_checkers;
 use actix_demo::models::rate_limit::{
@@ -32,6 +34,7 @@ use tracing_subscriber::{layer::SubscriberExt, EnvFilter, Registry};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
+    let start_time = SystemTime::now();
     let _ = dotenvy::dotenv().context("Failed to set up env")?;
 
     let env_config = envy::prefixed("ACTIX_DEMO_")
@@ -162,15 +165,16 @@ async fn main() -> anyhow::Result<()> {
         .build()
         .context("Failed to create HTTP client")?;
 
-    let health_checkers = Some(create_health_checkers(
+    let health_checkers = create_health_checkers(
         pool.clone(),
         cm.clone(),
         env_config.loki_url.clone(),
         env_config.prometheus_url.clone(),
         http_client,
-    ));
+    );
 
     let app_data = Data::new(AppData {
+        start_time,
         config: AppConfig {
             hash_cost: env_config.hash_cost,
             job_bin_path: env_config.job_bin_path,

@@ -25,6 +25,8 @@ pub mod types;
 pub mod utils;
 pub mod workers;
 
+use std::time::SystemTime;
+
 use actix_web_prom::PrometheusMetrics;
 
 use actix_web::middleware::from_fn;
@@ -66,6 +68,7 @@ pub struct AppConfig {
 }
 
 pub struct AppData {
+    pub start_time: SystemTime,
     pub config: AppConfig,
     pub pool: DbPool,
     pub credentials_repo: RedisCredentialsRepo,
@@ -77,7 +80,7 @@ pub struct AppData {
     pub metrics: metrics::Metrics,
     pub prometheus: PrometheusMetrics,
     pub user_ids_cache: InstrumentedRedisCache<String, Vec<UserId>>,
-    pub health_checkers: Option<Vec<(HealthcheckName, HealthChecker)>>,
+    pub health_checkers: Vec<(HealthcheckName, HealthChecker)>,
 }
 
 impl AppData {

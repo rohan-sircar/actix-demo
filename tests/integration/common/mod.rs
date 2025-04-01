@@ -35,6 +35,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
 use std::os::unix::prelude::OpenOptionsExt;
+use std::time::SystemTime;
 use testcontainers_modules::postgres::{self, Postgres};
 use testcontainers_modules::redis::{Redis, REDIS_PORT};
 use testcontainers_modules::testcontainers::runners::AsyncRunner;
@@ -213,6 +214,7 @@ pub async fn app_data(
     redis_connstr: &str,
     options: TestAppOptions,
 ) -> anyhow::Result<web::Data<AppData>> {
+    let start_time = SystemTime::now();
     let _ = Lazy::force(&TRACING).as_ref().unwrap();
 
     let _ = Lazy::force(&CREATE_BIN_FILES).as_ref().unwrap();
@@ -300,6 +302,7 @@ pub async fn app_data(
     let key = HS256Key::from_bytes("test".as_bytes());
 
     let data = Data::new(AppData {
+        start_time,
         config,
         pool,
         credentials_repo,
@@ -311,7 +314,7 @@ pub async fn app_data(
         metrics,
         prometheus,
         user_ids_cache,
-        health_checkers: None,
+        health_checkers: Vec::new(),
     });
     Ok(data)
 }
