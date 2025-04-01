@@ -3,7 +3,10 @@ use std::time::Duration;
 use actix_extensible_rate_limit::backend::SimpleInput;
 use actix_extensible_rate_limit::HeaderCompatibleOutput;
 use actix_extensible_rate_limit::{
-    backend::{redis::RedisBackend, SimpleInputFunctionBuilder, SimpleOutput},
+    backend::{
+        memory::InMemoryBackend, redis::RedisBackend,
+        SimpleInputFunctionBuilder, SimpleOutput,
+    },
     RateLimiter,
 };
 use actix_http::header::{HeaderName, HeaderValue, RETRY_AFTER};
@@ -12,7 +15,7 @@ use rand::distr::Alphanumeric;
 use rand::Rng;
 
 use crate::models::rate_limit::KeyStrategy;
-use crate::utils::{self, RateLimitBackend};
+use crate::utils;
 use crate::AppData;
 
 #[allow(clippy::declare_interior_mutable_const)]
@@ -57,7 +60,7 @@ pub fn make_denied_response(status: &SimpleOutput) -> HttpResponse {
 pub fn create_login_rate_limiter(
     app_data: &AppData,
 ) -> RateLimiter<
-    RateLimitBackend,
+    utils::RateLimitBackend,
     SimpleOutput,
     impl Fn(
         &actix_web::dev::ServiceRequest,
@@ -95,7 +98,7 @@ pub fn create_login_rate_limiter(
 pub fn create_api_rate_limiter(
     app_data: &AppData,
 ) -> RateLimiter<
-    RateLimitBackend,
+    utils::RateLimitBackend,
     SimpleOutput,
     impl Fn(
         &actix_web::dev::ServiceRequest,
@@ -119,6 +122,30 @@ pub fn create_api_rate_limiter(
         .add_headers()
         .request_denied_response(|status| {
             let _ = tracing::warn!("Reached rate limit for api");
+            make_denied_response(status)
+        })
+        .build()
+}
+
+pub fn create_in_memory_rate_limiter(
+    app_data: &AppData,
+) -> RateLimiter<
+    InMemoryBackend,
+    SimpleOutput,
+    impl Fn(
+        &actix_web::dev::ServiceRequest,
+    ) -> std::future::Ready<Result<SimpleInput, actix_web::Error>>,
+> {
+    let input_fn_builder = SimpleInputFunctionBuilder::new(
+        Duration::from_secs(app_data.config.rate_limit.api.window_secs),
+        app_data.config.rate_limit.api.max_requests.into(),
+    );
+    let input_fn = build_input_function(app_data, input_fn_builder).build();
+
+    RateLimiter::builder(InMemoryBackend::builder().build(), input_fn)
+        .add_headers()
+        .request_denied_response(|status| {
+            let _ = tracing::warn!("Reached rate limit for healthcheck");
             make_denied_response(status)
         })
         .build()

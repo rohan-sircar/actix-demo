@@ -106,6 +106,11 @@ pub fn configure_app(
 
         cfg.app_data(app_data.clone())
             .service(
+                web::scope("/hc")
+                    .wrap(rate_limit::create_in_memory_rate_limiter(&app_data))
+                    .route("", web::get().to(routes::healthcheck::healthcheck)),
+            )
+            .service(
                 web::resource("/api/login")
                     .wrap(login_limiter.clone())
                     .route(web::post().to(routes::auth::login)),
@@ -127,7 +132,6 @@ pub fn configure_app(
             )
             .service(
                 web::scope("/api/public")
-                    // TODO use separate limits for publi endpoint
                     .wrap(api_rate_limiter())
                     .route(
                         "/build-info",
@@ -136,10 +140,6 @@ pub fn configure_app(
                     .route(
                         "/metrics/cmd",
                         web::get().to(routes::command::handle_get_job_metrics),
-                    )
-                    .route(
-                        "/hc",
-                        web::get().to(routes::healthcheck::healthcheck),
                     ),
             )
             .service(
