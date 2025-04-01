@@ -74,6 +74,7 @@ tracing-loki = "0.2.6"
 url = { version = "2.5.4" }
 uuid = { version = "1.13.1", features = ["v4", "serde"] }
 validators = { version = "0.25.3", features = ["serde"] }
+thiserror = "2.0.12"
 
 [dev-dependencies]
 actix-codec = "0.5.0"

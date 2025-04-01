@@ -14,7 +14,9 @@ use actix_web::HttpResponse;
 use rand::distr::Alphanumeric;
 use rand::Rng;
 
-use crate::models::rate_limit::KeyStrategy;
+use crate::models::rate_limit::{
+    KeyStrategy, RateLimitConfig, RateLimitPolicy,
+};
 use crate::utils;
 use crate::AppData;
 
@@ -29,10 +31,10 @@ pub const X_RATELIMIT_RESET: HeaderName =
     HeaderName::from_static("x-ratelimit-reset");
 
 fn build_input_function(
-    app_data: &AppData,
+    key_strategy: &KeyStrategy,
     input_fn_builder: SimpleInputFunctionBuilder,
 ) -> SimpleInputFunctionBuilder {
-    match app_data.config.rate_limit.key_strategy {
+    match key_strategy {
         KeyStrategy::Ip => input_fn_builder.real_ip_key(),
         KeyStrategy::Random => {
             let random_suffix: String = rand::rng()
@@ -43,6 +45,27 @@ fn build_input_function(
             let unique_key = format!("{}-{}", "test", random_suffix);
             input_fn_builder.custom_key(&unique_key)
         }
+    }
+}
+
+pub fn initialize_rate_limit_backend(
+    app_data: &AppData,
+) -> utils::RateLimitBackend {
+    if app_data.config.rate_limit.disable {
+        utils::RateLimitBackend::Noop
+    } else {
+        let redis_cm = app_data
+            .get_redis_conn()
+            .expect("Redis connection required for rate limiting");
+        utils::RateLimitBackend::Redis(RedisBackend::builder(redis_cm).build())
+    }
+}
+
+pub fn initialize_hc_backend(enabled: bool) -> utils::RateLimitBackend {
+    if !enabled {
+        utils::RateLimitBackend::Noop
+    } else {
+        utils::RateLimitBackend::InMemory(InMemoryBackend::builder().build())
     }
 }
 
@@ -58,7 +81,8 @@ pub fn make_denied_response(status: &SimpleOutput) -> HttpResponse {
 }
 
 pub fn create_login_rate_limiter(
-    app_data: &AppData,
+    config: &RateLimitConfig,
+    backend: utils::RateLimitBackend,
 ) -> RateLimiter<
     utils::RateLimitBackend,
     SimpleOutput,
@@ -67,21 +91,11 @@ pub fn create_login_rate_limiter(
     ) -> std::future::Ready<Result<SimpleInput, actix_web::Error>>,
 > {
     let input_fn_builder = SimpleInputFunctionBuilder::new(
-        std::time::Duration::from_secs(
-            app_data.config.rate_limit.auth.window_secs,
-        ),
-        app_data.config.rate_limit.auth.max_requests.into(),
+        std::time::Duration::from_secs(config.auth.window_secs),
+        config.auth.max_requests.into(),
     );
-    let input_fn = build_input_function(app_data, input_fn_builder).build();
-
-    let backend = if app_data.config.rate_limit.disable {
-        utils::RateLimitBackend::Noop
-    } else {
-        let redis_cm = app_data
-            .get_redis_conn()
-            .expect("Redis connection required for rate limiting");
-        utils::RateLimitBackend::Redis(RedisBackend::builder(redis_cm).build())
-    };
+    let input_fn =
+        build_input_function(&config.key_strategy, input_fn_builder).build();
 
     RateLimiter::builder(backend, input_fn)
         .rollback_condition(Some(|status| {
@@ -96,7 +110,9 @@ pub fn create_login_rate_limiter(
 }
 
 pub fn create_api_rate_limiter(
-    app_data: &AppData,
+    key_strategy: &KeyStrategy,
+    policy: &RateLimitPolicy,
+    backend: utils::RateLimitBackend,
 ) -> RateLimiter<
     utils::RateLimitBackend,
     SimpleOutput,
@@ -104,20 +120,11 @@ pub fn create_api_rate_limiter(
         &actix_web::dev::ServiceRequest,
     ) -> std::future::Ready<Result<SimpleInput, actix_web::Error>>,
 > {
-    let backend = if app_data.config.rate_limit.disable {
-        utils::RateLimitBackend::Noop
-    } else {
-        let redis_cm = app_data
-            .get_redis_conn()
-            .expect("Redis connection required for rate limiting");
-        utils::RateLimitBackend::Redis(RedisBackend::builder(redis_cm).build())
-    };
-
     let input_fn_builder = SimpleInputFunctionBuilder::new(
-        Duration::from_secs(app_data.config.rate_limit.api.window_secs),
-        app_data.config.rate_limit.api.max_requests.into(),
+        Duration::from_secs(policy.window_secs),
+        policy.max_requests.into(),
     );
-    let input_fn = build_input_function(app_data, input_fn_builder).build();
+    let input_fn = build_input_function(key_strategy, input_fn_builder).build();
     RateLimiter::builder(backend, input_fn)
         .add_headers()
         .request_denied_response(|status| {
@@ -127,22 +134,24 @@ pub fn create_api_rate_limiter(
         .build()
 }
 
-pub fn create_in_memory_rate_limiter(
-    app_data: &AppData,
+pub fn create_hc_rate_limiter(
+    config: &RateLimitConfig,
+    backend: utils::RateLimitBackend,
 ) -> RateLimiter<
-    InMemoryBackend,
+    utils::RateLimitBackend,
     SimpleOutput,
     impl Fn(
         &actix_web::dev::ServiceRequest,
     ) -> std::future::Ready<Result<SimpleInput, actix_web::Error>>,
 > {
     let input_fn_builder = SimpleInputFunctionBuilder::new(
-        Duration::from_secs(app_data.config.rate_limit.api_public.window_secs),
-        app_data.config.rate_limit.api_public.max_requests.into(),
+        Duration::from_secs(config.api_public.window_secs),
+        config.api_public.max_requests.into(),
     );
-    let input_fn = build_input_function(app_data, input_fn_builder).build();
+    let input_fn =
+        build_input_function(&config.key_strategy, input_fn_builder).build();
 
-    RateLimiter::builder(InMemoryBackend::builder().build(), input_fn)
+    RateLimiter::builder(backend, input_fn)
         .add_headers()
         .request_denied_response(|status| {
             let _ = tracing::warn!("Reached rate limit for healthcheck");
