@@ -33,7 +33,6 @@ use actix_web::middleware::from_fn;
 use actix_web::web::{Data, ServiceConfig};
 use actix_web::{middleware, web, App, HttpServer};
 use actix_web_grants::GrantsMiddleware;
-use errors::DomainError;
 use health::{HealthChecker, HealthcheckName};
 use jwt_simple::prelude::HS256Key;
 use metrics::Metrics;
@@ -74,8 +73,8 @@ pub struct AppData {
     pub pool: DbPool,
     pub credentials_repo: RedisCredentialsRepo,
     pub jwt_key: HS256Key,
-    pub redis_conn_factory: Option<Client>,
-    pub redis_conn_manager: Option<ConnectionManager>,
+    pub redis_conn_factory: Client,
+    pub redis_conn_manager: ConnectionManager,
     pub redis_prefix: RedisPrefixFn,
     pub sessions_cleanup_worker_handle: Option<JoinHandle<()>>,
     pub metrics: Metrics,
@@ -85,13 +84,13 @@ pub struct AppData {
 }
 
 impl AppData {
-    pub fn get_redis_conn(&self) -> Result<ConnectionManager, DomainError> {
-        self.redis_conn_manager.clone().ok_or_else(|| {
-            DomainError::new_internal_error(
-                "Redis connection not initialized".to_owned(),
-            )
-        })
-    }
+    // pub fn get_redis_conn(&self) -> Result<ConnectionManager, DomainError> {
+    //     self.redis_conn_manager.clone().ok_or_else(|| {
+    //         DomainError::new_internal_error(
+    //             "Redis connection not initialized".to_owned(),
+    //         )
+    //     })
+    // }
 }
 
 pub fn configure_app(

@@ -49,7 +49,11 @@ pub async fn handle_subscribe_job(
     let job_id = job.job_id;
     let chan_name = redis_prefix(&format!("job.{job_id}"));
     let _ = tracing::info!("Subscribing to Redis channel {chan_name}...");
-    let mut ps = utils::get_pubsub(app_data).await?;
+    let mut ps = app_data
+        .redis_conn_factory
+        .clone()
+        .get_async_pubsub()
+        .await?;
     let _ = ps.subscribe(&chan_name).await?;
     let _ =
         tracing::info!("Successfully subscribed to Redis channel {chan_name}.");

@@ -54,9 +54,7 @@ pub fn initialize_rate_limit_backend(
     if app_data.config.rate_limit.disable {
         utils::RateLimitBackend::Noop
     } else {
-        let redis_cm = app_data
-            .get_redis_conn()
-            .expect("Redis connection required for rate limiting");
+        let redis_cm = app_data.redis_conn_manager.clone();
         utils::RateLimitBackend::Redis(RedisBackend::builder(redis_cm).build())
     }
 }
