@@ -1,7 +1,10 @@
 #![forbid(unsafe_code)]
 #![allow(clippy::let_unit_value)]
 
+use std::time::SystemTime;
+
 use actix_demo::actions::misc::create_database_if_needed;
+use actix_demo::health::create_health_checkers;
 use actix_demo::models::rate_limit::{
     KeyStrategy, RateLimitConfig, RateLimitPolicy,
 };
@@ -20,6 +23,7 @@ use diesel::r2d2::ConnectionManager;
 use diesel_migrations::{FileBasedMigrations, MigrationHarness};
 use diesel_tracing::pg::InstrumentedPgConnection;
 use jwt_simple::prelude::HS256Key;
+use reqwest::Client;
 use tokio::task::JoinHandle;
 use tracing::subscriber::set_global_default;
 use tracing_appender::non_blocking::WorkerGuard;
@@ -30,6 +34,7 @@ use tracing_subscriber::{layer::SubscriberExt, EnvFilter, Registry};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
+    let start_time = SystemTime::now();
     let _ = dotenvy::dotenv().context("Failed to set up env")?;
 
     let env_config = envy::prefixed("ACTIX_DEMO_")
@@ -37,8 +42,10 @@ async fn main() -> anyhow::Result<()> {
         .context("Failed to parse config")?;
 
     //bind guard to variable instead of _
-    let _guard =
-        setup_logger(env_config.logger_format.clone(), env_config.loki_url)?;
+    let _guard = setup_logger(
+        env_config.logger_format.clone(),
+        env_config.loki_url.clone(),
+    )?;
 
     // tracing::error!("config: {:?}", env_config);
 
@@ -116,6 +123,10 @@ async fn main() -> anyhow::Result<()> {
             max_requests: env_config.rate_limit_api_max_requests,
             window_secs: env_config.rate_limit_api_window_secs,
         },
+        api_public: RateLimitPolicy {
+            max_requests: env_config.rate_limit_api_public_max_requests,
+            window_secs: env_config.rate_limit_api_public_window_secs,
+        },
         disable: env_config.rate_limit_disable,
     };
 
@@ -151,23 +162,41 @@ async fn main() -> anyhow::Result<()> {
         .await
     };
 
+    let http_client = Client::builder()
+        .timeout(std::time::Duration::from_secs(
+            env_config.health_check_timeout_secs.into(),
+        ))
+        .build()
+        .context("Failed to create HTTP client")?;
+
+    let health_checkers = create_health_checkers(
+        pool.clone(),
+        cm.clone(),
+        env_config.loki_url.clone(),
+        env_config.prometheus_url.clone(),
+        http_client,
+    );
+
     let app_data = Data::new(AppData {
+        start_time,
         config: AppConfig {
             hash_cost: env_config.hash_cost,
             job_bin_path: env_config.job_bin_path,
             rate_limit: rate_limit_config,
             session: session_config,
+            health_check_timeout_secs: env_config.health_check_timeout_secs,
         },
         pool,
         credentials_repo,
         jwt_key,
-        redis_conn_factory: Some(client.clone()),
-        redis_conn_manager: Some(cm.clone()),
+        redis_conn_factory: client.clone(),
+        redis_conn_manager: cm.clone(),
         redis_prefix,
         sessions_cleanup_worker_handle: Some(sessions_cleanup_worker_handle),
         metrics,
         prometheus,
         user_ids_cache,
+        health_checkers,
     });
 
     let _app =

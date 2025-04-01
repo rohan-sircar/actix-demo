@@ -48,7 +48,7 @@ pub async fn handle_run_command(
     payload: web::Json<RunCommandRequest>,
 ) -> Result<HttpResponse, DomainError> {
     tracing::info!("Starting new command execution job");
-    let mut conn = app_data.get_redis_conn()?;
+    let mut conn = app_data.redis_conn_manager.clone();
     // Health check publish to verify Redis connection
     let () = conn.publish("hc", "hc").await?;
 
@@ -105,7 +105,7 @@ pub async fn handle_run_command(
             let aborter: Task<()> = actix_rt::spawn(
                 async move {
                     // Initialize pubsub connection
-                    let mut ps = utils::get_pubsub(app_data.into_inner()).await.map_err(|err| {
+                    let mut ps = app_data.redis_conn_factory.clone().get_async_pubsub().await.map_err(|err| {
                         DomainError::new_internal_error(format!(
                             "Failed to initialize pubsub connection: {err}"
                         ))
@@ -356,7 +356,7 @@ pub async fn handle_abort_job(
     let user_id = utils::extract_user_id_from_header(req.headers())?;
 
     // Get a Redis connection from the app_data.
-    let mut conn = app_data.get_redis_conn()?;
+    let mut conn = app_data.redis_conn_manager.clone();
 
     // Parse the job ID from the path parameter as a UUID.
     let job_id = Uuid::parse_str(&job_id.into_inner()).map_err(|err| {

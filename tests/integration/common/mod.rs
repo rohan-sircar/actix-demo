@@ -35,6 +35,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
 use std::os::unix::prelude::OpenOptionsExt;
+use std::time::SystemTime;
 use testcontainers_modules::postgres::{self, Postgres};
 use testcontainers_modules::redis::{Redis, REDIS_PORT};
 use testcontainers_modules::testcontainers::runners::AsyncRunner;
@@ -204,6 +205,10 @@ pub fn create_rate_limit_config(options: TestAppOptions) -> RateLimitConfig {
         key_strategy: KeyStrategy::Random,
         auth: options.auth_rate_limit,
         api: options.api_rate_limit,
+        api_public: RateLimitPolicy {
+            max_requests: 15,
+            window_secs: 60,
+        },
         disable: options.rate_limit_disabled,
     }
 }
@@ -213,6 +218,7 @@ pub async fn app_data(
     redis_connstr: &str,
     options: TestAppOptions,
 ) -> anyhow::Result<web::Data<AppData>> {
+    let start_time = SystemTime::now();
     let _ = Lazy::force(&TRACING).as_ref().unwrap();
 
     let _ = Lazy::force(&CREATE_BIN_FILES).as_ref().unwrap();
@@ -222,6 +228,7 @@ pub async fn app_data(
         job_bin_path: options.bin_file.location.clone(),
         rate_limit: create_rate_limit_config(options.clone()),
         session: options.session_config.clone(),
+        health_check_timeout_secs: 10,
     };
 
     let client = redis::Client::open(redis_connstr)
@@ -299,17 +306,19 @@ pub async fn app_data(
     let key = HS256Key::from_bytes("test".as_bytes());
 
     let data = Data::new(AppData {
+        start_time,
         config,
         pool,
         credentials_repo,
         jwt_key: key,
-        redis_conn_factory: Some(client.clone()),
-        redis_conn_manager: Some(cm.clone()),
+        redis_conn_factory: client.clone(),
+        redis_conn_manager: cm.clone(),
         redis_prefix,
         sessions_cleanup_worker_handle: None,
         metrics,
         prometheus,
         user_ids_cache,
+        health_checkers: Vec::new(),
     });
     Ok(data)
 }

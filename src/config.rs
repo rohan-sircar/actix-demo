@@ -5,6 +5,7 @@ use serde::Deserialize;
 pub struct EnvConfig {
     // system
     pub loki_url: url::Url,
+    pub prometheus_url: url::Url,
     pub database_url: String,
     pub http_host: String,
     #[serde(default = "models::defaults::default_hash_cost")]
@@ -24,6 +25,14 @@ pub struct EnvConfig {
     pub rate_limit_api_max_requests: u32,
     #[serde(default = "models::defaults::default_rate_limit_api_window_secs")]
     pub rate_limit_api_window_secs: u64,
+    #[serde(
+        default = "models::defaults::default_rate_limit_api_public_max_requests"
+    )]
+    pub rate_limit_api_public_max_requests: u32,
+    #[serde(
+        default = "models::defaults::default_rate_limit_api_public_window_secs"
+    )]
+    pub rate_limit_api_public_window_secs: u64,
     pub rate_limit_disable: bool,
     // session
     #[serde(default = "models::defaults::default_session_expiration_secs")]
@@ -57,4 +66,6 @@ pub struct EnvConfig {
     pub worker_max_elapsed_time_secs: u64,
     #[serde(default = "models::defaults::default_worker_run_interval_secs")]
     pub worker_run_interval_secs: u8,
+    #[serde(default = "models::defaults::default_health_check_timeout_secs")]
+    pub health_check_timeout_secs: u8,
 }

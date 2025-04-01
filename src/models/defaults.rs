@@ -18,6 +18,14 @@ pub fn default_rate_limit_api_window_secs() -> u64 {
     60
 }
 
+pub fn default_rate_limit_api_public_max_requests() -> u32 {
+    15
+}
+
+pub fn default_rate_limit_api_public_window_secs() -> u64 {
+    60
+}
+
 pub fn default_session_expiration_secs() -> u64 {
     86400
 }
@@ -59,5 +67,9 @@ pub fn default_worker_max_elapsed_time_secs() -> u64 {
 }
 
 pub fn default_worker_run_interval_secs() -> u8 {
+    10
+}
+
+pub fn default_health_check_timeout_secs() -> u8 {
     10
 }

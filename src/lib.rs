@@ -13,6 +13,7 @@ pub mod actions;
 pub mod errors;
 // mod middlewares;
 pub mod config;
+pub mod health;
 pub mod metrics;
 pub mod models;
 mod rate_limit;
@@ -24,15 +25,18 @@ pub mod types;
 pub mod utils;
 pub mod workers;
 
+use std::time::SystemTime;
+
 use actix_web_prom::PrometheusMetrics;
 
 use actix_web::middleware::from_fn;
 use actix_web::web::{Data, ServiceConfig};
 use actix_web::{middleware, web, App, HttpServer};
 use actix_web_grants::GrantsMiddleware;
-use errors::DomainError;
+use health::{HealthChecker, HealthcheckName};
 use jwt_simple::prelude::HS256Key;
-use models::rate_limit::RateLimitConfig;
+use metrics::Metrics;
+use models::rate_limit::{RateLimitConfig, RateLimitPolicy};
 use models::session::SessionConfig;
 use models::users::UserId;
 use redis::aio::ConnectionManager;
@@ -60,30 +64,33 @@ pub struct AppConfig {
     pub job_bin_path: String,
     pub rate_limit: RateLimitConfig,
     pub session: SessionConfig,
+    pub health_check_timeout_secs: u8,
 }
 
 pub struct AppData {
+    pub start_time: SystemTime,
     pub config: AppConfig,
     pub pool: DbPool,
     pub credentials_repo: RedisCredentialsRepo,
     pub jwt_key: HS256Key,
-    pub redis_conn_factory: Option<Client>,
-    pub redis_conn_manager: Option<ConnectionManager>,
+    pub redis_conn_factory: Client,
+    pub redis_conn_manager: ConnectionManager,
     pub redis_prefix: RedisPrefixFn,
     pub sessions_cleanup_worker_handle: Option<JoinHandle<()>>,
-    pub metrics: metrics::Metrics,
+    pub metrics: Metrics,
     pub prometheus: PrometheusMetrics,
     pub user_ids_cache: InstrumentedRedisCache<String, Vec<UserId>>,
+    pub health_checkers: Vec<(HealthcheckName, HealthChecker)>,
 }
 
 impl AppData {
-    pub fn get_redis_conn(&self) -> Result<ConnectionManager, DomainError> {
-        self.redis_conn_manager.clone().ok_or_else(|| {
-            DomainError::new_internal_error(
-                "Redis connection not initialized".to_owned(),
-            )
-        })
-    }
+    // pub fn get_redis_conn(&self) -> Result<ConnectionManager, DomainError> {
+    //     self.redis_conn_manager.clone().ok_or_else(|| {
+    //         DomainError::new_internal_error(
+    //             "Redis connection not initialized".to_owned(),
+    //         )
+    //     })
+    // }
 }
 
 pub fn configure_app(
@@ -91,13 +98,40 @@ pub fn configure_app(
 ) -> Box<dyn Fn(&mut ServiceConfig)> {
     Box::new(move |cfg: &mut ServiceConfig| {
         // Configure rate limiter for login endpoint
-        let login_limiter = rate_limit::create_login_rate_limiter(&app_data);
+        let login_limiter = {
+            let backend = rate_limit::initialize_rate_limit_backend(&app_data);
+            rate_limit::create_login_rate_limiter(
+                &app_data.config.rate_limit,
+                backend,
+            )
+        };
 
         // Configure rate limiter for other endpoints
-        let api_rate_limiter =
-            || rate_limit::create_api_rate_limiter(&app_data);
+        let api_rate_limiter = |policy: &RateLimitPolicy| {
+            let backend = rate_limit::initialize_rate_limit_backend(&app_data);
+            rate_limit::create_api_rate_limiter(
+                &app_data.config.rate_limit.key_strategy,
+                policy,
+                backend,
+            )
+        };
+
+        let in_memory_rate_limiter = {
+            let backend = rate_limit::initialize_hc_backend(
+                !app_data.health_checkers.is_empty(),
+            );
+            rate_limit::create_hc_rate_limiter(
+                &app_data.config.rate_limit,
+                backend,
+            )
+        };
 
         cfg.app_data(app_data.clone())
+            .service(
+                web::scope("/hc")
+                    .wrap(in_memory_rate_limiter)
+                    .route("", web::get().to(routes::healthcheck::healthcheck)),
+            )
             .service(
                 web::resource("/api/login")
                     .wrap(login_limiter.clone())
@@ -105,22 +139,30 @@ pub fn configure_app(
             )
             .service(
                 web::resource("/api/logout")
-                    .wrap(api_rate_limiter())
+                    .wrap(api_rate_limiter(
+                        &app_data.config.rate_limit.api_public,
+                    ))
                     .route(web::post().to(routes::auth::logout)),
             )
             .service(
                 web::resource("/api/registration")
-                    .wrap(api_rate_limiter())
+                    .wrap(api_rate_limiter(
+                        &app_data.config.rate_limit.api_public,
+                    ))
                     .route(web::post().to(routes::users::add_user)),
             )
             .service(
                 web::scope("/ws")
-                    .wrap(api_rate_limiter())
+                    .wrap(api_rate_limiter(
+                        &app_data.config.rate_limit.api_public,
+                    ))
                     .route("", web::get().to(routes::ws::ws)),
             )
             .service(
                 web::scope("/api/public")
-                    .wrap(api_rate_limiter())
+                    .wrap(api_rate_limiter(
+                        &app_data.config.rate_limit.api_public,
+                    ))
                     .route(
                         "/build-info",
                         web::get().to(routes::misc::build_info_req),
@@ -132,7 +174,7 @@ pub fn configure_app(
             )
             .service(
                 web::scope("/api")
-                    .wrap(api_rate_limiter())
+                    .wrap(api_rate_limiter(&app_data.config.rate_limit.api))
                     .wrap(GrantsMiddleware::with_extractor(
                         routes::auth::extract,
                     ))

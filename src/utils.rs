@@ -14,7 +14,6 @@ use actix_http::header::HeaderMap;
 use jwt_simple::claims::JWTClaims;
 use jwt_simple::prelude::*;
 use redis::aio::ConnectionManager;
-use redis::aio::PubSub;
 use serde::Serialize;
 
 use crate::errors::DomainError;
@@ -32,19 +31,10 @@ pub use self::ws::{msg_receive_loop, ws_loop};
 mod cookie_auth;
 pub use cookie_auth::{cookie_auth, extract_auth_token, CookieAuth};
 
-pub async fn get_pubsub(app_data: Arc<AppData>) -> Result<PubSub, DomainError> {
-    let client = app_data.redis_conn_factory.clone().ok_or_else(|| {
-        DomainError::new_uninitialized_error("redis not initialized".to_owned())
-    })?;
-    Ok(client.get_async_pubsub().await?)
-}
-
 pub async fn get_new_redis_conn(
     app_data: Arc<AppData>,
 ) -> Result<ConnectionManager, DomainError> {
-    let client = app_data.redis_conn_factory.clone().ok_or_else(|| {
-        DomainError::new_uninitialized_error("redis not initialized".to_owned())
-    })?;
+    let client = app_data.redis_conn_factory.clone();
     Ok(ConnectionManager::new(client).await?)
 }
 
