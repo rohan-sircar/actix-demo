@@ -112,7 +112,7 @@ pub fn configure_app(
             let backend = rate_limit::initialize_rate_limit_backend(&app_data);
             rate_limit::create_api_rate_limiter(
                 &app_data.config.rate_limit.key_strategy,
-                &policy,
+                policy,
                 backend,
             )
         };
