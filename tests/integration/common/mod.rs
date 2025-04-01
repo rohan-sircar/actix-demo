@@ -205,6 +205,10 @@ pub fn create_rate_limit_config(options: TestAppOptions) -> RateLimitConfig {
         key_strategy: KeyStrategy::Random,
         auth: options.auth_rate_limit,
         api: options.api_rate_limit,
+        api_public: RateLimitPolicy {
+            max_requests: 15,
+            window_secs: 60,
+        },
         disable: options.rate_limit_disabled,
     }
 }

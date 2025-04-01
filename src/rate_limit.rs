@@ -137,8 +137,8 @@ pub fn create_in_memory_rate_limiter(
     ) -> std::future::Ready<Result<SimpleInput, actix_web::Error>>,
 > {
     let input_fn_builder = SimpleInputFunctionBuilder::new(
-        Duration::from_secs(app_data.config.rate_limit.api.window_secs),
-        app_data.config.rate_limit.api.max_requests.into(),
+        Duration::from_secs(app_data.config.rate_limit.api_public.window_secs),
+        app_data.config.rate_limit.api_public.max_requests.into(),
     );
     let input_fn = build_input_function(app_data, input_fn_builder).build();
 

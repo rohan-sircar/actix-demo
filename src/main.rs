@@ -123,6 +123,10 @@ async fn main() -> anyhow::Result<()> {
             max_requests: env_config.rate_limit_api_max_requests,
             window_secs: env_config.rate_limit_api_window_secs,
         },
+        api_public: RateLimitPolicy {
+            max_requests: env_config.rate_limit_api_public_max_requests,
+            window_secs: env_config.rate_limit_api_public_window_secs,
+        },
         disable: env_config.rate_limit_disable,
     };
 

@@ -18,6 +18,14 @@ pub fn default_rate_limit_api_window_secs() -> u64 {
     60
 }
 
+pub fn default_rate_limit_api_public_max_requests() -> u32 {
+    15
+}
+
+pub fn default_rate_limit_api_public_window_secs() -> u64 {
+    60
+}
+
 pub fn default_session_expiration_secs() -> u64 {
     86400
 }
