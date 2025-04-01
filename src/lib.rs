@@ -83,16 +83,6 @@ pub struct AppData {
     pub health_checkers: Vec<(HealthcheckName, HealthChecker)>,
 }
 
-impl AppData {
-    // pub fn get_redis_conn(&self) -> Result<ConnectionManager, DomainError> {
-    //     self.redis_conn_manager.clone().ok_or_else(|| {
-    //         DomainError::new_internal_error(
-    //             "Redis connection not initialized".to_owned(),
-    //         )
-    //     })
-    // }
-}
-
 pub fn configure_app(
     app_data: Data<AppData>,
 ) -> Box<dyn Fn(&mut ServiceConfig)> {
