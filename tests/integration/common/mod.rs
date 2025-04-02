@@ -550,9 +550,8 @@ pub fn assert_rate_limit_headers(headers: &HeaderMap) {
     );
 }
 pub struct TestContext {
-    pub username: String,
-    pub password: String,
     pub addr: String,
+    pub token: String,
     pub client: Client,
     pub _pg: ContainerAsync<Postgres>,
     pub _redis: ContainerAsync<Redis>,
@@ -578,18 +577,15 @@ impl TestContext {
 
         let addr = test_server.addr().to_string();
         let client = Client::new();
-        let username = Uuid::new_v4().to_string();
-        let password = "password".to_string();
 
-        create_http_user(&addr, &username, &password, &client)
+        let token = get_http_token(&addr, DEFAULT_USER, DEFAULT_USER, &client)
             .await
             .unwrap();
 
         Self {
             addr,
+            token,
             client,
-            username,
-            password,
             _pg,
             _redis,
             _minio,
@@ -598,14 +594,14 @@ impl TestContext {
         }
     }
 
-    pub async fn create_tokens(&mut self, count: usize) -> Vec<String> {
+    pub async fn create_tokens(&self, count: usize) -> Vec<String> {
         let mut tokens = Vec::new();
 
         for _ in 0..count {
             let token = get_http_token(
                 &self.addr,
-                &self.username,
-                &self.password,
+                DEFAULT_USER,
+                DEFAULT_USER,
                 &self.client,
             )
             .await

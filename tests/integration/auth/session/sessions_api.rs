@@ -8,11 +8,11 @@ mod tests {
         #[actix_rt::test]
         async fn should_work() {
             let sessions_count = 50;
-            let mut ctx = common::TestContext::new(Some(
+            let ctx = common::TestContext::new(Some(
                 TestAppOptionsBuilder::default()
                     .session_config(
                         SessionConfigBuilder::default()
-                            .max_concurrent_sessions(sessions_count)
+                            .max_concurrent_sessions(sessions_count + 1)
                             .build()
                             .unwrap(),
                     )
@@ -20,7 +20,7 @@ mod tests {
                     .unwrap(),
             ))
             .await;
-            let tokens = ctx.create_tokens(sessions_count).await;
+            let tokens = ctx.create_tokens(sessions_count - 1).await;
 
             // Get initial sessions list
             let sessions = ctx.get_sessions(&tokens[0]).await;

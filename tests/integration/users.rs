@@ -13,35 +13,31 @@ mod tests {
 
         use actix_demo::models::{roles::RoleEnum, users::UserWithRoles};
 
-        use crate::common::TestAppOptions;
+        use crate::common::{TestAppOptions, TestContext};
 
         use super::*;
 
-        #[tokio::test]
+        #[actix_rt::test]
         async fn should_return_a_user() {
-            let (pg_connstr, _pg) = common::test_with_postgres().await.unwrap();
-            let (redis_connstr, _redis) =
-                common::test_with_redis().await.unwrap();
-            let (minio_connstr, _minio) =
-                common::test_with_minio().await.unwrap();
-
-            let test_app = common::test_app(
-                &pg_connstr,
-                &redis_connstr,
-                &minio_connstr,
-                TestAppOptions::default(),
+            let ctx = TestContext::new(None).await;
+            let _ = common::create_http_user(
+                &ctx.addr,
+                "user1",
+                "test",
+                &ctx.client,
             )
-            .await
-            .unwrap();
-            let token = common::get_default_token(&test_app).await;
-            let _ = common::create_user("user1", "test", &test_app).await;
-            let req = test::TestRequest::get()
-                .uri("/api/public/users?page=0&limit=2")
-                .with_token(&token)
-                .to_request();
-            let resp = test_app.call(req).await.unwrap();
+            .await;
+
+            let mut resp = ctx
+                .test_server
+                .get("/api/public/users?page=0&limit=2")
+                // .with_token(&token)
+                .send()
+                .await
+                .unwrap();
+
             assert_eq!(resp.status(), StatusCode::OK);
-            let body: Vec<UserWithRoles> = test::read_body_json(resp).await;
+            let body: Vec<UserWithRoles> = resp.json().await.unwrap();
             let user = body.first().unwrap();
             assert_eq!(user.id.as_uint(), 1);
             assert_eq!(user.username.as_str(), "admin");
@@ -53,77 +49,57 @@ mod tests {
         }
 
         // add test for pagination
-        #[tokio::test]
+        #[actix_rt::test]
         async fn should_return_a_user_with_pagination() {
-            let (pg_connstr, _pg) = common::test_with_postgres().await.unwrap();
-            let (redis_connstr, _redis) =
-                common::test_with_redis().await.unwrap();
-            let (minio_connstr, _minio) =
-                common::test_with_minio().await.unwrap();
+            let ctx = TestContext::new(None).await;
 
-            let test_app = common::test_app(
-                &pg_connstr,
-                &redis_connstr,
-                &minio_connstr,
-                TestAppOptions::default(),
-            )
-            .await
-            .unwrap();
-            let token = common::get_default_token(&test_app).await;
             // create 10 users
             for i in 0..10 {
-                let _ = common::create_user(
+                let _ = common::create_http_user(
+                    &ctx.addr,
                     &format!("user{}", i),
                     "test",
-                    &test_app,
+                    &ctx.client,
                 )
                 .await;
             }
-            let req = test::TestRequest::get()
-                .uri("/api/public/users?page=0&limit=10")
-                .with_token(&token)
-                .to_request();
-            let resp = test_app.call(req).await.unwrap();
 
-            // assert size of response is 10
+            // First page with 10 users
+            let mut resp = ctx
+                .test_server
+                .get("/api/public/users?page=0&limit=10")
+                .send()
+                .await
+                .unwrap();
             assert_eq!(resp.status(), StatusCode::OK);
-            let body: Vec<UserWithRoles> = test::read_body_json(resp).await;
+            let body: Vec<UserWithRoles> = resp.json().await.unwrap();
             assert_eq!(body.len(), 10);
 
-            let req = test::TestRequest::get()
-                .uri("/api/public/users?page=1&limit=10")
-                .with_token(&token)
-                .to_request();
-            let resp = test_app.call(req).await.unwrap();
-            // assert size of page 1 is 1
+            // Second page with > 1 user
+            let mut resp = ctx
+                .test_server
+                .get("/api/public/users?page=1&limit=10")
+                .send()
+                .await
+                .unwrap();
             assert_eq!(resp.status(), StatusCode::OK);
-            let body: Vec<UserWithRoles> = test::read_body_json(resp).await;
+            let body: Vec<UserWithRoles> = resp.json().await.unwrap();
             assert_eq!(body.len(), 1);
         }
 
         #[actix_rt::test]
         async fn should_return_error_message_if_user_with_id_does_not_exist() {
-            let (pg_connstr, _pg) = common::test_with_postgres().await.unwrap();
-            let (redis_connstr, _redis) =
-                common::test_with_redis().await.unwrap();
-            let (minio_connstr, _minio) =
-                common::test_with_minio().await.unwrap();
-            let test_app = common::test_app(
-                &pg_connstr,
-                &redis_connstr,
-                &minio_connstr,
-                TestAppOptions::default(),
-            )
-            .await
-            .unwrap();
-            let token = common::get_default_token(&test_app).await;
-            let req = test::TestRequest::get()
-                .uri("/api/public/users/55")
-                .with_token(&token)
-                .to_request();
-            let resp = test_app.call(req).await.unwrap();
+            let ctx = TestContext::new(None).await;
+
+            let mut resp = ctx
+                .test_server
+                .get("/api/public/users/55")
+                .send()
+                .await
+                .unwrap();
+
             assert_eq!(resp.status(), StatusCode::NOT_FOUND);
-            let body: ErrorResponse<String> = test::read_body_json(resp).await;
+            let body: ErrorResponse<String> = resp.json().await.unwrap();
             let _ = tracing::debug!("{:?}", body);
             assert_eq!(
                 &body.cause,
