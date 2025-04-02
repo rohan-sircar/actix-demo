@@ -30,8 +30,8 @@ mod tests {
             device_name: &str,
         ) -> (StatusCode, Option<String>) {
             let resp = ctx
-                .client
-                .post(format!("http://{}/api/login", ctx.addr))
+                ._test_server
+                .post("/api/login")
                 .append_header((header::CONTENT_TYPE, "application/json"))
                 .send_json(&serde_json::json!({
                     "username": ctx.username,

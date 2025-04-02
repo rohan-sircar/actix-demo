@@ -135,8 +135,8 @@ mod tests {
         password: &str,
     ) -> (StatusCode, header::HeaderMap) {
         let resp = ctx
-            .client
-            .post(format!("http://{}/api/login", ctx.addr))
+            ._test_server
+            .post("/api/login")
             .append_header((header::CONTENT_TYPE, "application/json"))
             .send_json(&serde_json::json!({
                 "username": username,
@@ -156,8 +156,8 @@ mod tests {
         token: &str,
     ) -> StatusCode {
         let resp = ctx
-            .client
-            .get(format!("http://{}/api/users?page=0&limit=5", ctx.addr))
+            ._test_server
+            .get("/api/users?page=0&limit=5")
             .with_token(token)
             .send()
             .await

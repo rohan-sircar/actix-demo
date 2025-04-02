@@ -41,8 +41,8 @@ mod tests {
 
             // Verify expiration
             let resp = ctx
-                .client
-                .get(format!("http://{}/api/users?page=0&limit=5", ctx.addr))
+                ._test_server
+                .get("/api/users?page=0&limit=5")
                 .with_token(&token)
                 .send()
                 .await
@@ -140,8 +140,8 @@ mod tests {
 
             // Verify token has expired
             let resp = ctx
-                .client
-                .get(format!("http://{}/api/users?page=0&limit=5", ctx.addr))
+                ._test_server
+                .get("/api/users?page=0&limit=5")
                 .with_token(&token)
                 .send()
                 .await
@@ -177,8 +177,8 @@ mod tests {
 
     async fn test_request(ctx: &TestContext, token: &str) -> HeaderMap {
         let resp = ctx
-            .client
-            .get(format!("http://{}/api/users?page=0&limit=5", ctx.addr))
+            ._test_server
+            .get("/api/users?page=0&limit=5")
             .with_token(token)
             .send()
             .await
