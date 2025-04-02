@@ -1,5 +1,4 @@
-use actix_web::{error::PayloadError, web, HttpRequest, HttpResponse};
-use mime::Mime;
+use actix_web::{web, HttpRequest, HttpResponse};
 use std::convert::From;
 
 use crate::models::misc::{Pagination, SearchQuery};
@@ -7,7 +6,6 @@ use crate::models::users::{NewUser, UserId};
 use crate::{actions, utils};
 use crate::{errors::DomainError, AppData};
 use futures::StreamExt;
-use infer;
 
 /// Finds user by UID.
 #[tracing::instrument(level = "info", skip(app_data))]
@@ -105,94 +103,40 @@ pub async fn add_user(
     Ok(HttpResponse::Created().json(user))
 }
 
-impl From<PayloadError> for DomainError {
-    fn from(err: PayloadError) -> Self {
-        DomainError::new_bad_input_error(format!("Payload error: {}", err))
-    }
-}
-
 /// Upload user avatar
 #[tracing::instrument(level = "info", skip_all)]
 pub async fn upload_user_avatar(
     app_data: web::Data<AppData>,
     req: HttpRequest,
-    mut payload: web::Payload,
+    payload: web::Payload,
 ) -> Result<HttpResponse, DomainError> {
     // Get user ID from header
     let user_id = utils::extract_user_id_from_header(req.headers())?;
 
-    // Validate content type
-    let content_type = req
-        .headers()
-        .get("content-type")
-        .ok_or_else(|| {
-            DomainError::new_bad_input_error(
-                "Missing content-type header".to_string(),
-            )
-        })?
-        .to_str()
-        .map_err(|err| {
-            DomainError::new_bad_input_error(format!(
-                "Invalid content-type header: {}",
-                err
-            ))
-        })?;
+    // Get and validate content type
+    let content_type =
+        utils::extract_header_value(req.headers(), "content-type")?;
 
-    let mime_type: Mime = content_type.parse().map_err(|err| {
-        DomainError::new_bad_input_error(format!("Invalid mime type: {}", err))
-    })?;
+    let _ = tracing::debug!("Received content type: {}", content_type);
 
-    // Validate allowed mime types
-    if !matches!(mime_type.type_(), mime::IMAGE) {
-        return Err(DomainError::new_bad_input_error(
-            "Only image files are allowed".to_string(),
-        ));
-    }
+    // Validate the image stream
+    let full_file = utils::validate_image_stream(
+        payload,
+        &content_type,
+        app_data.config.minio.max_avatar_size_bytes as usize,
+    )
+    .await?;
 
-    // Read and validate file content
-    let mut body = web::BytesMut::new();
-    while let Some(chunk) = payload.next().await {
-        let chunk = chunk?;
-        // Check size limit
-        if (body.len() + chunk.len())
-            > app_data.config.minio.max_avatar_size_bytes as usize
-        {
-            return Err(DomainError::FileSizeExceeded {
-                max_bytes: app_data.config.minio.max_avatar_size_bytes,
-            });
-        }
-        body.extend_from_slice(&chunk);
-    }
-
-    // Validate file content using infer
-    let mime_type_from_content = infer::get(&body).ok_or_else(|| {
-        DomainError::new_bad_input_error(
-            "Could not determine file type from content".to_string(),
-        )
-    })?;
-
-    if !matches!(
-        mime_type_from_content.mime_type(),
-        "image/jpeg" | "image/png" | "image/webp"
-    ) {
-        return Err(DomainError::InvalidMimeType {
-            detected: mime_type_from_content.mime_type().to_string(),
-        });
-    }
-
-    // Create object key
-    let file_extension = mime_type_from_content.extension();
-    let object_key =
-        format!("avatars/{}.{}", user_id.as_uint(), file_extension);
-
+    let object_key = format!("avatars/{user_id}");
     // Upload to MinIO
     let _ = app_data
         .minio
         .client
         .put_object()
         .bucket(&app_data.config.minio.bucket_name)
-        .key(format!("avatar/{user_id}"))
-        .body(body.freeze().into())
+        .key(&object_key)
+        .body(full_file.freeze().into())
+        .content_type(&content_type)
         .send()
         .await
         .map_err(|err| {
@@ -210,8 +154,6 @@ pub async fn get_user_avatar(
     app_data: web::Data<AppData>,
     user_id: web::Path<UserId>,
 ) -> Result<HttpResponse, DomainError> {
-    // for testing
-    // let user_id = UserId::from_str("1").unwrap();
     let user_id = user_id.into_inner();
     let _ = tracing::info!("Getting avatar for user {user_id}");
 
@@ -221,7 +163,7 @@ pub async fn get_user_avatar(
         .client
         .get_object()
         .bucket(&app_data.config.minio.bucket_name)
-        .key(format!("avatar/{user_id}"))
+        .key(format!("avatars/{user_id}"))
         .send()
         .await
         .map_err(|err| DomainError::new_internal_error(format!("{err:?}")))?;

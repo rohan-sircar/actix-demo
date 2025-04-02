@@ -165,7 +165,7 @@ pub fn configure_app(
                         web::get().to(routes::command::handle_get_job_metrics),
                     )
                     .route(
-                        "/avatar/{user_id}",
+                        "/avatars/{user_id}",
                         web::get().to(routes::users::get_user_avatar),
                     ),
             )

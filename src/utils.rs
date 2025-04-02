@@ -10,7 +10,11 @@ use std::fmt::Display;
 use std::str::FromStr;
 use std::sync::Arc;
 
+use actix_web::web;
+use mime::Mime;
+
 use actix_http::header::HeaderMap;
+use futures::StreamExt;
 use jwt_simple::claims::JWTClaims;
 use jwt_simple::prelude::*;
 use redis::aio::ConnectionManager;
@@ -73,26 +77,119 @@ pub fn get_claims(
         .map_err(|err| DomainError::anyhow_auth("Failed to verify token", err))
 }
 
-pub fn extract_user_id_from_header(
+/// Validates an image stream by checking its MIME type and size
+pub async fn validate_image_stream(
+    mut payload: actix_web::web::Payload,
+    content_type: &str,
+    max_size_bytes: usize,
+) -> Result<web::BytesMut, DomainError> {
+    const HEAD_CHUNK_SIZE: usize = 512;
+
+    // Parse and validate content type
+    let mime_type: Mime = content_type.parse().map_err(|err| {
+        DomainError::new_bad_input_error(format!("Invalid mime type: {}", err))
+    })?;
+
+    if !matches!(mime_type.type_(), mime::IMAGE) {
+        return Err(DomainError::new_bad_input_error(
+            "Only image files are allowed".to_string(),
+        ));
+    }
+
+    // Read initial chunk for type detection
+    let mut head_buffer = web::BytesMut::with_capacity(HEAD_CHUNK_SIZE);
+    let mut full_file = web::BytesMut::new();
+
+    while head_buffer.len() < HEAD_CHUNK_SIZE {
+        match payload.next().await {
+            Some(chunk_result) => {
+                let chunk = chunk_result?;
+                let needed = HEAD_CHUNK_SIZE - head_buffer.len();
+                if chunk.len() > needed {
+                    head_buffer.extend_from_slice(&chunk[..needed]);
+                    full_file.extend_from_slice(&chunk);
+                } else {
+                    head_buffer.extend_from_slice(&chunk);
+                    full_file.extend_from_slice(&chunk);
+                }
+            }
+            None => break,
+        }
+    }
+
+    // Validate file content using infer
+    let mime_type_from_content = infer::get(&head_buffer).ok_or_else(|| {
+        DomainError::new_bad_input_error(
+            "Could not determine file type from content".to_string(),
+        )
+    })?;
+
+    // Verify allowed image types
+    if !matches!(
+        mime_type_from_content.mime_type(),
+        "image/jpeg" | "image/png" | "image/webp"
+    ) {
+        return Err(DomainError::InvalidMimeType {
+            detected: mime_type_from_content.mime_type().to_string(),
+        });
+    }
+
+    // Verify Content-Type matches actual file type
+    if mime_type_from_content.mime_type() != mime_type.essence_str() {
+        return Err(DomainError::new_bad_input_error(format!(
+            "Content-Type {} does not match actual file type {}",
+            mime_type.essence_str(),
+            mime_type_from_content.mime_type()
+        )));
+    }
+
+    // Continue reading the rest of the payload
+    while let Some(chunk) = payload.next().await {
+        let chunk = chunk?;
+        // Check size limit
+        if (full_file.len() + chunk.len()) > max_size_bytes {
+            return Err(DomainError::FileSizeExceeded {
+                max_bytes: max_size_bytes as u64,
+            });
+        }
+        full_file.extend_from_slice(&chunk);
+    }
+
+    Ok(full_file)
+}
+
+/// Extracts a header value as a String from the headers map
+pub fn extract_header_value(
     headers: &HeaderMap,
-) -> Result<UserId, DomainError> {
+    header_name: &str,
+) -> Result<String, DomainError> {
     headers
-        .get("x-auth-user")
+        .get(header_name)
         .ok_or_else(|| {
-            DomainError::new_auth_error("Missing x-auth-user header".to_owned())
+            DomainError::new_bad_input_error(format!(
+                "Missing {} header",
+                header_name
+            ))
         })
         .and_then(|hv| {
             hv.to_str().map_err(|err| {
                 DomainError::new_bad_input_error(format!(
-                    "x-auth-user header is not a valid UTF-8 string: {err}"
+                    "{} header is not a valid UTF-8 string: {}",
+                    header_name, err
                 ))
             })
         })
-        .and_then(|str| {
-            UserId::from_str(str).map_err(|err| {
-                DomainError::new_bad_input_error(format!(
-                    "Invalid UserId format in x-auth-user header: {err}"
-                ))
-            })
+        .map(|s| s.to_string())
+}
+
+pub fn extract_user_id_from_header(
+    headers: &HeaderMap,
+) -> Result<UserId, DomainError> {
+    extract_header_value(headers, "x-auth-user").and_then(|str| {
+        UserId::from_str(&str).map_err(|err| {
+            DomainError::new_bad_input_error(format!(
+                "Invalid UserId format in x-auth-user header: {err}"
+            ))
         })
+    })
 }

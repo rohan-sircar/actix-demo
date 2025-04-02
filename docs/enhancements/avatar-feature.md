@@ -135,7 +135,7 @@ also add env vars to `src/config.rs`
    1. [x] Create minio client in main.rs using env config values and add the instance to app_data
 5. [x] Add Error types to errors.rs
 6. [x] Create avatar upload endpoint in routes/users.rs
-   1. [ ] Add magic number check for image types
+   1. [x] Add magic number check for image types
 7. [x] Create avatar get endpoint in routes/users.rs
 
 ### Testing Plan
