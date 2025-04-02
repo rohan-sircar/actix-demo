@@ -22,7 +22,7 @@ mod tests {
     async fn get_build_info_should_succeed() {
         let ctx = common::TestContext::new(None).await;
         let mut resp = ctx
-            ._test_server
+            .test_server
             .get("/api/public/build-info")
             .send()
             .await

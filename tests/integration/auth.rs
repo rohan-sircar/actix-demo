@@ -135,7 +135,7 @@ mod tests {
         password: &str,
     ) -> (StatusCode, header::HeaderMap) {
         let resp = ctx
-            ._test_server
+            .test_server
             .post("/api/login")
             .append_header((header::CONTENT_TYPE, "application/json"))
             .send_json(&serde_json::json!({
@@ -153,7 +153,7 @@ mod tests {
 
     async fn get_sessions(ctx: &TestContext, token: &str) -> StatusCode {
         let resp = ctx
-            ._test_server
+            .test_server
             .get("/api/sessions")
             .with_token(token)
             .send()

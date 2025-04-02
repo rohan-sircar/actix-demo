@@ -557,8 +557,7 @@ pub struct TestContext {
     pub _pg: ContainerAsync<Postgres>,
     pub _redis: ContainerAsync<Redis>,
     pub _minio: ContainerAsync<MinIO>,
-    pub _minio_connstr: String,
-    pub _test_server: TestServer,
+    pub test_server: TestServer,
     pub app_data: web::Data<AppData>,
 }
 
@@ -566,19 +565,18 @@ impl TestContext {
     pub async fn new(options: Option<TestAppOptions>) -> Self {
         let (pg_connstr, _pg) = test_with_postgres().await.unwrap();
         let (redis_connstr, _redis) = test_with_redis().await.unwrap();
-        let (_minio_connstr, _minio) = test_with_minio().await.unwrap();
+        let (minio_connstr, _minio) = test_with_minio().await.unwrap();
 
-        let (_test_server, app_data) = test_http_app(
+        let (test_server, app_data) = test_http_app(
             &pg_connstr,
             &redis_connstr,
-            &_minio_connstr,
-            options
-                .unwrap_or(TestAppOptionsBuilder::default().build().unwrap()),
+            &minio_connstr,
+            options.unwrap_or(TestAppOptions::default()),
         )
         .await
         .unwrap();
 
-        let addr = _test_server.addr().to_string();
+        let addr = test_server.addr().to_string();
         let client = Client::new();
         let username = Uuid::new_v4().to_string();
         let password = "password".to_string();
@@ -595,8 +593,7 @@ impl TestContext {
             _pg,
             _redis,
             _minio,
-            _minio_connstr,
-            _test_server,
+            test_server,
             app_data,
         }
     }
@@ -624,7 +621,7 @@ impl TestContext {
         token: &str,
     ) -> HashMap<Uuid, SessionInfo> {
         let mut resp = self
-            ._test_server
+            .test_server
             .get("/api/sessions")
             .with_token(token)
             .send()
@@ -637,7 +634,7 @@ impl TestContext {
 
     pub async fn delete_session(&self, session_id: Uuid, token: &str) {
         let resp = self
-            ._test_server
+            .test_server
             .delete(format!("/api/sessions/{}", session_id))
             .with_token(token)
             .send()
@@ -654,7 +651,7 @@ impl TestContext {
         token: &str,
     ) -> Vec<User> {
         let mut resp = self
-            ._test_server
+            .test_server
             .get(format!("/api/users?page={page}&limit={limit}"))
             .with_token(token)
             .send()
