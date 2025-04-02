@@ -151,6 +151,7 @@ pub fn configure_app(
                     ))
                     .route("", web::get().to(routes::ws::ws)),
             )
+            // public api
             .service(
                 web::scope("/api/public")
                     .wrap(api_rate_limiter(
@@ -167,8 +168,21 @@ pub fn configure_app(
                     .route(
                         "/avatars/{user_id}",
                         web::get().to(routes::users::get_user_avatar),
+                    )
+                    .service(
+                        web::scope("/users")
+                            .route("", web::get().to(routes::users::get_users))
+                            .route(
+                                "/search",
+                                web::get().to(routes::users::search_users),
+                            )
+                            .route(
+                                "/{user_id}",
+                                web::get().to(routes::users::get_user),
+                            ),
                     ),
             )
+            // authenticated api
             .service(
                 web::scope("/api")
                     .wrap(api_rate_limiter(&app_data.config.rate_limit.api))
@@ -193,23 +207,11 @@ pub fn configure_app(
                         "/cmd/{job_id}",
                         web::delete().to(routes::command::handle_abort_job),
                     )
-                    .service(
-                        web::scope("/users")
-                            .route(
-                                "/me/avatar",
-                                web::put()
-                                    .to(routes::users::upload_user_avatar),
-                            )
-                            .route("", web::get().to(routes::users::get_users))
-                            .route(
-                                "/search",
-                                web::get().to(routes::users::search_users),
-                            )
-                            .route(
-                                "/{user_id}",
-                                web::get().to(routes::users::get_user),
-                            ),
-                    )
+                    .service(web::scope("/avatars").route(
+                        "",
+                        web::put().to(routes::users::upload_user_avatar),
+                        // TODO DELETE endpoint
+                    ))
                     .service(
                         web::scope("/sessions")
                             .route(
@@ -217,7 +219,7 @@ pub fn configure_app(
                                 web::get().to(routes::auth::list_sessions),
                             )
                             .route(
-                                "/{token}",
+                                "/{session_id}",
                                 web::delete().to(routes::auth::revoke_session),
                             )
                             .route(

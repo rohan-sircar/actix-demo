@@ -1,5 +1,5 @@
+mod rate_limit;
 mod session;
-
 use crate::common::{self, TestAppOptionsBuilder, TestContext};
 
 #[cfg(test)]
@@ -114,14 +114,14 @@ mod tests {
         .unwrap();
 
         // Make valid request immediately
-        let status = get_users_with_token(&ctx, &token).await;
+        let status = get_sessions(&ctx, &token).await;
         assert_eq!(status, StatusCode::OK, "Expected 200 OK for valid token");
 
         // Wait for token expiration
         tokio::time::sleep(Duration::from_secs(3)).await;
 
         // Make request with expired token
-        let status = get_users_with_token(&ctx, &token).await;
+        let status = get_sessions(&ctx, &token).await;
         assert_eq!(
             status,
             StatusCode::UNAUTHORIZED,
@@ -151,13 +151,10 @@ mod tests {
         (status, headers)
     }
 
-    async fn get_users_with_token(
-        ctx: &TestContext,
-        token: &str,
-    ) -> StatusCode {
+    async fn get_sessions(ctx: &TestContext, token: &str) -> StatusCode {
         let resp = ctx
             ._test_server
-            .get("/api/users?page=0&limit=5")
+            .get("/api/sessions")
             .with_token(token)
             .send()
             .await

@@ -36,7 +36,7 @@ mod tests {
             let token = common::get_default_token(&test_app).await;
             let _ = common::create_user("user1", "test", &test_app).await;
             let req = test::TestRequest::get()
-                .uri("/api/users?page=0&limit=2")
+                .uri("/api/public/users?page=0&limit=2")
                 .with_token(&token)
                 .to_request();
             let resp = test_app.call(req).await.unwrap();
@@ -80,7 +80,7 @@ mod tests {
                 .await;
             }
             let req = test::TestRequest::get()
-                .uri("/api/users?page=0&limit=10")
+                .uri("/api/public/users?page=0&limit=10")
                 .with_token(&token)
                 .to_request();
             let resp = test_app.call(req).await.unwrap();
@@ -91,7 +91,7 @@ mod tests {
             assert_eq!(body.len(), 10);
 
             let req = test::TestRequest::get()
-                .uri("/api/users?page=1&limit=10")
+                .uri("/api/public/users?page=1&limit=10")
                 .with_token(&token)
                 .to_request();
             let resp = test_app.call(req).await.unwrap();
@@ -118,7 +118,7 @@ mod tests {
             .unwrap();
             let token = common::get_default_token(&test_app).await;
             let req = test::TestRequest::get()
-                .uri("/api/users/55")
+                .uri("/api/public/users/55")
                 .with_token(&token)
                 .to_request();
             let resp = test_app.call(req).await.unwrap();
@@ -129,124 +129,6 @@ mod tests {
                 &body.cause,
                 "Entity does not exist - No user found with uid: 55"
             );
-        }
-    }
-
-    mod rate_limiting {
-        use crate::common;
-
-        use super::*;
-        use actix_demo::models::rate_limit::RateLimitPolicy;
-        use actix_http::{header, StatusCode};
-        use anyhow::anyhow;
-        use awc::Client;
-        use std::time::Duration;
-
-        #[actix_rt::test]
-        async fn should_rate_limit_api_requests() {
-            let res: anyhow::Result<()> = async {
-                let (pg_connstr, _pg) = common::test_with_postgres().await?;
-                let (redis_connstr, _redis) = common::test_with_redis().await?;
-                let (minio_connstr, _minio) = common::test_with_minio().await.unwrap();
-
-                let options = common::TestAppOptionsBuilder::default()
-                .api_rate_limit(RateLimitPolicy {
-                    max_requests: 2,
-                    window_secs: 2
-                })
-                .rate_limit_disabled(false)
-                .build()
-                .unwrap();
-
-                let test_server = common::test_http_app(
-                    &pg_connstr,
-                    &redis_connstr,
-                    &minio_connstr,
-                    options
-                )
-                .await?;
-
-                let addr = test_server.0.addr().to_string();
-                let client = Client::new();
-
-                // Create test user and get token
-                let username = "testuser";
-                let password = "testpass";
-                common::create_http_user(&addr, username, password, &client).await?;
-                let token = common::get_http_token(&addr, username, password, &client).await?;
-
-                // Send 2 valid requests
-                for _ in 0..2 {
-                    let resp = client
-                        .get(format!("http://{addr}/api/users?page=0&limit=5"))
-                        .append_header((header::CONTENT_TYPE, "application/json"))
-                        .with_token(&token)
-                        .send()
-                        .await
-                        .map_err(|err| anyhow!("{err}"))?;
-
-                    assert_eq!(
-                        resp.status(),
-                        StatusCode::OK,
-                        "Expected 200 OK for valid API request"
-                    );
-
-                    let headers = resp.headers();
-                    println!("Response headers: {:?}", headers);
-
-                    common::assert_rate_limit_headers(headers);
-                }
-
-                // Send 3rd request which should be rate limited
-                let resp = client
-                    .get(format!("http://{addr}/api/users"))
-                    .append_header((header::CONTENT_TYPE, "application/json"))
-                    .with_token(&token)
-                    .send()
-                    .await
-                    .map_err(|err| anyhow!("{err}"))?;
-
-                let headers = resp.headers();
-                println!("Response headers: {:?}", headers);
-
-                common::assert_rate_limit_headers(headers);
-
-                assert_eq!(
-                    resp.status(),
-                    StatusCode::TOO_MANY_REQUESTS,
-                    "Expected 429 Too Many Requests after rate limit exceeded"
-                );
-
-                // Optional: Test rate limit expiration
-                // Sleep for window_secs + 1 seconds to allow rate limit window to expire
-                let _ = tokio::time::sleep(Duration::from_secs(3)).await;
-
-                // Try API request after window expiration
-                let resp = client
-                    .get(format!("http://{addr}/api/users?page=0&limit=5"))
-                    .append_header((header::CONTENT_TYPE, "application/json"))
-                    .with_token(&token)
-                    .send()
-                    .await
-                    .map_err(|err| anyhow!("{err}"))?;
-
-                assert_eq!(
-                    resp.status(),
-                    StatusCode::OK,
-                    "Expected successful API request after rate limit window expired"
-                );
-
-                let headers = resp.headers();
-                println!("Response headers: {:?}", headers);
-
-                common::assert_rate_limit_headers(headers);
-
-                Ok(())
-            }
-            .await;
-
-            tracing::info!("{res:?}");
-            res.unwrap();
         }
     }
 }
