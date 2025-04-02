@@ -391,26 +391,6 @@ pub async fn test_http_app(
     Ok((actix_test::start(test_app), data))
 }
 
-pub async fn create_user(
-    username: &str,
-    password: &str,
-    test_app: &impl Service<
-        Request,
-        Response = ServiceResponse<impl MessageBody>,
-        Error = AxError,
-    >,
-) -> String {
-    let req = test::TestRequest::post()
-        .append_header(("content-type", "application/json"))
-        .set_payload(format!(
-            r#"{{"username":"{username}","password":"{password}"}}"#
-        ))
-        .uri("/api/registration")
-        .to_request();
-    let _ = test_app.call(req).await.unwrap();
-    get_token(username, password, test_app).await
-}
-
 pub async fn get_token(
     username: &str,
     password: &str,
@@ -551,7 +531,7 @@ pub fn assert_rate_limit_headers(headers: &HeaderMap) {
 }
 pub struct TestContext {
     pub addr: String,
-    pub token: String,
+    pub _token: String,
     pub client: Client,
     pub _pg: ContainerAsync<Postgres>,
     pub _redis: ContainerAsync<Redis>,
@@ -578,13 +558,13 @@ impl TestContext {
         let addr = test_server.addr().to_string();
         let client = Client::new();
 
-        let token = get_http_token(&addr, DEFAULT_USER, DEFAULT_USER, &client)
+        let _token = get_http_token(&addr, DEFAULT_USER, DEFAULT_USER, &client)
             .await
             .unwrap();
 
         Self {
             addr,
-            token,
+            _token,
             client,
             _pg,
             _redis,

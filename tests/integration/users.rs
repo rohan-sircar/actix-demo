@@ -4,16 +4,13 @@ mod tests {
 
     use super::*;
     use actix_demo::models::misc::ErrorResponse;
-    use actix_web::dev::Service as _;
     use actix_web::http::StatusCode;
-    use actix_web::test;
-    use common::WithToken;
 
     mod get_users_api {
 
         use actix_demo::models::{roles::RoleEnum, users::UserWithRoles};
 
-        use crate::common::{TestAppOptions, TestContext};
+        use crate::common::TestContext;
 
         use super::*;
 

@@ -18,7 +18,7 @@ mod tests {
                 .build()
                 .unwrap();
 
-            let mut ctx = TestContext::new(Some(options)).await;
+            let ctx = TestContext::new(Some(options)).await;
             let token = ctx.create_tokens(1).await.remove(0);
 
             // Send 2 valid requests

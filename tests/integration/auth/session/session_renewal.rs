@@ -20,7 +20,7 @@ mod tests {
         async fn should_expire_without_renewal() {
             // Set up test infrastructure with short session expiration
             let options = super::create_test_app_options_with_short_sessions();
-            let mut ctx = TestContext::new(Some(options)).await;
+            let ctx = TestContext::new(Some(options)).await;
             let token = ctx.create_tokens(1).await.pop().unwrap();
 
             // Initial request and validation
@@ -58,7 +58,7 @@ mod tests {
         async fn should_extend_ttl_on_renewal() {
             // Set up test infrastructure with short session expiration
             let options = super::create_test_app_options_with_short_sessions();
-            let mut ctx = TestContext::new(Some(options)).await;
+            let ctx = TestContext::new(Some(options)).await;
             let token = ctx.create_tokens(1).await.pop().unwrap();
 
             // Initial request and validation
