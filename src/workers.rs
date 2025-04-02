@@ -19,6 +19,7 @@ pub async fn start_sessions_cleanup_worker(
     pool: DbPool,
 ) -> JoinHandle<()> {
     tokio::spawn(async move {
+        // TODO backoff is unmaintained, use a different crate
         let policy = backoff::ExponentialBackoffBuilder::new()
             .with_initial_interval(Duration::from_secs(
                 config.backoff.initial_interval_secs,
