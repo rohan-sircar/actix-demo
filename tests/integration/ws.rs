@@ -89,165 +89,131 @@ mod tests {
     #[ignore]
     #[actix_rt::test]
     async fn send_message_test() {
-        async {
-            let (pg_connstr, _pg) = common::test_with_postgres().await?;
-            let (redis_connstr, _redis) = common::test_with_redis().await?;
-            let (minio_connstr, _minio) =
-                common::test_with_minio().await.unwrap();
+        let ctx = common::TestContext::new(None).await;
+        let username = common::DEFAULT_USER;
+        let password = common::DEFAULT_USER;
+        let token =
+            common::get_http_token(&ctx.addr, username, password, &ctx.client)
+                .await
+                .unwrap();
 
-            let test_server = common::test_http_app(
-                &pg_connstr,
-                &redis_connstr,
-                &minio_connstr,
-                TestAppOptions::default(),
-            )
-            .await?;
+        let (_resp, mut ws) =
+            connect_ws(&ctx.addr, &token, &ctx.client).await.unwrap();
 
-            let addr = test_server.0.addr().to_string();
-            // tracing::info!("Addr: {addr}");
-            let client = Client::new();
-            // let resp = test_server.get("/users").send().await;
-            let username = common::DEFAULT_USER;
-            let password = common::DEFAULT_USER;
-            let token =
-                common::get_http_token(&addr, username, password, &client)
-                    .await?;
-            let (_resp, mut ws) = connect_ws(&addr, &token, &client).await?;
-
-            ws.send(ws_msg(&WsClientEvent::SendMessage {
-                receiver: UserId::from_str("1").unwrap(),
-                message: "hello".to_owned(),
-            }))
-            .await?;
-
-            let msg = ws_take_one(&mut ws).await?;
-
-            if let WsServerEvent::SentMessage {
-                id: _,
-                sender,
-                message,
-            } = msg
-            {
-                assert_eq!(sender.as_uint(), 1);
-                assert_eq!(&message, "hello");
-            } else {
-                panic!("error wrong message type");
-            };
-            Ok::<(), anyhow::Error>(())
-        }
+        ws.send(ws_msg(&WsClientEvent::SendMessage {
+            receiver: UserId::from_str("1").unwrap(),
+            message: "hello".to_owned(),
+        }))
         .await
-        .unwrap()
+        .unwrap();
+
+        let msg = ws_take_one(&mut ws).await.unwrap();
+
+        if let WsServerEvent::SentMessage {
+            id: _,
+            sender,
+            message,
+        } = msg
+        {
+            assert_eq!(sender.as_uint(), 1);
+            assert_eq!(&message, "hello");
+        } else {
+            panic!("error wrong message type");
+        };
     }
 
     #[ignore]
     #[actix_rt::test]
     async fn run_job_test() {
-        let res: anyhow::Result<()> = async {
-            let (pg_connstr, _pg) = common::test_with_postgres().await?;
-            let (redis_connstr, _redis) = common::test_with_redis().await?;
-            let (minio_connstr, _minio) = common::test_with_minio().await?;
-            let test_server = common::test_http_app(
-                &pg_connstr,
-                &redis_connstr,
-                &minio_connstr,
-                TestAppOptions::default(),
-            )
-            .await?;
-
-            let addr = test_server.0.addr().to_string();
-            let client = Client::new();
-            let username = common::DEFAULT_USER;
-            let password = common::DEFAULT_USER;
-            let token =
-                common::get_http_token(&addr, username, password, &client)
-                    .await?;
-            let jwt_key = HS256Key::from_bytes("test".as_bytes());
-
-            let claims = utils::get_claims(&jwt_key, &token)?;
-            let user_id = claims.custom.user_id;
-
-            let _ = tracing::info!("Connecting to WebSocket...");
-            let (_resp, mut ws) = connect_ws(&addr, &token, &client).await?;
-            let _ = tracing::info!("Successfully connected to WebSocket.");
-
-            let mut resp = client
-                .post(format!("http://{addr}/api/cmd"))
-                .append_header((header::CONTENT_TYPE, "application/json"))
-                .with_token(&token)
-                .send_body(r#"{"args":["arg1", "arg2"]}"#)
+        let ctx = common::TestContext::new(None).await;
+        let username = common::DEFAULT_USER;
+        let password = common::DEFAULT_USER;
+        let token =
+            common::get_http_token(&ctx.addr, username, password, &ctx.client)
                 .await
-                .map_err(|err| anyhow!("{err}"))?;
-            let job_resp = resp.json::<Job>().await?;
-            let job_id = job_resp.job_id;
-            assert_eq!(job_resp.started_by, user_id);
-            assert_eq!(job_resp.status, JobStatus::Pending);
+                .unwrap();
+        let jwt_key = HS256Key::from_bytes("test".as_bytes());
 
-            let _ = tracing::info!(
-                "Sending SubscribeJob message with job_id: {}",
-                job_id
-            );
-            ws.send(ws_msg(&WsClientEvent::SubscribeJob { job_id }))
-                .await?;
-            let _ = tracing::info!("Finished sending SubscribeJob message.");
+        let claims = utils::get_claims(&jwt_key, &token).unwrap();
+        let user_id = claims.custom.user_id;
 
-            sleep(Duration::from_millis(100)).await;
+        let _ = tracing::info!("Connecting to WebSocket...");
+        let (_resp, mut ws) =
+            connect_ws(&ctx.addr, &token, &ctx.client).await.unwrap();
+        let _ = tracing::info!("Successfully connected to WebSocket.");
 
-            let _ = tracing::info!("Waiting for first message...");
-            let msg = ws_take_one(&mut ws).await?;
-            let _ = tracing::info!("Received first message: {msg:?}");
+        let mut resp = ctx
+            ._test_server
+            .post("/api/cmd")
+            .append_header((header::CONTENT_TYPE, "application/json"))
+            .with_token(&token)
+            .send_body(r#"{"args":["arg1", "arg2"]}"#)
+            .await
+            .unwrap();
+        let job_resp = resp.json::<Job>().await.unwrap();
+        let job_id = job_resp.job_id;
+        assert_eq!(job_resp.started_by, user_id);
+        assert_eq!(job_resp.status, JobStatus::Pending);
 
-            let _ = tracing::info!("Waiting for second message...");
-            let msg = ws_take_one(&mut ws).await?;
-            let _ = tracing::info!("Received second message: {msg:?}");
+        let _ = tracing::info!(
+            "Sending SubscribeJob message with job_id: {}",
+            job_id
+        );
+        ws.send(ws_msg(&WsClientEvent::SubscribeJob { job_id }))
+            .await
+            .unwrap();
+        let _ = tracing::info!("Finished sending SubscribeJob message.");
 
-            if let WsServerEvent::CommandMessage {
-                message: MyProcessItem::Line { value },
-            } = msg
-            {
-                assert_eq!(&value, "hello world arg1 arg2");
-            } else {
-                panic!("error wrong message type");
-            };
+        sleep(Duration::from_millis(100)).await;
 
-            sleep(Duration::from_millis(100)).await;
+        let _ = tracing::info!("Waiting for first message...");
+        let msg = ws_take_one(&mut ws).await.unwrap();
+        let _ = tracing::info!("Received first message: {msg:?}");
 
-            let msg = ws_take_one(&mut ws).await?;
+        let _ = tracing::info!("Waiting for second message...");
+        let msg = ws_take_one(&mut ws).await.unwrap();
+        let _ = tracing::info!("Received second message: {msg:?}");
 
-            let _ = tracing::info!("Received message: {msg:?}");
+        if let WsServerEvent::CommandMessage {
+            message: MyProcessItem::Line { value },
+        } = msg
+        {
+            assert_eq!(&value, "hello world arg1 arg2");
+        } else {
+            panic!("error wrong message type");
+        };
 
-            if let WsServerEvent::CommandMessage {
-                message: MyProcessItem::Done { code },
-            } = msg
-            {
-                assert_eq!(&code, "0");
-            } else {
-                panic!("error wrong message type");
-            };
+        sleep(Duration::from_millis(100)).await;
 
-            let _ = tracing::info!(
-                "Verifying that job status was set to completed"
-            );
+        let msg = ws_take_one(&mut ws).await.unwrap();
 
-            let mut resp = client
-                .get(format!("http://{addr}/api/cmd/{job_id}"))
-                .append_header((header::CONTENT_TYPE, "application/json"))
-                .with_token(&token)
-                .send()
-                .await
-                .map_err(|err| anyhow!("{err}"))?;
-            let job_resp = resp.json::<Job>().await?;
-            assert_eq!(job_resp.started_by, user_id);
-            assert_eq!(job_resp.status, JobStatus::Completed);
+        let _ = tracing::info!("Received message: {msg:?}");
 
-            let _ =
-                tracing::info!("Verified that job status was set to completed");
+        if let WsServerEvent::CommandMessage {
+            message: MyProcessItem::Done { code },
+        } = msg
+        {
+            assert_eq!(&code, "0");
+        } else {
+            panic!("error wrong message type");
+        };
 
-            Ok(())
-        }
-        .await;
+        let _ =
+            tracing::info!("Verifying that job status was set to completed");
 
-        tracing::info!("{res:?}");
-        res.unwrap();
+        let mut resp = ctx
+            ._test_server
+            .get(format!("/api/cmd/{job_id}"))
+            .append_header((header::CONTENT_TYPE, "application/json"))
+            .with_token(&token)
+            .send()
+            .await
+            .unwrap();
+        let job_resp = resp.json::<Job>().await.unwrap();
+        assert_eq!(job_resp.started_by, user_id);
+        assert_eq!(job_resp.status, JobStatus::Completed);
+
+        let _ = tracing::info!("Verified that job status was set to completed");
     }
 
     #[ignore]
