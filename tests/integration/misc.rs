@@ -24,12 +24,14 @@ mod tests {
     async fn get_build_info_should_succeed() {
         let (pg_connstr, _pg) = common::test_with_postgres().await.unwrap();
         let (redis_connstr, _redis) = common::test_with_redis().await.unwrap();
+        let (minio_connstr, _minio) = common::test_with_minio().await.unwrap();
         let req = test::TestRequest::get()
             .uri("/api/public/build-info")
             .to_request();
         let test_app = common::test_app(
             &pg_connstr,
             &redis_connstr,
+            &minio_connstr,
             TestAppOptions::default(),
         )
         .await
@@ -46,15 +48,20 @@ mod tests {
         let res: anyhow::Result<()> = async {
             let (pg_connstr, _pg) = common::test_with_postgres().await?;
             let (redis_connstr, _redis) = common::test_with_redis().await?;
+            let (minio_connstr, _minio) = common::test_with_minio().await?;
             let file = failing_bin_file();
             let options = TestAppOptionsBuilder::default()
                 .bin_file(file)
                 .build()
                 .unwrap();
-            let test_app =
-                common::test_app(&pg_connstr, &redis_connstr, options)
-                    .await
-                    .unwrap();
+            let test_app = common::test_app(
+                &pg_connstr,
+                &redis_connstr,
+                &minio_connstr,
+                options,
+            )
+            .await
+            .unwrap();
             let token = common::get_default_token(&test_app).await;
             let jwt_key = HS256Key::from_bytes("test".as_bytes());
 

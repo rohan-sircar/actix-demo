@@ -1,5 +1,6 @@
 extern crate actix_demo;
 use actix_demo::actions::misc::create_database_if_needed;
+use actix_demo::config::MinioConfig;
 use actix_demo::models::rate_limit::{
     KeyStrategy, RateLimitConfig, RateLimitPolicy,
 };
@@ -30,12 +31,15 @@ use diesel::r2d2::{self, ConnectionManager};
 use diesel_migrations::{FileBasedMigrations, MigrationHarness};
 use diesel_tracing::pg::InstrumentedPgConnection;
 use jwt_simple::prelude::HS256Key;
+use minior::aws_sdk_s3;
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
 use std::os::unix::prelude::OpenOptionsExt;
+use std::sync::Arc;
 use std::time::SystemTime;
+use testcontainers_modules::minio::{self, MinIO};
 use testcontainers_modules::postgres::{self, Postgres};
 use testcontainers_modules::redis::{Redis, REDIS_PORT};
 use testcontainers_modules::testcontainers::runners::AsyncRunner;
@@ -216,6 +220,7 @@ pub fn create_rate_limit_config(options: TestAppOptions) -> RateLimitConfig {
 pub async fn app_data(
     pg_connstr: &str,
     redis_connstr: &str,
+    minio_connstr: &str,
     options: TestAppOptions,
 ) -> anyhow::Result<web::Data<AppData>> {
     let start_time = SystemTime::now();
@@ -229,6 +234,11 @@ pub async fn app_data(
         rate_limit: create_rate_limit_config(options.clone()),
         session: options.session_config.clone(),
         health_check_timeout_secs: 10,
+        minio: MinioConfig {
+            bucket_name: "actix-demo".to_owned(),
+            max_avatar_size_bytes:
+                actix_demo::config::default_avatar_size_limit(),
+        },
     };
 
     let client = redis::Client::open(redis_connstr)
@@ -305,6 +315,22 @@ pub async fn app_data(
 
     let key = HS256Key::from_bytes("test".as_bytes());
 
+    // Create MinIO client
+    let cred = aws_sdk_s3::config::Credentials::new(
+        "minioadmin",
+        "minioadmin",
+        None,
+        None,
+        "testcontainers",
+    );
+    let s3_config = aws_sdk_s3::config::Builder::new()
+        .endpoint_url(minio_connstr)
+        .credentials_provider(cred)
+        .region(aws_sdk_s3::config::Region::new("test"))
+        .force_path_style(true)
+        .build();
+    let s3_client = aws_sdk_s3::Client::from_conf(s3_config);
+
     let data = Data::new(AppData {
         start_time,
         config,
@@ -319,6 +345,9 @@ pub async fn app_data(
         prometheus,
         user_ids_cache,
         health_checkers: Vec::new(),
+        minio: minior::Minio {
+            client: Arc::new(s3_client),
+        },
     });
     Ok(data)
 }
@@ -326,6 +355,7 @@ pub async fn app_data(
 pub async fn test_app(
     pg_connstr: &str,
     redis_connstr: &str,
+    minio_connstr: &str,
     options: TestAppOptions,
 ) -> anyhow::Result<
     impl Service<
@@ -336,7 +366,7 @@ pub async fn test_app(
 > {
     let app = App::new()
         .configure(configure_app(
-            app_data(pg_connstr, redis_connstr, options).await?,
+            app_data(pg_connstr, redis_connstr, minio_connstr, options).await?,
         ))
         .wrap(TracingLogger::<DomainRootSpanBuilder>::new());
     let test_app = test::init_service(app).await;
@@ -346,9 +376,11 @@ pub async fn test_app(
 pub async fn test_http_app(
     pg_connstr: &str,
     redis_connstr: &str,
+    minio_connstr: &str,
     options: TestAppOptions,
 ) -> anyhow::Result<(TestServer, web::Data<AppData>)> {
-    let data = app_data(pg_connstr, redis_connstr, options).await?;
+    let data =
+        app_data(pg_connstr, redis_connstr, minio_connstr, options).await?;
     let data_clone = data.clone();
     let test_app = move || {
         App::new()
@@ -438,6 +470,14 @@ pub async fn test_with_redis() -> anyhow::Result<(String, ContainerAsync<Redis>)
     Ok((connection_string, container))
 }
 
+pub async fn test_with_minio() -> anyhow::Result<(String, ContainerAsync<MinIO>)>
+{
+    let container = minio::MinIO::default().start().await?;
+    let host_port = container.get_host_port_ipv4(9000).await?;
+    let connection_string = format!("http://127.0.0.1:{host_port}");
+    Ok((connection_string, container))
+}
+
 pub trait WithToken {
     fn with_token(self, token: &str) -> Self;
 }
@@ -508,7 +548,6 @@ pub fn assert_rate_limit_headers(headers: &HeaderMap) {
         X_RATELIMIT_RESET
     );
 }
-
 pub struct TestContext {
     pub username: String,
     pub password: String,
@@ -516,6 +555,8 @@ pub struct TestContext {
     pub client: Client,
     pub _pg: ContainerAsync<Postgres>,
     pub _redis: ContainerAsync<Redis>,
+    pub _minio: ContainerAsync<MinIO>,
+    pub _minio_connstr: String,
     pub _test_server: TestServer,
     pub app_data: web::Data<AppData>,
 }
@@ -524,10 +565,12 @@ impl TestContext {
     pub async fn new(options: Option<TestAppOptions>) -> Self {
         let (pg_connstr, _pg) = test_with_postgres().await.unwrap();
         let (redis_connstr, _redis) = test_with_redis().await.unwrap();
+        let (_minio_connstr, _minio) = test_with_minio().await.unwrap();
 
         let (_test_server, app_data) = test_http_app(
             &pg_connstr,
             &redis_connstr,
+            &_minio_connstr,
             options
                 .unwrap_or(TestAppOptionsBuilder::default().build().unwrap()),
         )
@@ -550,6 +593,8 @@ impl TestContext {
             password,
             _pg,
             _redis,
+            _minio,
+            _minio_connstr,
             _test_server,
             app_data,
         }

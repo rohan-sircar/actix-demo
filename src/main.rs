@@ -235,10 +235,6 @@ async fn main() -> anyhow::Result<()> {
             session: session_config,
             health_check_timeout_secs: env_config.health_check_timeout_secs,
             minio: MinioConfig {
-                endpoint: env_config.minio_endpoint,
-                access_key: env_config.minio_access_key,
-                secret_key: env_config.minio_secret_key,
-                secure: env_config.minio_secure,
                 bucket_name: env_config.minio_bucket_name,
                 max_avatar_size_bytes: env_config.max_avatar_size_bytes,
             },

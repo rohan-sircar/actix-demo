@@ -22,10 +22,13 @@ mod tests {
             let (pg_connstr, _pg) = common::test_with_postgres().await.unwrap();
             let (redis_connstr, _redis) =
                 common::test_with_redis().await.unwrap();
+            let (minio_connstr, _minio) =
+                common::test_with_minio().await.unwrap();
 
             let test_app = common::test_app(
                 &pg_connstr,
                 &redis_connstr,
+                &minio_connstr,
                 TestAppOptions::default(),
             )
             .await
@@ -55,10 +58,13 @@ mod tests {
             let (pg_connstr, _pg) = common::test_with_postgres().await.unwrap();
             let (redis_connstr, _redis) =
                 common::test_with_redis().await.unwrap();
+            let (minio_connstr, _minio) =
+                common::test_with_minio().await.unwrap();
 
             let test_app = common::test_app(
                 &pg_connstr,
                 &redis_connstr,
+                &minio_connstr,
                 TestAppOptions::default(),
             )
             .await
@@ -100,9 +106,12 @@ mod tests {
             let (pg_connstr, _pg) = common::test_with_postgres().await.unwrap();
             let (redis_connstr, _redis) =
                 common::test_with_redis().await.unwrap();
+            let (minio_connstr, _minio) =
+                common::test_with_minio().await.unwrap();
             let test_app = common::test_app(
                 &pg_connstr,
                 &redis_connstr,
+                &minio_connstr,
                 TestAppOptions::default(),
             )
             .await
@@ -138,6 +147,8 @@ mod tests {
             let res: anyhow::Result<()> = async {
                 let (pg_connstr, _pg) = common::test_with_postgres().await?;
                 let (redis_connstr, _redis) = common::test_with_redis().await?;
+                let (minio_connstr, _minio) = common::test_with_minio().await.unwrap();
+
                 let options = common::TestAppOptionsBuilder::default()
                 .api_rate_limit(RateLimitPolicy {
                     max_requests: 2,
@@ -150,6 +161,7 @@ mod tests {
                 let test_server = common::test_http_app(
                     &pg_connstr,
                     &redis_connstr,
+                    &minio_connstr,
                     options
                 )
                 .await?;

@@ -80,16 +80,6 @@ pub struct EnvConfig {
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct MinioConfig {
-    // MinIO endpoint URL
-    pub endpoint: String,
-
-    // MinIO access credentials
-    pub access_key: String,
-    pub secret_key: String,
-
-    // Use HTTPS for MinIO
-    pub secure: bool,
-
     // Bucket name for avatars
     pub bucket_name: String,
 
@@ -98,6 +88,6 @@ pub struct MinioConfig {
     pub max_avatar_size_bytes: u64,
 }
 
-fn default_avatar_size_limit() -> u64 {
+pub fn default_avatar_size_limit() -> u64 {
     2 * 1024 * 1024 // 2MB
 }

@@ -92,9 +92,13 @@ mod tests {
         async {
             let (pg_connstr, _pg) = common::test_with_postgres().await?;
             let (redis_connstr, _redis) = common::test_with_redis().await?;
+            let (minio_connstr, _minio) =
+                common::test_with_minio().await.unwrap();
+
             let test_server = common::test_http_app(
                 &pg_connstr,
                 &redis_connstr,
+                &minio_connstr,
                 TestAppOptions::default(),
             )
             .await?;
@@ -141,9 +145,11 @@ mod tests {
         let res: anyhow::Result<()> = async {
             let (pg_connstr, _pg) = common::test_with_postgres().await?;
             let (redis_connstr, _redis) = common::test_with_redis().await?;
+            let (minio_connstr, _minio) = common::test_with_minio().await?;
             let test_server = common::test_http_app(
                 &pg_connstr,
                 &redis_connstr,
+                &minio_connstr,
                 TestAppOptions::default(),
             )
             .await?;
@@ -250,14 +256,21 @@ mod tests {
         let res: anyhow::Result<()> = async {
             let (pg_connstr, _pg) = common::test_with_postgres().await?;
             let (redis_connstr, _redis) = common::test_with_redis().await?;
+            let (minio_connstr, _minio) =
+                common::test_with_minio().await.unwrap();
+
             let file = sleep_bin_file();
             let options = TestAppOptionsBuilder::default()
                 .bin_file(file)
                 .build()
                 .unwrap();
-            let test_server =
-                common::test_http_app(&pg_connstr, &redis_connstr, options)
-                    .await?;
+            let test_server = common::test_http_app(
+                &pg_connstr,
+                &redis_connstr,
+                &minio_connstr,
+                options,
+            )
+            .await?;
 
             let addr = test_server.0.addr().to_string();
             let client = Client::new();
@@ -325,9 +338,13 @@ mod tests {
         let res: anyhow::Result<()> = async {
             let (pg_connstr, _pg) = common::test_with_postgres().await?;
             let (redis_connstr, _redis) = common::test_with_redis().await?;
+            let (minio_connstr, _minio) =
+                common::test_with_minio().await.unwrap();
+
             let test_server = common::test_http_app(
                 &pg_connstr,
                 &redis_connstr,
+                &minio_connstr,
                 TestAppOptions::default(),
             )
             .await?;
