@@ -68,4 +68,36 @@ pub struct EnvConfig {
     pub worker_run_interval_secs: u8,
     #[serde(default = "models::defaults::default_health_check_timeout_secs")]
     pub health_check_timeout_secs: u8,
+    // MinIO configuration
+    pub minio_endpoint: String,
+    pub minio_access_key: String,
+    pub minio_secret_key: String,
+    pub minio_secure: bool,
+    pub minio_bucket_name: String,
+    #[serde(default = "default_avatar_size_limit")]
+    pub max_avatar_size_bytes: u64,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct MinioConfig {
+    // MinIO endpoint URL
+    pub endpoint: String,
+
+    // MinIO access credentials
+    pub access_key: String,
+    pub secret_key: String,
+
+    // Use HTTPS for MinIO
+    pub secure: bool,
+
+    // Bucket name for avatars
+    pub bucket_name: String,
+
+    // Maximum avatar size in bytes
+    #[serde(default = "default_avatar_size_limit")]
+    pub max_avatar_size_bytes: u64,
+}
+
+fn default_avatar_size_limit() -> u64 {
+    2 * 1024 * 1024 // 2MB
 }

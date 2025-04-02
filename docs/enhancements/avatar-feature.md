@@ -12,8 +12,8 @@ The system uses MinIO for object storage. The following environment variables ne
 
 ```bash
 ACTIX_DEMO_MINIO_ENDPOINT=http://localhost:9000
-ACTIX_DEMO_MINIO_ACCESS_KEY=minioadmin
-ACTIX_DEMO_MINIO_SECRET_KEY=minioadmin
+ACTIX_DEMO_MINIO_ACCESS_KEY=minio
+ACTIX_DEMO_MINIO_SECRET_KEY=minio
 ACTIX_DEMO_MINIO_SECURE=false
 ACTIX_DEMO_MINIO_BUCKET=actix_demo
 ACTIX_DEMO_MAX_AVATAR_SIZE=2097152  # 2MB in bytes
@@ -125,6 +125,18 @@ pub fn default_rate_limit_avatar_window_secs() -> u64 {
 ```
 
 also add env vars to `src/config.rs`
+
+### Implementation Plan
+
+1. [x] Add cargo dependencies (minior)
+2. [x] Add minio docker service to docker-compose.yaml file
+3. [x] Add minio config values to AppConfig and EnvConfig and .env
+4. [x] Add minio client to AppData in lib.rs
+   1. [x] Create minio client in main.rs using env config values and add the instance to app_data
+5. [x] Add Error types to errors.rs
+6. [x] Create avatar upload endpoint in routes/users.rs
+   1. [ ] Add magic number check for image types
+7. [x] Create avatar get endpoint in routes/users.rs
 
 ### Testing Plan
 

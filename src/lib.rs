@@ -33,6 +33,7 @@ use actix_web::middleware::from_fn;
 use actix_web::web::{Data, ServiceConfig};
 use actix_web::{middleware, web, App, HttpServer};
 use actix_web_grants::GrantsMiddleware;
+use config::MinioConfig;
 use health::{HealthChecker, HealthcheckName};
 use jwt_simple::prelude::HS256Key;
 use metrics::Metrics;
@@ -65,6 +66,7 @@ pub struct AppConfig {
     pub rate_limit: RateLimitConfig,
     pub session: SessionConfig,
     pub health_check_timeout_secs: u8,
+    pub minio: MinioConfig,
 }
 
 pub struct AppData {
@@ -81,6 +83,7 @@ pub struct AppData {
     pub prometheus: PrometheusMetrics,
     pub user_ids_cache: InstrumentedRedisCache<String, Vec<UserId>>,
     pub health_checkers: Vec<(HealthcheckName, HealthChecker)>,
+    pub minio: minior::Minio,
 }
 
 pub fn configure_app(
@@ -160,6 +163,10 @@ pub fn configure_app(
                     .route(
                         "/metrics/cmd",
                         web::get().to(routes::command::handle_get_job_metrics),
+                    )
+                    .route(
+                        "/avatar/{user_id}",
+                        web::get().to(routes::users::get_user_avatar),
                     ),
             )
             .service(
@@ -188,6 +195,11 @@ pub fn configure_app(
                     )
                     .service(
                         web::scope("/users")
+                            .route(
+                                "/me/avatar",
+                                web::put()
+                                    .to(routes::users::upload_user_avatar),
+                            )
                             .route("", web::get().to(routes::users::get_users))
                             .route(
                                 "/search",
