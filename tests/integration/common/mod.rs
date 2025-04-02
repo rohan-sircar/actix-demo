@@ -327,7 +327,8 @@ pub async fn app_data(
         .endpoint_url(minio_connstr)
         .credentials_provider(cred)
         .region(aws_sdk_s3::config::Region::new("test"))
-        .force_path_style(true)
+        .force_path_style(true) // apply bucketname as path param instead of pre-domain
+        .behavior_version(aws_sdk_s3::config::BehaviorVersion::latest())
         .build();
     let s3_client = aws_sdk_s3::Client::from_conf(s3_config);
 

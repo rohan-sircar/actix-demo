@@ -1,11 +1,9 @@
 use actix_web::{web, HttpRequest, HttpResponse};
-use std::convert::From;
 
 use crate::models::misc::{Pagination, SearchQuery};
 use crate::models::users::{NewUser, UserId};
 use crate::{actions, utils};
 use crate::{errors::DomainError, AppData};
-use futures::StreamExt;
 
 /// Finds user by UID.
 #[tracing::instrument(level = "info", skip(app_data))]
@@ -176,8 +174,7 @@ pub async fn get_user_avatar(
 
     // Convert ByteStream to AsyncRead and create a streaming response
     let reader = object.body.into_async_read();
-    let stream = tokio_util::io::ReaderStream::new(reader)
-        .map(|result| result.map(actix_web::web::Bytes::from));
+    let stream = tokio_util::io::ReaderStream::new(reader);
 
     Ok(HttpResponse::Ok()
         .content_type(content_type)
