@@ -29,7 +29,8 @@ RUN \
     apt-get update && \
     apt-get install -y  \
     libpq-dev:${ARCH} \
-    libz-dev:${ARCH} 
+    libz-dev:${ARCH} \
+    libssl-dev:${ARCH}
 
 
 RUN USER=root cargo new --bin actix-demo
@@ -48,10 +49,20 @@ RUN \
     "linux/ppc64le") BUILDFLAGS="-C linker=powerpc64le-linux-gnu-gcc"  ;; \
     esac && \
     case ${TARGETPLATFORM} in \
-    "linux/amd64") TARGET="x86_64-unknown-linux-gnu"  ;; \
-    "linux/arm64") TARGET="aarch64-unknown-linux-gnu"  ;; \
-    "linux/ppc64le") TARGET="powerpc64le-unknown-linux-gnu"  ;; \
+    "linux/amd64") TARGET="x86_64-unknown-linux-gnu" ;; \
+    "linux/arm64") \
+    TARGET="aarch64-unknown-linux-gnu" && \
+    OPENSSL_LIB_DIR=/usr/lib/aarch64-linux-gnu/ && \
+    OPENSSL_INCLUDE_DIR=/usr/include/aarch64-linux-gnu/openssl \
+    ;; \
+    "linux/ppc64le") \
+    TARGET="powerpc64le-unknown-linux-gnu" && \
+    OPENSSL_LIB_DIR=/usr/lib/powerpc64le-linux-gnu/ && \
+    OPENSSL_INCLUDE_DIR=/usr/include/powerpc64le-linux-gnu/openssl \
+    ;; \
     esac && \
+    export OPENSSL_LIB_DIR && \
+    export OPENSSL_INCLUDE_DIR && \
     RUSTFLAGS="${BUILDFLAGS}" cargo build --target ${TARGET} $CARGOFLAGS
 RUN rm -r src/*.rs
 COPY ./src ./src
@@ -67,10 +78,20 @@ RUN \
     "linux/ppc64le") BUILDFLAGS="-C linker=powerpc64le-linux-gnu-gcc"  ;; \
     esac && \
     case ${TARGETPLATFORM} in \
-    "linux/amd64") TARGET="x86_64-unknown-linux-gnu"  ;; \
-    "linux/arm64") TARGET="aarch64-unknown-linux-gnu"  ;; \
-    "linux/ppc64le") TARGET="powerpc64le-unknown-linux-gnu"  ;; \
+    "linux/amd64") TARGET="x86_64-unknown-linux-gnu" ;; \
+    "linux/arm64") \
+    TARGET="aarch64-unknown-linux-gnu" && \
+    OPENSSL_LIB_DIR=/usr/lib/aarch64-linux-gnu/ && \
+    OPENSSL_INCLUDE_DIR=/usr/include/aarch64-linux-gnu/openssl \
+    ;; \
+    "linux/ppc64le") \
+    TARGET="powerpc64le-unknown-linux-gnu" && \
+    OPENSSL_LIB_DIR=/usr/lib/powerpc64le-linux-gnu/ && \
+    OPENSSL_INCLUDE_DIR=/usr/include/powerpc64le-linux-gnu/openssl \
+    ;; \
     esac && \
+    export OPENSSL_LIB_DIR && \
+    export OPENSSL_INCLUDE_DIR && \
     RUSTFLAGS="${BUILDFLAGS}" cargo build --target ${TARGET} $CARGOFLAGS
 RUN \
     case ${PROFILE} in \
@@ -89,7 +110,7 @@ ARG APP=/usr/src/app
 RUN apt-get update && \
     apt-get install -y ca-certificates \
     tzdata libpq-dev \
-    libz-dev 
+    libz-dev libssl-dev
 
 EXPOSE 7800
 
