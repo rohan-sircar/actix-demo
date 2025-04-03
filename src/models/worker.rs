@@ -11,5 +11,5 @@ pub struct WorkerBackoffConfig {
 #[derive(Deserialize, Debug, Clone)]
 pub struct WorkerConfig {
     pub backoff: WorkerBackoffConfig,
-    pub run_interval: u8,
+    pub run_interval: u16,
 }

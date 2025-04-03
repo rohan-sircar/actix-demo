@@ -2,7 +2,7 @@
 #![allow(clippy::let_unit_value)]
 
 use std::sync::Arc;
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 
 use actix_demo::actions::misc::create_database_if_needed;
 use actix_demo::config::MinioConfig;
@@ -155,7 +155,7 @@ async fn main() -> anyhow::Result<()> {
                 max_interval_secs: env_config.worker_max_interval_secs,
                 max_elapsed_time_secs: env_config.worker_max_elapsed_time_secs,
             },
-            run_interval: env_config.worker_run_interval_secs,
+            run_interval: env_config.session_cleanup_interval_secs,
         };
         workers::start_sessions_cleanup_worker(
             config,
@@ -167,7 +167,7 @@ async fn main() -> anyhow::Result<()> {
     };
 
     let http_client = Client::builder()
-        .timeout(std::time::Duration::from_secs(
+        .timeout(Duration::from_secs(
             env_config.health_check_timeout_secs.into(),
         ))
         .build()

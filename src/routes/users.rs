@@ -1,13 +1,15 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 
 use crate::models::misc::{Pagination, SearchQuery};
+// use crate::models::roles::RoleEnum;
 use crate::models::users::{NewUser, UserId};
 use crate::{actions, utils};
 use crate::{errors::DomainError, AppData};
+// use actix_web_grants::protect;
 
 /// Finds user by UID.
 #[tracing::instrument(level = "info", skip(app_data))]
-// #[has_any_role("RoleEnum::RoleAdmin", type = "RoleEnum")]
+// #[protect("RoleEnum::RoleAdmin", ty = "RoleEnum")]
 pub async fn get_user(
     app_data: web::Data<AppData>,
     user_id: web::Path<UserId>,
