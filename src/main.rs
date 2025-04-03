@@ -1,9 +1,11 @@
 #![forbid(unsafe_code)]
 #![allow(clippy::let_unit_value)]
 
-use std::time::SystemTime;
+use std::sync::Arc;
+use std::time::{Duration, SystemTime};
 
 use actix_demo::actions::misc::create_database_if_needed;
+use actix_demo::config::MinioConfig;
 use actix_demo::health::create_health_checkers;
 use actix_demo::models::rate_limit::{
     KeyStrategy, RateLimitConfig, RateLimitPolicy,
@@ -23,6 +25,8 @@ use diesel::r2d2::ConnectionManager;
 use diesel_migrations::{FileBasedMigrations, MigrationHarness};
 use diesel_tracing::pg::InstrumentedPgConnection;
 use jwt_simple::prelude::HS256Key;
+use minior::aws_sdk_s3;
+use minior::aws_sdk_s3::config::{Credentials, Region};
 use reqwest::Client;
 use tokio::task::JoinHandle;
 use tracing::subscriber::set_global_default;
@@ -151,7 +155,7 @@ async fn main() -> anyhow::Result<()> {
                 max_interval_secs: env_config.worker_max_interval_secs,
                 max_elapsed_time_secs: env_config.worker_max_elapsed_time_secs,
             },
-            run_interval: env_config.worker_run_interval_secs,
+            run_interval: env_config.session_cleanup_interval_secs,
         };
         workers::start_sessions_cleanup_worker(
             config,
@@ -163,11 +167,56 @@ async fn main() -> anyhow::Result<()> {
     };
 
     let http_client = Client::builder()
-        .timeout(std::time::Duration::from_secs(
+        .timeout(Duration::from_secs(
             env_config.health_check_timeout_secs.into(),
         ))
         .build()
         .context("Failed to create HTTP client")?;
+
+    let cred = Credentials::new(
+        &env_config.minio_access_key,
+        &env_config.minio_secret_key,
+        None,
+        None,
+        "loaded-from-custom-env",
+    );
+
+    let s3_config = aws_sdk_s3::config::Builder::new()
+        .endpoint_url(&env_config.minio_endpoint)
+        .credentials_provider(cred)
+        .region(Region::new("custom-local")) // Custom region for self-hosted MinIO
+        .force_path_style(true) // apply bucketname as path param instead of pre-domain
+        .behavior_version(aws_sdk_s3::config::BehaviorVersion::latest())
+        .build();
+
+    let s3_client = aws_sdk_s3::Client::from_conf(s3_config);
+
+    // Ensure bucket exists
+    let bucket_exists = s3_client
+        .head_bucket()
+        .bucket(&env_config.minio_bucket_name)
+        .send()
+        .await;
+
+    if bucket_exists.is_err() {
+        let _ =
+            tracing::info!("Creating bucket {}", &env_config.minio_bucket_name);
+        let _ = s3_client
+            .create_bucket()
+            .bucket(&env_config.minio_bucket_name)
+            .send()
+            .await
+            .with_context(|| {
+                format!(
+                    "Failed to create bucket {}",
+                    &env_config.minio_bucket_name
+                )
+            })?;
+    }
+
+    let minio = minior::Minio {
+        client: Arc::new(s3_client),
+    };
 
     let health_checkers = create_health_checkers(
         pool.clone(),
@@ -185,6 +234,10 @@ async fn main() -> anyhow::Result<()> {
             rate_limit: rate_limit_config,
             session: session_config,
             health_check_timeout_secs: env_config.health_check_timeout_secs,
+            minio: MinioConfig {
+                bucket_name: env_config.minio_bucket_name,
+                max_avatar_size_bytes: env_config.max_avatar_size_bytes,
+            },
         },
         pool,
         credentials_repo,
@@ -197,6 +250,7 @@ async fn main() -> anyhow::Result<()> {
         prometheus,
         user_ids_cache,
         health_checkers,
+        minio,
     });
 
     let _app =

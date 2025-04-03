@@ -53,9 +53,24 @@ services:
       - prometheus
       - loki
 
+  minio:
+    image: minio/minio:latest
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: miniominio
+    volumes:
+      - minio-data:/data
+    command: server /data --console-address ":9001"
+    networks:
+      - actix-demo-net
+
 volumes:
   grafana-storage:
   pgdata:
+  minio-data:
 
 
 networks:

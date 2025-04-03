@@ -33,6 +33,7 @@ use actix_web::middleware::from_fn;
 use actix_web::web::{Data, ServiceConfig};
 use actix_web::{middleware, web, App, HttpServer};
 use actix_web_grants::GrantsMiddleware;
+use config::MinioConfig;
 use health::{HealthChecker, HealthcheckName};
 use jwt_simple::prelude::HS256Key;
 use metrics::Metrics;
@@ -65,6 +66,7 @@ pub struct AppConfig {
     pub rate_limit: RateLimitConfig,
     pub session: SessionConfig,
     pub health_check_timeout_secs: u8,
+    pub minio: MinioConfig,
 }
 
 pub struct AppData {
@@ -81,16 +83,7 @@ pub struct AppData {
     pub prometheus: PrometheusMetrics,
     pub user_ids_cache: InstrumentedRedisCache<String, Vec<UserId>>,
     pub health_checkers: Vec<(HealthcheckName, HealthChecker)>,
-}
-
-impl AppData {
-    // pub fn get_redis_conn(&self) -> Result<ConnectionManager, DomainError> {
-    //     self.redis_conn_manager.clone().ok_or_else(|| {
-    //         DomainError::new_internal_error(
-    //             "Redis connection not initialized".to_owned(),
-    //         )
-    //     })
-    // }
+    pub minio: minior::Minio,
 }
 
 pub fn configure_app(
@@ -158,6 +151,7 @@ pub fn configure_app(
                     ))
                     .route("", web::get().to(routes::ws::ws)),
             )
+            // public api
             .service(
                 web::scope("/api/public")
                     .wrap(api_rate_limiter(
@@ -170,8 +164,25 @@ pub fn configure_app(
                     .route(
                         "/metrics/cmd",
                         web::get().to(routes::command::handle_get_job_metrics),
+                    )
+                    .route(
+                        "/avatars/{user_id}",
+                        web::get().to(routes::users::get_user_avatar),
+                    )
+                    .service(
+                        web::scope("/users")
+                            .route("", web::get().to(routes::users::get_users))
+                            .route(
+                                "/search",
+                                web::get().to(routes::users::search_users),
+                            )
+                            .route(
+                                "/{user_id}",
+                                web::get().to(routes::users::get_user),
+                            ),
                     ),
             )
+            // authenticated api
             .service(
                 web::scope("/api")
                     .wrap(api_rate_limiter(&app_data.config.rate_limit.api))
@@ -196,18 +207,11 @@ pub fn configure_app(
                         "/cmd/{job_id}",
                         web::delete().to(routes::command::handle_abort_job),
                     )
-                    .service(
-                        web::scope("/users")
-                            .route("", web::get().to(routes::users::get_users))
-                            .route(
-                                "/search",
-                                web::get().to(routes::users::search_users),
-                            )
-                            .route(
-                                "/{user_id}",
-                                web::get().to(routes::users::get_user),
-                            ),
-                    )
+                    .service(web::scope("/avatars").route(
+                        "",
+                        web::put().to(routes::users::upload_user_avatar),
+                        // TODO DELETE endpoint
+                    ))
                     .service(
                         web::scope("/sessions")
                             .route(
@@ -215,7 +219,7 @@ pub fn configure_app(
                                 web::get().to(routes::auth::list_sessions),
                             )
                             .route(
-                                "/{token}",
+                                "/{session_id}",
                                 web::delete().to(routes::auth::revoke_session),
                             )
                             .route(

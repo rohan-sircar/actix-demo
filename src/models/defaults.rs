@@ -30,7 +30,7 @@ pub fn default_session_expiration_secs() -> u64 {
     86400
 }
 
-pub fn default_session_cleanup_interval_secs() -> u64 {
+pub fn default_session_cleanup_interval_secs() -> u16 {
     600
 }
 

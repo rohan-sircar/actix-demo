@@ -20,7 +20,11 @@ custom_error! { #[derive(new)] #[allow(clippy::enum_variant_names)]
     UninitializedError { message: String } = "A required component was not initialized - {message}",
     JoinError {source: tokio::task::JoinError } = "Join error - {source}",
     InternalError {message: String} = "An internal error occured - {message}",
-    RateLimitError {message: String} = "Rate limit exceeded: {message}"
+    RateLimitError {message: String} = "Rate limit exceeded: {message}",
+    FileSizeExceeded {max_bytes: u64} = "File size exceeded: max {max_bytes} bytes",
+    InvalidMimeType {detected: String} = "Invalid MIME type: {detected}",
+    FileUploadFailed {message: String} = "Failed to upload file: {message}",
+    PayloadError { source: actix_web::error::PayloadError } = "Payload error: {source}",
 }
 
 impl DomainError {
@@ -96,6 +100,23 @@ impl ResponseError for DomainError {
                 HttpResponse::InternalServerError()
                     .json(ErrorResponse::new("Join Error"))
             }
+            DomainError::FileSizeExceeded { max_bytes } => {
+                HttpResponse::PayloadTooLarge().json(ErrorResponse::new(
+                    format!("File size exceeded: max {max_bytes} bytes"),
+                ))
+            }
+            DomainError::InvalidMimeType { detected } => {
+                HttpResponse::UnsupportedMediaType().json(ErrorResponse::new(
+                    format!("Invalid MIME type: {detected}"),
+                ))
+            }
+            DomainError::FileUploadFailed { message } => {
+                HttpResponse::InternalServerError().json(ErrorResponse::new(
+                    format!("Failed to upload avatar: {message}"),
+                ))
+            }
+            DomainError::PayloadError { source } => HttpResponse::BadRequest()
+                .json(ErrorResponse::new(format!("Payload error: {source}"))),
         }
     }
 }

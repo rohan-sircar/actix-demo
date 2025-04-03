@@ -1,13 +1,15 @@
-use actix_web::{web, HttpResponse};
+use actix_web::{web, HttpRequest, HttpResponse};
 
-use crate::actions;
 use crate::models::misc::{Pagination, SearchQuery};
+// use crate::models::roles::RoleEnum;
 use crate::models::users::{NewUser, UserId};
+use crate::{actions, utils};
 use crate::{errors::DomainError, AppData};
+// use actix_web_grants::protect;
 
 /// Finds user by UID.
 #[tracing::instrument(level = "info", skip(app_data))]
-// #[has_any_role("RoleEnum::RoleAdmin", type = "RoleEnum")]
+// #[protect("RoleEnum::RoleAdmin", ty = "RoleEnum")]
 pub async fn get_user(
     app_data: web::Data<AppData>,
     user_id: web::Path<UserId>,
@@ -99,4 +101,84 @@ pub async fn add_user(
     let _ = tracing::debug!("{:?}", user);
 
     Ok(HttpResponse::Created().json(user))
+}
+
+/// Upload user avatar
+#[tracing::instrument(level = "info", skip_all)]
+pub async fn upload_user_avatar(
+    app_data: web::Data<AppData>,
+    req: HttpRequest,
+    payload: web::Payload,
+) -> Result<HttpResponse, DomainError> {
+    // Get user ID from header
+    let user_id = utils::extract_user_id_from_header(req.headers())?;
+
+    // Get and validate content type
+    let content_type =
+        utils::extract_header_value(req.headers(), "content-type")?;
+
+    let _ = tracing::debug!("Received content type: {}", content_type);
+
+    // Validate the image stream
+    let full_file = utils::validate_image_stream(
+        payload,
+        &content_type,
+        app_data.config.minio.max_avatar_size_bytes as usize,
+    )
+    .await?;
+
+    let object_key = format!("avatars/{user_id}");
+    // Upload to MinIO
+    let _ = app_data
+        .minio
+        .client
+        .put_object()
+        .bucket(&app_data.config.minio.bucket_name)
+        .key(&object_key)
+        .body(full_file.freeze().into())
+        .content_type(&content_type)
+        .send()
+        .await
+        .map_err(|err| {
+            DomainError::new_file_upload_failed(format!(
+                "Avatar upload failed: {err:?}"
+            ))
+        })?;
+
+    Ok(HttpResponse::Ok().json(object_key))
+}
+
+/// Get user avatar
+#[tracing::instrument(level = "info", skip(app_data))]
+pub async fn get_user_avatar(
+    app_data: web::Data<AppData>,
+    user_id: web::Path<UserId>,
+) -> Result<HttpResponse, DomainError> {
+    let user_id = user_id.into_inner();
+    let _ = tracing::info!("Getting avatar for user {user_id}");
+
+    // Get the object from MinIO
+    let object = app_data
+        .minio
+        .client
+        .get_object()
+        .bucket(&app_data.config.minio.bucket_name)
+        .key(format!("avatars/{user_id}"))
+        .send()
+        .await
+        .map_err(|err| DomainError::new_internal_error(format!("{err:?}")))?;
+
+    // Get content type from object metadata
+    let content_type = object
+        .content_type
+        .as_deref()
+        .unwrap_or("application/octet-stream");
+
+    // Convert ByteStream to AsyncRead and create a streaming response
+    let reader = object.body.into_async_read();
+    let stream = tokio_util::io::ReaderStream::new(reader);
+
+    Ok(HttpResponse::Ok()
+        .content_type(content_type)
+        .streaming(stream))
 }

@@ -6,9 +6,7 @@ mod tests {
 
     use std::time::Duration;
 
-    use crate::common::{
-        failing_bin_file, TestAppOptions, TestAppOptionsBuilder, WithToken,
-    };
+    use crate::common::{failing_bin_file, TestAppOptionsBuilder, WithToken};
 
     use super::*;
     use actix_demo::models::misc::{Job, JobStatus};
@@ -22,22 +20,17 @@ mod tests {
 
     #[actix_rt::test]
     async fn get_build_info_should_succeed() {
-        let (pg_connstr, _pg) = common::test_with_postgres().await.unwrap();
-        let (redis_connstr, _redis) = common::test_with_redis().await.unwrap();
-        let req = test::TestRequest::get()
-            .uri("/api/public/build-info")
-            .to_request();
-        let test_app = common::test_app(
-            &pg_connstr,
-            &redis_connstr,
-            TestAppOptions::default(),
-        )
-        .await
-        .unwrap();
-        let resp = test_app.call(req).await.unwrap();
+        let ctx = common::TestContext::new(None).await;
+        let mut resp = ctx
+            .test_server
+            .get("/api/public/build-info")
+            .send()
+            .await
+            .unwrap();
+
         assert_eq!(resp.status(), StatusCode::OK);
-        let body: build_info::BuildInfo = test::read_body_json(resp).await;
-        let _ = tracing::debug!("{:?}", body);
+
+        let body: build_info::BuildInfo = resp.json().await.unwrap();
         assert_eq!(body, *get_build_info());
     }
 
@@ -46,15 +39,20 @@ mod tests {
         let res: anyhow::Result<()> = async {
             let (pg_connstr, _pg) = common::test_with_postgres().await?;
             let (redis_connstr, _redis) = common::test_with_redis().await?;
+            let (minio_connstr, _minio) = common::test_with_minio().await?;
             let file = failing_bin_file();
             let options = TestAppOptionsBuilder::default()
                 .bin_file(file)
                 .build()
                 .unwrap();
-            let test_app =
-                common::test_app(&pg_connstr, &redis_connstr, options)
-                    .await
-                    .unwrap();
+            let test_app = common::test_app(
+                &pg_connstr,
+                &redis_connstr,
+                &minio_connstr,
+                options,
+            )
+            .await
+            .unwrap();
             let token = common::get_default_token(&test_app).await;
             let jwt_key = HS256Key::from_bytes("test".as_bytes());
 

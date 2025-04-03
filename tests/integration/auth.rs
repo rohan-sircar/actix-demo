@@ -1,5 +1,5 @@
+mod rate_limit;
 mod session;
-
 use crate::common::{self, TestAppOptionsBuilder, TestContext};
 
 #[cfg(test)]
@@ -12,7 +12,7 @@ mod tests {
         workers,
     };
     use actix_http::{header, StatusCode};
-    use tokio::task::JoinHandle;
+    use tokio::{task::JoinHandle, time::sleep};
 
     use std::{str::FromStr, time::Duration};
 
@@ -67,7 +67,7 @@ mod tests {
         );
 
         // Wait for rate limit window to expire
-        tokio::time::sleep(Duration::from_secs(3)).await;
+        sleep(Duration::from_secs(3)).await;
 
         // Try login with correct password after window expiration
         let (status, _) = login_attempt(&ctx, username, correct_password).await;
@@ -106,22 +106,22 @@ mod tests {
         // Get token
         let token = common::get_http_token(
             &ctx.addr,
-            &ctx.username,
-            &ctx.password,
+            common::DEFAULT_USER,
+            common::DEFAULT_USER,
             &ctx.client,
         )
         .await
         .unwrap();
 
         // Make valid request immediately
-        let status = get_users_with_token(&ctx, &token).await;
+        let status = get_sessions(&ctx, &token).await;
         assert_eq!(status, StatusCode::OK, "Expected 200 OK for valid token");
 
         // Wait for token expiration
-        tokio::time::sleep(Duration::from_secs(3)).await;
+        sleep(Duration::from_secs(3)).await;
 
         // Make request with expired token
-        let status = get_users_with_token(&ctx, &token).await;
+        let status = get_sessions(&ctx, &token).await;
         assert_eq!(
             status,
             StatusCode::UNAUTHORIZED,
@@ -135,8 +135,8 @@ mod tests {
         password: &str,
     ) -> (StatusCode, header::HeaderMap) {
         let resp = ctx
-            .client
-            .post(format!("http://{}/api/login", ctx.addr))
+            .test_server
+            .post("/api/login")
             .append_header((header::CONTENT_TYPE, "application/json"))
             .send_json(&serde_json::json!({
                 "username": username,
@@ -151,13 +151,10 @@ mod tests {
         (status, headers)
     }
 
-    async fn get_users_with_token(
-        ctx: &TestContext,
-        token: &str,
-    ) -> StatusCode {
+    async fn get_sessions(ctx: &TestContext, token: &str) -> StatusCode {
         let resp = ctx
-            .client
-            .get(format!("http://{}/api/users?page=0&limit=5", ctx.addr))
+            .test_server
+            .get("/api/sessions")
             .with_token(token)
             .send()
             .await
@@ -205,15 +202,15 @@ mod tests {
         // Perform login to create a session
         let _token = common::get_http_token(
             &ctx.addr,
-            &ctx.username,
-            &ctx.password,
+            common::DEFAULT_USER,
+            common::DEFAULT_USER,
             &ctx.client,
         )
         .await
         .unwrap();
 
         // Verify session exists
-        let user_id = UserId::from_str("2").unwrap();
+        let user_id = UserId::from_str("1").unwrap();
         let sessions = ctx
             .app_data
             .credentials_repo
@@ -226,7 +223,7 @@ mod tests {
         );
 
         // Wait for session expiration and cleanup
-        tokio::time::sleep(Duration::from_secs(6)).await;
+        sleep(Duration::from_secs(6)).await;
 
         // Verify session was cleaned up
         let sessions = ctx

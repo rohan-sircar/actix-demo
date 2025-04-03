@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use tokio::task::JoinHandle;
+use tokio::{task::JoinHandle, time::sleep};
 
 use crate::{
     actions,
@@ -19,6 +19,7 @@ pub async fn start_sessions_cleanup_worker(
     pool: DbPool,
 ) -> JoinHandle<()> {
     tokio::spawn(async move {
+        // TODO backoff is unmaintained, use a different crate
         let policy = backoff::ExponentialBackoffBuilder::new()
             .with_initial_interval(Duration::from_secs(
                 config.backoff.initial_interval_secs,
@@ -38,7 +39,7 @@ pub async fn start_sessions_cleanup_worker(
                 Ok(conn) => conn,
                 Err(err) => {
                     let _ = tracing::error!("Failed to get connection: {err}");
-                    tokio::time::sleep(Duration::from_secs(5)).await;
+                    sleep(Duration::from_secs(5)).await;
                     continue;
                 }
             };
@@ -53,14 +54,14 @@ pub async fn start_sessions_cleanup_worker(
                 Ok(Ok(ids)) => ids,
                 Ok(Err(err)) => {
                     let _ = tracing::error!("Failed to get user IDs: {err}");
-                    tokio::time::sleep(Duration::from_secs(5)).await;
+                    sleep(Duration::from_secs(5)).await;
                     continue;
                 }
                 Err(err) => {
                     let _ = tracing::error!(
                         "Failed to execute blocking task: {err}"
                     );
-                    tokio::time::sleep(Duration::from_secs(5)).await;
+                    sleep(Duration::from_secs(5)).await;
                     continue;
                 }
             };
@@ -93,8 +94,7 @@ pub async fn start_sessions_cleanup_worker(
                 }
             }
 
-            tokio::time::sleep(Duration::from_secs(config.run_interval.into()))
-                .await;
+            sleep(Duration::from_secs(config.run_interval.into())).await;
         }
     })
 }

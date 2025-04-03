@@ -3,7 +3,7 @@ mod sessions_api;
 
 mod tests {
     mod max_concurrent_sessions {
-        use crate::common::TestContext;
+        use crate::common::{self, TestContext};
         use actix_demo::utils;
         use actix_http::{header, StatusCode};
 
@@ -11,9 +11,9 @@ mod tests {
         async fn should_limit_concurrent_sessions() {
             let mut ctx = TestContext::new(None).await;
 
-            // Create 5 sessions successfully
+            // Create 1 existing plus 4 new sessions successfully
             let _tokens =
-                create_concurrent_sessions(&mut ctx, 5).await.unwrap();
+                create_concurrent_sessions(&mut ctx, 4).await.unwrap();
 
             // Try 6th login which should be rejected
             let (status, _) = attempt_login(&ctx, "Test Device 6").await;
@@ -30,12 +30,12 @@ mod tests {
             device_name: &str,
         ) -> (StatusCode, Option<String>) {
             let resp = ctx
-                .client
-                .post(format!("http://{}/api/login", ctx.addr))
+                .test_server
+                .post("/api/login")
                 .append_header((header::CONTENT_TYPE, "application/json"))
                 .send_json(&serde_json::json!({
-                    "username": ctx.username,
-                    "password": ctx.password,
+                    "username": common::DEFAULT_USER,
+                    "password": common::DEFAULT_USER,
                     "device_name": device_name
                 }))
                 .await

@@ -25,7 +25,7 @@ pub type RedisStreamResult<T> = Result<RedisReply<T>, DomainError>;
 #[derive(new)]
 pub struct RedisChannelReader<T> {
     channel_name: String,
-    pub conn: ConnectionManager,
+    conn: ConnectionManager,
     last_msg_id: Option<String>,
     opts: StreamReadOptions,
     pd: std::marker::PhantomData<T>,

@@ -16,7 +16,7 @@ pub struct SessionConfig {
     pub renewal: SessionRenewalPolicy,
     /// Session cleanup interval in seconds
     #[builder(default = "600")] // 10 minutes
-    pub cleanup_interval_secs: u64,
+    pub cleanup_interval_secs: u16,
     /// Maximum number of concurrent sessions per user
     #[builder(default = "5")]
     pub max_concurrent_sessions: usize,

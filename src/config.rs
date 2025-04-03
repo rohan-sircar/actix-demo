@@ -40,7 +40,7 @@ pub struct EnvConfig {
     #[serde(
         default = "models::defaults::default_session_cleanup_interval_secs"
     )]
-    pub session_cleanup_interval_secs: u64,
+    pub session_cleanup_interval_secs: u16,
     #[serde(default = "models::defaults::default_max_concurrent_sessions")]
     pub max_concurrent_sessions: usize,
     #[serde(default = "models::defaults::default_session_renewal_enabled")]
@@ -68,4 +68,26 @@ pub struct EnvConfig {
     pub worker_run_interval_secs: u8,
     #[serde(default = "models::defaults::default_health_check_timeout_secs")]
     pub health_check_timeout_secs: u8,
+    // MinIO configuration
+    pub minio_endpoint: String,
+    pub minio_access_key: String,
+    pub minio_secret_key: String,
+    pub minio_secure: bool,
+    pub minio_bucket_name: String,
+    #[serde(default = "default_avatar_size_limit")]
+    pub max_avatar_size_bytes: u64,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct MinioConfig {
+    // Bucket name for avatars
+    pub bucket_name: String,
+
+    // Maximum avatar size in bytes
+    #[serde(default = "default_avatar_size_limit")]
+    pub max_avatar_size_bytes: u64,
+}
+
+pub fn default_avatar_size_limit() -> u64 {
+    2 * 1024 * 1024 // 2MB
 }
