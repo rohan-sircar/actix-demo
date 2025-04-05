@@ -238,6 +238,7 @@ async fn main() -> anyhow::Result<()> {
                 bucket_name: env_config.minio_bucket_name,
                 max_avatar_size_bytes: env_config.max_avatar_size_bytes,
             },
+            timezone: env_config.timezone,
         },
         pool,
         credentials_repo,

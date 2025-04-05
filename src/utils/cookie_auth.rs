@@ -11,7 +11,9 @@ use actix_web::{
     web::Data,
     Error, FromRequest, HttpRequest,
 };
+
 use awc::{body::MessageBody, cookie::Cookie, error::HeaderValue};
+use chrono::TimeZone;
 
 use crate::{errors::DomainError, routes::auth::validate_token, AppData};
 
@@ -103,16 +105,20 @@ pub async fn cookie_auth(
                 )?
                 .insert_header(
                     "x-session-created-at",
-                    &session_info
-                        .created_at
-                        .format("%Y-%m-%d %H:%M:%S")
+                    &app_data
+                        .config
+                        .timezone
+                        .from_utc_datetime(&session_info.created_at)
+                        .format("%Y-%m-%d %H:%M:%S %Z")
                         .to_string(),
                 )?
                 .insert_header(
                     "x-session-last-used-at",
-                    &session_info
-                        .last_used_at
-                        .format("%Y-%m-%d %H:%M:%S")
+                    &app_data
+                        .config
+                        .timezone
+                        .from_utc_datetime(&session_info.last_used_at)
+                        .format("%Y-%m-%d %H:%M:%S %Z")
                         .to_string(),
                 )?;
 

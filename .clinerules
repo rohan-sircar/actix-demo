@@ -38,3 +38,12 @@
             })
         })
   ```
+  - Process for creating new config value
+    To add a new config field to the app, you will need to follow these steps -
+    1. Create env var with `ACTIX\_DEMO\_` as prefix e.g. ACTIX_DEMO_TIMEZONE_OFFSET=??? with suitable default value and add it to .env file in project root
+    2. Add correspondig config field to EnvConfig struct in src/config.rs with suitable data type
+    3. create suitable default value function in src/defaults.rs and decore the EnvConfig field with that
+    4. If the config field will be used via app_data in somee part of the app, then same field has to be added to AppConfig struct in lib.rs
+       4.1 if field was added to appconfig, then in main.rs update the creation of appconfig by taking the
+       new field value from envconfig struct instance
+    5. Finally update any code in main.rs which needs the new config value, if in doubt compilation errors could be used as a guide

@@ -10,11 +10,11 @@ extern crate derive_new;
 extern crate diesel_derive_newtype;
 
 pub mod actions;
-pub mod errors;
-// mod middlewares;
 pub mod config;
+pub mod errors;
 pub mod health;
 pub mod metrics;
+pub mod middlewares;
 pub mod models;
 mod rate_limit;
 mod routes;
@@ -67,6 +67,7 @@ pub struct AppConfig {
     pub session: SessionConfig,
     pub health_check_timeout_secs: u8,
     pub minio: MinioConfig,
+    pub timezone: chrono_tz::Tz,
 }
 
 pub struct AppData {
@@ -191,8 +192,9 @@ pub fn configure_app(
                     ))
                     .wrap(middleware::Condition::new(
                         true, // Always enabled
-                        middleware::DefaultHeaders::new()
-                            .add(("Vary", "Cookie")),
+                        middlewares::CustomHeaders::new(
+                            app_data.config.timezone,
+                        ),
                     ))
                     .wrap(from_fn(utils::cookie_auth))
                     .route(

@@ -12,6 +12,7 @@ use actix_web::web::{self, Data};
 use actix_web::{Error, HttpRequest, HttpResponse};
 use awc::cookie::{Cookie, SameSite};
 use bcrypt::verify;
+use chrono::Utc;
 use jwt_simple::prelude::*;
 
 use serde::{Deserialize, Serialize};
@@ -153,13 +154,13 @@ pub async fn login(
     })?;
 
     // Create session info
-    let now = chrono::Utc::now().naive_utc();
+    let now = Utc::now().naive_utc();
 
     let ttl_seconds = app_data.config.session.expiration_secs;
     let session_info = SessionInfo {
         session_id,
         device_id,
-        device_name: login_request.device_name.clone(),
+        device_name: login_request.device_name,
         created_at: now,
         last_used_at: now,
         token: token.clone(),
