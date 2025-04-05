@@ -239,6 +239,7 @@ pub async fn app_data(
             max_avatar_size_bytes:
                 actix_demo::config::default_avatar_size_limit(),
         },
+        timezone: chrono_tz::Tz::UTC,
     };
 
     let client = redis::Client::open(redis_connstr)
@@ -550,7 +551,7 @@ impl TestContext {
             &pg_connstr,
             &redis_connstr,
             &minio_connstr,
-            options.unwrap_or(TestAppOptions::default()),
+            options.unwrap_or_default(),
         )
         .await
         .unwrap();

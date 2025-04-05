@@ -76,6 +76,8 @@ pub struct EnvConfig {
     pub minio_bucket_name: String,
     #[serde(default = "default_avatar_size_limit")]
     pub max_avatar_size_bytes: u64,
+    #[serde(default = "models::defaults::default_timezone")]
+    pub timezone: chrono_tz::Tz,
 }
 
 #[derive(Deserialize, Debug, Clone)]

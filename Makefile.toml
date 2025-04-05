@@ -1,3 +1,6 @@
+# TODO replace watc with bacon
+# TODO add cargo sort task
+
 [tasks.watch]
 install_crate = "watch"
 command = "cargo"

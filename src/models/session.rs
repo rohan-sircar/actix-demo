@@ -47,7 +47,8 @@ pub struct SessionInfo {
     pub created_at: chrono::NaiveDateTime,
     pub last_used_at: chrono::NaiveDateTime,
     pub token: String,
-    #[serde(skip)] // Skip serialization/deserialization
+    #[serde(skip)]
+    // Skip serialization/deserialization since it's a computed value
     pub ttl_remaining: Option<i64>,
 }
 

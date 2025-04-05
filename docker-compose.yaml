@@ -1,6 +1,7 @@
 services:
   postgres:
     image: postgres:13-alpine
+    container_name: actix-demo-postgres
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -9,14 +10,20 @@ services:
       - pgdata:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+    networks:
+      - actix-demo-net
 
   redis:
     image: redis:7-alpine
+    container_name: actix-demo-redis
     ports:
       - "6379:6379"
+    networks:
+      - actix-demo-net
+
   prometheus:
     image: prom/prometheus:latest
-    container_name: prometheus
+    container_name: actix-demo-prometheus
     ports:
       - "9090:9090"
     volumes:
@@ -28,7 +35,7 @@ services:
 
   loki:
     image: grafana/loki:latest
-    container_name: loki
+    container_name: actix-demo-loki
     ports:
       - "3100:3100"
     # volumes:
@@ -39,12 +46,11 @@ services:
 
   grafana:
     image: grafana/grafana:latest
-    container_name: grafana
+    container_name: actix-demo-grafana
     ports:
       - "3000:3000"
     volumes:
       - grafana-storage:/var/lib/grafana
-      - ./docs/enhancements/grafana_dashboard.json:/etc/grafana/provisioning/dashboards/api_metrics.json
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
     networks:
@@ -55,6 +61,7 @@ services:
 
   minio:
     image: minio/minio:latest
+    container_name: actix-demo-minio
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -64,6 +71,25 @@ services:
     volumes:
       - minio-data:/data
     command: server /data --console-address ":9001"
+    networks:
+      - actix-demo-net
+  actix-demo:
+    image: rohansircar/actix-demo:devel
+    container_name: actix-demo-app
+    ports:
+      - "8085:7800"
+    environment:
+      ACTIX_DEMO_DATABASE_URL: postgres://postgres:postgres@actix-demo-postgres:5432/actix_demo
+      ACTIX_DEMO_REDIS_URL: redis://actix-demo-redis
+      ACTIX_DEMO_LOKI_URL: http://actix-demo-loki:3100
+      ACTIX_DEMO_PROMETHEUS_URL: http://actix-demo-prometheus:9090
+      ACTIX_DEMO_MINIO_ENDPOINT: http://actix-demo-minio:9000
+    depends_on:
+      - redis
+      - postgres
+      - minio
+      - loki
+      - prometheus
     networks:
       - actix-demo-net
 

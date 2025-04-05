@@ -18,7 +18,7 @@ pub enum ServiceStatus {
 struct HealthCheckResponse {
     version: String,
     timestamp: String,
-    uptime: Duration,
+    uptime: u64,
     success: bool,
     services: HashMap<String, ServiceStatus>,
 }
@@ -27,7 +27,8 @@ struct HealthCheckResponse {
 pub async fn healthcheck(app_data: Data<AppData>) -> impl Responder {
     let uptime = SystemTime::now()
         .duration_since(app_data.start_time)
-        .unwrap_or_default();
+        .unwrap_or_default()
+        .as_secs();
 
     let bi = get_build_info();
 
