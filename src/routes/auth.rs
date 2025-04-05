@@ -175,7 +175,7 @@ pub async fn login(
     let cookie = Cookie::build("X-AUTH-TOKEN", &token)
         .http_only(true)
         .secure(true)
-        .same_site(SameSite::Strict)
+        .same_site(SameSite::Lax)
         .path("/")
         .finish();
 
