@@ -1,14 +1,105 @@
 services:
   postgres:
     image: postgres:13-alpine
+    container_name: actix-demo-postgres
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: actix_demo
+    volumes:
+      - pgdata:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+    networks:
+      - actix-demo-net
 
   redis:
     image: redis:7-alpine
+    container_name: actix-demo-redis
     ports:
       - "6379:6379"
+    networks:
+      - actix-demo-net
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: actix-demo-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    networks:
+      - actix-demo-net
+
+  loki:
+    image: grafana/loki:latest
+    container_name: actix-demo-loki
+    ports:
+      - "3100:3100"
+    # volumes:
+    #   - ./loki-config.yaml:/etc/loki/local-config.yaml
+    # command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - actix-demo-net
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: actix-demo-grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-storage:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    networks:
+      - actix-demo-net
+    depends_on:
+      - prometheus
+      - loki
+
+  minio:
+    image: minio/minio:latest
+    container_name: actix-demo-minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: miniominio
+    volumes:
+      - minio-data:/data
+    command: server /data --console-address ":9001"
+    networks:
+      - actix-demo-net
+  actix-demo:
+    image: rohansircar/actix-demo:devel
+    container_name: actix-demo-app
+    ports:
+      - "8085:7800"
+    environment:
+      ACTIX_DEMO_DATABASE_URL: postgres://postgres:postgres@actix-demo-postgres:5432/actix_demo
+      ACTIX_DEMO_REDIS_URL: redis://actix-demo-redis
+      ACTIX_DEMO_LOKI_URL: http://actix-demo-loki:3100
+      ACTIX_DEMO_PROMETHEUS_URL: http://actix-demo-prometheus:9090
+      ACTIX_DEMO_MINIO_ENDPOINT: http://actix-demo-minio:9000
+    depends_on:
+      - redis
+      - postgres
+      - minio
+      - loki
+      - prometheus
+    networks:
+      - actix-demo-net
+
+volumes:
+  grafana-storage:
+  pgdata:
+  minio-data:
+
+
+networks:
+  actix-demo-net:
+
+

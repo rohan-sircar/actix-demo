@@ -3,6 +3,23 @@
 - Use idiomatic Rust always
   - e.g. Do not use `return`, try to convert the error to a value. If it does
     not seem possible, ask the user what they would like to do.
+- For log statements using `tracing` crate, use the qualified name of the crate:
+  `tracing::info!` insteaed of just `info!` to indicate that we are not using
+  the default `log` crate
+  - Also inline variables into the format string when logging like this
+  ```rust
+     let _ = tracing::info!(
+         "Initiating websocket connection for user {user_id} on device {device_id} ({device_name})"
+     );
+  ```
+  - If the variable is part of the request context and/or repeated in every log statement,
+    add it to the span context like this
+    `let _ = tracing::Span::current().record("device_id", &device_id);`
+  - Consider the lifetimes of the variables when doing this, use clone when necessary
+- Follow the principles of functional programming as much as possible
+  - For operations doing side effects like logging or launching a task, indicate
+    that a side effect is occuring by using the syntax `let _ = {{side effect operation}}`
+    like `let _ = tracing::info!("message");`
 - In closures, keep the parameter name of the closure small e.g. `hv` instead of
   `header_value`
 - For error handling, consult `src/errors.rs` for built-in error types. Convert
@@ -21,3 +38,12 @@
             })
         })
   ```
+  - Process for creating new config value
+    To add a new config field to the app, you will need to follow these steps -
+    1. Create env var with `ACTIX\_DEMO\_` as prefix e.g. ACTIX_DEMO_TIMEZONE_OFFSET=??? with suitable default value and add it to .env file in project root
+    2. Add correspondig config field to EnvConfig struct in src/config.rs with suitable data type
+    3. create suitable default value function in src/defaults.rs and decore the EnvConfig field with that
+    4. If the config field will be used via app_data in somee part of the app, then same field has to be added to AppConfig struct in lib.rs
+       4.1 if field was added to appconfig, then in main.rs update the creation of appconfig by taking the
+       new field value from envconfig struct instance
+    5. Finally update any code in main.rs which needs the new config value, if in doubt compilation errors could be used as a guide

@@ -20,6 +20,8 @@ pub struct RateLimitConfig {
     pub auth: RateLimitPolicy,
     /// General API endpoint rate limiting policy
     pub api: RateLimitPolicy,
+    /// Public API endpoint rate limiting policy (lower limits)
+    pub api_public: RateLimitPolicy,
     // /// Redis-specific rate limiting configuration
     // pub redis: RedisRateLimitConfig,
     pub disable: bool,
@@ -51,7 +53,6 @@ pub struct RateLimitPolicy {
 //     #[serde(default)]
 //     pub cluster_mode: bool,
 // }
-
 impl Default for RateLimitConfig {
     fn default() -> Self {
         Self {
@@ -66,6 +67,10 @@ impl Default for RateLimitConfig {
                 // TODO sample config
                 // burst: Some(20),
                 // jitter_secs: Some(1),
+            },
+            api_public: RateLimitPolicy {
+                max_requests: 15,
+                window_secs: 60,
             },
             // TODO sample config
             // redis: RedisRateLimitConfig {

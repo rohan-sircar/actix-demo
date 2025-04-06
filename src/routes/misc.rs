@@ -1,5 +1,7 @@
-use crate::{get_build_info, utils};
+use actix_web::HttpResponse;
 
-pub async fn build_info_req() -> String {
-    utils::jstr(get_build_info())
+use crate::get_build_info;
+
+pub async fn build_info_req() -> HttpResponse {
+    HttpResponse::Ok().json(get_build_info())
 }

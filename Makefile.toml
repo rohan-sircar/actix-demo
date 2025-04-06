@@ -1,3 +1,6 @@
+# TODO replace watc with bacon
+# TODO add cargo sort task
+
 [tasks.watch]
 install_crate = "watch"
 command = "cargo"
@@ -44,4 +47,4 @@ args = ["test", "--test", "integration"]
 dependencies = ["flaky-test"]
 
 [tasks.stage]
-dependencies = ["lint-check", "compile", "test", "it-test"]
+dependencies = ["lint-check", "compile", "test", "it-all-test"]

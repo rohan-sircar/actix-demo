@@ -10,45 +10,45 @@ extern crate derive_new;
 extern crate diesel_derive_newtype;
 
 pub mod actions;
+pub mod config;
 pub mod errors;
-// mod middlewares;
+pub mod health;
+pub mod metrics;
+pub mod middlewares;
 pub mod models;
+mod rate_limit;
 mod routes;
 mod schema;
 // mod services;
 pub mod telemetry;
 pub mod types;
 pub mod utils;
+pub mod workers;
 
-use actix_extensible_rate_limit::HeaderCompatibleOutput;
-use actix_extensible_rate_limit::{
-    backend::{redis::RedisBackend, SimpleInputFunctionBuilder, SimpleOutput},
-    RateLimiter,
-};
-use actix_files as fs;
-use actix_http::header::{HeaderName, HeaderValue, RETRY_AFTER};
-use actix_web::{web, App, HttpServer};
-use actix_web::{
-    web::{Data, ServiceConfig},
-    HttpResponse,
-};
+use std::time::SystemTime;
+
+use actix_web_prom::PrometheusMetrics;
+
+use actix_web::middleware::from_fn;
+use actix_web::web::{Data, ServiceConfig};
+use actix_web::{middleware, web, App, HttpServer};
 use actix_web_grants::GrantsMiddleware;
-use actix_web_httpauth::middleware::HttpAuthentication;
-use errors::DomainError;
+use config::MinioConfig;
+use health::{HealthChecker, HealthcheckName};
 use jwt_simple::prelude::HS256Key;
-use models::rate_limit::{KeyStrategy, RateLimitConfig};
-use rand::distr::Alphanumeric;
-use rand::Rng;
+use metrics::Metrics;
+use models::rate_limit::{RateLimitConfig, RateLimitPolicy};
+use models::session::SessionConfig;
+use models::users::UserId;
 use redis::aio::ConnectionManager;
 use redis::Client;
-use routes::auth::bearer_auth;
 use serde::Deserialize;
-use std::io;
+use telemetry::DomainRootSpanBuilder;
+use tokio::task::JoinHandle;
 use tracing_actix_web::TracingLogger;
 use types::{DbPool, RedisPrefixFn};
 use utils::redis_credentials_repo::RedisCredentialsRepo;
-
-use crate::telemetry::DomainRootSpanBuilder;
+use utils::InstrumentedRedisCache;
 
 build_info::build_info!(pub fn get_build_info);
 
@@ -60,92 +60,31 @@ pub enum LoggerFormat {
 }
 
 #[derive(Deserialize, Debug, Clone)]
-pub struct EnvConfig {
-    pub database_url: String,
-    pub http_host: String,
-    #[serde(default = "models::defaults::default_hash_cost")]
-    pub hash_cost: u32,
-    pub logger_format: LoggerFormat,
-    pub jwt_key: String,
-    pub redis_url: String,
-    pub job_bin_path: String,
-    #[serde(
-        default = "models::defaults::default_rate_limit_auth_max_requests"
-    )]
-    pub rate_limit_auth_max_requests: u32,
-    #[serde(default = "models::defaults::default_rate_limit_auth_window_secs")]
-    pub rate_limit_auth_window_secs: u64,
-    #[serde(default = "models::defaults::default_rate_limit_api_max_requests")]
-    pub rate_limit_api_max_requests: u32,
-    #[serde(default = "models::defaults::default_rate_limit_api_window_secs")]
-    pub rate_limit_api_window_secs: u64,
-    pub rate_limit_disable: bool,
-}
-
-#[derive(Deserialize, Debug, Clone)]
 pub struct AppConfig {
     pub hash_cost: u32,
     pub job_bin_path: String,
     pub rate_limit: RateLimitConfig,
+    pub session: SessionConfig,
+    pub health_check_timeout_secs: u8,
+    pub minio: MinioConfig,
+    pub timezone: chrono_tz::Tz,
 }
 
 pub struct AppData {
+    pub start_time: SystemTime,
     pub config: AppConfig,
     pub pool: DbPool,
     pub credentials_repo: RedisCredentialsRepo,
     pub jwt_key: HS256Key,
-    pub redis_conn_factory: Option<Client>,
-    pub redis_conn_manager: Option<ConnectionManager>,
+    pub redis_conn_factory: Client,
+    pub redis_conn_manager: ConnectionManager,
     pub redis_prefix: RedisPrefixFn,
-}
-
-impl AppData {
-    pub fn get_redis_conn(&self) -> Result<ConnectionManager, DomainError> {
-        self.redis_conn_manager.clone().ok_or_else(|| {
-            DomainError::new_internal_error(
-                "Redis connection not initialized".to_owned(),
-            )
-        })
-    }
-}
-
-fn build_input_function(
-    app_data: &web::Data<AppData>,
-    input_fn_builder: SimpleInputFunctionBuilder,
-) -> SimpleInputFunctionBuilder {
-    match app_data.config.rate_limit.key_strategy {
-        KeyStrategy::Ip => input_fn_builder.real_ip_key(),
-        KeyStrategy::Random => {
-            let random_suffix: String = rand::rng()
-                .sample_iter(&Alphanumeric)
-                .take(10)
-                .map(char::from)
-                .collect();
-            let unique_key = format!("{}-{}", "test", random_suffix);
-            input_fn_builder.custom_key(&unique_key)
-        }
-    }
-}
-
-#[allow(clippy::declare_interior_mutable_const)]
-pub const X_RATELIMIT_LIMIT: HeaderName =
-    HeaderName::from_static("x-ratelimit-limit");
-#[allow(clippy::declare_interior_mutable_const)]
-pub const X_RATELIMIT_REMAINING: HeaderName =
-    HeaderName::from_static("x-ratelimit-remaining");
-#[allow(clippy::declare_interior_mutable_const)]
-pub const X_RATELIMIT_RESET: HeaderName =
-    HeaderName::from_static("x-ratelimit-reset");
-
-fn make_denied_response(status: &SimpleOutput) -> HttpResponse {
-    let mut response = HttpResponse::TooManyRequests().finish();
-    let map = response.headers_mut();
-    map.insert(X_RATELIMIT_LIMIT, HeaderValue::from(status.limit()));
-    map.insert(X_RATELIMIT_REMAINING, HeaderValue::from(status.remaining()));
-    let seconds: u64 = status.seconds_until_reset();
-    map.insert(X_RATELIMIT_RESET, HeaderValue::from(seconds));
-    map.insert(RETRY_AFTER, HeaderValue::from(seconds));
-    response
+    pub sessions_cleanup_worker_handle: Option<JoinHandle<()>>,
+    pub metrics: Metrics,
+    pub prometheus: PrometheusMetrics,
+    pub user_ids_cache: InstrumentedRedisCache<String, Vec<UserId>>,
+    pub health_checkers: Vec<(HealthcheckName, HealthChecker)>,
+    pub minio: minior::Minio,
 }
 
 pub fn configure_app(
@@ -154,106 +93,82 @@ pub fn configure_app(
     Box::new(move |cfg: &mut ServiceConfig| {
         // Configure rate limiter for login endpoint
         let login_limiter = {
-            let input_fn_builder = SimpleInputFunctionBuilder::new(
-                std::time::Duration::from_secs(
-                    app_data.config.rate_limit.auth.window_secs,
-                ),
-                app_data.config.rate_limit.auth.max_requests.into(),
-            );
-            let input_fn =
-                build_input_function(&app_data, input_fn_builder).build();
-
-            let backend = if app_data.config.rate_limit.disable {
-                utils::RateLimitBackend::Noop
-            } else {
-                let redis_cm = app_data
-                    .get_redis_conn()
-                    .expect("Redis connection required for rate limiting");
-                utils::RateLimitBackend::Redis(
-                    RedisBackend::builder(redis_cm).build(),
-                )
-            };
-
-            RateLimiter::builder(backend, input_fn)
-                .rollback_condition(Some(|status| {
-                    status != actix_web::http::StatusCode::UNAUTHORIZED
-                }))
-                .add_headers()
-                .request_denied_response(|status| {
-                    let _ = tracing::warn!("Reached rate limit for login");
-                    make_denied_response(status)
-                })
-                .build()
+            let backend = rate_limit::initialize_rate_limit_backend(&app_data);
+            rate_limit::create_login_rate_limiter(
+                &app_data.config.rate_limit,
+                backend,
+            )
         };
 
         // Configure rate limiter for other endpoints
-        let api_rate_limiter = || {
-            let backend = if app_data.config.rate_limit.disable {
-                utils::RateLimitBackend::Noop
-            } else {
-                let redis_cm = app_data
-                    .get_redis_conn()
-                    .expect("Redis connection required for rate limiting");
-                utils::RateLimitBackend::Redis(
-                    RedisBackend::builder(redis_cm).build(),
-                )
-            };
+        let api_rate_limiter = |policy: &RateLimitPolicy| {
+            let backend = rate_limit::initialize_rate_limit_backend(&app_data);
+            rate_limit::create_api_rate_limiter(
+                &app_data.config.rate_limit.key_strategy,
+                policy,
+                backend,
+            )
+        };
 
-            let input_fn_builder = SimpleInputFunctionBuilder::new(
-                std::time::Duration::from_secs(
-                    app_data.config.rate_limit.api.window_secs,
-                ),
-                app_data.config.rate_limit.api.max_requests.into(),
+        let in_memory_rate_limiter = {
+            let backend = rate_limit::initialize_hc_backend(
+                !app_data.health_checkers.is_empty(),
             );
-            let input_fn =
-                build_input_function(&app_data, input_fn_builder).build();
-            RateLimiter::builder(backend, input_fn)
-                .add_headers()
-                .request_denied_response(|status| {
-                    let _ = tracing::warn!("Reached rate limit for api");
-                    make_denied_response(status)
-                })
-                .build()
+            rate_limit::create_hc_rate_limiter(
+                &app_data.config.rate_limit,
+                backend,
+            )
         };
 
         cfg.app_data(app_data.clone())
             .service(
+                web::scope("/hc")
+                    .wrap(in_memory_rate_limiter)
+                    .route("", web::get().to(routes::healthcheck::healthcheck)),
+            )
+            .service(
                 web::resource("/api/login")
-                    .wrap(login_limiter)
-                    .route(web::post().to(routes::auth::login)), // reference the function directly
+                    .wrap(login_limiter.clone())
+                    .route(web::post().to(routes::auth::login)),
+            )
+            .service(
+                web::resource("/api/logout")
+                    .wrap(api_rate_limiter(
+                        &app_data.config.rate_limit.api_public,
+                    ))
+                    .route(web::post().to(routes::auth::logout)),
             )
             .service(
                 web::resource("/api/registration")
-                    .wrap(api_rate_limiter())
+                    .wrap(api_rate_limiter(
+                        &app_data.config.rate_limit.api_public,
+                    ))
                     .route(web::post().to(routes::users::add_user)),
             )
             .service(
                 web::scope("/ws")
-                    .wrap(api_rate_limiter())
+                    .wrap(api_rate_limiter(
+                        &app_data.config.rate_limit.api_public,
+                    ))
                     .route("", web::get().to(routes::ws::ws)),
             )
-            // TODO Implement logout
-            // .service(routes::auth::logout)
-            // public endpoint - not implemented yet
-            .service(web::scope("/api/public").wrap(api_rate_limiter()).route(
-                "/build-info",
-                web::get().to(routes::misc::build_info_req),
-            ))
+            // public api
             .service(
-                web::scope("/api")
-                    .wrap(api_rate_limiter())
-                    .wrap(HttpAuthentication::bearer(bearer_auth))
-                    .wrap(GrantsMiddleware::with_extractor(
-                        routes::auth::extract,
+                web::scope("/api/public")
+                    .wrap(api_rate_limiter(
+                        &app_data.config.rate_limit.api_public,
                     ))
-                    .route("/cmd", web::post().to(routes::command::run_command))
                     .route(
-                        "/cmd/{job_id}",
-                        web::get().to(routes::command::get_job),
+                        "/build-info",
+                        web::get().to(routes::misc::build_info_req),
                     )
                     .route(
-                        "/cmd/{job_id}",
-                        web::delete().to(routes::command::abort_command),
+                        "/metrics/cmd",
+                        web::get().to(routes::command::handle_get_job_metrics),
+                    )
+                    .route(
+                        "/avatars/{user_id}",
+                        web::get().to(routes::users::get_user_avatar),
                     )
                     .service(
                         web::scope("/users")
@@ -268,11 +183,58 @@ pub fn configure_app(
                             ),
                     ),
             )
-            .service(fs::Files::new("/", "./static").index_file("index.html"));
+            // authenticated api
+            .service(
+                web::scope("/api")
+                    .wrap(api_rate_limiter(&app_data.config.rate_limit.api))
+                    .wrap(GrantsMiddleware::with_extractor(
+                        routes::auth::extract,
+                    ))
+                    .wrap(middleware::Condition::new(
+                        true, // Always enabled
+                        middlewares::CustomHeaders::new(
+                            app_data.config.timezone,
+                        ),
+                    ))
+                    .wrap(from_fn(utils::cookie_auth))
+                    .route(
+                        "/cmd",
+                        web::post().to(routes::command::handle_run_command),
+                    )
+                    .route(
+                        "/cmd/{job_id}",
+                        web::get().to(routes::command::handle_get_job),
+                    )
+                    .route(
+                        "/cmd/{job_id}",
+                        web::delete().to(routes::command::handle_abort_job),
+                    )
+                    .service(web::scope("/avatars").route(
+                        "",
+                        web::put().to(routes::users::upload_user_avatar),
+                        // TODO DELETE endpoint
+                    ))
+                    .service(
+                        web::scope("/sessions")
+                            .route(
+                                "",
+                                web::get().to(routes::auth::list_sessions),
+                            )
+                            .route(
+                                "/{session_id}",
+                                web::delete().to(routes::auth::revoke_session),
+                            )
+                            .route(
+                                "/revoke-others",
+                                web::post()
+                                    .to(routes::auth::revoke_other_sessions),
+                            ),
+                    ),
+            );
     })
 }
 
-pub async fn run(addr: String, app_data: Data<AppData>) -> io::Result<()> {
+pub async fn run(addr: String, app_data: Data<AppData>) -> anyhow::Result<()> {
     let bi = get_build_info();
     let _ = tracing::info!(
         "Starting {} {}",
@@ -291,8 +253,13 @@ pub async fn run(addr: String, app_data: Data<AppData>) -> io::Result<()> {
     );
     let app = move || {
         App::new()
+            .wrap(app_data.prometheus.clone())
             .configure(configure_app(app_data.clone()))
             .wrap(TracingLogger::<DomainRootSpanBuilder>::new())
     };
-    HttpServer::new(app).bind(addr)?.run().await
+    HttpServer::new(app)
+        .bind(addr)?
+        .run()
+        .await
+        .map_err(|err| anyhow::anyhow!(err))
 }

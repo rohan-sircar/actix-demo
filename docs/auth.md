@@ -28,13 +28,15 @@ sequenceDiagram
     AuthService->>AuthService: Verify bcrypt hash
     AuthService->>AuthService: Generate JWT (1yr expiry)
     AuthService->>Redis: Store token→user mapping
-    AuthService-->>Client: Return X-AUTH-TOKEN
+    AuthService-->>Client: Return `X-AUTH-TOKEN` cookie
 
-    Client->>AuthService: Request with Bearer token
-    AuthService->>AuthService: Verify JWT signature
+    Client->>AuthService: Request to `/api/*` with `X-AUTH-TOKEN` cookie
+    AuthService->>AuthService: Verify JWT signature from cookie
     AuthService->>Redis: Validate token exists
     Redis-->>AuthService: Session status
     AuthService-->>Client: Grant/Deny access
+
+    Note right of AuthService: `X-AUTH-TOKEN` cookie is `HttpOnly`, `Secure`, `SameSite=Strict`
 ```
 
 ## Security Implementation

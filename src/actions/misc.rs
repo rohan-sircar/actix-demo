@@ -1,20 +1,18 @@
 mod create_database;
+use chrono::Duration;
 pub use create_database::*;
-use diesel::{prelude::*, r2d2::ConnectionManager};
-use diesel_tracing::pg::InstrumentedPgConnection;
-use r2d2::PooledConnection;
+use diesel::prelude::*;
 
 use crate::{
     errors::DomainError,
     models::{
-        misc::{Job, JobStatus, NewJob},
+        misc::{Job, JobCount, JobStatus, NewJob},
         users::UserId,
     },
+    types::DbConnection,
 };
 
-pub fn get_jobs(
-    conn: &mut PooledConnection<ConnectionManager<InstrumentedPgConnection>>,
-) -> Result<Vec<Job>, DomainError> {
+pub fn get_jobs(conn: &mut DbConnection) -> Result<Vec<Job>, DomainError> {
     use crate::schema::jobs::dsl as jobs;
     use crate::schema::users::dsl as users;
     Ok(jobs::jobs
@@ -22,7 +20,7 @@ pub fn get_jobs(
         .select((
             jobs::id,
             jobs::job_id,
-            users::username,
+            users::id,
             jobs::status,
             jobs::status_message,
             jobs::created_at,
@@ -32,7 +30,7 @@ pub fn get_jobs(
 
 pub fn get_jobs_by_user(
     user_id: &UserId,
-    conn: &mut PooledConnection<ConnectionManager<InstrumentedPgConnection>>,
+    conn: &mut DbConnection,
 ) -> Result<Vec<Job>, DomainError> {
     use crate::schema::jobs::dsl as jobs;
     use crate::schema::users::dsl as users;
@@ -41,7 +39,7 @@ pub fn get_jobs_by_user(
         .select((
             jobs::id,
             jobs::job_id,
-            users::username,
+            users::id,
             jobs::status,
             jobs::status_message,
             jobs::created_at,
@@ -52,7 +50,7 @@ pub fn get_jobs_by_user(
 
 pub fn get_job_by_uuid(
     job_id: uuid::Uuid,
-    conn: &mut PooledConnection<ConnectionManager<InstrumentedPgConnection>>,
+    conn: &mut DbConnection,
 ) -> Result<Option<Job>, DomainError> {
     use crate::schema::jobs::dsl as jobs;
     use crate::schema::users::dsl as users;
@@ -61,7 +59,7 @@ pub fn get_job_by_uuid(
         .select((
             jobs::id,
             jobs::job_id,
-            users::username,
+            users::id,
             jobs::status,
             jobs::status_message,
             jobs::created_at,
@@ -75,7 +73,7 @@ pub fn update_job_status(
     job_id: uuid::Uuid,
     new_status: JobStatus,
     status_message: Option<String>,
-    conn: &mut PooledConnection<ConnectionManager<InstrumentedPgConnection>>,
+    conn: &mut DbConnection,
 ) -> Result<(), DomainError> {
     use crate::schema::jobs::dsl as jobs;
     diesel::update(jobs::jobs.filter(jobs::job_id.eq(job_id)))
@@ -89,7 +87,7 @@ pub fn update_job_status(
 
 pub fn create_job(
     new_job: &NewJob,
-    conn: &mut PooledConnection<ConnectionManager<InstrumentedPgConnection>>,
+    conn: &mut DbConnection,
 ) -> Result<Job, DomainError> {
     use crate::schema::jobs::dsl as jobs;
     let job = conn
@@ -106,4 +104,33 @@ pub fn create_job(
             )
         })?;
     Ok(job)
+}
+
+pub fn get_job_metrics(
+    conn: &mut DbConnection,
+    hours_since: Option<i8>,
+    since_time: Option<chrono::NaiveDateTime>,
+) -> Result<Vec<JobCount>, DomainError> {
+    use crate::schema::jobs::dsl as jobs;
+    use diesel::dsl::count;
+
+    let mut query = jobs::jobs
+        .group_by(jobs::status)
+        .select((jobs::status, count(jobs::id)))
+        .into_boxed();
+
+    // Apply hours_since filter if provided
+    if let Some(hours) = hours_since {
+        let cutoff =
+            chrono::Utc::now().naive_utc() - Duration::hours(hours as i64);
+        query = query.filter(jobs::created_at.ge(cutoff));
+    } else {
+        // Apply specific timestamp filter if provided
+        if let Some(time) = since_time {
+            query = query.filter(jobs::created_at.ge(time));
+        }
+    }
+
+    let res = query.load::<JobCount>(conn)?;
+    Ok(res)
 }
