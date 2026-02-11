@@ -78,6 +78,17 @@ pub struct EnvConfig {
     pub max_avatar_size_bytes: u64,
     #[serde(default = "models::defaults::default_timezone")]
     pub timezone: chrono_tz::Tz,
+    // SMTP configuration
+    #[serde(default = "models::defaults::default_smtp_host")]
+    pub smtp_host: String,
+    #[serde(default = "models::defaults::default_smtp_port")]
+    pub smtp_port: u16,
+    #[serde(default = "models::defaults::default_smtp_username")]
+    pub smtp_username: String,
+    #[serde(default = "models::defaults::default_smtp_password")]
+    pub smtp_password: String,
+    #[serde(default = "models::defaults::default_smtp_from_email")]
+    pub smtp_from_email: String,
 }
 
 #[derive(Deserialize, Debug, Clone)]

@@ -14,6 +14,7 @@ use actix_demo::models::session::{SessionConfig, SessionRenewalPolicy};
 use actix_demo::models::worker::{WorkerBackoffConfig, WorkerConfig};
 use actix_demo::utils::redis_credentials_repo::RedisCredentialsRepo;
 use actix_demo::utils::InstrumentedRedisCache;
+use actix_demo::SmtpConfig;
 use actix_demo::{
     config::EnvConfig, utils, workers, AppConfig, AppData, LoggerFormat,
 };
@@ -239,6 +240,13 @@ async fn main() -> anyhow::Result<()> {
                 max_avatar_size_bytes: env_config.max_avatar_size_bytes,
             },
             timezone: env_config.timezone,
+            smtp: SmtpConfig {
+                host: env_config.smtp_host.clone(),
+                port: env_config.smtp_port,
+                username: env_config.smtp_username.clone(),
+                password: env_config.smtp_password.clone(),
+                from_email: env_config.smtp_from_email.clone(),
+            },
         },
         pool,
         credentials_repo,

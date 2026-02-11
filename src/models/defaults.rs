@@ -75,3 +75,23 @@ pub fn default_health_check_timeout_secs() -> u8 {
 pub fn default_timezone() -> chrono_tz::Tz {
     chrono_tz::Tz::UTC
 }
+
+pub fn default_smtp_host() -> String {
+    "localhost".to_string()
+}
+
+pub fn default_smtp_port() -> u16 {
+    587
+}
+
+pub fn default_smtp_username() -> String {
+    "".to_string()
+}
+
+pub fn default_smtp_password() -> String {
+    "".to_string()
+}
+
+pub fn default_smtp_from_email() -> String {
+    "noreply@example.com".to_string()
+}

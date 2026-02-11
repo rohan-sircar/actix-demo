@@ -60,6 +60,14 @@ pub enum LoggerFormat {
 }
 
 #[derive(Deserialize, Debug, Clone)]
+pub struct SmtpConfig {
+    pub host: String,
+    pub port: u16,
+    pub username: String,
+    pub password: String,
+    pub from_email: String,
+}
+
 pub struct AppConfig {
     pub hash_cost: u32,
     pub job_bin_path: String,
@@ -68,6 +76,7 @@ pub struct AppConfig {
     pub health_check_timeout_secs: u8,
     pub minio: MinioConfig,
     pub timezone: chrono_tz::Tz,
+    pub smtp: SmtpConfig,
 }
 
 pub struct AppData {

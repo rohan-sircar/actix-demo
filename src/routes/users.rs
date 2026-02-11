@@ -78,6 +78,7 @@ pub async fn search_users(
     Ok(HttpResponse::Ok().json(users))
 }
 
+// TODO rename to register user
 /// Inserts a new user
 #[tracing::instrument(level = "info", skip(app_data))]
 pub async fn add_user(

@@ -13,7 +13,7 @@ use actix_demo::models::worker::{WorkerBackoffConfig, WorkerConfig};
 use actix_demo::telemetry::DomainRootSpanBuilder;
 use actix_demo::utils::redis_credentials_repo::RedisCredentialsRepo;
 use actix_demo::utils::InstrumentedRedisCache;
-use actix_demo::{utils, AppConfig, AppData};
+use actix_demo::{utils, AppConfig, AppData, SmtpConfig};
 use actix_http::header::HeaderMap;
 use actix_web::dev::ServiceResponse;
 use actix_web::test::TestRequest;
@@ -240,6 +240,13 @@ pub async fn app_data(
                 actix_demo::config::default_avatar_size_limit(),
         },
         timezone: chrono_tz::Tz::UTC,
+        smtp: SmtpConfig {
+            host: "localhost".to_string(),
+            port: 587,
+            username: "".to_string(),
+            password: "".to_string(),
+            from_email: "noreply@example.com".to_string(),
+        },
     };
 
     let client = redis::Client::open(redis_connstr)
