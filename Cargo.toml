@@ -35,6 +35,7 @@ diesel = { version = "2.2.7", features = [
     'chrono',
     'postgres',
     'uuid',
+    'numeric',
 ] }
 diesel-derive-enum = { version = "2.1.0", features = ["postgres"] }
 diesel-tracing = { version = "0.3.1", features = ["postgres", "r2d2"] }
@@ -81,6 +82,7 @@ uuid = { version = "1.13.1", features = ["v4", "serde"] }
 validators = { version = "0.25.3", features = ["serde"] }
 thiserror = "2.0.12"
 mime = "0.3.17"
+bigdecimal = { version = "0.4.10", features = ["serde"] }
 
 [dev-dependencies]
 actix-codec = "0.5.0"
