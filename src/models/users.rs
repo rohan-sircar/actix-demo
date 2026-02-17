@@ -1,12 +1,12 @@
 use serde::{Deserialize, Serialize};
+use serde_valid::Validate;
 
+use crate::errors::DomainError;
 use crate::schema::users;
-use crate::utils::regex;
 use derive_more::{Display, Into};
 use std::convert::TryFrom;
 use std::fmt;
 use std::{convert::TryInto, str::FromStr};
-use validators::prelude::*;
 
 use super::roles::RoleEnum;
 
@@ -64,27 +64,43 @@ impl TryFrom<u32> for UserId {
             .map(UserId)
     }
 }
-#[derive(Validator, Debug, Clone, DieselNewType, PartialEq, Eq)]
-#[validator(regex(regex(regex::USERNAME_REG)))]
-pub struct Username(String);
+#[derive(
+    Validate, Debug, Clone, DieselNewType, PartialEq, Eq, Serialize, Deserialize,
+)]
+pub struct Username(#[validate(pattern = r"^([a-z\d.]+-)*[a-z\d.]+$")] String);
 impl Username {
+    pub fn parse_string(value: String) -> Result<Self, DomainError> {
+        let username = Self(value);
+        username.validate().map_err(|err| {
+            DomainError::new_bad_input_error(format!("Invalid username: {err}"))
+        })?;
+        Ok(username)
+    }
+
     pub fn as_str(&self) -> &str {
         &self.0
     }
 }
-#[derive(Validator, Clone, DieselNewType)]
-#[validator(line(char_length(max = 200)))]
-pub struct Password(String);
+#[derive(Validate, Clone, DieselNewType, Serialize, Deserialize)]
+pub struct Password(#[validate(max_length = 200)] String);
+
+impl Password {
+    pub fn parse_string(value: String) -> Result<Self, DomainError> {
+        let password = Self(value);
+        password.validate().map_err(|err| {
+            DomainError::new_bad_input_error(format!("Invalid password: {err}"))
+        })?;
+        Ok(password)
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
 
 impl fmt::Debug for Password {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_tuple("Password").field(&"**********").finish()
-    }
-}
-
-impl Password {
-    pub fn as_str(&self) -> &str {
-        &self.0
     }
 }
 

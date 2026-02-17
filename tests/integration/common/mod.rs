@@ -50,7 +50,6 @@ use tracing_log::LogTracer;
 use tracing_subscriber::fmt::{format::FmtSpan, Subscriber as FmtSubscriber};
 use tracing_subscriber::EnvFilter;
 use uuid::Uuid;
-use validators::prelude::*;
 
 use actix_demo::configure_app;
 
@@ -296,8 +295,12 @@ pub async fn app_data(
                     .context("Error running migrations")?;
                 actix_demo::actions::users::insert_new_user(
                     NewUser {
-                        username: Username::parse_str(DEFAULT_USER)?,
-                        password: Password::parse_str(DEFAULT_USER)?,
+                        username: Username::parse_string(
+                            DEFAULT_USER.to_owned(),
+                        )?,
+                        password: Password::parse_string(
+                            DEFAULT_USER.to_owned(),
+                        )?,
                     },
                     RoleEnum::RoleAdmin,
                     config.hash_cost,

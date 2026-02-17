@@ -11,7 +11,6 @@ use crate::types::DbConnection;
 use crate::utils::InstrumentedRedisCache;
 use bcrypt::hash;
 use do_notation::m;
-use validators::prelude::*;
 
 pub fn get_roles_for_user(
     uid: &UserId,

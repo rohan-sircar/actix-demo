@@ -63,7 +63,7 @@ redis = { version = "0.26.0", features = [
 regex = "1.11.1"
 serde = { version = "1.0.217", features = ["derive"] }
 serde_json = "1.0.64"
-tokio = { version = "1.43.0", features = ["full"] }
+tokio = { version = "1.49.0", features = ["full"] }
 tokio-util = { version = "0.7", features = ["io"] }
 tracing = { version = "0.1.41" }
 tracing-actix-web = "0.7.15"
@@ -71,7 +71,7 @@ tracing-appender = "0.2.2"
 tracing-bunyan-formatter = "0.3.4"
 tracing-futures = "0.2.5"
 tracing-log = "0.2.0"
-tracing-subscriber = { version = "0.3.16", features = [
+tracing-subscriber = { version = "0.3.20", features = [
     "fmt",
     "registry",
     "env-filter",
@@ -79,10 +79,10 @@ tracing-subscriber = { version = "0.3.16", features = [
 tracing-loki = "0.2.6"
 url = { version = "2.5.4" }
 uuid = { version = "1.13.1", features = ["v4", "serde"] }
-validators = { version = "0.25.3", features = ["serde"] }
 thiserror = "2.0.12"
 mime = "0.3.17"
 bigdecimal = { version = "0.4.10", features = ["serde"] }
+serde_valid = "2.0.1"
 
 [dev-dependencies]
 actix-codec = "0.5.0"
