@@ -1,4 +1,5 @@
 use diesel::prelude::*;
+use validators::prelude::*;
 
 use crate::errors::DomainError;
 use crate::models::misc::Pagination;

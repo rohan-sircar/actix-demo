@@ -1,15 +1,14 @@
 use serde::{Deserialize, Serialize};
-use serde_valid::Validate;
+use validators::Validator;
 
-use crate::errors::DomainError;
+use super::roles::RoleEnum;
 use crate::schema::users;
+use crate::utils::regex;
 use derive_more::{Display, Into};
 use std::convert::TryFrom;
 use std::fmt;
 use std::{convert::TryInto, str::FromStr};
-
-use super::roles::RoleEnum;
-
+use validators::prelude::*;
 ///newtype to constrain id to positive int values
 #[derive(
     Debug,
@@ -64,48 +63,17 @@ impl TryFrom<u32> for UserId {
             .map(UserId)
     }
 }
-#[derive(
-    Validate, Debug, Clone, DieselNewType, PartialEq, Eq, Serialize, Deserialize,
-)]
-pub struct Username(
-    #[validate(min_length = 4)]
-    #[validate(max_length = 20)]
-    #[validate(pattern = r"^([a-z\d.]+-)*[a-z\d.]+$")]
-    String,
-);
+#[derive(Validator, Debug, Clone, DieselNewType, PartialEq, Eq)]
+#[validator(regex(regex(regex::USERNAME_REG)))]
+pub struct Username(String);
 impl Username {
-    pub fn parse_string(value: String) -> Result<Self, DomainError> {
-        let username = Self(value);
-        username.validate().map_err(|err| {
-            DomainError::new_bad_input_error(format!("Invalid username: {err}"))
-        })?;
-        Ok(username)
-    }
-
     pub fn as_str(&self) -> &str {
         &self.0
     }
 }
-#[derive(Validate, Clone, DieselNewType, Serialize, Deserialize)]
-pub struct Password(
-    #[validate(min_length = 1)]
-    #[validate(max_length = 200)]
-    String,
-);
-
-impl Password {
-    pub fn parse_string(value: String) -> Result<Self, DomainError> {
-        let password = Self(value);
-        password.validate().map_err(|err| {
-            DomainError::new_bad_input_error(format!("Invalid password: {err}"))
-        })?;
-        Ok(password)
-    }
-
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-}
+#[derive(Validator, Clone, DieselNewType)]
+#[validator(line(char_length(max = 200)))]
+pub struct Password(String);
 
 impl fmt::Debug for Password {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -113,13 +81,15 @@ impl fmt::Debug for Password {
     }
 }
 
-#[derive(
-    Validate, Debug, Clone, Deserialize, Serialize, Queryable, Identifiable,
-)]
+impl Password {
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+#[derive(Debug, Clone, Deserialize, Serialize, Queryable, Identifiable)]
 #[diesel(table_name = users)]
 pub struct User {
     pub id: UserId,
-    #[validate]
     pub username: Username,
     pub created_at: chrono::NaiveDateTime,
     // pub role: Vec<RoleEnum>,
@@ -192,7 +162,6 @@ impl UserAuthDetailsWithRoles {
 }
 #[cfg(test)]
 mod test {
-    use serde_valid::json::FromJsonStr;
 
     use super::*;
     #[test]
@@ -215,16 +184,16 @@ mod test {
             r#"{"id":-1,"username":"chewbacca","password":"aeqfq3fq","role":"role_user","created_at":"2021-05-12T12:37:56"}"#,
         );
         assert!(mb_user.is_err());
-        let mb_user = User::from_json_str(
+        let mb_user = serde_json::from_str::<User>(
             r#"{"id":1,"username":"ch","password":"aeqfq3fq","role":"role_user","created_at":"2021-05-12T12:37:56"}"#,
         );
         assert!(mb_user.is_err());
-        let mb_user = User::from_json_str(
+        let mb_user = serde_json::from_str::<User>(
             r#"{"id":1,"username":"chaegw;eaef","password":"aeqfq3fq","role":"role_user","created_at":"2021-05-12T12:37:56"}"#,
         );
         assert!(mb_user.is_err());
-        let mb_user = User::from_json_str(
-            r#"{"id":1,"username":"chaegw_eaef","password":"aeqfq3fq","role":"role_user","created_at":"2021-05-12T12:37:56"}"#,
+        let mb_user = serde_json::from_str::<User>(
+            r#"{"id":1,"username":"chaeg_weaef","password":"","role":"role_user","created_at":"2021-05-12T12:37:56"}"#,
         );
         assert!(mb_user.is_err());
     }

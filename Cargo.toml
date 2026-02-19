@@ -30,13 +30,7 @@ chrono-tz = { version = "0.10.4", features = ['serde'] }
 custom_error = "1.9.2"
 derive_builder = "0.20.2"
 derive_more = { version = "2.1.1", features = ["display", "into"] }
-diesel = { version = "2.2.7", features = [
-    'r2d2',
-    'chrono',
-    'postgres',
-    'uuid',
-    'numeric',
-] }
+diesel = { version = "2.2.7", features = ["r2d2", "chrono", "postgres", "uuid", "numeric"] }
 diesel-derive-enum = { version = "2.1.0", features = ["postgres"] }
 diesel-tracing = { version = "0.3.1", features = ["postgres", "r2d2"] }
 diesel_migrations = "2.2.0"
@@ -82,7 +76,7 @@ uuid = { version = "1.21.0", features = ["v4", "serde"] }
 thiserror = "2.0.18"
 mime = "0.3.17"
 bigdecimal = { version = "0.4.10", features = ["serde"] }
-serde_valid = "2.0.1"
+validators = { git = "https://github.com/rohan-sircar/validators"}
 
 [dev-dependencies]
 actix-codec = "0.5.0"

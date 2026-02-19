@@ -19,6 +19,7 @@ use actix_web::dev::ServiceResponse;
 use actix_web::test::TestRequest;
 use actix_web::App;
 use actix_web::{test, web};
+use validators::prelude::*;
 
 use actix_web::web::Data;
 use actix_web_prom::PrometheusMetricsBuilder;
