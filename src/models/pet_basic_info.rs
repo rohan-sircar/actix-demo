@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use derive_more::Display;
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -7,7 +7,15 @@ use crate::models::pet_enums::*;
 use crate::{models::users::UserId, schema::pet_basic_info};
 
 #[derive(
-    Debug, Clone, Deserialize, Serialize, DieselNewType, Eq, PartialEq, Hash,
+    Debug,
+    Display,
+    Clone,
+    Deserialize,
+    Serialize,
+    DieselNewType,
+    Eq,
+    PartialEq,
+    Hash,
 )]
 pub struct PetBasicInfoId(i32);
 
@@ -17,7 +25,9 @@ impl PetBasicInfoId {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, Queryable, Identifiable)]
+#[derive(
+    Debug, Clone, Deserialize, Serialize, Queryable, Selectable, Identifiable,
+)]
 #[diesel(table_name = pet_basic_info)]
 pub struct PetBasicInfo {
     pub id: PetBasicInfoId,
@@ -31,8 +41,8 @@ pub struct PetBasicInfo {
     pub size: Option<SizeType>,
     pub color: Option<String>,
     pub coat_type: Option<CoatType>,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
+    pub created_at: chrono::NaiveDateTime,
+    pub updated_at: chrono::NaiveDateTime,
 }
 
 #[derive(Debug, Clone, Insertable)]
@@ -59,7 +69,7 @@ pub struct UpdatePetBasicInfo {
     pub age: Option<i32>,
     pub weight_kg: Option<f32>,
     pub gender: Option<GenderType>,
-    pub size: Option<Option<SizeType>>,
+    pub size: Option<SizeType>,
     pub color: Option<Option<String>>,
     pub coat_type: Option<Option<CoatType>>,
 }

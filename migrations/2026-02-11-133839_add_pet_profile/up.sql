@@ -40,8 +40,8 @@ CREATE TABLE pet_basic_info (
     color VARCHAR(50),
     coat_type coat_type,
     -- Timestamps
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Create pet_personality_traits table
@@ -123,7 +123,7 @@ CREATE TABLE pet_profile_images (
     image_url TEXT NOT NULL,
     is_primary BOOLEAN DEFAULT false,
     sort_order INTEGER DEFAULT 0,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_pet_profile_images_pet_basic_info_id ON pet_profile_images(pet_basic_info_id);

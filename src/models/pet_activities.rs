@@ -1,4 +1,4 @@
-use diesel::prelude::*;
+use diesel::{pg::Pg, prelude::*};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -6,14 +6,17 @@ use crate::{
     schema::pet_activities,
 };
 
-#[derive(Debug, Clone, Deserialize, Serialize, Queryable, Identifiable)]
+#[derive(
+    Debug, Clone, Deserialize, Serialize, Queryable, Identifiable, Selectable,
+)]
 #[diesel(table_name = pet_activities)]
+#[diesel(check_for_backend(Pg))]
 pub struct PetActivities {
     pub id: i32,
     pub pet_basic_info_id: PetBasicInfoId,
-    pub favorite_activities: Option<Vec<String>>,
-    pub likes: Option<Vec<String>>,
-    pub dislikes: Option<Vec<String>>,
+    pub favorite_activities: Option<Vec<Option<String>>>,
+    pub likes: Option<Vec<Option<String>>>,
+    pub dislikes: Option<Vec<Option<String>>>,
     pub energy_level: Option<EnergyLevelType>,
     pub trainability: Option<TrainabilityType>,
     pub barking_level: Option<BarkingLevelType>,

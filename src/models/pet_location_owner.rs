@@ -4,7 +4,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::{models::pet_basic_info::*, schema::pet_location_owner};
 
-#[derive(Debug, Clone, Deserialize, Serialize, Queryable, Identifiable)]
+#[derive(
+    Debug, Clone, Deserialize, Serialize, Queryable, Identifiable, Selectable,
+)]
 #[diesel(table_name = pet_location_owner)]
 pub struct PetLocationOwner {
     pub id: i32,

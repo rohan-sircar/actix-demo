@@ -1,4 +1,4 @@
-use diesel::prelude::*;
+use diesel::{pg::Pg, prelude::*};
 use diesel_derive_enum::DbEnum;
 use serde::{Deserialize, Serialize};
 
@@ -15,12 +15,15 @@ pub enum AdoptionStatusType {
     Available,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, Queryable, Identifiable)]
+#[derive(
+    Debug, Clone, Deserialize, Serialize, Queryable, Identifiable, Selectable,
+)]
 #[diesel(table_name = pet_adoption_details)]
+#[diesel(check_for_backend(Pg))]
 pub struct PetAdoptionDetails {
     pub id: i32,
     pub pet_basic_info_id: PetBasicInfoId,
-    pub special_needs: bool,
+    pub special_needs: Option<bool>,
     pub special_needs_description: Option<String>,
     pub adoption_status: Option<AdoptionStatusType>,
     pub shelter_name: Option<String>,

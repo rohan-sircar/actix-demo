@@ -1,15 +1,18 @@
-use diesel::prelude::*;
+use diesel::{pg::Pg, prelude::*};
 use serde::{Deserialize, Serialize};
 
 use crate::{models::pet_basic_info::*, schema::pet_personality_traits};
 
-#[derive(Debug, Clone, Deserialize, Serialize, Queryable, Identifiable)]
+#[derive(
+    Debug, Clone, Deserialize, Serialize, Queryable, Selectable, Identifiable,
+)]
 #[diesel(table_name = pet_personality_traits)]
+#[diesel(check_for_backend(Pg))]
 pub struct PetPersonalityTraits {
     pub id: i32,
     pub pet_basic_info_id: PetBasicInfoId,
     pub bio: Option<String>,
-    pub personality_traits: Option<Vec<String>>,
+    pub personality_traits: Option<Vec<Option<String>>>,
     pub good_with_dogs: Option<bool>,
     pub good_with_cats: Option<bool>,
     pub good_with_kids: Option<bool>,
@@ -24,7 +27,7 @@ pub struct PetPersonalityTraits {
 pub struct NewPetPersonalityTraits {
     pub pet_basic_info_id: PetBasicInfoId,
     pub bio: Option<String>,
-    pub personality_traits: Option<Vec<String>>,
+    pub personality_traits: Option<Vec<Option<String>>>,
     pub good_with_dogs: Option<bool>,
     pub good_with_cats: Option<bool>,
     pub good_with_kids: Option<bool>,
@@ -38,7 +41,7 @@ pub struct NewPetPersonalityTraits {
 #[diesel(table_name = pet_personality_traits)]
 pub struct UpdatePetPersonalityTraits {
     pub bio: Option<Option<String>>,
-    pub personality_traits: Option<Option<Vec<String>>>,
+    pub personality_traits: Option<Option<Vec<Option<String>>>>,
     pub good_with_dogs: Option<Option<bool>>,
     pub good_with_cats: Option<Option<bool>>,
     pub good_with_kids: Option<Option<bool>>,

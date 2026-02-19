@@ -111,8 +111,8 @@ diesel::table! {
         #[max_length = 50]
         color -> Nullable<Varchar>,
         coat_type -> Nullable<CoatType>,
-        created_at -> Nullable<Timestamptz>,
-        updated_at -> Nullable<Timestamptz>,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
     }
 }
 
@@ -153,7 +153,7 @@ diesel::table! {
         image_url -> Text,
         is_primary -> Nullable<Bool>,
         sort_order -> Nullable<Int4>,
-        created_at -> Nullable<Timestamptz>,
+        created_at -> Timestamp,
     }
 }
 
