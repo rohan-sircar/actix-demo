@@ -67,7 +67,12 @@ impl TryFrom<u32> for UserId {
 #[derive(
     Validate, Debug, Clone, DieselNewType, PartialEq, Eq, Serialize, Deserialize,
 )]
-pub struct Username(#[validate(pattern = r"^([a-z\d.]+-)*[a-z\d.]+$")] String);
+pub struct Username(
+    #[validate(min_length = 4)]
+    #[validate(max_length = 20)]
+    #[validate(pattern = r"^([a-z\d.]+-)*[a-z\d.]+$")]
+    String,
+);
 impl Username {
     pub fn parse_string(value: String) -> Result<Self, DomainError> {
         let username = Self(value);
@@ -82,7 +87,11 @@ impl Username {
     }
 }
 #[derive(Validate, Clone, DieselNewType, Serialize, Deserialize)]
-pub struct Password(#[validate(max_length = 200)] String);
+pub struct Password(
+    #[validate(min_length = 1)]
+    #[validate(max_length = 200)]
+    String,
+);
 
 impl Password {
     pub fn parse_string(value: String) -> Result<Self, DomainError> {
@@ -104,10 +113,13 @@ impl fmt::Debug for Password {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, Queryable, Identifiable)]
+#[derive(
+    Validate, Debug, Clone, Deserialize, Serialize, Queryable, Identifiable,
+)]
 #[diesel(table_name = users)]
 pub struct User {
     pub id: UserId,
+    #[validate]
     pub username: Username,
     pub created_at: chrono::NaiveDateTime,
     // pub role: Vec<RoleEnum>,
@@ -180,6 +192,8 @@ impl UserAuthDetailsWithRoles {
 }
 #[cfg(test)]
 mod test {
+    use serde_valid::json::FromJsonStr;
+
     use super::*;
     #[test]
     fn user_model_refinement_test() {
@@ -201,15 +215,15 @@ mod test {
             r#"{"id":-1,"username":"chewbacca","password":"aeqfq3fq","role":"role_user","created_at":"2021-05-12T12:37:56"}"#,
         );
         assert!(mb_user.is_err());
-        let mb_user = serde_json::from_str::<User>(
+        let mb_user = User::from_json_str(
             r#"{"id":1,"username":"ch","password":"aeqfq3fq","role":"role_user","created_at":"2021-05-12T12:37:56"}"#,
         );
         assert!(mb_user.is_err());
-        let mb_user = serde_json::from_str::<User>(
+        let mb_user = User::from_json_str(
             r#"{"id":1,"username":"chaegw;eaef","password":"aeqfq3fq","role":"role_user","created_at":"2021-05-12T12:37:56"}"#,
         );
         assert!(mb_user.is_err());
-        let mb_user = serde_json::from_str::<User>(
+        let mb_user = User::from_json_str(
             r#"{"id":1,"username":"chaegw_eaef","password":"aeqfq3fq","role":"role_user","created_at":"2021-05-12T12:37:56"}"#,
         );
         assert!(mb_user.is_err());

@@ -54,7 +54,10 @@ mod tests {
             .await
             .unwrap();
             let token = common::get_default_token(&test_app).await;
-            let jwt_key = HS256Key::from_bytes("test".as_bytes());
+            let jwt_key = HS256Key::from_bytes(
+                "testasddddddddafsfwewefwecwrwrgwrhwefwegweegsdfwgfg"
+                    .as_bytes(),
+            );
 
             let claims = utils::get_claims(&jwt_key, &token)?;
             let user_id = claims.custom.user_id;

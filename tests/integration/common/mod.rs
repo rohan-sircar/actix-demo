@@ -38,7 +38,7 @@ use std::fs;
 use std::io::Write;
 use std::os::unix::prelude::OpenOptionsExt;
 use std::sync::Arc;
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 use testcontainers_modules::minio::{self, MinIO};
 use testcontainers_modules::postgres::{self, Postgres};
 use testcontainers_modules::redis::{Redis, REDIS_PORT};
@@ -271,7 +271,7 @@ pub async fn app_data(
         actix_demo::metrics::Metrics::new(prometheus.clone().registry);
 
     let user_ids_cache = InstrumentedRedisCache::new(
-        RedisCacheBuilder::new("test_user_ids", 3600)
+        RedisCacheBuilder::new("test_user_ids", Duration::from_secs(3000))
             .set_connection_string(redis_connstr)
             .build()
             .unwrap(),
@@ -324,7 +324,9 @@ pub async fn app_data(
         metrics.active_sessions.clone(),
     );
 
-    let key = HS256Key::from_bytes("test".as_bytes());
+    let key = HS256Key::from_bytes(
+        "testasddddddddafsfwewefwecwrwrgwrhwefwegweegsdfwgfg".as_bytes(),
+    );
 
     // Create MinIO client
     let cred = aws_sdk_s3::config::Credentials::new(

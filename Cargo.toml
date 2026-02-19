@@ -5,31 +5,31 @@ authors = ['Rohan Sircar <rohansircar@protonmail.com>']
 edition = '2021'
 
 [dependencies]
-reqwest = { version = "0.12.15", features = ["json"] }
+reqwest = { version = "0.13.2", features = ["json"] }
 actix-extensible-rate-limit = { version = "0.4.0", features = ["redis"] }
-actix-files = "0.6.2"
-actix-http = "3.2.2"
-actix-rt = "2.7.0"
-actix-web-prom = "0.9.0"
-actix-web = "4.9.0"
+actix-files = "0.6.10"
+actix-http = "3.12.0"
+actix-rt = "2.11.0"
+actix-web-prom = "0.10.0"
+actix-web = "4.13.0"
 actix-web-grants = "4.1.2"
-actix-ws = "0.3.0"
-anyhow = "1.0.66"
-awc = "3.5.1"
-aws-config = { version = "1.1.7", features = ["behavior-version-latest"] }
+actix-ws = "0.3.1"
+anyhow = "1.0.101"
+awc = "3.8.2"
+aws-config = { version = "1.8.14", features = ["behavior-version-latest"] }
 backoff = { version = "0.4", features = ["tokio"] }
-bcrypt = "0.17.0"
-cached = { version = "0.55.1", features = [
+bcrypt = "0.18.0"
+cached = { version = "0.56.0", features = [
     "redis_store",
     "redis_tokio",
     "redis_connection_manager",
     "proc_macro",
 ] }
-chrono = { version = "0.4.40", features = ['serde'] }
-chrono-tz = { version = "0.10.3", features = ['serde'] }
+chrono = { version = "0.4.43", features = ['serde'] }
+chrono-tz = { version = "0.10.4", features = ['serde'] }
 custom_error = "1.9.2"
 derive_builder = "0.20.2"
-derive_more = { version = "2.0.1", features = ["display", "into"] }
+derive_more = { version = "2.1.1", features = ["display", "into"] }
 diesel = { version = "2.2.7", features = [
     'r2d2',
     'chrono',
@@ -43,18 +43,18 @@ diesel_migrations = "2.2.0"
 do-notation = "0.1.3"
 dotenvy = "0.15"
 envy = "0.4"
-futures = "0.3.14"
+futures = "0.3.32"
 infer = "0.19.0"
-jwt-simple = { version = "0.12.11", default-features = false, features = [
+jwt-simple = { version = "0.12.14", default-features = false, features = [
     "pure-rust",
 ] }
 lazy_static = "1.4.0"
 minior = "=0.1.16"
 once_cell = "1.16.0"
-process-stream = "0.4.1"
-prometheus = "0.13.4"
+process-stream = "0.5.0"
+prometheus = "0.14.0"
 r2d2 = { version = "0.8" }
-rand = "0.9.0"
+rand = "0.10.0"
 redis = { version = "0.26.0", features = [
     "tokio-comp",
     "json",
@@ -66,8 +66,8 @@ serde_json = "1.0.64"
 tokio = { version = "1.49.0", features = ["full"] }
 tokio-util = { version = "0.7", features = ["io"] }
 tracing = { version = "0.1.41" }
-tracing-actix-web = "0.7.15"
-tracing-appender = "0.2.2"
+tracing-actix-web = "0.7.21"
+tracing-appender = "0.2.4"
 tracing-bunyan-formatter = "0.3.4"
 tracing-futures = "0.2.5"
 tracing-log = "0.2.0"
@@ -77,9 +77,9 @@ tracing-subscriber = { version = "0.3.20", features = [
     "env-filter",
 ] }
 tracing-loki = "0.2.6"
-url = { version = "2.5.4" }
-uuid = { version = "1.13.1", features = ["v4", "serde"] }
-thiserror = "2.0.12"
+url = { version = "2.5.8" }
+uuid = { version = "1.21.0", features = ["v4", "serde"] }
+thiserror = "2.0.18"
 mime = "0.3.17"
 bigdecimal = { version = "0.4.10", features = ["serde"] }
 serde_valid = "2.0.1"
@@ -87,17 +87,17 @@ serde_valid = "2.0.1"
 [dev-dependencies]
 actix-codec = "0.5.0"
 actix-test = "0.1.0"
-bytestring = { version = "1.2.0", features = ["serde"] }
+bytestring = { version = "1.5.0", features = ["serde"] }
 testcontainers = "0.23.2"
 testcontainers-modules = { version = "0.11.6", features = [
     "postgres",
     "redis",
     "minio",
 ] }
-tokio-postgres = "0.7.7"
+tokio-postgres = "0.7.16"
 
 [dependencies.build-info]
-version = "0.0.40"
+version = "0.0.42"
 features = ['runtime']
 
 [dependencies.derive-new]
@@ -107,5 +107,5 @@ version = "0.7.0"
 version = "2.1.2"
 
 [build-dependencies]
-build-info-build = { version = "0.0.40" }
+build-info-build = { version = "0.0.42" }
 backoff = { version = "0.4", features = ["tokio"] }

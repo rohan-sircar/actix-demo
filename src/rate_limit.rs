@@ -12,7 +12,7 @@ use actix_extensible_rate_limit::{
 use actix_http::header::{HeaderName, HeaderValue, RETRY_AFTER};
 use actix_web::HttpResponse;
 use rand::distr::Alphanumeric;
-use rand::Rng;
+use rand::RngExt;
 
 use crate::models::rate_limit::{
     KeyStrategy, RateLimitConfig, RateLimitPolicy,

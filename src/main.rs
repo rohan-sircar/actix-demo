@@ -139,7 +139,7 @@ async fn main() -> anyhow::Result<()> {
     let pool_clone = pool.clone();
 
     let user_ids_cache = InstrumentedRedisCache::new(
-        RedisCacheBuilder::new("user_ids", 3600)
+        RedisCacheBuilder::new("user_ids", Duration::from_secs(3600))
             .set_connection_string(&env_config.redis_url)
             .build()
             .map_err(|e| {
