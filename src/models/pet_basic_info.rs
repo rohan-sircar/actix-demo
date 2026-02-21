@@ -69,7 +69,7 @@ pub struct UpdatePetBasicInfo {
     pub age: Option<i32>,
     pub weight_kg: Option<f32>,
     pub gender: Option<GenderType>,
-    pub size: Option<SizeType>,
+    pub size: Option<Option<SizeType>>,
     pub color: Option<Option<String>>,
     pub coat_type: Option<Option<CoatType>>,
 }

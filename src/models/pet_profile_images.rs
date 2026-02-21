@@ -16,7 +16,7 @@ pub struct PetProfileImage {
     pub created_at: chrono::NaiveDateTime,
 }
 
-#[derive(Debug, Clone, Insertable)]
+#[derive(Debug, Clone, Insertable, Serialize, Deserialize)]
 #[diesel(table_name = pet_profile_images)]
 pub struct NewPetProfileImage {
     pub pet_basic_info_id: PetBasicInfoId,
