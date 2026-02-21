@@ -238,6 +238,21 @@ pub fn configure_app(
                                 web::post()
                                     .to(routes::auth::revoke_other_sessions),
                             ),
+                    )
+                    .service(
+                        web::scope("/users/{user_id}/pets")
+                            .route(
+                                "",
+                                web::post().to(routes::pets::add_pet_profile),
+                            )
+                            .route(
+                                "",
+                                web::get().to(routes::pets::get_pet_profiles_for_user),
+                            )
+                            .route(
+                                "/{pet_id}",
+                                web::get().to(routes::pets::get_pet_profile_for_pet_id),
+                            ),
                     ),
             );
     })
