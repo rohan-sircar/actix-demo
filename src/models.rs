@@ -8,6 +8,7 @@ pub mod pet_location_owner;
 pub mod pet_personality_traits;
 pub mod pet_profile_full;
 pub mod pet_profile_images;
+pub mod pet_profile_insert;
 pub mod rate_limit;
 pub mod roles;
 pub mod session;
