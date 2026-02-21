@@ -31,7 +31,7 @@ fn fetch_pet_images(
     txn: &mut DbConnection,
 ) -> Result<Vec<PetProfileImage>, DomainError> {
     use crate::schema::pet_profile_images::dsl as images;
-    
+
     images::pet_profile_images
         .filter(images::pet_basic_info_id.eq(pet_id))
         .order_by(images::sort_order.asc())
@@ -48,7 +48,16 @@ fn fetch_pet_images(
 fn fetch_pet_related_data(
     pet_id: &PetBasicInfoId,
     txn: &mut DbConnection,
-) -> Result<(Option<PetPersonalityTraits>, Option<PetActivities>, Option<PetLocationOwner>, Option<PetAdoptionDetails>, Vec<PetProfileImage>), DomainError> {
+) -> Result<
+    (
+        Option<PetPersonalityTraits>,
+        Option<PetActivities>,
+        Option<PetLocationOwner>,
+        Option<PetAdoptionDetails>,
+        Vec<PetProfileImage>,
+    ),
+    DomainError,
+> {
     use crate::schema::pet_activities::dsl as activities;
     use crate::schema::pet_adoption_details::dsl as adoption_details;
     use crate::schema::pet_location_owner::dsl as location_owner;
@@ -59,10 +68,10 @@ fn fetch_pet_related_data(
         .filter(personality_traits::pet_basic_info_id.eq(pet_id))
         .select(PetPersonalityTraits::as_select())
         .first::<PetPersonalityTraits>(txn);
-    
+
     let personality_traits = fetch_optional_data(
         personality_traits_result,
-        "Failed to retrieve personality traits"
+        "Failed to retrieve personality traits",
     )?;
 
     // Fetch activities
@@ -70,20 +79,20 @@ fn fetch_pet_related_data(
         .filter(activities::pet_basic_info_id.eq(pet_id))
         .select(PetActivities::as_select())
         .first::<PetActivities>(txn);
-    
+
     let activities = fetch_optional_data(
         activities_result,
-        "Failed to retrieve activities"
+        "Failed to retrieve activities",
     )?;
 
     // Fetch location/owner info
     let location_owner_result = location_owner::pet_location_owner
         .filter(location_owner::pet_basic_info_id.eq(pet_id))
         .first::<PetLocationOwner>(txn);
-    
+
     let location_owner = fetch_optional_data(
         location_owner_result,
-        "Failed to retrieve location/owner info"
+        "Failed to retrieve location/owner info",
     )?;
 
     // Fetch adoption details
@@ -91,23 +100,29 @@ fn fetch_pet_related_data(
         .filter(adoption_details::pet_basic_info_id.eq(pet_id))
         .select(PetAdoptionDetails::as_select())
         .first::<PetAdoptionDetails>(txn);
-    
+
     let adoption_details = fetch_optional_data(
         adoption_details_result,
-        "Failed to retrieve adoption details"
+        "Failed to retrieve adoption details",
     )?;
 
     // Fetch images
     let images = fetch_pet_images(pet_id, txn)?;
 
-    Ok((personality_traits, activities, location_owner, adoption_details, images))
+    Ok((
+        personality_traits,
+        activities,
+        location_owner,
+        adoption_details,
+        images,
+    ))
 }
 
 // Get complete pet profile with all related data for a specific pet
 pub fn get_full_pet_profile(
     pet_id: &PetBasicInfoId,
     conn: &mut DbConnection,
-) -> Result<FullPetProfile, DomainError> {
+) -> Result<Option<FullPetProfile>, DomainError> {
     use crate::schema::pet_basic_info::dsl as basic_info;
 
     let _ = tracing::info!("Getting complete pet profile for pet {pet_id}");
@@ -115,27 +130,37 @@ pub fn get_full_pet_profile(
     // Execute all database operations within a single transaction
     conn.transaction::<_, DomainError, _>(|txn| {
         // Fetch basic info
-        let pet_basic_info: PetBasicInfo = basic_info::pet_basic_info
+        let res = basic_info::pet_basic_info
             .find(pet_id)
             .first::<PetBasicInfo>(txn)
+            .optional()
             .map_err(|err| {
                 DomainError::new_internal_error(format!(
                     "Failed to retrieve pet basic info: {err}"
                 ))
             })?;
 
-        // Fetch all related data using helper function
-        let (personality_traits, activities, location_owner, adoption_details, images) =
-            fetch_pet_related_data(pet_id, txn)?;
+        if let Some(pet_basic_info) = res {
+            let (
+                personality_traits,
+                activities,
+                location_owner,
+                adoption_details,
+                images,
+            ) = fetch_pet_related_data(pet_id, txn)?;
 
-        Ok(FullPetProfile {
-            basic_info: pet_basic_info,
-            personality_traits,
-            activities,
-            location_owner,
-            adoption_details,
-            images,
-        })
+            // Fetch all related data using helper function
+            Ok(Some(FullPetProfile {
+                basic_info: pet_basic_info,
+                personality_traits,
+                activities,
+                location_owner,
+                adoption_details,
+                images,
+            }))
+        } else {
+            Ok(None)
+        }
     })
 }
 
@@ -165,9 +190,14 @@ pub fn get_full_pet_profiles_for_user(
         let profiles = pet_basic_infos
             .into_iter()
             .map(|basic_info| {
-                let (personality_traits, activities, location_owner, adoption_details, images) =
-                    fetch_pet_related_data(&basic_info.id, txn)?;
-                
+                let (
+                    personality_traits,
+                    activities,
+                    location_owner,
+                    adoption_details,
+                    images,
+                ) = fetch_pet_related_data(&basic_info.id, txn)?;
+
                 Ok(FullPetProfile {
                     basic_info,
                     personality_traits,
