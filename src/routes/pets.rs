@@ -1,4 +1,4 @@
-use actix_web::{web, HttpResponse};
+use actix_web::{HttpRequest, HttpResponse, web};
 
 use crate::actions;
 use crate::models::pet_basic_info::PetBasicInfoId;
@@ -11,18 +11,24 @@ use crate::{errors::DomainError, AppData};
 pub async fn add_pet_profile(
     app_data: web::Data<AppData>,
     form: web::Json<PetProfileInsertData>,
+    req: HttpRequest,
 ) -> Result<HttpResponse, DomainError> {
+    // Extract authenticated user ID from request headers
+    let auth_user_id = crate::utils::extract_user_id_from_header(req.headers())?;
+    let mut form_data = form.0;
+    form_data.user_id = auth_user_id;
+    
     let pet_profile = web::block(move || {
         let pool = &app_data.pool;
         let mut conn = pool.get()?;
-        actions::pet_profiles::create_pet_basic_info(
-            form.0.to_new_pet_basic_info(),
+        actions::pet_profile_insert::create_pet_profile_from_insert_data(
+            form_data,
             &mut conn,
         )
     })
     .await??;
 
-    let _ = tracing::info!("Created pet profile with id: {}", pet_profile.id);
+    let _ = tracing::info!("Created pet profile with id: {}", pet_profile.basic_info.id);
     let _ = tracing::debug!("{:?}", pet_profile);
 
     Ok(HttpResponse::Created().json(pet_profile))
