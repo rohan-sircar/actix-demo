@@ -1,10 +1,13 @@
 use derive_more::Display;
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
+use validators::Validator;
 
 use crate::models::pet_enums::*;
 
+use crate::utils::regex;
 use crate::{models::users::UserId, schema::pet_basic_info};
+use validators::prelude::*;
 
 #[derive(
     Debug,
@@ -25,6 +28,15 @@ impl PetBasicInfoId {
     }
 }
 
+#[derive(Validator, Debug, Clone, DieselNewType, PartialEq, Eq)]
+#[validator(regex(regex(regex::PETNAME_REG)))]
+pub struct Petname(String);
+impl Petname {
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
 #[derive(
     Debug, Clone, Deserialize, Serialize, Queryable, Selectable, Identifiable,
 )]
@@ -32,7 +44,7 @@ impl PetBasicInfoId {
 pub struct PetBasicInfo {
     pub id: PetBasicInfoId,
     pub user_id: UserId,
-    pub pet_name: String,
+    pub pet_name: Petname,
     pub pet_type: PetType,
     pub breed: String,
     pub age: i32,
@@ -49,7 +61,7 @@ pub struct PetBasicInfo {
 #[diesel(table_name = pet_basic_info)]
 pub struct NewPetBasicInfo {
     pub user_id: UserId,
-    pub pet_name: String,
+    pub pet_name: Petname,
     pub pet_type: PetType,
     pub breed: String,
     pub age: i32,

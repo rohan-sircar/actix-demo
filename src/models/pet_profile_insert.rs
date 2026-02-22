@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use bigdecimal::BigDecimal;
 
+use crate::models::pet_basic_info::Petname;
 use crate::models::pet_enums::*;
 use crate::models::pet_adoption_details::AdoptionStatusType;
 use crate::models::users::UserId;
@@ -9,7 +10,7 @@ use crate::models::users::UserId;
 pub struct PetProfileInsertData {
     // Basic pet information
     pub user_id: UserId,
-    pub pet_name: String,
+    pub pet_name: Petname,
     pub pet_type: PetType,
     pub breed: String,
     pub age: i32,
