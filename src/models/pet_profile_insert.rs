@@ -1,16 +1,17 @@
-use serde::{Deserialize, Serialize};
 use bigdecimal::BigDecimal;
+use serde::{Deserialize, Serialize};
 
-use crate::models::pet_basic_info::Petname;
-use crate::models::pet_enums::*;
+use crate::errors::DomainError;
 use crate::models::pet_adoption_details::AdoptionStatusType;
+use crate::models::pet_basic_info::{NewPetBasicInfo, Petname};
+use crate::models::pet_enums::*;
 use crate::models::users::UserId;
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct PetProfileInsertData {
     // Basic pet information
     pub user_id: UserId,
-    pub pet_name: Petname,
+    pub pet_name: validators::Result<Petname, validators::errors::RegexError>,
     pub pet_type: PetType,
     pub breed: String,
     pub age: i32,
@@ -19,7 +20,7 @@ pub struct PetProfileInsertData {
     pub size: Option<SizeType>,
     pub color: Option<String>,
     pub coat_type: Option<CoatType>,
-    
+
     // Personality traits
     pub bio: Option<String>,
     pub personality_traits: Option<Vec<Option<String>>>,
@@ -30,7 +31,7 @@ pub struct PetProfileInsertData {
     pub vaccinated: Option<bool>,
     pub spayed_neutered: Option<bool>,
     pub microchipped: Option<bool>,
-    
+
     // Activities
     pub favorite_activities: Option<Vec<String>>,
     pub likes: Option<Vec<String>>,
@@ -38,20 +39,20 @@ pub struct PetProfileInsertData {
     pub energy_level: Option<EnergyLevelType>,
     pub trainability: Option<TrainabilityType>,
     pub barking_level: Option<BarkingLevelType>,
-    
+
     // Location and owner info
     pub owner_name: String,
     pub location: String,
     pub address: Option<String>,
     pub lat: Option<BigDecimal>,
     pub lng: Option<BigDecimal>,
-    
+
     // Adoption details
     pub special_needs: bool,
     pub special_needs_description: Option<String>,
     pub adoption_status: Option<AdoptionStatusType>,
     pub shelter_name: Option<String>,
-    
+
     // Images
     pub images: Vec<PetProfileImageInsert>,
 }
@@ -64,24 +65,32 @@ pub struct PetProfileImageInsert {
 }
 
 impl PetProfileInsertData {
-    pub fn to_new_pet_basic_info(&self) -> crate::models::pet_basic_info::NewPetBasicInfo {
-        crate::models::pet_basic_info::NewPetBasicInfo {
-            user_id: self.user_id.clone(),
-            pet_name: self.pet_name.clone(),
-            pet_type: self.pet_type.clone(),
-            breed: self.breed.clone(),
-            age: self.age,
-            weight_kg: self.weight_kg,
-            gender: self.gender.clone(),
-            size: self.size.clone(),
-            color: self.color.clone(),
-            coat_type: self.coat_type.clone(),
+    pub fn to_new_pet_basic_info(
+        &self,
+    ) -> Result<NewPetBasicInfo, DomainError> {
+        match &self.pet_name.as_std_result() {
+            Ok(pet_name) => Ok(NewPetBasicInfo {
+                user_id: self.user_id.clone(),
+                pet_name: pet_name.clone(),
+                pet_type: self.pet_type.clone(),
+                breed: self.breed.clone(),
+                age: self.age,
+                weight_kg: self.weight_kg,
+                gender: self.gender.clone(),
+                size: self.size.clone(),
+                color: self.color.clone(),
+                coat_type: self.coat_type.clone(),
+            }),
+            Err(err) => Err(DomainError::new_bad_input_error(format!(
+                "Invalid pet name: {} Must be Alphanumeric and beteen 5-35 characters",
+                err
+            ))),
         }
     }
-    
+
     pub fn to_new_pet_personality_traits(
-        &self, 
-        pet_id: &crate::models::pet_basic_info::PetBasicInfoId
+        &self,
+        pet_id: &crate::models::pet_basic_info::PetBasicInfoId,
     ) -> crate::models::pet_personality_traits::NewPetPersonalityTraits {
         crate::models::pet_personality_traits::NewPetPersonalityTraits {
             pet_basic_info_id: pet_id.clone(),
@@ -96,10 +105,10 @@ impl PetProfileInsertData {
             microchipped: self.microchipped,
         }
     }
-    
+
     pub fn to_new_pet_activities(
-        &self, 
-        pet_id: &crate::models::pet_basic_info::PetBasicInfoId
+        &self,
+        pet_id: &crate::models::pet_basic_info::PetBasicInfoId,
     ) -> crate::models::pet_activities::NewPetActivities {
         crate::models::pet_activities::NewPetActivities {
             pet_basic_info_id: pet_id.clone(),
@@ -111,10 +120,10 @@ impl PetProfileInsertData {
             barking_level: self.barking_level.clone(),
         }
     }
-    
+
     pub fn to_new_pet_location_owner(
-        &self, 
-        pet_id: &crate::models::pet_basic_info::PetBasicInfoId
+        &self,
+        pet_id: &crate::models::pet_basic_info::PetBasicInfoId,
     ) -> crate::models::pet_location_owner::NewPetLocationOwner {
         crate::models::pet_location_owner::NewPetLocationOwner {
             pet_basic_info_id: pet_id.clone(),
@@ -125,10 +134,10 @@ impl PetProfileInsertData {
             lng: self.lng.clone(),
         }
     }
-    
+
     pub fn to_new_pet_adoption_details(
-        &self, 
-        pet_id: &crate::models::pet_basic_info::PetBasicInfoId
+        &self,
+        pet_id: &crate::models::pet_basic_info::PetBasicInfoId,
     ) -> crate::models::pet_adoption_details::NewPetAdoptionDetails {
         crate::models::pet_adoption_details::NewPetAdoptionDetails {
             pet_basic_info_id: pet_id.clone(),
@@ -138,18 +147,20 @@ impl PetProfileInsertData {
             shelter_name: self.shelter_name.clone(),
         }
     }
-    
+
     pub fn to_new_pet_profile_images(
-        &self, 
-        pet_id: &crate::models::pet_basic_info::PetBasicInfoId
+        &self,
+        pet_id: &crate::models::pet_basic_info::PetBasicInfoId,
     ) -> Vec<crate::models::pet_profile_images::NewPetProfileImage> {
         self.images
             .iter()
-            .map(|image| crate::models::pet_profile_images::NewPetProfileImage {
-                pet_basic_info_id: pet_id.clone(),
-                image_url: image.image_url.clone(),
-                is_primary: image.is_primary,
-                sort_order: image.sort_order,
+            .map(|image| {
+                crate::models::pet_profile_images::NewPetProfileImage {
+                    pet_basic_info_id: pet_id.clone(),
+                    image_url: image.image_url.clone(),
+                    is_primary: image.is_primary,
+                    sort_order: image.sort_order,
+                }
             })
             .collect()
     }

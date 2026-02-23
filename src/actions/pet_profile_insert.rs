@@ -113,7 +113,7 @@ pub fn create_pet_profile_from_insert_data(
     use crate::actions::pet_profile_insert::create_full_pet_profile;
     
     // Convert to individual New structs
-    let pet_data = insert_data.to_new_pet_basic_info();
+    let pet_data = insert_data.to_new_pet_basic_info()?;
     
     // We need to insert basic info first to get the pet ID
     let pet_id = crate::actions::pet_profile_insert::create_pet_basic_info(pet_data.clone(), conn)?;
