@@ -1,12 +1,12 @@
 use serde::{Deserialize, Serialize};
 use bigdecimal::BigDecimal;
 
-use crate::models::pet_activities::UpdatePetActivities;
-use crate::models::pet_adoption_details::{AdoptionStatusType, UpdatePetAdoptionDetails};
-use crate::models::pet_basic_info::{Breedname, Petname, UpdatePetBasicInfo};
+use crate::models::pets::UpdatePetActivities;
+use crate::models::pets::{AdoptionStatusType, UpdatePetAdoptionDetails};
+use crate::models::pets::{Breedname, Petname, UpdatePetBasicInfo};
 use crate::models::pet_enums::*;
-use crate::models::pet_location_owner::UpdatePetLocationOwner;
-use crate::models::pet_personality_traits::UpdatePetPersonalityTraits;
+use crate::models::pets::UpdatePetLocationOwner;
+use crate::models::pets::UpdatePetPersonalityTraits;
 use crate::models::pet_profile_images::NewPetProfileImage;
 use crate::models::users::UserId;
 

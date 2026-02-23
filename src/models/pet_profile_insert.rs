@@ -2,8 +2,8 @@ use bigdecimal::BigDecimal;
 use serde::{Deserialize, Serialize};
 
 use crate::errors::DomainError;
-use crate::models::pet_adoption_details::AdoptionStatusType;
-use crate::models::pet_basic_info::{Breedname, NewPetBasicInfo, Petname};
+use crate::models::pets::AdoptionStatusType;
+use crate::models::pets::{Breedname, NewPetBasicInfo, Petname};
 use crate::models::pet_enums::*;
 use crate::models::users::UserId;
 
@@ -112,10 +112,10 @@ impl PetProfileInsertData {
 
     pub fn to_new_pet_personality_traits(
         &self,
-        pet_id: &crate::models::pet_basic_info::PetBasicInfoId,
-    ) -> crate::models::pet_personality_traits::NewPetPersonalityTraits {
-        crate::models::pet_personality_traits::NewPetPersonalityTraits {
-            pet_basic_info_id: pet_id.clone(),
+        pet_id: &crate::models::pets::PetProfileId,
+    ) -> crate::models::pets::NewPetPersonalityTraits {
+        crate::models::pets::NewPetPersonalityTraits {
+            pet_profile_id: pet_id.clone(),
             bio: self.bio.clone(),
             personality_traits: self.personality_traits.clone(),
             good_with_dogs: self.good_with_dogs,
@@ -130,10 +130,10 @@ impl PetProfileInsertData {
 
     pub fn to_new_pet_activities(
         &self,
-        pet_id: &crate::models::pet_basic_info::PetBasicInfoId,
-    ) -> crate::models::pet_activities::NewPetActivities {
-        crate::models::pet_activities::NewPetActivities {
-            pet_basic_info_id: pet_id.clone(),
+        pet_id: &crate::models::pets::PetProfileId,
+    ) -> crate::models::pets::NewPetActivities {
+        crate::models::pets::NewPetActivities {
+            pet_profile_id: pet_id.clone(),
             favorite_activities: self.favorite_activities.clone(),
             likes: self.likes.clone(),
             dislikes: self.dislikes.clone(),
@@ -145,10 +145,10 @@ impl PetProfileInsertData {
 
     pub fn to_new_pet_location_owner(
         &self,
-        pet_id: &crate::models::pet_basic_info::PetBasicInfoId,
-    ) -> crate::models::pet_location_owner::NewPetLocationOwner {
-        crate::models::pet_location_owner::NewPetLocationOwner {
-            pet_basic_info_id: pet_id.clone(),
+        pet_id: &crate::models::pets::PetProfileId,
+    ) -> crate::models::pets::NewPetLocationOwner {
+        crate::models::pets::NewPetLocationOwner {
+            pet_profile_id: pet_id.clone(),
             owner_name: self.owner_name.clone(),
             location: self.location.clone(),
             address: self.address.clone(),
@@ -159,10 +159,10 @@ impl PetProfileInsertData {
 
     pub fn to_new_pet_adoption_details(
         &self,
-        pet_id: &crate::models::pet_basic_info::PetBasicInfoId,
-    ) -> crate::models::pet_adoption_details::NewPetAdoptionDetails {
-        crate::models::pet_adoption_details::NewPetAdoptionDetails {
-            pet_basic_info_id: pet_id.clone(),
+        pet_id: &crate::models::pets::PetProfileId,
+    ) -> crate::models::pets::NewPetAdoptionDetails {
+        crate::models::pets::NewPetAdoptionDetails {
+            pet_profile_id: pet_id.clone(),
             special_needs: self.special_needs,
             special_needs_description: self.special_needs_description.clone(),
             adoption_status: self.adoption_status.clone(),
@@ -172,13 +172,13 @@ impl PetProfileInsertData {
 
     pub fn to_new_pet_profile_images(
         &self,
-        pet_id: &crate::models::pet_basic_info::PetBasicInfoId,
+        pet_id: &crate::models::pets::PetProfileId,
     ) -> Vec<crate::models::pet_profile_images::NewPetProfileImage> {
         self.images
             .iter()
             .map(|image| {
                 crate::models::pet_profile_images::NewPetProfileImage {
-                    pet_basic_info_id: pet_id.clone(),
+                    pet_profile_id: pet_id.clone(),
                     image_url: image.image_url.clone(),
                     is_primary: image.is_primary,
                     sort_order: image.sort_order,

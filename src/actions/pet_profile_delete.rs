@@ -1,12 +1,12 @@
 use diesel::prelude::*;
 
 use crate::errors::DomainError;
-use crate::models::pet_basic_info::PetBasicInfoId;
+use crate::models::pets::PetProfileId;
 use crate::types::DbConnection;
 
 /// Delete a pet profile by its ID
 pub fn delete_pet_profile(
-    pet_id: &PetBasicInfoId,
+    pet_id: &PetProfileId,
     conn: &mut DbConnection,
 ) -> Result<(), DomainError> {
     use crate::schema::{
@@ -20,7 +20,7 @@ pub fn delete_pet_profile(
         // Delete all related data in reverse order to respect foreign key constraints
         diesel::delete(
             pet_profile_images::table
-                .filter(pet_profile_images::pet_basic_info_id.eq(pet_id)),
+                .filter(pet_profile_images::pet_profile_id.eq(pet_id)),
         )
         .execute(txn)
         .map_err(|err| {
@@ -31,7 +31,7 @@ pub fn delete_pet_profile(
 
         diesel::delete(
             pet_adoption_details::table
-                .filter(pet_adoption_details::pet_basic_info_id.eq(pet_id)),
+                .filter(pet_adoption_details::pet_profile_id.eq(pet_id)),
         )
         .execute(txn)
         .map_err(|err| {
@@ -42,7 +42,7 @@ pub fn delete_pet_profile(
 
         diesel::delete(
             pet_location_owner::table
-                .filter(pet_location_owner::pet_basic_info_id.eq(pet_id)),
+                .filter(pet_location_owner::pet_profile_id.eq(pet_id)),
         )
         .execute(txn)
         .map_err(|err| {
@@ -53,7 +53,7 @@ pub fn delete_pet_profile(
 
         diesel::delete(
             pet_personality_traits::table
-                .filter(pet_personality_traits::pet_basic_info_id.eq(pet_id)),
+                .filter(pet_personality_traits::pet_profile_id.eq(pet_id)),
         )
         .execute(txn)
         .map_err(|err| {
@@ -64,7 +64,7 @@ pub fn delete_pet_profile(
 
         diesel::delete(
             pet_activities::table
-                .filter(pet_activities::pet_basic_info_id.eq(pet_id)),
+                .filter(pet_activities::pet_profile_id.eq(pet_id)),
         )
         .execute(txn)
         .map_err(|err| {

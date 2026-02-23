@@ -1,11 +1,11 @@
 use diesel::prelude::*;
 
 use crate::errors::DomainError;
-use crate::models::pet_activities::{NewPetActivities, PetActivities};
-use crate::models::pet_adoption_details::{NewPetAdoptionDetails, PetAdoptionDetails};
-use crate::models::pet_basic_info::{NewPetBasicInfo, PetBasicInfo, PetBasicInfoId};
-use crate::models::pet_location_owner::{NewPetLocationOwner, PetLocationOwner};
-use crate::models::pet_personality_traits::{NewPetPersonalityTraits, PetPersonalityTraits};
+use crate::models::pets::{NewPetActivities, PetActivities};
+use crate::models::pets::{NewPetAdoptionDetails, PetAdoptionDetails};
+use crate::models::pets::{NewPetBasicInfo, PetBasicInfo, PetProfileId};
+use crate::models::pets::{NewPetLocationOwner, PetLocationOwner};
+use crate::models::pets::{NewPetPersonalityTraits, PetPersonalityTraits};
 use crate::models::pet_profile_full::FullPetProfile;
 use crate::models::pet_profile_images::{NewPetProfileImage, PetProfileImage};
 use crate::models::pet_profile_insert::PetProfileInsertData;
@@ -140,7 +140,7 @@ pub fn create_pet_profile_from_insert_data(
 pub fn create_pet_basic_info(
     pet_data: NewPetBasicInfo,
     conn: &mut DbConnection,
-) -> Result<PetBasicInfoId, DomainError> {
+) -> Result<PetProfileId, DomainError> {
     use crate::schema::pet_basic_info;
 
     let result = diesel::insert_into(pet_basic_info::table)

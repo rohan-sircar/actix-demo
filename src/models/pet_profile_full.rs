@@ -1,10 +1,10 @@
 use serde::{Deserialize, Serialize};
 
-use crate::models::pet_activities::PetActivities;
-use crate::models::pet_adoption_details::PetAdoptionDetails;
-use crate::models::pet_basic_info::PetBasicInfo;
-use crate::models::pet_location_owner::PetLocationOwner;
-use crate::models::pet_personality_traits::PetPersonalityTraits;
+use crate::models::pets::PetActivities;
+use crate::models::pets::PetAdoptionDetails;
+use crate::models::pets::PetBasicInfo;
+use crate::models::pets::PetLocationOwner;
+use crate::models::pets::PetPersonalityTraits;
 use crate::models::pet_profile_images::PetProfileImage;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

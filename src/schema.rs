@@ -64,7 +64,7 @@ diesel::table! {
 
     pet_activities (id) {
         id -> Int4,
-        pet_basic_info_id -> Int4,
+        pet_profile_id -> Int4,
         favorite_activities -> Nullable<Array<Nullable<Text>>>,
         likes -> Nullable<Array<Nullable<Text>>>,
         dislikes -> Nullable<Array<Nullable<Text>>>,
@@ -80,7 +80,7 @@ diesel::table! {
 
     pet_adoption_details (id) {
         id -> Int4,
-        pet_basic_info_id -> Int4,
+        pet_profile_id -> Int4,
         special_needs -> Nullable<Bool>,
         special_needs_description -> Nullable<Text>,
         adoption_status -> Nullable<AdoptionStatusType>,
@@ -119,7 +119,7 @@ diesel::table! {
 diesel::table! {
     pet_location_owner (id) {
         id -> Int4,
-        pet_basic_info_id -> Int4,
+        pet_profile_id -> Int4,
         #[max_length = 100]
         owner_name -> Varchar,
         #[max_length = 100]
@@ -133,7 +133,7 @@ diesel::table! {
 diesel::table! {
     pet_personality_traits (id) {
         id -> Int4,
-        pet_basic_info_id -> Int4,
+        pet_profile_id -> Int4,
         bio -> Nullable<Text>,
         personality_traits -> Nullable<Array<Nullable<Text>>>,
         good_with_dogs -> Nullable<Bool>,
@@ -149,7 +149,7 @@ diesel::table! {
 diesel::table! {
     pet_profile_images (id) {
         id -> Int4,
-        pet_basic_info_id -> Int4,
+        pet_profile_id -> Int4,
         image_url -> Text,
         is_primary -> Nullable<Bool>,
         sort_order -> Nullable<Int4>,
@@ -185,12 +185,12 @@ diesel::table! {
 }
 
 diesel::joinable!(jobs -> users (started_by));
-diesel::joinable!(pet_activities -> pet_basic_info (pet_basic_info_id));
-diesel::joinable!(pet_adoption_details -> pet_basic_info (pet_basic_info_id));
+diesel::joinable!(pet_activities -> pet_basic_info (pet_profile_id));
+diesel::joinable!(pet_adoption_details -> pet_basic_info (pet_profile_id));
 diesel::joinable!(pet_basic_info -> users (user_id));
-diesel::joinable!(pet_location_owner -> pet_basic_info (pet_basic_info_id));
-diesel::joinable!(pet_personality_traits -> pet_basic_info (pet_basic_info_id));
-diesel::joinable!(pet_profile_images -> pet_basic_info (pet_basic_info_id));
+diesel::joinable!(pet_location_owner -> pet_basic_info (pet_profile_id));
+diesel::joinable!(pet_personality_traits -> pet_basic_info (pet_profile_id));
+diesel::joinable!(pet_profile_images -> pet_basic_info (pet_profile_id));
 diesel::joinable!(users_roles -> roles (role_id));
 diesel::joinable!(users_roles -> users (user_id));
 

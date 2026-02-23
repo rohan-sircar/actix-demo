@@ -1,8 +1,8 @@
 use diesel::prelude::*;
 
 use crate::errors::DomainError;
-use crate::models::pet_basic_info::{
-    NewPetBasicInfo, PetBasicInfo, PetBasicInfoId, UpdatePetBasicInfo,
+use crate::models::pets::{
+    NewPetBasicInfo, PetBasicInfo, PetProfileId, UpdatePetBasicInfo,
 };
 use crate::models::users::UserId;
 use crate::types::DbConnection;
@@ -50,7 +50,7 @@ pub fn create_pet_basic_info(
 
 // Update pet profile with ownership validation
 pub fn update_pet_basic_info(
-    profile_id: &PetBasicInfoId,
+    profile_id: &PetProfileId,
     user_id: &UserId,
     update_data: UpdatePetBasicInfo,
     conn: &mut DbConnection,
@@ -88,7 +88,7 @@ pub fn update_pet_basic_info(
 
 // Delete pet profile with ownership validation
 pub fn delete_pet_basic_info(
-    profile_id: &PetBasicInfoId,
+    profile_id: &PetProfileId,
     user_id: &UserId,
     conn: &mut DbConnection,
 ) -> Result<usize, DomainError> {

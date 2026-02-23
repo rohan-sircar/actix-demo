@@ -1,11 +1,11 @@
 use diesel::prelude::*;
 
 use crate::errors::DomainError;
-use crate::models::pet_activities::PetActivities;
-use crate::models::pet_adoption_details::PetAdoptionDetails;
-use crate::models::pet_basic_info::{PetBasicInfo, PetBasicInfoId};
-use crate::models::pet_location_owner::PetLocationOwner;
-use crate::models::pet_personality_traits::PetPersonalityTraits;
+use crate::models::pets::PetActivities;
+use crate::models::pets::PetAdoptionDetails;
+use crate::models::pets::{PetBasicInfo, PetProfileId};
+use crate::models::pets::PetLocationOwner;
+use crate::models::pets::PetPersonalityTraits;
 use crate::models::pet_profile_full::FullPetProfile;
 use crate::models::pet_profile_images::PetProfileImage;
 use crate::models::users::UserId;
@@ -27,13 +27,13 @@ fn fetch_optional_data<T>(
 
 /// Helper function to fetch pet images
 fn fetch_pet_images(
-    pet_id: &PetBasicInfoId,
+    pet_id: &PetProfileId,
     txn: &mut DbConnection,
 ) -> Result<Vec<PetProfileImage>, DomainError> {
     use crate::schema::pet_profile_images::dsl as images;
 
     images::pet_profile_images
-        .filter(images::pet_basic_info_id.eq(pet_id))
+        .filter(images::pet_profile_id.eq(pet_id))
         .order_by(images::sort_order.asc())
         .select(PetProfileImage::as_select())
         .load::<PetProfileImage>(txn)
@@ -46,7 +46,7 @@ fn fetch_pet_images(
 
 /// Helper function to fetch all related data for a single pet
 fn fetch_pet_related_data(
-    pet_id: &PetBasicInfoId,
+    pet_id: &PetProfileId,
     txn: &mut DbConnection,
 ) -> Result<
     (
@@ -65,7 +65,7 @@ fn fetch_pet_related_data(
 
     // Fetch personality traits
     let personality_traits_result = personality_traits::pet_personality_traits
-        .filter(personality_traits::pet_basic_info_id.eq(pet_id))
+        .filter(personality_traits::pet_profile_id.eq(pet_id))
         .select(PetPersonalityTraits::as_select())
         .first::<PetPersonalityTraits>(txn);
 
@@ -76,7 +76,7 @@ fn fetch_pet_related_data(
 
     // Fetch activities
     let activities_result = activities::pet_activities
-        .filter(activities::pet_basic_info_id.eq(pet_id))
+        .filter(activities::pet_profile_id.eq(pet_id))
         .select(PetActivities::as_select())
         .first::<PetActivities>(txn);
 
@@ -87,7 +87,7 @@ fn fetch_pet_related_data(
 
     // Fetch location/owner info
     let location_owner_result = location_owner::pet_location_owner
-        .filter(location_owner::pet_basic_info_id.eq(pet_id))
+        .filter(location_owner::pet_profile_id.eq(pet_id))
         .first::<PetLocationOwner>(txn);
 
     let location_owner = fetch_optional_data(
@@ -97,7 +97,7 @@ fn fetch_pet_related_data(
 
     // Fetch adoption details
     let adoption_details_result = adoption_details::pet_adoption_details
-        .filter(adoption_details::pet_basic_info_id.eq(pet_id))
+        .filter(adoption_details::pet_profile_id.eq(pet_id))
         .select(PetAdoptionDetails::as_select())
         .first::<PetAdoptionDetails>(txn);
 
@@ -120,7 +120,7 @@ fn fetch_pet_related_data(
 
 // Get complete pet profile with all related data for a specific pet
 pub fn get_full_pet_profile(
-    pet_id: &PetBasicInfoId,
+    pet_id: &PetProfileId,
     conn: &mut DbConnection,
 ) -> Result<Option<FullPetProfile>, DomainError> {
     use crate::schema::pet_basic_info::dsl as basic_info;

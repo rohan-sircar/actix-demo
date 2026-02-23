@@ -1,11 +1,11 @@
 use diesel::prelude::*;
 
 use crate::errors::DomainError;
-use crate::models::pet_activities::PetActivities;
-use crate::models::pet_adoption_details::PetAdoptionDetails;
-use crate::models::pet_basic_info::{PetBasicInfo, PetBasicInfoId};
-use crate::models::pet_location_owner::PetLocationOwner;
-use crate::models::pet_personality_traits::PetPersonalityTraits;
+use crate::models::pets::PetActivities;
+use crate::models::pets::PetAdoptionDetails;
+use crate::models::pets::{PetBasicInfo, PetProfileId};
+use crate::models::pets::PetLocationOwner;
+use crate::models::pets::PetPersonalityTraits;
 use crate::models::pet_profile_full::FullPetProfile;
 use crate::models::pet_profile_images::PetProfileImage;
 use crate::models::pet_profile_update::PetProfileUpdateData;
@@ -13,7 +13,7 @@ use crate::types::DbConnection;
 
 /// Update a complete pet profile with all related data in a single transaction
 pub fn update_full_pet_profile(
-    pet_id: &PetBasicInfoId,
+    pet_id: &PetProfileId,
     update_data: PetProfileUpdateData,
     conn: &mut DbConnection,
 ) -> Result<FullPetProfile, DomainError> {
@@ -141,7 +141,7 @@ pub fn update_full_pet_profile(
                 })?;
 
         let images: Vec<PetProfileImage> = pet_profile_images::table
-            .filter(pet_profile_images::pet_basic_info_id.eq(pet_id))
+            .filter(pet_profile_images::pet_profile_id.eq(pet_id))
             .load(txn)
             .map_err(|err| {
                 DomainError::new_internal_error(format!(

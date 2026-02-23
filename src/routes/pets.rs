@@ -1,7 +1,7 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 
 use crate::actions;
-use crate::models::pet_basic_info::PetBasicInfoId;
+use crate::models::pets::PetProfileId;
 use crate::models::pet_profile_insert::PetProfileInsertData;
 use crate::models::users::UserId;
 use crate::{errors::DomainError, AppData};
@@ -41,7 +41,7 @@ pub async fn add_pet_profile(
 #[tracing::instrument(level = "info", skip(app_data))]
 pub async fn get_pet_profile_for_pet_id(
     app_data: web::Data<AppData>,
-    path: web::Path<(UserId, PetBasicInfoId)>,
+    path: web::Path<(UserId, PetProfileId)>,
 ) -> Result<HttpResponse, DomainError> {
     let (_, pet_id) = path.into_inner();
     let _ = tracing::info!("Getting pet profile with id {pet_id}");

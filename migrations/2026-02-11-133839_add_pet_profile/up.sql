@@ -47,7 +47,7 @@ CREATE TABLE pet_basic_info (
 -- Create pet_personality_traits table
 CREATE TABLE pet_personality_traits (
     id SERIAL PRIMARY KEY,
-    pet_basic_info_id INTEGER NOT NULL REFERENCES pet_basic_info(id) ON DELETE CASCADE,
+    pet_profile_id INTEGER NOT NULL REFERENCES pet_basic_info(id) ON DELETE CASCADE,
     -- Personality
     bio TEXT,
     personality_traits TEXT [] DEFAULT '{}',
@@ -63,7 +63,7 @@ CREATE TABLE pet_personality_traits (
 -- Create pet_activities table
 CREATE TABLE pet_activities (
     id SERIAL PRIMARY KEY,
-    pet_basic_info_id INTEGER NOT NULL REFERENCES pet_basic_info(id) ON DELETE CASCADE,
+    pet_profile_id INTEGER NOT NULL REFERENCES pet_basic_info(id) ON DELETE CASCADE,
     -- Activities
     favorite_activities TEXT [] DEFAULT '{}',
     likes TEXT [] DEFAULT '{}',
@@ -76,7 +76,7 @@ CREATE TABLE pet_activities (
 -- Create pet_location_owner table
 CREATE TABLE pet_location_owner (
     id SERIAL PRIMARY KEY,
-    pet_basic_info_id INTEGER NOT NULL REFERENCES pet_basic_info(id) ON DELETE CASCADE,
+    pet_profile_id INTEGER NOT NULL REFERENCES pet_basic_info(id) ON DELETE CASCADE,
     -- Owner info
     owner_name VARCHAR(100) NOT NULL,
     location VARCHAR(100) NOT NULL,
@@ -88,7 +88,7 @@ CREATE TABLE pet_location_owner (
 -- Create pet_adoption_details table
 CREATE TABLE pet_adoption_details (
     id SERIAL PRIMARY KEY,
-    pet_basic_info_id INTEGER NOT NULL REFERENCES pet_basic_info(id) ON DELETE CASCADE,
+    pet_profile_id INTEGER NOT NULL REFERENCES pet_basic_info(id) ON DELETE CASCADE,
     -- Special considerations
     special_needs BOOLEAN DEFAULT false,
     special_needs_description TEXT,
@@ -99,13 +99,13 @@ CREATE TABLE pet_adoption_details (
 -- Create indexes on foreign keys
 CREATE INDEX idx_pet_basic_info_user_id ON pet_basic_info(user_id);
 
-CREATE INDEX idx_pet_personality_traits_pet_id ON pet_personality_traits(pet_basic_info_id);
+CREATE INDEX idx_pet_personality_traits_pet_id ON pet_personality_traits(pet_profile_id);
 
-CREATE INDEX idx_pet_activities_pet_id ON pet_activities(pet_basic_info_id);
+CREATE INDEX idx_pet_activities_pet_id ON pet_activities(pet_profile_id);
 
-CREATE INDEX idx_pet_location_owner_pet_id ON pet_location_owner(pet_basic_info_id);
+CREATE INDEX idx_pet_location_owner_pet_id ON pet_location_owner(pet_profile_id);
 
-CREATE INDEX idx_pet_adoption_details_pet_id ON pet_adoption_details(pet_basic_info_id);
+CREATE INDEX idx_pet_adoption_details_pet_id ON pet_adoption_details(pet_profile_id);
 
 -- -- Create trigger for updated_at
 -- CREATE
@@ -119,15 +119,15 @@ CREATE INDEX idx_pet_adoption_details_pet_id ON pet_adoption_details(pet_basic_i
 -- Create separate image table
 CREATE TABLE pet_profile_images (
     id SERIAL PRIMARY KEY,
-    pet_basic_info_id INTEGER NOT NULL REFERENCES pet_basic_info(id) ON DELETE CASCADE,
+    pet_profile_id INTEGER NOT NULL REFERENCES pet_basic_info(id) ON DELETE CASCADE,
     image_url TEXT NOT NULL,
     is_primary BOOLEAN DEFAULT false,
     sort_order INTEGER DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_pet_profile_images_pet_basic_info_id ON pet_profile_images(pet_basic_info_id);
+CREATE INDEX idx_pet_profile_images_pet_profile_id ON pet_profile_images(pet_profile_id);
 
-CREATE UNIQUE INDEX idx_pet_profile_images_primary ON pet_profile_images(pet_basic_info_id)
+CREATE UNIQUE INDEX idx_pet_profile_images_primary ON pet_profile_images(pet_profile_id)
 WHERE
     is_primary = true;
