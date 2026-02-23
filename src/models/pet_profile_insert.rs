@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::errors::DomainError;
 use crate::models::pet_adoption_details::AdoptionStatusType;
-use crate::models::pet_basic_info::{NewPetBasicInfo, Petname};
+use crate::models::pet_basic_info::{Breedname, NewPetBasicInfo, Petname};
 use crate::models::pet_enums::*;
 use crate::models::users::UserId;
 
@@ -13,7 +13,7 @@ pub struct PetProfileInsertData {
     pub user_id: UserId,
     pub pet_name: validators::Result<Petname, validators::errors::RegexError>,
     pub pet_type: PetType,
-    pub breed: String,
+    pub breed: validators::Result<Breedname, validators::errors::RegexError>,
     pub age: i32,
     pub weight_kg: f32,
     pub gender: GenderType,
@@ -68,24 +68,46 @@ impl PetProfileInsertData {
     pub fn to_new_pet_basic_info(
         &self,
     ) -> Result<NewPetBasicInfo, DomainError> {
-        match &self.pet_name.as_std_result() {
-            Ok(pet_name) => Ok(NewPetBasicInfo {
-                user_id: self.user_id.clone(),
-                pet_name: pet_name.clone(),
-                pet_type: self.pet_type.clone(),
-                breed: self.breed.clone(),
-                age: self.age,
-                weight_kg: self.weight_kg,
-                gender: self.gender.clone(),
-                size: self.size.clone(),
-                color: self.color.clone(),
-                coat_type: self.coat_type.clone(),
-            }),
-            Err(err) => Err(DomainError::new_bad_input_error(format!(
+        let mut errors = Vec::new();
+        
+        // Validate pet_name
+        if let Err(err) = self.pet_name.as_std_result() {
+            errors.push(format!(
                 "Invalid pet name: {} Must be Alphanumeric and beteen 5-35 characters",
                 err
-            ))),
+            ));
         }
+        
+        // Validate breed
+        if let Err(err) = self.breed.as_std_result() {
+            errors.push(format!(
+                "Invalid breed: {} Must be Alphanumeric and beteen 5-35 characters",
+                err
+            ));
+        }
+        
+        // If we have any validation errors, return them all at once
+        if !errors.is_empty() {
+            let error_message = errors.join("; ");
+            return Err(DomainError::new_bad_input_error(error_message));
+        }
+        
+        // All validations passed, construct the NewPetBasicInfo struct
+        let pet_name = self.pet_name.as_std_result().clone().unwrap();
+        let breed = self.breed.as_std_result().clone().unwrap();
+        
+        Ok(NewPetBasicInfo {
+            user_id: self.user_id.clone(),
+            pet_name: pet_name.clone(),
+            pet_type: self.pet_type.clone(),
+            breed: breed.clone(), // Extract the inner String from Breedname
+            age: self.age,
+            weight_kg: self.weight_kg,
+            gender: self.gender.clone(),
+            size: self.size.clone(),
+            color: self.color.clone(),
+            coat_type: self.coat_type.clone(),
+        })
     }
 
     pub fn to_new_pet_personality_traits(

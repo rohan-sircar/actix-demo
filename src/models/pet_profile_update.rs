@@ -3,7 +3,7 @@ use bigdecimal::BigDecimal;
 
 use crate::models::pet_activities::UpdatePetActivities;
 use crate::models::pet_adoption_details::{AdoptionStatusType, UpdatePetAdoptionDetails};
-use crate::models::pet_basic_info::UpdatePetBasicInfo;
+use crate::models::pet_basic_info::{Breedname, Petname, UpdatePetBasicInfo};
 use crate::models::pet_enums::*;
 use crate::models::pet_location_owner::UpdatePetLocationOwner;
 use crate::models::pet_personality_traits::UpdatePetPersonalityTraits;
@@ -14,9 +14,9 @@ use crate::models::users::UserId;
 pub struct PetProfileUpdateData {
     // Basic pet information
     pub user_id: Option<UserId>,
-    pub pet_name: Option<String>,
+    pub pet_name: Option<Petname>,
     pub pet_type: Option<PetType>,
-    pub breed: Option<String>,
+    pub breed: Option<Breedname>,
     pub age: Option<i32>,
     pub weight_kg: Option<f32>,
     pub gender: Option<GenderType>,

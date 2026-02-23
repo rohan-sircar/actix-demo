@@ -37,6 +37,16 @@ impl Petname {
     }
 }
 
+#[derive(Validator, Debug, Clone, DieselNewType, PartialEq, Eq)]
+#[validator(regex(regex(regex::PETNAME_REG)))]
+pub struct Breedname(String);
+impl Breedname {
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+
 #[derive(
     Debug, Clone, Deserialize, Serialize, Queryable, Selectable, Identifiable,
 )]
@@ -46,7 +56,7 @@ pub struct PetBasicInfo {
     pub user_id: UserId,
     pub pet_name: Petname,
     pub pet_type: PetType,
-    pub breed: String,
+    pub breed: Breedname,
     pub age: i32,
     pub weight_kg: f32,
     pub gender: GenderType,
@@ -63,7 +73,7 @@ pub struct NewPetBasicInfo {
     pub user_id: UserId,
     pub pet_name: Petname,
     pub pet_type: PetType,
-    pub breed: String,
+    pub breed: Breedname,
     pub age: i32,
     pub weight_kg: f32,
     pub gender: GenderType,
@@ -75,9 +85,9 @@ pub struct NewPetBasicInfo {
 #[derive(Debug, Clone, AsChangeset)]
 #[diesel(table_name = pet_basic_info)]
 pub struct UpdatePetBasicInfo {
-    pub pet_name: Option<String>,
+    pub pet_name: Option<Petname>,
     pub pet_type: Option<PetType>,
-    pub breed: Option<String>,
+    pub breed: Option<Breedname>,
     pub age: Option<i32>,
     pub weight_kg: Option<f32>,
     pub gender: Option<GenderType>,
