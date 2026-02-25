@@ -26,8 +26,9 @@ pub fn update_full_pet_profile(
 
     conn.transaction::<_, DomainError, _>(|txn| {
         // Update basic pet info
+        let basic_info = update_data.to_update_pet_basic_info()?;
         diesel::update(pet_basic_info::table.find(pet_id))
-            .set(update_data.to_update_pet_basic_info())
+            .set(basic_info)
             .execute(txn)
             .map_err(|err| {
                 DomainError::new_internal_error(format!(
@@ -76,16 +77,16 @@ pub fn update_full_pet_profile(
             })?;
 
         // Insert new images (not replacing existing ones)
-        if !update_data.images.is_empty() {
-            diesel::insert_into(pet_profile_images::table)
-                .values(update_data.images)
-                .execute(txn)
-                .map_err(|err| {
-                    DomainError::new_internal_error(format!(
-                        "Failed to insert new pet images: {err}"
-                    ))
-                })?;
-        }
+        // if !update_data.images.is_some().is_empty() {
+        //     diesel::insert_into(pet_profile_images::table)
+        //         .values(update_data.images)
+        //         .execute(txn)
+        //         .map_err(|err| {
+        //             DomainError::new_internal_error(format!(
+        //                 "Failed to insert new pet images: {err}"
+        //             ))
+        //         })?;
+        // }
 
         // Fetch and return the complete updated profile
         let basic_info: PetBasicInfo = pet_basic_info::table

@@ -1,6 +1,7 @@
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize};
 use bigdecimal::BigDecimal;
 
+use crate::errors::DomainError;
 use crate::models::pets::UpdatePetActivities;
 use crate::models::pets::{AdoptionStatusType, UpdatePetAdoptionDetails};
 use crate::models::pets::{Breedname, Petname, UpdatePetBasicInfo};
@@ -10,13 +11,13 @@ use crate::models::pets::UpdatePetPersonalityTraits;
 use crate::models::pet_profile_images::NewPetProfileImage;
 use crate::models::users::UserId;
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct PetProfileUpdateData {
     // Basic pet information
     pub user_id: Option<UserId>,
-    pub pet_name: Option<Petname>,
+    pub pet_name: Option<validators::Result<Petname, validators::errors::RegexError>>,
     pub pet_type: Option<PetType>,
-    pub breed: Option<Breedname>,
+    pub breed: Option<validators::Result<Breedname, validators::errors::RegexError>>,
     pub age: Option<i32>,
     pub weight_kg: Option<f32>,
     pub gender: Option<GenderType>,
@@ -57,22 +58,51 @@ pub struct PetProfileUpdateData {
     pub shelter_name: Option<Option<String>>,
     
     // Images - this will be a vec of new images to add, not replace all
-    pub images: Vec<NewPetProfileImage>,
+    pub images: Option<Vec<NewPetProfileImage>>,
 }
 
 impl PetProfileUpdateData {
-    pub fn to_update_pet_basic_info(&self) -> UpdatePetBasicInfo {
-        UpdatePetBasicInfo {
-            pet_name: self.pet_name.clone(),
+    pub fn to_update_pet_basic_info(&self) -> Result<UpdatePetBasicInfo, DomainError> {
+        let mut errors = Vec::new();
+        
+        // Validate pet_name
+        if let Some(pet_name) = &self.pet_name {
+            if let Err(err) = pet_name.as_std_result() {
+                errors.push(format!(
+                    "Invalid pet name: {} Must be Alphanumeric and beteen 5-35 characters",
+                    err
+                ));
+            }
+        }
+        
+        // Validate breed
+        if let Some(breed) = &self.breed {
+            if let Err(err) = breed.as_std_result() {
+                errors.push(format!(
+                    "Invalid breed: {} Must be Alphanumeric and beteen 5-35 characters",
+                    err
+                ));
+            }
+        }
+        
+        // If we have any validation errors, return them all at once
+        if !errors.is_empty() {
+            let error_message = errors.join("; ");
+            return Err(DomainError::new_bad_input_error(error_message));
+        }
+        
+        // All validations passed, construct the UpdatePetBasicInfo struct
+        Ok(UpdatePetBasicInfo {
+            pet_name: self.pet_name.as_ref().map(|v| v.as_std_result().clone().unwrap()),
             pet_type: self.pet_type.clone(),
-            breed: self.breed.clone(),
+            breed: self.breed.as_ref().map(|v| v.as_std_result().clone().unwrap()),
             age: self.age,
             weight_kg: self.weight_kg,
             gender: self.gender.clone(),
             size: self.size.clone(),
             color: self.color.clone(),
             coat_type: self.coat_type.clone(),
-        }
+        })
     }
     
     pub fn to_update_pet_personality_traits(&self) -> UpdatePetPersonalityTraits {

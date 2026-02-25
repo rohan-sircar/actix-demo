@@ -252,6 +252,14 @@ pub fn configure_app(
                             .route(
                                 "/{pet_id}",
                                 web::get().to(routes::pets::get_pet_profile_for_pet_id),
+                            )
+                            .route(
+                                "/{pet_id}",
+                                web::patch().to(routes::pets::update_pet_profile_for_pet_id),
+                            )
+                            .route(
+                                "/{pet_id}",
+                                web::delete().to(routes::pets::delete_pet_profile_for_pet_id),
                             ),
                     ),
             );
