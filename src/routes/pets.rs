@@ -1,9 +1,9 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 
 use crate::actions;
-use crate::models::pets::PetProfileId;
 use crate::models::pet_profile_insert::PetProfileInsertData;
 use crate::models::pet_profile_update::PetProfileUpdateData;
+use crate::models::pets::PetProfileId;
 use crate::models::users::UserId;
 use crate::{errors::DomainError, AppData};
 
@@ -118,16 +118,20 @@ pub async fn update_pet_profile_for_pet_id(
     .await??;
 
     if !exists {
-        return Err(DomainError::new_entity_does_not_exist_error(
-            format!("Pet profile with id {pet_id} does not exist")
-        ));
+        return Err(DomainError::new_entity_does_not_exist_error(format!(
+            "Pet profile with id {pet_id} does not exist"
+        )));
     }
 
     let pet_id2 = pet_id.clone();
     let updated_profile = web::block(move || {
         let pool = &app_data.pool;
         let mut conn = pool.get()?;
-        actions::pet_profile_update::update_full_pet_profile(&pet_id2, update_data, &mut conn)
+        actions::pet_profile_update::update_full_pet_profile(
+            &pet_id2,
+            update_data,
+            &mut conn,
+        )
     })
     .await??;
 
@@ -142,7 +146,7 @@ pub async fn delete_pet_profile_for_pet_id(
     path: web::Path<(UserId, PetProfileId)>,
 ) -> Result<HttpResponse, DomainError> {
     let (_, pet_id) = path.into_inner();
-    
+
     // First check if the pet profile exists
     let pet_id2 = pet_id.clone();
     let pool2 = app_data.pool.clone();
@@ -155,9 +159,9 @@ pub async fn delete_pet_profile_for_pet_id(
     .await??;
 
     if !exists {
-        return Err(DomainError::new_entity_does_not_exist_error(
-            format!("Pet profile with id {pet_id} does not exist")
-        ));
+        return Err(DomainError::new_entity_does_not_exist_error(format!(
+            "Pet profile with id {pet_id} does not exist"
+        )));
     }
 
     let _ = tracing::info!("Deleting pet profile with id {pet_id}");

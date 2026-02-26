@@ -1,14 +1,14 @@
 use diesel::prelude::*;
 
 use crate::errors::DomainError;
-use crate::models::pets::PetActivities;
-use crate::models::pets::PetAdoptionDetails;
-use crate::models::pets::{PetBasicInfo, PetProfileId};
-use crate::models::pets::PetLocationOwner;
-use crate::models::pets::PetPersonalityTraits;
 use crate::models::pet_profile_full::FullPetProfile;
 use crate::models::pet_profile_images::PetProfileImage;
 use crate::models::pet_profile_update::PetProfileUpdateData;
+use crate::models::pets::PetActivities;
+use crate::models::pets::PetAdoptionDetails;
+use crate::models::pets::PetLocationOwner;
+use crate::models::pets::PetPersonalityTraits;
+use crate::models::pets::{PetBasicInfo, PetProfileId};
 use crate::types::DbConnection;
 
 /// Update a complete pet profile with all related data in a single transaction
@@ -42,7 +42,8 @@ pub fn update_full_pet_profile(
 
         // Update personality traits only if data is provided
         if update_data.personality_traits.is_some() {
-            let personality_traits = update_data.to_update_pet_personality_traits();
+            let personality_traits =
+                update_data.to_update_pet_personality_traits();
             if let Some(personality_traits) = personality_traits {
                 diesel::update(pet_personality_traits::table.find(pet_id))
                     .set(personality_traits)

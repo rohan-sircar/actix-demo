@@ -2,9 +2,9 @@ use bigdecimal::BigDecimal;
 use serde::{Deserialize, Serialize};
 
 use crate::errors::DomainError;
+use crate::models::pet_enums::*;
 use crate::models::pets::AdoptionStatusType;
 use crate::models::pets::{Breedname, NewPetBasicInfo, Petname};
-use crate::models::pet_enums::*;
 use crate::models::users::UserId;
 
 #[derive(Debug, Clone, Deserialize)]
@@ -69,7 +69,7 @@ impl PetProfileInsertData {
         &self,
     ) -> Result<NewPetBasicInfo, DomainError> {
         let mut errors = Vec::new();
-        
+
         // Validate pet_name
         if let Err(err) = self.pet_name.as_std_result() {
             errors.push(format!(
@@ -77,7 +77,7 @@ impl PetProfileInsertData {
                 err
             ));
         }
-        
+
         // Validate breed
         if let Err(err) = self.breed.as_std_result() {
             errors.push(format!(
@@ -85,17 +85,17 @@ impl PetProfileInsertData {
                 err
             ));
         }
-        
+
         // If we have any validation errors, return them all at once
         if !errors.is_empty() {
             let error_message = errors.join("; ");
             return Err(DomainError::new_bad_input_error(error_message));
         }
-        
+
         // All validations passed, construct the NewPetBasicInfo struct
         let pet_name = self.pet_name.as_std_result().clone().unwrap();
         let breed = self.breed.as_std_result().clone().unwrap();
-        
+
         Ok(NewPetBasicInfo {
             user_id: self.user_id.clone(),
             pet_name: pet_name.clone(),

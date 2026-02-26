@@ -141,7 +141,8 @@ mod tests {
                 // .filter(personality_traits::pet_profile_id.eq(&pet_id))
                 // .select(PetPersonalityTraits::as_select())
                 .get_results::<PetPersonalityTraits>(&mut conn)
-                .optional().unwrap();
+                .optional()
+                .unwrap();
 
             println!("{:?}", personality_traits);
 
@@ -286,7 +287,9 @@ mod tests {
             assert_eq!(resp.status(), StatusCode::NOT_FOUND);
 
             let body: ErrorResponse<String> = resp.json().await.unwrap();
-            assert!(body.cause.contains("Pet profile with id 999 does not exist"));
+            assert!(body
+                .cause
+                .contains("Pet profile with id 999 does not exist"));
         }
 
         #[actix_rt::test]

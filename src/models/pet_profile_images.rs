@@ -1,9 +1,7 @@
 use diesel::{pg::Pg, prelude::*};
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    models::pets::PetProfileId, schema::pet_profile_images,
-};
+use crate::{models::pets::PetProfileId, schema::pet_profile_images};
 
 #[derive(Debug, Clone, Deserialize, Serialize, Queryable, Selectable)]
 #[diesel(check_for_backend(Pg))]

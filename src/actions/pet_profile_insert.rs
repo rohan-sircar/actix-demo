@@ -111,9 +111,7 @@ pub fn create_pet_profile_from_insert_data(
         pet_data
     );
 
-    
     conn.transaction::<_, DomainError, _>(|txn| {
-
         // We need to insert basic info first to get the pet ID
         let pet_data =
             crate::actions::pet_profile_insert::create_pet_basic_info(

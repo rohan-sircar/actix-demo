@@ -12,7 +12,6 @@ use crate::models::pets::{PetBasicInfo, PetProfileId};
 use crate::models::users::UserId;
 use crate::types::DbConnection;
 
-
 /// Helper function to fetch pet images
 fn fetch_pet_images(
     pet_id: &PetProfileId,
@@ -70,7 +69,10 @@ fn fetch_pet_related_data(
         .select(PetActivities::as_select())
         .first::<PetActivities>(txn)
         .optional()?;
-    let _ = tracing::debug!("Activities result for pet {pet_id}: {:?}", &activities);
+    let _ = tracing::debug!(
+        "Activities result for pet {pet_id}: {:?}",
+        &activities
+    );
 
     // Fetch location/owner info
     let _ = info!("Fetching location/owner info for pet {pet_id}");
@@ -98,7 +100,8 @@ fn fetch_pet_related_data(
     // Fetch images
     let _ = info!("Fetching images for pet {pet_id}");
     let images = fetch_pet_images(pet_id, txn)?;
-    let _ = tracing::debug!("Images result for pet {pet_id}: {:?}", &images.len());
+    let _ =
+        tracing::debug!("Images result for pet {pet_id}: {:?}", &images.len());
 
     Ok((
         personality_traits,

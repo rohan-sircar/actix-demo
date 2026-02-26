@@ -1,23 +1,25 @@
-use serde::{Deserialize};
 use bigdecimal::BigDecimal;
+use serde::Deserialize;
 
 use crate::errors::DomainError;
-use crate::models::pets::UpdatePetActivities;
-use crate::models::pets::{AdoptionStatusType, UpdatePetAdoptionDetails};
-use crate::models::pets::{Breedname, Petname, UpdatePetBasicInfo};
 use crate::models::pet_enums::*;
+use crate::models::pet_profile_images::NewPetProfileImage;
+use crate::models::pets::UpdatePetActivities;
 use crate::models::pets::UpdatePetLocationOwner;
 use crate::models::pets::UpdatePetPersonalityTraits;
-use crate::models::pet_profile_images::NewPetProfileImage;
+use crate::models::pets::{AdoptionStatusType, UpdatePetAdoptionDetails};
+use crate::models::pets::{Breedname, Petname, UpdatePetBasicInfo};
 use crate::models::users::UserId;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct PetBasicInfoUpdate {
     // Basic pet information
     pub user_id: Option<UserId>,
-    pub pet_name: Option<validators::Result<Petname, validators::errors::RegexError>>,
+    pub pet_name:
+        Option<validators::Result<Petname, validators::errors::RegexError>>,
     pub pet_type: Option<PetType>,
-    pub breed: Option<validators::Result<Breedname, validators::errors::RegexError>>,
+    pub breed:
+        Option<validators::Result<Breedname, validators::errors::RegexError>>,
     pub age: Option<i32>,
     pub weight_kg: Option<f32>,
     pub gender: Option<GenderType>,
@@ -82,14 +84,16 @@ pub struct PetProfileUpdateData {
 }
 
 impl PetProfileUpdateData {
-    pub fn to_update_pet_basic_info(&self) -> Result<Option<UpdatePetBasicInfo>, DomainError> {
+    pub fn to_update_pet_basic_info(
+        &self,
+    ) -> Result<Option<UpdatePetBasicInfo>, DomainError> {
         let basic_info = match &self.basic_info {
             Some(info) => info,
             None => return Ok(None),
         };
-        
+
         let mut errors = Vec::new();
-        
+
         // Validate pet_name
         if let Some(pet_name) = &basic_info.pet_name {
             if let Err(err) = pet_name.as_std_result() {
@@ -99,7 +103,7 @@ impl PetProfileUpdateData {
                 ));
             }
         }
-        
+
         // Validate breed
         if let Some(breed) = &basic_info.breed {
             if let Err(err) = breed.as_std_result() {
@@ -109,18 +113,24 @@ impl PetProfileUpdateData {
                 ));
             }
         }
-        
+
         // If we have any validation errors, return them all at once
         if !errors.is_empty() {
             let error_message = errors.join("; ");
             return Err(DomainError::new_bad_input_error(error_message));
         }
-        
+
         // All validations passed, construct the UpdatePetBasicInfo struct
         Ok(Some(UpdatePetBasicInfo {
-            pet_name: basic_info.pet_name.as_ref().map(|v| v.as_std_result().clone().unwrap()),
+            pet_name: basic_info
+                .pet_name
+                .as_ref()
+                .map(|v| v.as_std_result().clone().unwrap()),
             pet_type: basic_info.pet_type.clone(),
-            breed: basic_info.breed.as_ref().map(|v| v.as_std_result().clone().unwrap()),
+            breed: basic_info
+                .breed
+                .as_ref()
+                .map(|v| v.as_std_result().clone().unwrap()),
             age: basic_info.age,
             weight_kg: basic_info.weight_kg,
             gender: basic_info.gender.clone(),
@@ -129,8 +139,10 @@ impl PetProfileUpdateData {
             coat_type: basic_info.coat_type.clone(),
         }))
     }
-    
-    pub fn to_update_pet_personality_traits(&self) -> Option<UpdatePetPersonalityTraits> {
+
+    pub fn to_update_pet_personality_traits(
+        &self,
+    ) -> Option<UpdatePetPersonalityTraits> {
         match &self.personality_traits {
             Some(p) => Some(UpdatePetPersonalityTraits {
                 bio: p.bio.clone(),
@@ -146,7 +158,7 @@ impl PetProfileUpdateData {
             None => None,
         }
     }
-    
+
     pub fn to_update_pet_activities(&self) -> Option<UpdatePetActivities> {
         match &self.activities {
             Some(a) => Some(UpdatePetActivities {
@@ -160,8 +172,10 @@ impl PetProfileUpdateData {
             None => None,
         }
     }
-    
-    pub fn to_update_pet_location_owner(&self) -> Option<UpdatePetLocationOwner> {
+
+    pub fn to_update_pet_location_owner(
+        &self,
+    ) -> Option<UpdatePetLocationOwner> {
         match &self.location_owner {
             Some(l) => Some(UpdatePetLocationOwner {
                 owner_name: l.owner_name.clone(),
@@ -173,8 +187,10 @@ impl PetProfileUpdateData {
             None => None,
         }
     }
-    
-    pub fn to_update_pet_adoption_details(&self) -> Option<UpdatePetAdoptionDetails> {
+
+    pub fn to_update_pet_adoption_details(
+        &self,
+    ) -> Option<UpdatePetAdoptionDetails> {
         match &self.adoption_details {
             Some(a) => Some(UpdatePetAdoptionDetails {
                 special_needs: a.special_needs,
