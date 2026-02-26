@@ -25,68 +25,94 @@ pub fn update_full_pet_profile(
     let _ = tracing::info!("Updating full pet profile for pet ID {pet_id}");
 
     conn.transaction::<_, DomainError, _>(|txn| {
-        // Update basic pet info
-        let basic_info = update_data.to_update_pet_basic_info()?;
-        diesel::update(pet_basic_info::table.find(pet_id))
-            .set(basic_info)
-            .execute(txn)
-            .map_err(|err| {
-                DomainError::new_internal_error(format!(
-                    "Failed to update pet basic info: {err}"
-                ))
-            })?;
+        // Update basic pet info only if data is provided
+        if update_data.basic_info.is_some() {
+            let basic_info = update_data.to_update_pet_basic_info()?;
+            if let Some(basic_info) = basic_info {
+                diesel::update(pet_basic_info::table.find(pet_id))
+                    .set(basic_info)
+                    .execute(txn)
+                    .map_err(|err| {
+                        DomainError::new_internal_error(format!(
+                            "Failed to update pet basic info: {err}"
+                        ))
+                    })?;
+            }
+        }
 
-        // Update personality traits
-        diesel::update(pet_personality_traits::table.find(pet_id))
-            .set(update_data.to_update_pet_personality_traits())
-            .execute(txn)
-            .map_err(|err| {
-                DomainError::new_internal_error(format!(
-                    "Failed to update personality traits: {err}"
-                ))
-            })?;
+        // Update personality traits only if data is provided
+        if update_data.personality_traits.is_some() {
+            let personality_traits = update_data.to_update_pet_personality_traits();
+            if let Some(personality_traits) = personality_traits {
+                diesel::update(pet_personality_traits::table.find(pet_id))
+                    .set(personality_traits)
+                    .execute(txn)
+                    .map_err(|err| {
+                        DomainError::new_internal_error(format!(
+                            "Failed to update personality traits: {err}"
+                        ))
+                    })?;
+            }
+        }
 
-        // Update activities
-        diesel::update(pet_activities::table.find(pet_id))
-            .set(update_data.to_update_pet_activities())
-            .execute(txn)
-            .map_err(|err| {
-                DomainError::new_internal_error(format!(
-                    "Failed to update activities: {err}"
-                ))
-            })?;
+        // Update activities only if data is provided
+        if update_data.activities.is_some() {
+            let activities = update_data.to_update_pet_activities();
+            if let Some(activities) = activities {
+                diesel::update(pet_activities::table.find(pet_id))
+                    .set(activities)
+                    .execute(txn)
+                    .map_err(|err| {
+                        DomainError::new_internal_error(format!(
+                            "Failed to update activities: {err}"
+                        ))
+                    })?;
+            }
+        }
 
-        // Update location/owner info
-        diesel::update(pet_location_owner::table.find(pet_id))
-            .set(update_data.to_update_pet_location_owner())
-            .execute(txn)
-            .map_err(|err| {
-                DomainError::new_internal_error(format!(
-                    "Failed to update location/owner info: {err}"
-                ))
-            })?;
+        // Update location/owner info only if data is provided
+        if update_data.location_owner.is_some() {
+            let location_owner = update_data.to_update_pet_location_owner();
+            if let Some(location_owner) = location_owner {
+                diesel::update(pet_location_owner::table.find(pet_id))
+                    .set(location_owner)
+                    .execute(txn)
+                    .map_err(|err| {
+                        DomainError::new_internal_error(format!(
+                            "Failed to update location/owner info: {err}"
+                        ))
+                    })?;
+            }
+        }
 
-        // Update adoption details
-        diesel::update(pet_adoption_details::table.find(pet_id))
-            .set(update_data.to_update_pet_adoption_details())
-            .execute(txn)
-            .map_err(|err| {
-                DomainError::new_internal_error(format!(
-                    "Failed to update adoption details: {err}"
-                ))
-            })?;
+        // Update adoption details only if data is provided
+        if update_data.adoption_details.is_some() {
+            let adoption_details = update_data.to_update_pet_adoption_details();
+            if let Some(adoption_details) = adoption_details {
+                diesel::update(pet_adoption_details::table.find(pet_id))
+                    .set(adoption_details)
+                    .execute(txn)
+                    .map_err(|err| {
+                        DomainError::new_internal_error(format!(
+                            "Failed to update adoption details: {err}"
+                        ))
+                    })?;
+            }
+        }
 
-        // Insert new images (not replacing existing ones)
-        // if !update_data.images.is_some().is_empty() {
-        //     diesel::insert_into(pet_profile_images::table)
-        //         .values(update_data.images)
-        //         .execute(txn)
-        //         .map_err(|err| {
-        //             DomainError::new_internal_error(format!(
-        //                 "Failed to insert new pet images: {err}"
-        //             ))
-        //         })?;
-        // }
+        // Insert new images (not replacing existing ones) only if data is provided
+        if let Some(images) = update_data.images {
+            if !images.is_empty() {
+                diesel::insert_into(pet_profile_images::table)
+                    .values(images)
+                    .execute(txn)
+                    .map_err(|err| {
+                        DomainError::new_internal_error(format!(
+                            "Failed to insert new pet images: {err}"
+                        ))
+                    })?;
+            }
+        }
 
         // Fetch and return the complete updated profile
         let basic_info: PetBasicInfo = pet_basic_info::table

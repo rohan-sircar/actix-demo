@@ -108,6 +108,22 @@ pub async fn update_pet_profile_for_pet_id(
     let _ = tracing::info!("Updating pet profile with id {pet_id}");
     // TODO add user id check
 
+    // First check if the pet profile exists
+    let pool2 = app_data.pool.clone();
+    let exists = web::block(move || {
+        let mut conn = pool2.get()?;
+        actions::pet_profile_full::get_full_pet_profile(&pet_id2, &mut conn)
+            .map(|opt| opt.is_some())
+    })
+    .await??;
+
+    if !exists {
+        return Err(DomainError::new_entity_does_not_exist_error(
+            format!("Pet profile with id {pet_id} does not exist")
+        ));
+    }
+
+    let pet_id2 = pet_id.clone();
     let updated_profile = web::block(move || {
         let pool = &app_data.pool;
         let mut conn = pool.get()?;

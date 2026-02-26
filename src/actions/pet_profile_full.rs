@@ -1,29 +1,17 @@
 use diesel::prelude::*;
+use tracing::info;
 
 use crate::errors::DomainError;
-use crate::models::pets::PetActivities;
-use crate::models::pets::PetAdoptionDetails;
-use crate::models::pets::{PetBasicInfo, PetProfileId};
-use crate::models::pets::PetLocationOwner;
-use crate::models::pets::PetPersonalityTraits;
 use crate::models::pet_profile_full::FullPetProfile;
 use crate::models::pet_profile_images::PetProfileImage;
+use crate::models::pets::PetActivities;
+use crate::models::pets::PetAdoptionDetails;
+use crate::models::pets::PetLocationOwner;
+use crate::models::pets::PetPersonalityTraits;
+use crate::models::pets::{PetBasicInfo, PetProfileId};
 use crate::models::users::UserId;
 use crate::types::DbConnection;
 
-/// Helper function to fetch optional related data with proper error handling
-fn fetch_optional_data<T>(
-    result: Result<T, diesel::result::Error>,
-    error_message: &str,
-) -> Result<Option<T>, DomainError> {
-    match result {
-        Ok(data) => Ok(Some(data)),
-        Err(diesel::result::Error::NotFound) => Ok(None),
-        Err(err) => Err(DomainError::new_internal_error(format!(
-            "{error_message}: {err}"
-        ))),
-    }
-}
 
 /// Helper function to fetch pet images
 fn fetch_pet_images(
@@ -64,50 +52,53 @@ fn fetch_pet_related_data(
     use crate::schema::pet_personality_traits::dsl as personality_traits;
 
     // Fetch personality traits
-    let personality_traits_result = personality_traits::pet_personality_traits
+    let _ = info!("Fetching personality traits for pet {pet_id}");
+    let personality_traits = personality_traits::pet_personality_traits
         .filter(personality_traits::pet_profile_id.eq(pet_id))
         .select(PetPersonalityTraits::as_select())
-        .first::<PetPersonalityTraits>(txn);
-
-    let personality_traits = fetch_optional_data(
-        personality_traits_result,
-        "Failed to retrieve personality traits",
-    )?;
+        .first::<PetPersonalityTraits>(txn)
+        .optional()?;
+    let _ = tracing::debug!(
+        "Personality traits result for pet {pet_id}: {:?}",
+        &personality_traits
+    );
 
     // Fetch activities
-    let activities_result = activities::pet_activities
+    let _ = info!("Fetching activities for pet {pet_id}");
+    let activities = activities::pet_activities
         .filter(activities::pet_profile_id.eq(pet_id))
         .select(PetActivities::as_select())
-        .first::<PetActivities>(txn);
-
-    let activities = fetch_optional_data(
-        activities_result,
-        "Failed to retrieve activities",
-    )?;
+        .first::<PetActivities>(txn)
+        .optional()?;
+    let _ = tracing::debug!("Activities result for pet {pet_id}: {:?}", &activities);
 
     // Fetch location/owner info
-    let location_owner_result = location_owner::pet_location_owner
+    let _ = info!("Fetching location/owner info for pet {pet_id}");
+    let location_owner = location_owner::pet_location_owner
         .filter(location_owner::pet_profile_id.eq(pet_id))
-        .first::<PetLocationOwner>(txn);
-
-    let location_owner = fetch_optional_data(
-        location_owner_result,
-        "Failed to retrieve location/owner info",
-    )?;
+        .first::<PetLocationOwner>(txn)
+        .optional()?;
+    let _ = tracing::debug!(
+        "Location/owner info result for pet {pet_id}: {:?}",
+        &location_owner
+    );
 
     // Fetch adoption details
-    let adoption_details_result = adoption_details::pet_adoption_details
+    let _ = info!("Fetching adoption details for pet {pet_id}");
+    let adoption_details = adoption_details::pet_adoption_details
         .filter(adoption_details::pet_profile_id.eq(pet_id))
         .select(PetAdoptionDetails::as_select())
-        .first::<PetAdoptionDetails>(txn);
-
-    let adoption_details = fetch_optional_data(
-        adoption_details_result,
-        "Failed to retrieve adoption details",
-    )?;
+        .first::<PetAdoptionDetails>(txn)
+        .optional()?;
+    let _ = tracing::debug!(
+        "Adoption details result for pet {pet_id}: {:?}",
+        &adoption_details
+    );
 
     // Fetch images
+    let _ = info!("Fetching images for pet {pet_id}");
     let images = fetch_pet_images(pet_id, txn)?;
+    let _ = tracing::debug!("Images result for pet {pet_id}: {:?}", &images.len());
 
     Ok((
         personality_traits,

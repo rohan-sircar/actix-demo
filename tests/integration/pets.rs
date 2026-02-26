@@ -47,6 +47,10 @@ mod tests {
                 body.basic_info.pet_type,
                 actix_demo::models::pet_enums::PetType::Cat
             );
+            assert_eq!(
+                body.personality_traits.map(|t| t.bio),
+                Some(Some("A very cute cat".to_owned()))
+            );
         }
 
         #[actix_rt::test]
@@ -85,6 +89,9 @@ mod tests {
 
     mod get_pet_profile_api {
 
+        use actix_demo::models::pets::PetPersonalityTraits;
+        use diesel_tracing::pg::InstrumentedPgConnection;
+
         use crate::common::{TestContext, WithToken};
 
         use super::*;
@@ -92,6 +99,7 @@ mod tests {
         #[actix_rt::test]
         async fn should_get_a_pet_profile_by_id() {
             let ctx = TestContext::new(None).await;
+            // let pg_client = ctx.pg_client;
 
             // Create a pet profile first
             let pet_data_json = serde_json::json!({
@@ -123,6 +131,20 @@ mod tests {
             let created_pet: FullPetProfile = create_resp.json().await.unwrap();
             let pet_id = created_pet.basic_info.id;
 
+            let mut conn: InstrumentedPgConnection =
+                diesel::Connection::establish(&ctx.pg_connstr).unwrap();
+            // let rows = actix_demo::actions::pet_profile_full::get_full_pet_profile(&pet_id, &conn);
+
+            use actix_demo::schema::pet_personality_traits::dsl as personality_traits;
+            use diesel::prelude::*;
+            let personality_traits = personality_traits::pet_personality_traits
+                // .filter(personality_traits::pet_profile_id.eq(&pet_id))
+                // .select(PetPersonalityTraits::as_select())
+                .get_results::<PetPersonalityTraits>(&mut conn)
+                .optional().unwrap();
+
+            println!("{:?}", personality_traits);
+
             let mut resp = ctx
                 .test_server
                 .get(&format!("/api/users/1/pets/{}", pet_id))
@@ -138,6 +160,10 @@ mod tests {
             assert_eq!(
                 body.basic_info.pet_type,
                 actix_demo::models::pet_enums::PetType::Dog
+            );
+            assert_eq!(
+                body.personality_traits.map(|t| t.bio),
+                Some(Some("A friendly dog".to_owned()))
             );
         }
 
@@ -201,11 +227,13 @@ mod tests {
 
             // Update the pet profile
             let update_data = serde_json::json!({
-                "pet_name": "Updated Buddy",
-                "breed": "Labrador Retriever",
-                "age": 3,
-                "weight_kg": 28.0,
-                "bio": "An updated friendly dog",
+                "basic_info" : {
+                    "pet_name": "Updated Buddy",
+                    "breed": "Labrador Retriever",
+                    "age": 3,
+                    "weight_kg": 28.0,
+                },
+                "personality_traits" : {"bio": "An updated friendly dog"},
                 "images": []
             });
 
@@ -220,6 +248,7 @@ mod tests {
             assert_eq!(resp.status(), StatusCode::OK);
 
             let body: FullPetProfile = resp.json().await.unwrap();
+            println!("{:?}", body);
             assert_eq!(body.basic_info.pet_name.as_str(), "Updated Buddy");
             assert_eq!(body.basic_info.breed.as_str(), "Labrador Retriever");
             assert_eq!(body.basic_info.age, 3);
@@ -236,11 +265,13 @@ mod tests {
 
             // Try to update a non-existent pet profile
             let update_data = serde_json::json!({
-                "pet_name": "Updated Buddy",
-                "breed": "Labrador Retriever",
-                "age": 3,
-                "weight_kg": 28.0,
-                "bio": "An updated friendly dog",
+                "basic_info" : {
+                    "pet_name": "Updated Buddy",
+                    "breed": "Labrador Retriever",
+                    "age": 3,
+                    "weight_kg": 28.0,
+                },
+                "personality_traits" : {"bio": "An updated friendly dog"},
                 "images": []
             });
 
@@ -255,11 +286,12 @@ mod tests {
             assert_eq!(resp.status(), StatusCode::NOT_FOUND);
 
             let body: ErrorResponse<String> = resp.json().await.unwrap();
-            assert!(body.cause.contains("No pet profile found with id: 999"));
+            assert!(body.cause.contains("Pet profile with id 999 does not exist"));
         }
 
         #[actix_rt::test]
-        async fn should_return_error_when_updating_pet_profile_with_empty_name() {
+        async fn should_return_error_when_updating_pet_profile_with_empty_name()
+        {
             let ctx = TestContext::new(None).await;
 
             // Create a pet profile first
@@ -294,15 +326,17 @@ mod tests {
 
             // Try to update with empty name (should return error)
             let update_data = serde_json::json!({
-                "pet_name": "",
-                "breed": "Labrador Retriever",
-                "age": 3,
-                "weight_kg": 28.0,
-                "bio": "An updated friendly dog",
+                "basic_info" : {
+                    "pet_name": "",
+                    "breed": "",
+                    "age": 3,
+                    "weight_kg": 28.0,
+                },
+                "personality_traits" : {"bio": "An updated friendly dog"},
                 "images": []
             });
 
-            let mut resp = ctx
+            let resp = ctx
                 .test_server
                 .patch(&format!("/api/users/1/pets/{}", pet_id))
                 .with_token(&ctx._token)
@@ -326,7 +360,7 @@ mod tests {
             // Create a pet profile first
             let pet_data_json = serde_json::json!({
                 "user_id": 1,
-                "pet_name": "Max",
+                "pet_name": "Matte",
                 "pet_type": "dog",
                 "breed": "Labrador",
                 "age": 4,
@@ -380,7 +414,7 @@ mod tests {
         async fn should_return_error_when_deleting_nonexistent_pet_profile() {
             let ctx = TestContext::new(None).await;
 
-            let mut resp = ctx
+            let resp = ctx
                 .test_server
                 .delete("/api/users/1/pets/999")
                 .with_token(&ctx._token)

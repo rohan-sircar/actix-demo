@@ -546,8 +546,11 @@ pub fn assert_rate_limit_headers(headers: &HeaderMap) {
 pub struct TestContext {
     pub addr: String,
     pub _token: String,
-    pub client: Client,
+    pub client: awc::Client,
     pub _pg: ContainerAsync<Postgres>,
+    pub pg_connstr: String,
+    // pub pg_client: tokio_postgres::Client,
+    // pub pg_connection: tokio_postgres::Connection<tokio_postgres::Socket, tokio_postgres::tls::NoTlsStream>,
     pub _redis: ContainerAsync<Redis>,
     pub _minio: ContainerAsync<MinIO>,
     pub test_server: TestServer,
@@ -569,6 +572,11 @@ impl TestContext {
         .await
         .unwrap();
 
+        let (_pg_client, pg_connection) =
+            tokio_postgres::connect(&pg_connstr, tokio_postgres::NoTls)
+                .await
+                .unwrap();
+
         let addr = test_server.addr().to_string();
         let client = Client::new();
 
@@ -576,11 +584,20 @@ impl TestContext {
             .await
             .unwrap();
 
+        tokio::spawn(async move {
+            if let Err(e) = pg_connection.await {
+                eprintln!("connection error: {}", e);
+            }
+        });
+
         Self {
             addr,
             _token,
             client,
             _pg,
+            // pg_client,
+            // pg_connection,
+            pg_connstr: pg_connstr.clone(),
             _redis,
             _minio,
             test_server,
