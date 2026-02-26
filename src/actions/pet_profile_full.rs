@@ -112,6 +112,29 @@ fn fetch_pet_related_data(
     ))
 }
 
+pub fn check_pet_profile_exists(
+    pet_id: &PetProfileId,
+    conn: &mut DbConnection,
+) -> Result<bool, DomainError> {
+    use crate::schema::pet_basic_info::dsl as basic_info;
+
+    let _ = tracing::info!("Getting complete pet profile for pet {pet_id}");
+
+    // Fetch basic info
+    let res = basic_info::pet_basic_info
+        .find(pet_id)
+        .select(basic_info::id)
+        .first::<PetProfileId>(conn)
+        .optional()
+        .map_err(|err| {
+            DomainError::new_internal_error(format!(
+                "Failed to retrieve pet basic info: {err}"
+            ))
+        })?;
+
+    Ok(res.is_some())
+}
+
 // Get complete pet profile with all related data for a specific pet
 pub fn get_full_pet_profile(
     pet_id: &PetProfileId,

@@ -112,8 +112,7 @@ pub async fn update_pet_profile_for_pet_id(
     let pool2 = app_data.pool.clone();
     let exists = web::block(move || {
         let mut conn = pool2.get()?;
-        actions::pet_profile_full::get_full_pet_profile(&pet_id2, &mut conn)
-            .map(|opt| opt.is_some())
+        actions::pet_profile_full::check_pet_profile_exists(&pet_id2, &mut conn)
     })
     .await??;
 
@@ -150,11 +149,9 @@ pub async fn delete_pet_profile_for_pet_id(
     // First check if the pet profile exists
     let pet_id2 = pet_id.clone();
     let pool2 = app_data.pool.clone();
-    // TODO inefficient
     let exists = web::block(move || {
         let mut conn = pool2.get()?;
-        actions::pet_profile_full::get_full_pet_profile(&pet_id2, &mut conn)
-            .map(|opt| opt.is_some())
+        actions::pet_profile_full::check_pet_profile_exists(&pet_id2, &mut conn)
     })
     .await??;
 
