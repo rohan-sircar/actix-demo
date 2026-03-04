@@ -159,7 +159,7 @@ pub async fn delete_user_avatar(
     let user_id = utils::extract_user_id_from_header(req.headers())?;
 
     let object_key = format!("avatars/{user_id}");
-    
+
     // Delete from MinIO
     app_data
         .minio

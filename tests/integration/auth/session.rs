@@ -91,21 +91,13 @@ mod tests {
             // Login once to create a valid session
             let (status1, token1) =
                 attempt_login(&ctx, "Race Condition Test 1").await;
-            assert_eq!(
-                status1,
-                StatusCode::OK,
-                "First login should succeed"
-            );
+            assert_eq!(status1, StatusCode::OK, "First login should succeed");
             let token1 = token1.expect("First login should return a token");
 
             // Login again - should create a new unique session
             let (status2, token2) =
                 attempt_login(&ctx, "Race Condition Test 2").await;
-            assert_eq!(
-                status2,
-                StatusCode::OK,
-                "Second login should succeed"
-            );
+            assert_eq!(status2, StatusCode::OK, "Second login should succeed");
             let token2 = token2.expect("Second login should return a token");
 
             // Tokens should be different (new session)
@@ -129,20 +121,15 @@ mod tests {
             let token = token.expect("Token should be present");
 
             // Parse token to get session_id
-            let claims = actix_demo::utils::get_claims(
-                &ctx.app_data.jwt_key,
-                &token,
-            )
-            .expect("Should parse token claims");
+            let claims =
+                actix_demo::utils::get_claims(&ctx.app_data.jwt_key, &token)
+                    .expect("Should parse token claims");
             let user_id = claims.custom.user_id;
             let session_id = claims.custom.session_id;
 
             // Verify session exists
             let mut redis_conn = ctx.app_data.redis_conn_manager.clone();
-            let session_key = ctx
-                .app_data
-                .credentials_repo
-                .get_key(&user_id);
+            let session_key = ctx.app_data.credentials_repo.get_key(&user_id);
 
             let exists: bool = redis_conn
                 .hexists(&session_key, session_id.to_string())
@@ -168,14 +155,16 @@ mod tests {
             let result = ctx
                 .app_data
                 .credentials_repo
-                .create_session(&user_id, &session_id, &session_info, ttl_seconds)
+                .create_session(
+                    &user_id,
+                    &session_id,
+                    &session_info,
+                    ttl_seconds,
+                )
                 .await;
 
             // Should fail with "Session already exists" error
-            assert!(
-                result.is_err(),
-                "Creating duplicate session should fail"
-            );
+            assert!(result.is_err(), "Creating duplicate session should fail");
 
             let err_msg = format!("{:?}", result.unwrap_err());
             assert!(
@@ -199,19 +188,13 @@ mod tests {
             // Login to create a session
             let (status, token) =
                 attempt_login(&ctx, "Cleanup Test Device").await;
-            assert_eq!(
-                status,
-                StatusCode::OK,
-                "Expected successful login"
-            );
+            assert_eq!(status, StatusCode::OK, "Expected successful login");
             let token = token.expect("Token should be present");
 
             // Parse token to get session details
-            let claims = actix_demo::utils::get_claims(
-                &ctx.app_data.jwt_key,
-                &token,
-            )
-            .expect("Should parse token claims");
+            let claims =
+                actix_demo::utils::get_claims(&ctx.app_data.jwt_key, &token)
+                    .expect("Should parse token claims");
             let user_id = claims.custom.user_id;
             let session_id = claims.custom.session_id;
 
@@ -219,10 +202,7 @@ mod tests {
             let mut redis_conn = ctx.app_data.redis_conn_manager.clone();
 
             // Verify the session key and expiry key exist
-            let session_key = ctx
-                .app_data
-                .credentials_repo
-                .get_key(&user_id);
+            let session_key = ctx.app_data.credentials_repo.get_key(&user_id);
             let expiry_key = ctx
                 .app_data
                 .credentials_repo
@@ -253,11 +233,7 @@ mod tests {
                 .await
                 .unwrap();
 
-            assert_eq!(
-                resp.status(),
-                StatusCode::OK,
-                "Logout should succeed"
-            );
+            assert_eq!(resp.status(), StatusCode::OK, "Logout should succeed");
 
             // Verify both session key and expiry key are deleted
             let session_after_delete: bool = redis_conn
@@ -290,20 +266,15 @@ mod tests {
             let token = token.expect("Token should be present");
 
             // Parse token to get session details
-            let claims = actix_demo::utils::get_claims(
-                &ctx.app_data.jwt_key,
-                &token,
-            )
-            .expect("Should parse token claims");
+            let claims =
+                actix_demo::utils::get_claims(&ctx.app_data.jwt_key, &token)
+                    .expect("Should parse token claims");
             let user_id = claims.custom.user_id;
             let session_id = claims.custom.session_id;
 
             // Get Redis connection to verify keys
             let mut redis_conn = ctx.app_data.redis_conn_manager.clone();
-            let session_key = ctx
-                .app_data
-                .credentials_repo
-                .get_key(&user_id);
+            let session_key = ctx.app_data.credentials_repo.get_key(&user_id);
             let expiry_key = ctx
                 .app_data
                 .credentials_repo

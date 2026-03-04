@@ -34,6 +34,16 @@ impl DomainError {
     pub fn anyhow_auth(message: &str, err: anyhow::Error) -> DomainError {
         DomainError::new_auth_error(format!("{message}, {err:#}"))
     }
+
+    pub fn is_transient(&self) -> bool {
+        matches!(
+            self,
+            DomainError::DbError { .. }
+                | DomainError::DbPoolError { .. }
+                | DomainError::RedisError { .. }
+                | DomainError::InternalError { .. }
+        )
+    }
 }
 
 impl ResponseError for DomainError {

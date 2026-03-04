@@ -235,14 +235,11 @@ impl RedisCredentialsRepo {
             return Err(DomainError::new_bad_input_error(result.1));
         }
 
-        let new_count = result
-            .1
-            .parse::<i32>()
-            .map_err(|err| {
-                DomainError::new_internal_error(format!(
-                    "Failed to parse session count from Lua script: {err}"
-                ))
-            })?;
+        let new_count = result.1.parse::<i32>().map_err(|err| {
+            DomainError::new_internal_error(format!(
+                "Failed to parse session count from Lua script: {err}"
+            ))
+        })?;
 
         let _ = tracing::info!("User has {new_count} sessions after creation");
 
@@ -313,7 +310,9 @@ impl RedisCredentialsRepo {
         // Only extend TTL if the key exists and has a valid TTL (> -1)
         if ttl < 0 {
             return Err(DomainError::AuthError {
-                message: format!("Session has expired or has no TTL - ttl: {ttl}"),
+                message: format!(
+                    "Session has expired or has no TTL - ttl: {ttl}"
+                ),
             });
         }
 
@@ -479,7 +478,11 @@ impl RedisCredentialsRepo {
                 }
             };
             let expiry_key = self.get_expiry_key(user_id, &session_id);
-            expiry_keys_with_idx.push((expiry_key, idx, session_id_str.clone()));
+            expiry_keys_with_idx.push((
+                expiry_key,
+                idx,
+                session_id_str.clone(),
+            ));
         }
 
         if expiry_keys_with_idx.is_empty() {
@@ -487,16 +490,14 @@ impl RedisCredentialsRepo {
         }
 
         // Extract just the keys for mget
-        let expiry_keys: Vec<&str> =
-            expiry_keys_with_idx.iter().map(|(k, _, _)| k.as_str()).collect();
+        let expiry_keys: Vec<&str> = expiry_keys_with_idx
+            .iter()
+            .map(|(k, _, _)| k.as_str())
+            .collect();
 
         // Batch check TTLs using mget - single round-trip instead of N
-        let ttls: Vec<Option<i64>> = self
-            .redis
-            .clone()
-            .mget(expiry_keys)
-            .await
-            .map_err(|err| {
+        let ttls: Vec<Option<i64>> =
+            self.redis.clone().mget(expiry_keys).await.map_err(|err| {
                 DomainError::new_internal_error(format!(
                     "Failed to batch check TTLs for expired sessions: {err}"
                 ))
@@ -517,10 +518,11 @@ impl RedisCredentialsRepo {
                 pipe.hdel(&key, &session_id_str);
 
                 // Also delete the expiry key to prevent memory leaks
-                let session_id = Uuid::parse_str(&session_id_str_copy).unwrap_or_else(|_| {
-                    // This should not happen as we already validated above
-                    Uuid::nil()
-                });
+                let session_id = Uuid::parse_str(&session_id_str_copy)
+                    .unwrap_or_else(|_| {
+                        // This should not happen as we already validated above
+                        Uuid::nil()
+                    });
                 let expiry_key = self.get_expiry_key(user_id, &session_id);
                 pipe.del(expiry_key);
                 expired_count += 1;
@@ -548,7 +550,8 @@ impl RedisCredentialsRepo {
                 "Removed {expired_count} expired sessions, {count} active sessions remaining"
             );
         } else {
-            let _ = tracing::debug!("No expired sessions found for user {user_id}");
+            let _ =
+                tracing::debug!("No expired sessions found for user {user_id}");
         }
 
         Ok(())

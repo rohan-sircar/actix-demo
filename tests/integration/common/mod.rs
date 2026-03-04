@@ -33,6 +33,9 @@ use diesel_migrations::{FileBasedMigrations, MigrationHarness};
 use diesel_tracing::pg::InstrumentedPgConnection;
 use jwt_simple::prelude::HS256Key;
 use minior::aws_sdk_s3;
+
+/// Test JWT key used for authentication in integration tests
+pub const TEST_JWT_KEY: &str = "testasddddddddafsfwewefwecwrwrgwrhwefwegweegsdfwgfg";
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
 use std::fs;
@@ -325,9 +328,7 @@ pub async fn app_data(
         metrics.active_sessions.clone(),
     );
 
-    let key = HS256Key::from_bytes(
-        "testasddddddddafsfwewefwecwrwrgwrhwefwegweegsdfwgfg".as_bytes(),
-    );
+    let key = HS256Key::from_bytes(TEST_JWT_KEY.as_bytes());
 
     // Create MinIO client
     let cred = aws_sdk_s3::config::Credentials::new(

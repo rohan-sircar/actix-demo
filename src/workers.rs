@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use backon::{BackoffBuilder, ExponentialBuilder, Retryable};
 use tokio::{task::JoinHandle, time::sleep};
 
 use crate::{
@@ -19,20 +20,17 @@ pub async fn start_sessions_cleanup_worker(
     pool: DbPool,
 ) -> JoinHandle<()> {
     tokio::spawn(async move {
-        // TODO backoff is unmaintained, use a different crate
-        let policy = backoff::ExponentialBackoffBuilder::new()
-            .with_initial_interval(Duration::from_secs(
+        let policy_builder = ExponentialBuilder::new()
+            .with_min_delay(Duration::from_secs(
                 config.backoff.initial_interval_secs,
             ))
-            .with_multiplier(config.backoff.multiplier)
-            .with_max_interval(Duration::from_secs(
+            .with_factor(config.backoff.multiplier as f32)
+            .with_max_delay(Duration::from_secs(
                 config.backoff.max_interval_secs,
             ))
-            .with_max_elapsed_time(Some(Duration::from_secs(
+            .with_total_delay(Some(Duration::from_secs(
                 config.backoff.max_elapsed_time_secs,
-            )))
-            .build();
-
+            )));
         loop {
             let _ = tracing::debug!("Running sessions cleanup");
             let mut conn = match pool.get() {
@@ -73,19 +71,19 @@ pub async fn start_sessions_cleanup_worker(
                 );
 
                     credentials_repo
-                    .cleanup_expired_session_ids(&user_id)
-                    .await
-                    .map_err(|err| {
-                        backoff::Error::transient(
+                        .cleanup_expired_session_ids(&user_id)
+                        .await
+                        .map_err(|err| {
                             DomainError::new_internal_error(format!(
-                                "Session cleanup failed for user: {user_id}: {err}"
-                            ))
-                        )
-                    })
+                            "Session cleanup failed for user: {user_id}: {err}"
+                        ))
+                        })
                 };
 
-                let retry_result =
-                    backoff::future::retry(policy.clone(), operation).await;
+                let retry_result = operation
+                    .retry(policy_builder.build())
+                    .when(DomainError::is_transient)
+                    .await;
 
                 if let Err(err) = retry_result {
                     let _ = tracing::error!(

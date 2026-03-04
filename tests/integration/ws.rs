@@ -2,6 +2,7 @@ use futures::prelude::*;
 use std::str::FromStr;
 
 use crate::common;
+use crate::common::TEST_JWT_KEY;
 
 use actix_codec::Framed;
 use actix_demo::models::users::UserId;
@@ -131,7 +132,7 @@ mod tests {
             common::get_http_token(&ctx.addr, username, password, &ctx.client)
                 .await
                 .unwrap();
-        let jwt_key = HS256Key::from_bytes("test".as_bytes());
+        let jwt_key = HS256Key::from_bytes(TEST_JWT_KEY.as_bytes());
 
         let claims = utils::get_claims(&jwt_key, &token).unwrap();
         let user_id = claims.custom.user_id;
@@ -226,11 +227,12 @@ mod tests {
         let ctx = common::TestContext::new(Some(options)).await;
         let username = common::DEFAULT_USER;
         let password = common::DEFAULT_USER;
+        // TODO change this to get_claims directly
         let token =
             common::get_http_token(&ctx.addr, username, password, &ctx.client)
                 .await
                 .unwrap();
-        let jwt_key = HS256Key::from_bytes("test".as_bytes());
+        let jwt_key = HS256Key::from_bytes(TEST_JWT_KEY.as_bytes());
 
         let claims = utils::get_claims(&jwt_key, &token).unwrap();
         let user_id = claims.custom.user_id;
