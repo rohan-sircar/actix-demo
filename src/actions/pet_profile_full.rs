@@ -135,6 +135,46 @@ pub fn check_pet_profile_exists(
     Ok(res.is_some())
 }
 
+/// Check if the authenticated user owns the pet profile
+/// Returns true if the user_id matches, false otherwise
+pub fn check_pet_profile_ownership(
+    pet_id: &PetProfileId,
+    auth_user_id: &UserId,
+    conn: &mut DbConnection,
+) -> Result<bool, DomainError> {
+    use crate::schema::pet_basic_info::dsl as basic_info;
+
+    let _ = tracing::info!(
+        "Checking ownership of pet profile {pet_id} for user {auth_user_id}"
+    );
+
+    // Fetch the user_id of the pet profile and compare with auth_user_id
+    let profile_user_id: Option<UserId> = basic_info::pet_basic_info
+        .find(pet_id)
+        .select(basic_info::user_id)
+        .first(conn)
+        .optional()
+        .map_err(|err| {
+            DomainError::new_internal_error(format!(
+                "Failed to retrieve pet profile user_id: {err}"
+            ))
+        })?;
+
+    match profile_user_id {
+        Some(profile_user_id) => {
+            let is_owner = profile_user_id == *auth_user_id;
+            let _ = tracing::info!(
+                "Ownership check result for pet {pet_id}: owner={is_owner}"
+            );
+            Ok(is_owner)
+        }
+        None => {
+            // If the pet profile doesn't exist, the user cannot own it
+            Ok(false)
+        }
+    }
+}
+
 // Get complete pet profile with all related data for a specific pet
 pub fn get_full_pet_profile(
     pet_id: &PetProfileId,

@@ -42,9 +42,9 @@ pub async fn add_pet_profile(
 #[tracing::instrument(level = "info", skip(app_data))]
 pub async fn get_pet_profile_for_pet_id(
     app_data: web::Data<AppData>,
-    path: web::Path<(UserId, PetProfileId)>,
+    path: web::Path<PetProfileId>,
 ) -> Result<HttpResponse, DomainError> {
-    let (_, pet_id) = path.into_inner();
+    let pet_id = path.into_inner();
     let _ = tracing::info!("Getting pet profile with id {pet_id}");
 
     let pet_id2 = pet_id.clone();
@@ -99,20 +99,27 @@ pub async fn get_pet_profiles_for_user(
 #[tracing::instrument(level = "info", skip(app_data))]
 pub async fn update_pet_profile_for_pet_id(
     app_data: web::Data<AppData>,
-    path: web::Path<(UserId, PetProfileId)>,
+    path: web::Path<PetProfileId>,
     form: web::Json<PetProfileUpdateData>,
+    req: HttpRequest,
 ) -> Result<HttpResponse, DomainError> {
-    let (_, pet_id) = path.into_inner();
-    let pet_id2 = pet_id.clone();
+    let pet_id = path.into_inner();
+    let pet_id_for_check = pet_id.clone();
+    let pet_id_for_ownership = pet_id.clone();
+    let pet_id_for_update = pet_id.clone();
     let update_data = form.0;
-    let _ = tracing::info!("Updating pet profile with id {pet_id}");
-    // TODO add user id check
+
+    let auth_user_id =
+        crate::utils::extract_user_id_from_header(req.headers())?;
 
     // First check if the pet profile exists
-    let pool2 = app_data.pool.clone();
+    let pool_check = app_data.pool.clone();
     let exists = web::block(move || {
-        let mut conn = pool2.get()?;
-        actions::pet_profile_full::check_pet_profile_exists(&pet_id2, &mut conn)
+        let mut conn = pool_check.get()?;
+        actions::pet_profile_full::check_pet_profile_exists(
+            &pet_id_for_check,
+            &mut conn,
+        )
     })
     .await??;
 
@@ -122,12 +129,32 @@ pub async fn update_pet_profile_for_pet_id(
         )));
     }
 
-    let pet_id2 = pet_id.clone();
+    // Check if the authenticated user owns this pet profile
+    let pool_ownership = app_data.pool.clone();
+    let is_owner = web::block(move || {
+        let mut conn = pool_ownership.get()?;
+        actions::pet_profile_full::check_pet_profile_ownership(
+            &pet_id_for_ownership,
+            &auth_user_id,
+            &mut conn,
+        )
+    })
+    .await??;
+
+    if !is_owner {
+        return Err(DomainError::new_bad_input_error(format!(
+            "You can only update your own pet profiles"
+        )));
+    }
+
+    // Log before the update action
+    let _ = tracing::info!("Updating pet profile with id {pet_id}");
+
     let updated_profile = web::block(move || {
         let pool = &app_data.pool;
         let mut conn = pool.get()?;
         actions::pet_profile_update::update_full_pet_profile(
-            &pet_id2,
+            &pet_id_for_update,
             update_data,
             &mut conn,
         )
@@ -142,9 +169,9 @@ pub async fn update_pet_profile_for_pet_id(
 #[tracing::instrument(level = "info", skip(app_data))]
 pub async fn delete_pet_profile_for_pet_id(
     app_data: web::Data<AppData>,
-    path: web::Path<(UserId, PetProfileId)>,
+    path: web::Path<PetProfileId>,
 ) -> Result<HttpResponse, DomainError> {
-    let (_, pet_id) = path.into_inner();
+    let pet_id = path.into_inner();
 
     // First check if the pet profile exists
     let pet_id2 = pet_id.clone();

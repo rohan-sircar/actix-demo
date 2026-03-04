@@ -33,7 +33,7 @@ mod tests {
 
             let mut resp = ctx
                 .test_server
-                .post("/api/users/1/pets")
+                .post("/api/pets")
                 .with_token(&ctx._token)
                 .send_json(&pet_data)
                 .await
@@ -76,7 +76,7 @@ mod tests {
 
             let mut resp = ctx
                 .test_server
-                .post("/api/users/1/pets")
+                .post("/api/pets")
                 .with_token(&ctx._token)
                 .send_json(&pet_data_json)
                 .await
@@ -119,7 +119,7 @@ mod tests {
 
             let mut create_resp = ctx
                 .test_server
-                .post("/api/users/1/pets")
+                .post("/api/pets")
                 .with_token(&ctx._token)
                 .send_json(&pet_data_json)
                 .await
@@ -148,7 +148,7 @@ mod tests {
 
             let mut resp = ctx
                 .test_server
-                .get(&format!("/api/users/1/pets/{}", pet_id))
+                .get(&format!("/api/pets/{}", pet_id))
                 .with_token(&ctx._token)
                 .send()
                 .await
@@ -174,7 +174,7 @@ mod tests {
 
             let mut resp = ctx
                 .test_server
-                .get("/api/users/1/pets/999")
+                .get("/api/pets/999")
                 .with_token(&ctx._token)
                 .send()
                 .await
@@ -214,7 +214,7 @@ mod tests {
 
             let mut create_resp = ctx
                 .test_server
-                .post("/api/users/1/pets")
+                .post("/api/pets")
                 .with_token(&ctx._token)
                 .send_json(&pet_data_json)
                 .await
@@ -240,7 +240,7 @@ mod tests {
 
             let mut resp = ctx
                 .test_server
-                .patch(&format!("/api/users/1/pets/{}", pet_id))
+                .patch(&format!("/api/pets/{}", pet_id))
                 .with_token(&ctx._token)
                 .send_json(&update_data)
                 .await
@@ -278,7 +278,7 @@ mod tests {
 
             let mut resp = ctx
                 .test_server
-                .patch("/api/users/1/pets/999")
+                .patch("/api/pets/999")
                 .with_token(&ctx._token)
                 .send_json(&update_data)
                 .await
@@ -315,7 +315,7 @@ mod tests {
 
             let mut create_resp = ctx
                 .test_server
-                .post("/api/users/1/pets")
+                .post("/api/pets")
                 .with_token(&ctx._token)
                 .send_json(&pet_data_json)
                 .await
@@ -341,7 +341,7 @@ mod tests {
 
             let resp = ctx
                 .test_server
-                .patch(&format!("/api/users/1/pets/{}", pet_id))
+                .patch(&format!("/api/pets/{}", pet_id))
                 .with_token(&ctx._token)
                 .send_json(&update_data)
                 .await
@@ -378,7 +378,7 @@ mod tests {
 
             let mut create_resp = ctx
                 .test_server
-                .post("/api/users/1/pets")
+                .post("/api/pets")
                 .with_token(&ctx._token)
                 .send_json(&pet_data_json)
                 .await
@@ -393,7 +393,7 @@ mod tests {
             // Delete the pet profile
             let delete_resp = ctx
                 .test_server
-                .delete(&format!("/api/users/1/pets/{}", pet_id))
+                .delete(&format!("/api/pets/{}", pet_id))
                 .with_token(&ctx._token)
                 .send()
                 .await
@@ -404,7 +404,7 @@ mod tests {
             // Verify that the pet profile no longer exists
             let get_resp = ctx
                 .test_server
-                .get(&format!("/api/users/1/pets/{}", pet_id))
+                .get(&format!("/api/pets/{}", pet_id))
                 .with_token(&ctx._token)
                 .send()
                 .await
@@ -419,7 +419,7 @@ mod tests {
 
             let resp = ctx
                 .test_server
-                .delete("/api/users/1/pets/999")
+                .delete("/api/pets/999")
                 .with_token(&ctx._token)
                 .send()
                 .await
