@@ -149,6 +149,36 @@ pub async fn upload_user_avatar(
     Ok(HttpResponse::Ok().json(object_key))
 }
 
+/// Delete user avatar
+#[tracing::instrument(level = "info", skip_all)]
+pub async fn delete_user_avatar(
+    app_data: web::Data<AppData>,
+    req: HttpRequest,
+) -> Result<HttpResponse, DomainError> {
+    // Get user ID from header
+    let user_id = utils::extract_user_id_from_header(req.headers())?;
+
+    let object_key = format!("avatars/{user_id}");
+    
+    // Delete from MinIO
+    app_data
+        .minio
+        .client
+        .delete_object()
+        .bucket(&app_data.config.minio.bucket_name)
+        .key(&object_key)
+        .send()
+        .await
+        .map_err(|err| {
+            DomainError::new_file_upload_failed(format!(
+                "Avatar deletion failed: {err:?}"
+            ))
+        })?;
+
+    let _ = tracing::info!("Avatar deleted for user {user_id}");
+    Ok(HttpResponse::Ok().json(object_key))
+}
+
 /// Get user avatar
 #[tracing::instrument(level = "info", skip(app_data))]
 pub async fn get_user_avatar(

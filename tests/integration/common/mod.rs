@@ -346,6 +346,18 @@ pub async fn app_data(
         .build();
     let s3_client = aws_sdk_s3::Client::from_conf(s3_config);
 
+    // Create the MinIO bucket if it doesn't exist
+    let _ = s3_client
+        .create_bucket()
+        .bucket("actix-demo")
+        .send()
+        .await
+        .map_err(|err| {
+            // Ignore errors if bucket already exists
+            tracing::warn!("Failed to create bucket: {:?}", err);
+        })
+        .ok();
+
     let data = Data::new(AppData {
         start_time,
         config,

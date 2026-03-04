@@ -221,7 +221,10 @@ pub fn configure_app(
                     .service(web::scope("/avatars").route(
                         "",
                         web::put().to(routes::users::upload_user_avatar),
-                        // TODO DELETE endpoint
+                    )
+                    .route(
+                        "",
+                        web::delete().to(routes::users::delete_user_avatar),
                     ))
                     .service(
                         web::scope("/sessions")
