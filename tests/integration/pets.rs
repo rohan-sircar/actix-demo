@@ -87,6 +87,231 @@ mod tests {
         }
     }
 
+    mod weight_validation {
+        use crate::common::{TestContext, WithToken};
+        use actix_demo::models::misc::ErrorResponse;
+
+        use super::*;
+
+        #[actix_rt::test]
+        async fn should_validate_weight_kg_field() {
+            let ctx = TestContext::new(None).await;
+
+            // Invalid weights that should return BAD_REQUEST
+            let invalid_weights: Vec<f32> = vec![
+                0.0,      // Zero - below minimum
+                -5.0,     // Negative - below minimum
+                151.0,    // Just above maximum
+                200.0,    // Well above maximum
+            ];
+
+            for weight in invalid_weights {
+                let pet_data = serde_json::json!({
+                    "user_id": 1,
+                    "pet_name": "Fluffy",
+                    "pet_type": "cat",
+                    "breed": "Persian",
+                    "age": 3,
+                    "weight_kg": weight,
+                    "gender": "female",
+                    "bio": "A very cute cat",
+                    "owner_name": "Owner Name",
+                    "location": "Location",
+                    "special_needs": false,
+                    "images": []
+                });
+
+                let mut resp = ctx
+                    .test_server
+                    .post("/api/pets")
+                    .with_token(&ctx._token)
+                    .send_json(&pet_data)
+                    .await
+                    .unwrap();
+
+                assert_eq!(
+                    resp.status(),
+                    StatusCode::BAD_REQUEST,
+                    "Weight {} should be rejected",
+                    weight
+                );
+
+                let body: ErrorResponse<String> = resp.json().await.unwrap();
+                assert!(
+                    body.cause.contains("weight") || body.cause.contains("Invalid"),
+                    "Error message should mention weight for value {}",
+                    weight
+                );
+            }
+
+            // Valid weights at boundaries that should succeed
+            let valid_weights: Vec<f32> = vec![1.0, 150.0];
+
+            for weight in valid_weights {
+                let pet_data = serde_json::json!({
+                    "user_id": 1,
+                    "pet_name": "Fluffy",
+                    "pet_type": "cat",
+                    "breed": "Persian",
+                    "age": 3,
+                    "weight_kg": weight,
+                    "gender": "female",
+                    "bio": "A very cute cat",
+                    "owner_name": "Owner Name",
+                    "location": "Location",
+                    "special_needs": false,
+                    "images": []
+                });
+
+                let mut resp = ctx
+                    .test_server
+                    .post("/api/pets")
+                    .with_token(&ctx._token)
+                    .send_json(&pet_data)
+                    .await
+                    .unwrap();
+
+                assert_eq!(
+                    resp.status(),
+                    StatusCode::CREATED,
+                    "Weight {} should be accepted",
+                    weight
+                );
+
+                let body: FullPetProfile = resp.json().await.unwrap();
+                assert_eq!(
+                    body.basic_info.weight_kg.as_f32(),
+                    weight,
+                    "Stored weight should match input for {}",
+                    weight
+                );
+            }
+        }
+    }
+
+    mod weight_update_validation {
+        use crate::common::{TestContext, WithToken};
+        use actix_demo::models::misc::ErrorResponse;
+
+        use super::*;
+
+        #[actix_rt::test]
+        async fn should_validate_weight_kg_field_on_update() {
+            let ctx = TestContext::new(None).await;
+
+            // Create a pet profile first
+            let pet_data_json = serde_json::json!({
+                "user_id": 1,
+                "pet_name": "Buddy",
+                "pet_type": "dog",
+                "breed": "Golden Retriever",
+                "age": 2,
+                "weight_kg": 25.0,
+                "gender": "male",
+                "bio": "A friendly dog",
+                "owner_name": "Owner Name",
+                "location": "Location",
+                "special_needs": false,
+                "images": []
+            });
+
+            let mut create_resp = ctx
+                .test_server
+                .post("/api/pets")
+                .with_token(&ctx._token)
+                .send_json(&pet_data_json)
+                .await
+                .unwrap();
+
+            assert_eq!(create_resp.status(), StatusCode::CREATED);
+
+            let created_pet: FullPetProfile = create_resp.json().await.unwrap();
+            let pet_id = created_pet.basic_info.id;
+
+            // Invalid weights that should return BAD_REQUEST
+            let invalid_weights: Vec<f32> = vec![
+                0.0,      // Zero - below minimum
+                -10.0,    // Negative - below minimum
+                151.0,    // Just above maximum
+                200.0,    // Well above maximum
+            ];
+
+            for weight in invalid_weights {
+                let update_data = serde_json::json!({
+                    "basic_info" : {
+                        "pet_name": "Updated Buddy",
+                        "breed": "Labrador Retriever",
+                        "age": 3,
+                        "weight_kg": weight,
+                    },
+                    "personality_traits" : {"bio": "An updated friendly dog"},
+                    "images": []
+                });
+
+                let mut resp = ctx
+                    .test_server
+                    .patch(&format!("/api/pets/{}", pet_id))
+                    .with_token(&ctx._token)
+                    .send_json(&update_data)
+                    .await
+                    .unwrap();
+
+                assert_eq!(
+                    resp.status(),
+                    StatusCode::BAD_REQUEST,
+                    "Weight {} should be rejected on update",
+                    weight
+                );
+
+                let body: ErrorResponse<String> = resp.json().await.unwrap();
+                assert!(
+                    body.cause.contains("weight") || body.cause.contains("Invalid"),
+                    "Error message should mention weight for value {}",
+                    weight
+                );
+            }
+
+            // Valid weights that should succeed
+            let valid_weights: Vec<f32> = vec![30.5, 150.0];
+
+            for weight in valid_weights {
+                let update_data = serde_json::json!({
+                    "basic_info" : {
+                        "pet_name": "Updated Buddy",
+                        "breed": "Labrador Retriever",
+                        "age": 3,
+                        "weight_kg": weight,
+                    },
+                    "personality_traits" : {"bio": "An updated friendly dog"},
+                    "images": []
+                });
+
+                let mut resp = ctx
+                    .test_server
+                    .patch(&format!("/api/pets/{}", pet_id))
+                    .with_token(&ctx._token)
+                    .send_json(&update_data)
+                    .await
+                    .unwrap();
+
+                assert_eq!(
+                    resp.status(),
+                    StatusCode::OK,
+                    "Weight {} should be accepted on update",
+                    weight
+                );
+
+                let body: FullPetProfile = resp.json().await.unwrap();
+                assert_eq!(
+                    body.basic_info.weight_kg.as_f32(),
+                    weight,
+                    "Stored weight should match input for {}",
+                    weight
+                );
+            }
+        }
+    }
+
     mod get_pet_profile_api {
 
         use actix_demo::models::pets::PetPersonalityTraits;
@@ -253,7 +478,7 @@ mod tests {
             assert_eq!(body.basic_info.pet_name.as_str(), "Updated Buddy");
             assert_eq!(body.basic_info.breed.as_str(), "Labrador Retriever");
             assert_eq!(body.basic_info.age, 3);
-            assert_eq!(body.basic_info.weight_kg, 28.0);
+            assert_eq!(body.basic_info.weight_kg.as_f32(), 28.0);
             assert_eq!(
                 body.personality_traits.map(|b| b.bio),
                 Some(Some("An updated friendly dog".to_owned()))

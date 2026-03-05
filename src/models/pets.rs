@@ -48,6 +48,26 @@ impl Breedname {
     }
 }
 
+/// Weight in kilograms, validated to be >= 1.0 and <= 150.0
+#[derive(
+    Debug,
+    Display,
+    Clone,
+    Copy,
+    DieselNewType,
+    PartialEq,
+    PartialOrd,
+    Validator,
+)]
+#[validator(number(nan(Disallow), range(Inside(min = 1.0, max = 150.0))))]
+pub struct WeightKg(f32);
+
+impl WeightKg {
+    pub fn as_f32(&self) -> f32 {
+        self.0
+    }
+}
+
 #[derive(
     Debug, Clone, Deserialize, Serialize, Queryable, Selectable, Identifiable,
 )]
@@ -59,7 +79,7 @@ pub struct PetBasicInfo {
     pub pet_type: PetType,
     pub breed: Breedname,
     pub age: i32,
-    pub weight_kg: f32,
+    pub weight_kg: WeightKg,
     pub gender: GenderType,
     pub size: Option<SizeType>,
     pub color: Option<String>,
@@ -76,7 +96,7 @@ pub struct NewPetBasicInfo {
     pub pet_type: PetType,
     pub breed: Breedname,
     pub age: i32,
-    pub weight_kg: f32,
+    pub weight_kg: WeightKg,
     pub gender: GenderType,
     pub size: Option<SizeType>,
     pub color: Option<String>,
@@ -90,7 +110,7 @@ pub struct UpdatePetBasicInfo {
     pub pet_type: Option<PetType>,
     pub breed: Option<Breedname>,
     pub age: Option<i32>,
-    pub weight_kg: Option<f32>,
+    pub weight_kg: Option<WeightKg>,
     pub gender: Option<GenderType>,
     pub size: Option<Option<SizeType>>,
     pub color: Option<Option<String>>,

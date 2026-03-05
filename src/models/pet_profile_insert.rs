@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::errors::DomainError;
 use crate::models::pet_enums::*;
-use crate::models::pets::{Breedname, NewPetBasicInfo, Petname};
+use crate::models::pets::{Breedname, NewPetBasicInfo, Petname, WeightKg};
 use crate::models::users::UserId;
 
 #[derive(Debug, Clone, Deserialize)]
@@ -14,7 +14,7 @@ pub struct PetProfileInsertData {
     pub pet_type: PetType,
     pub breed: validators::Result<Breedname, validators::errors::RegexError>,
     pub age: i32,
-    pub weight_kg: f32,
+    pub weight_kg: validators::Result<WeightKg, validators::errors::NumberError>,
     pub gender: GenderType,
     pub size: Option<SizeType>,
     pub color: Option<String>,
@@ -85,6 +85,14 @@ impl PetProfileInsertData {
             ));
         }
 
+        // Validate weight_kg
+        if let Err(err) = self.weight_kg.as_std_result() {
+            errors.push(format!(
+                "Invalid weight: {} Must be greater than 0 and less than 150 kg",
+                err
+            ));
+        }
+
         // If we have any validation errors, return them all at once
         if !errors.is_empty() {
             let error_message = errors.join("; ");
@@ -94,6 +102,7 @@ impl PetProfileInsertData {
         // All validations passed, construct the NewPetBasicInfo struct
         let pet_name = self.pet_name.as_std_result().clone().unwrap();
         let breed = self.breed.as_std_result().clone().unwrap();
+        let weight_kg = self.weight_kg.as_std_result().clone().unwrap();
 
         Ok(NewPetBasicInfo {
             user_id: self.user_id.clone(),
@@ -101,7 +110,7 @@ impl PetProfileInsertData {
             pet_type: self.pet_type.clone(),
             breed: breed.clone(), // Extract the inner String from Breedname
             age: self.age,
-            weight_kg: self.weight_kg,
+            weight_kg,
             gender: self.gender.clone(),
             size: self.size.clone(),
             color: self.color.clone(),

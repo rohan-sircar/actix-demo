@@ -8,7 +8,7 @@ use crate::models::pets::UpdatePetActivities;
 use crate::models::pets::UpdatePetLocationOwner;
 use crate::models::pets::UpdatePetPersonalityTraits;
 use crate::models::pets::UpdatePetAdoptionDetails;
-use crate::models::pets::{Breedname, Petname, UpdatePetBasicInfo};
+use crate::models::pets::{Breedname, Petname, UpdatePetBasicInfo, WeightKg};
 use crate::models::users::UserId;
 
 #[derive(Debug, Clone, Deserialize)]
@@ -21,7 +21,7 @@ pub struct PetBasicInfoUpdate {
     pub breed:
         Option<validators::Result<Breedname, validators::errors::RegexError>>,
     pub age: Option<i32>,
-    pub weight_kg: Option<f32>,
+    pub weight_kg: Option<validators::Result<WeightKg, validators::errors::NumberError>>,
     pub gender: Option<GenderType>,
     pub size: Option<Option<SizeType>>,
     pub color: Option<Option<String>>,
@@ -114,6 +114,16 @@ impl PetProfileUpdateData {
             }
         }
 
+        // Validate weight_kg
+        if let Some(weight) = &basic_info.weight_kg {
+            if let Err(err) = weight.as_std_result() {
+                errors.push(format!(
+                    "Invalid weight: {} Must be greater than 0 and less than 150 kg",
+                    err
+                ));
+            }
+        }
+
         // If we have any validation errors, return them all at once
         if !errors.is_empty() {
             let error_message = errors.join("; ");
@@ -132,7 +142,10 @@ impl PetProfileUpdateData {
                 .as_ref()
                 .map(|v| v.as_std_result().clone().unwrap()),
             age: basic_info.age,
-            weight_kg: basic_info.weight_kg,
+            weight_kg: basic_info
+                .weight_kg
+                .as_ref()
+                .map(|v| v.as_std_result().clone().unwrap()),
             gender: basic_info.gender.clone(),
             size: basic_info.size.clone(),
             color: basic_info.color.clone(),
