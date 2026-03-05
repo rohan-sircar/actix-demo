@@ -107,15 +107,20 @@ CREATE INDEX idx_pet_location_owner_pet_id ON pet_location_owner(pet_profile_id)
 
 CREATE INDEX idx_pet_adoption_details_pet_id ON pet_adoption_details(pet_profile_id);
 
--- -- Create trigger for updated_at
--- CREATE
--- OR REPLACE FUNCTION update_updated_at_column() RETURNS TRIGGER AS $ $ BEGIN NEW.updated_at = NOW();
--- RETURN NEW;
--- END;
--- $ $ language 'plpgsql';
--- CREATE TRIGGER update_pet_basic_info_updated_at BEFORE
--- UPDATE
---     ON pet_basic_info FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+-- Create trigger for updated_at
+CREATE OR REPLACE FUNCTION update_updated_at_column() RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE 'plpgsql';
+
+CREATE TRIGGER update_pet_basic_info_updated_at
+    BEFORE UPDATE
+    ON pet_basic_info
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
 -- Create separate image table
 CREATE TABLE pet_profile_images (
     id SERIAL PRIMARY KEY,

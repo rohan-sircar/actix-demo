@@ -80,3 +80,14 @@ pub enum CoatType {
     Wire,
     Hairless,
 }
+
+#[derive(
+    DbEnum, Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq, Hash,
+)]
+#[serde(rename_all = "lowercase")]
+#[ExistingTypePath = "crate::schema::sql_types::AdoptionStatusType"]
+pub enum AdoptionStatusType {
+    Adoptable,
+    Foster,
+    Available,
+}

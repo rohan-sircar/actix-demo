@@ -14,11 +14,14 @@ DROP TABLE IF EXISTS pet_activities;
 -- Drop pet_personality_traits table
 DROP TABLE IF EXISTS pet_personality_traits;
 
--- Drop pet_basic_info table
-DROP TABLE IF EXISTS pet_basic_info;
+-- Drop trigger
+DROP TRIGGER IF EXISTS update_pet_basic_info_updated_at ON pet_basic_info;
 
 -- Drop trigger function
 DROP FUNCTION IF EXISTS update_updated_at_column();
+
+-- Drop pet_basic_info table
+DROP TABLE IF EXISTS pet_basic_info;
 
 -- Drop custom enums
 DROP TYPE IF EXISTS adoption_status_type;

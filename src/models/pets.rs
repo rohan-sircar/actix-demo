@@ -3,7 +3,6 @@ use bigdecimal::BigDecimal;
 use derive_more::Display;
 use diesel::pg::Pg;
 use diesel::prelude::*;
-use diesel_derive_enum::DbEnum;
 use serde::{Deserialize, Serialize};
 use validators::Validator;
 
@@ -158,17 +157,6 @@ pub struct UpdatePetAdoptionDetails {
     pub special_needs_description: Option<Option<String>>,
     pub adoption_status: Option<Option<AdoptionStatusType>>,
     pub shelter_name: Option<Option<String>>,
-}
-
-#[derive(
-    DbEnum, Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq, Hash,
-)]
-#[serde(rename_all = "lowercase")]
-#[ExistingTypePath = "crate::schema::sql_types::AdoptionStatusType"]
-pub enum AdoptionStatusType {
-    Adoptable,
-    Foster,
-    Available,
 }
 
 #[derive(

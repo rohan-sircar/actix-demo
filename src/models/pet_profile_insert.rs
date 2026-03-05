@@ -3,7 +3,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::errors::DomainError;
 use crate::models::pet_enums::*;
-use crate::models::pets::AdoptionStatusType;
 use crate::models::pets::{Breedname, NewPetBasicInfo, Petname};
 use crate::models::users::UserId;
 

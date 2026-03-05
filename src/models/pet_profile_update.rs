@@ -7,7 +7,7 @@ use crate::models::pet_profile_images::NewPetProfileImage;
 use crate::models::pets::UpdatePetActivities;
 use crate::models::pets::UpdatePetLocationOwner;
 use crate::models::pets::UpdatePetPersonalityTraits;
-use crate::models::pets::{AdoptionStatusType, UpdatePetAdoptionDetails};
+use crate::models::pets::UpdatePetAdoptionDetails;
 use crate::models::pets::{Breedname, Petname, UpdatePetBasicInfo};
 use crate::models::users::UserId;
 

@@ -1,6 +1,5 @@
 pub mod defaults;
 pub mod misc;
-pub mod pet_basic_info;
 pub mod pet_enums;
 pub mod pet_profile_full;
 pub mod pet_profile_images;
