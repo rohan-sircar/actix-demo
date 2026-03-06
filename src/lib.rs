@@ -280,6 +280,12 @@ pub fn configure_app(
                                 web::delete().to(
                                     routes::pets::delete_pet_profile_for_pet_id,
                                 ),
+                            )
+                            .route(
+                                "/{pet_id}/images/{image_id}",
+                                web::delete().to(
+                                    routes::pets::delete_pet_profile_image,
+                                ),
                             ),
                     ),
             );

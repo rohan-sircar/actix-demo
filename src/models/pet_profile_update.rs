@@ -4,6 +4,7 @@ use serde::Deserialize;
 use crate::errors::DomainError;
 use crate::models::pet_enums::*;
 use crate::models::pet_profile_images::NewPetProfileImage;
+use crate::models::pets::PetAge;
 use crate::models::pets::UpdatePetActivities;
 use crate::models::pets::UpdatePetLocationOwner;
 use crate::models::pets::UpdatePetPersonalityTraits;
@@ -20,7 +21,7 @@ pub struct PetBasicInfoUpdate {
     pub pet_type: Option<PetType>,
     pub breed:
         Option<validators::Result<Breedname, validators::errors::RegexError>>,
-    pub age: Option<i32>,
+    pub age: Option<validators::Result<PetAge, validators::errors::SignedIntegerError>>,
     pub weight_kg: Option<validators::Result<WeightKg, validators::errors::NumberError>>,
     pub gender: Option<GenderType>,
     pub size: Option<Option<SizeType>>,
@@ -124,6 +125,13 @@ impl PetProfileUpdateData {
             }
         }
 
+        // Validate age
+        if let Some(age) = &basic_info.age {
+            if let Err(err) = age.as_std_result() {  
+                errors.push(format!("Invalid age: {}", err))
+            }
+        }
+
         // If we have any validation errors, return them all at once
         if !errors.is_empty() {
             let error_message = errors.join("; ");
@@ -141,7 +149,10 @@ impl PetProfileUpdateData {
                 .breed
                 .as_ref()
                 .map(|v| v.as_std_result().clone().unwrap()),
-            age: basic_info.age,
+            age: basic_info
+                .age
+                .as_ref()
+                .map(|v| v.as_std_result().clone().unwrap()),
             weight_kg: basic_info
                 .weight_kg
                 .as_ref()

@@ -201,3 +201,76 @@ pub async fn delete_pet_profile_for_pet_id(
     let _ = tracing::info!("Successfully deleted pet profile with id {pet_id}");
     Ok(HttpResponse::NoContent().finish())
 }
+
+/// Deletes a specific pet profile image by image ID
+#[tracing::instrument(level = "info", skip(app_data, req))]
+pub async fn delete_pet_profile_image(
+    app_data: web::Data<AppData>,
+    path: web::Path<(PetProfileId, i32)>,
+    req: HttpRequest,
+) -> Result<HttpResponse, DomainError> {
+    let (pet_id, image_id) = path.into_inner();
+
+    // Extract authenticated user ID from request headers
+    let auth_user_id =
+        crate::utils::extract_user_id_from_header(req.headers())?;
+
+    // First check if the pet profile exists
+    let pet_id_for_check = pet_id.clone();
+    let pool_check = app_data.pool.clone();
+    let exists = web::block(move || {
+        let mut conn = pool_check.get()?;
+        actions::pet_profile_full::check_pet_profile_exists(
+            &pet_id_for_check,
+            &mut conn,
+        )
+    })
+    .await??;
+
+    if !exists {
+        return Err(DomainError::new_entity_does_not_exist_error(format!(
+            "Pet profile with id {pet_id} does not exist"
+        )));
+    }
+
+    // Check if the authenticated user owns this pet profile
+    let pet_id_for_ownership = pet_id.clone();
+    let pool_ownership = app_data.pool.clone();
+    let is_owner = web::block(move || {
+        let mut conn = pool_ownership.get()?;
+        actions::pet_profile_full::check_pet_profile_ownership(
+            &pet_id_for_ownership,
+            &auth_user_id,
+            &mut conn,
+        )
+    })
+    .await??;
+
+    if !is_owner {
+        return Err(DomainError::new_bad_input_error(format!(
+            "You can only delete images from your own pet profiles"
+        )));
+    }
+
+    let _ =
+        tracing::info!("Deleting pet profile image {image_id} for pet profile {pet_id}");
+
+    let pet_id_for_delete = pet_id.clone();
+    let deleted_image = web::block(move || {
+        let pool = &app_data.pool;
+        let mut conn = pool.get()?;
+        actions::pet_profile_image_delete::delete_pet_profile_image(
+            &pet_id_for_delete,
+            image_id,
+            &mut conn,
+        )
+    })
+    .await??;
+
+    let _ = tracing::info!(
+        "Successfully deleted pet profile image {image_id} for pet profile {pet_id}"
+    );
+    let _ = tracing::debug!("Deleted image: {:?}", deleted_image);
+
+    Ok(HttpResponse::Ok().json(deleted_image))
+}

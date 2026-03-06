@@ -68,6 +68,28 @@ impl WeightKg {
     }
 }
 
+/// Age in years, validated to be >= 1 and <= 30
+#[derive(
+    Debug,
+    Display,
+    Clone,
+    Copy,
+    DieselNewType,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Validator,
+)]
+#[validator(signed_integer(range(Inside(min = 1, max = 30))))]
+pub struct PetAge(pub i32);
+
+impl PetAge {
+    pub fn as_i32(&self) -> i32 {
+        self.0
+    }
+}
+
 #[derive(
     Debug, Clone, Deserialize, Serialize, Queryable, Selectable, Identifiable,
 )]
@@ -109,7 +131,7 @@ pub struct UpdatePetBasicInfo {
     pub pet_name: Option<Petname>,
     pub pet_type: Option<PetType>,
     pub breed: Option<Breedname>,
-    pub age: Option<i32>,
+    pub age: Option<PetAge>,
     pub weight_kg: Option<WeightKg>,
     pub gender: Option<GenderType>,
     pub size: Option<Option<SizeType>>,
@@ -276,4 +298,72 @@ pub struct UpdatePetPersonalityTraits {
     pub vaccinated: Option<Option<bool>>,
     pub spayed_neutered: Option<Option<bool>>,
     pub microchipped: Option<Option<bool>>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_pet_age_valid() {
+        // Test valid ages within range (1-30)
+        assert!(PetAge::parse_i32(1).is_ok());
+        assert!(PetAge::parse_i32(15).is_ok());
+        assert!(PetAge::parse_i32(30).is_ok());
+    }
+
+    #[test]
+    fn test_pet_age_invalid() {
+        // Test invalid ages outside range
+        assert!(PetAge::parse_i32(0).is_err());
+        assert!(PetAge::parse_i32(-1).is_err());
+        assert!(PetAge::parse_i32(31).is_err());
+        assert!(PetAge::parse_i32(100).is_err());
+    }
+
+    #[test]
+    fn test_pet_age_parse_string() {
+        // Test parsing from string
+        assert!(PetAge::parse_string("1").is_ok());
+        assert!(PetAge::parse_string("30").is_ok());
+        assert!(PetAge::parse_string("0").is_err());
+        assert!(PetAge::parse_string("31").is_err());
+    }
+
+    #[test]
+    fn test_pet_age_as_i32() {
+        // Test conversion to i32
+        let age = PetAge::parse_i32(25).unwrap();
+        assert_eq!(age.as_i32(), 25);
+    }
+
+    #[test]
+    fn test_weight_kg_valid() {
+        // Test valid weights within range (1.0-150.0)
+        assert!(WeightKg::parse_f32(1.0).is_ok());
+        assert!(WeightKg::parse_f32(50.5).is_ok());
+        assert!(WeightKg::parse_f32(150.0).is_ok());
+    }
+
+    #[test]
+    fn test_weight_kg_invalid() {
+        // Test invalid weights outside range
+        assert!(WeightKg::parse_f32(0.0).is_err());
+        assert!(WeightKg::parse_f32(-1.0).is_err());
+        assert!(WeightKg::parse_f32(150.1).is_err());
+        assert!(WeightKg::parse_f32(200.0).is_err());
+    }
+
+    #[test]
+    fn test_weight_kg_nan() {
+        // Test NaN rejection
+        assert!(WeightKg::parse_f32(f32::NAN).is_err());
+    }
+
+    #[test]
+    fn test_weight_kg_as_f32() {
+        // Test conversion to f32
+        let weight = WeightKg::parse_f32(75.5).unwrap();
+        assert_eq!(weight.as_f32(), 75.5);
+    }
 }

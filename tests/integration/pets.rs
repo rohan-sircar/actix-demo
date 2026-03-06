@@ -656,4 +656,255 @@ mod tests {
             assert_ne!(resp.status(), StatusCode::INTERNAL_SERVER_ERROR);
         }
     }
+
+    mod delete_pet_profile_image_api {
+        use actix_demo::models::misc::ErrorResponse;
+        use actix_web::http::StatusCode;
+
+        use crate::common::{TestContext, WithToken};
+
+        use super::*;
+
+        #[actix_rt::test]
+        async fn should_delete_a_pet_profile_image() {
+            let ctx = TestContext::new(None).await;
+
+            // Create a pet profile with images
+            let pet_data_json = serde_json::json!({
+                "user_id": 1,
+                "pet_name": "Buddy",
+                "pet_type": "dog",
+                "breed": "Golden Retriever",
+                "age": "2",
+                "weight_kg": 25.0,
+                "gender": "male",
+                "bio": "A friendly dog",
+                "owner_name": "Owner Name",
+                "location": "Location",
+                "special_needs": false,
+                "images": [
+                    {
+                        "image_url": "https://example.com/image1.jpg",
+                        "is_primary": true,
+                        "sort_order": 1
+                    },
+                    {
+                        "image_url": "https://example.com/image2.jpg",
+                        "is_primary": false,
+                        "sort_order": 2
+                    }
+                ]
+            });
+
+            let mut create_resp = ctx
+                .test_server
+                .post("/api/pets")
+                .with_token(&ctx._token)
+                .send_json(&pet_data_json)
+                .await
+                .unwrap();
+
+            assert_eq!(create_resp.status(), StatusCode::CREATED);
+
+            let created_pet: FullPetProfile = create_resp.json().await.unwrap();
+            let pet_id = created_pet.basic_info.id;
+
+            // Get the pet profile to find the image ID
+            let mut get_resp = ctx
+                .test_server
+                .get(&format!("/api/pets/{}", pet_id))
+                .with_token(&ctx._token)
+                .send()
+                .await
+                .unwrap();
+
+            assert_eq!(get_resp.status(), StatusCode::OK);
+
+            let pet_with_images: FullPetProfile = get_resp.json().await.unwrap();
+            let image_id = pet_with_images.images[0].id;
+
+            // Delete the image
+            let mut delete_resp = ctx
+                .test_server
+                .delete(&format!("/api/pets/{}/images/{}", pet_id, image_id))
+                .with_token(&ctx._token)
+                .send()
+                .await
+                .unwrap();
+
+            assert_eq!(delete_resp.status(), StatusCode::OK);
+
+            let deleted_image: actix_demo::models::pet_profile_images::PetProfileImage =
+                delete_resp.json().await.unwrap();
+            assert_eq!(deleted_image.id, image_id);
+
+            // Verify the image is no longer in the profile
+            let mut get_resp = ctx
+                .test_server
+                .get(&format!("/api/pets/{}", pet_id))
+                .with_token(&ctx._token)
+                .send()
+                .await
+                .unwrap();
+
+            assert_eq!(get_resp.status(), StatusCode::OK);
+
+            let updated_pet: FullPetProfile = get_resp.json().await.unwrap();
+            assert_eq!(updated_pet.images.len(), 1);
+            assert_ne!(updated_pet.images[0].id, image_id);
+        }
+
+        #[actix_rt::test]
+        async fn should_return_error_when_deleting_nonexistent_pet_profile_image() {
+            let ctx = TestContext::new(None).await;
+
+            // Create a pet profile first
+            let pet_data_json = serde_json::json!({
+                "user_id": 1,
+                "pet_name": "Buddy",
+                "pet_type": "dog",
+                "breed": "Golden Retriever",
+                "age": "2",
+                "weight_kg": 25.0,
+                "gender": "male",
+                "bio": "A friendly dog",
+                "owner_name": "Owner Name",
+                "location": "Location",
+                "special_needs": false,
+                "images": []
+            });
+
+            let mut create_resp = ctx
+                .test_server
+                .post("/api/pets")
+                .with_token(&ctx._token)
+                .send_json(&pet_data_json)
+                .await
+                .unwrap();
+
+            assert_eq!(create_resp.status(), StatusCode::CREATED);
+
+            let created_pet: FullPetProfile = create_resp.json().await.unwrap();
+            let pet_id = created_pet.basic_info.id;
+
+            // Try to delete a non-existent image
+            let resp = ctx
+                .test_server
+                .delete(&format!("/api/pets/{}/images/999", pet_id))
+                .with_token(&ctx._token)
+                .send()
+                .await
+                .unwrap();
+
+            assert_eq!(resp.status(), StatusCode::INTERNAL_SERVER_ERROR);
+        }
+
+        #[actix_rt::test]
+        async fn should_return_error_when_deleting_image_from_nonexistent_pet_profile() {
+            let ctx = TestContext::new(None).await;
+
+            // Try to delete an image from a non-existent pet profile
+            let mut resp = ctx
+                .test_server
+                .delete("/api/pets/999/images/1")
+                .with_token(&ctx._token)
+                .send()
+                .await
+                .unwrap();
+
+            assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+
+            let body: ErrorResponse<String> = resp.json().await.unwrap();
+            assert!(body.cause.contains("Pet profile with id 999 does not exist"));
+        }
+
+        #[actix_rt::test]
+        async fn should_return_error_when_deleting_image_without_ownership() {
+            use crate::common::create_http_user;
+
+            let ctx = TestContext::new(None).await;
+
+            // Create a pet profile with user 1
+            let pet_data_json = serde_json::json!({
+                "user_id": 1,
+                "pet_name": "Buddy",
+                "pet_type": "dog",
+                "breed": "Golden Retriever",
+                "age": "2",
+                "weight_kg": 25.0,
+                "gender": "male",
+                "bio": "A friendly dog",
+                "owner_name": "Owner Name",
+                "location": "Location",
+                "special_needs": false,
+                "images": [
+                    {
+                        "image_url": "https://example.com/image1.jpg",
+                        "is_primary": true,
+                        "sort_order": 1
+                    }
+                ]
+            });
+
+            let mut create_resp = ctx
+                .test_server
+                .post("/api/pets")
+                .with_token(&ctx._token)
+                .send_json(&pet_data_json)
+                .await
+                .unwrap();
+
+            assert_eq!(create_resp.status(), StatusCode::CREATED);
+
+            let created_pet: FullPetProfile = create_resp.json().await.unwrap();
+            let pet_id = created_pet.basic_info.id;
+
+            // Get the pet profile to find the image ID
+            let mut get_resp = ctx
+                .test_server
+                .get(&format!("/api/pets/{}", pet_id))
+                .with_token(&ctx._token)
+                .send()
+                .await
+                .unwrap();
+
+            assert_eq!(get_resp.status(), StatusCode::OK);
+
+            let pet_with_images: FullPetProfile = get_resp.json().await.unwrap();
+            let image_id = pet_with_images.images[0].id;
+
+            // Create a second user (user2) via registration API
+            let _ = create_http_user(
+                &ctx.addr,
+                "user2",
+                "password123",
+                &ctx.client,
+            )
+            .await;
+
+            // Get token for user 2
+            let user2_token = crate::common::get_http_token(
+                &ctx.addr,
+                "user2",
+                "password123",
+                &ctx.client,
+            )
+            .await
+            .unwrap();
+
+            // Try to delete the image with user 2's token
+            let mut resp = ctx
+                .test_server
+                .delete(&format!("/api/pets/{}/images/{}", pet_id, image_id))
+                .with_token(&user2_token)
+                .send()
+                .await
+                .unwrap();
+
+            assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+
+            let body: ErrorResponse<String> = resp.json().await.unwrap();
+            assert!(body.cause.contains("You can only delete images from your own pet profiles"));
+        }
+    }
 }
