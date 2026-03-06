@@ -39,13 +39,56 @@ pub async fn add_pet_profile(
 }
 
 /// Gets a pet profile by pet ID
-#[tracing::instrument(level = "info", skip(app_data))]
+#[tracing::instrument(level = "info", skip(app_data, req))]
 pub async fn get_pet_profile_for_pet_id(
     app_data: web::Data<AppData>,
     path: web::Path<PetProfileId>,
+    req: HttpRequest,
 ) -> Result<HttpResponse, DomainError> {
     let pet_id = path.into_inner();
+    let pet_id_for_check = pet_id.clone();
+    let pet_id_for_ownership = pet_id.clone();
     let _ = tracing::info!("Getting pet profile with id {pet_id}");
+
+    // Extract authenticated user ID from request headers
+    let auth_user_id =
+        crate::utils::extract_user_id_from_header(req.headers())?;
+
+    // First check if the pet profile exists
+    let pool_check = app_data.pool.clone();
+    let exists = web::block(move || {
+        let mut conn = pool_check.get()?;
+        actions::pet_profile_full::check_pet_profile_exists(
+            &pet_id_for_check,
+            &mut conn,
+        )
+    })
+    .await??;
+
+    if !exists {
+        return Err(DomainError::new_entity_does_not_exist_error(format!(
+            "No pet profile found with id: {}",
+            pet_id
+        )));
+    }
+
+    // Check if the authenticated user owns this pet profile
+    let pool_ownership = app_data.pool.clone();
+    let is_owner = web::block(move || {
+        let mut conn = pool_ownership.get()?;
+        actions::pet_profile_full::check_pet_profile_ownership(
+            &pet_id_for_ownership,
+            &auth_user_id,
+            &mut conn,
+        )
+    })
+    .await??;
+
+    if !is_owner {
+        return Err(DomainError::new_bad_input_error(format!(
+            "You can only view your own pet profiles"
+        )));
+    }
 
     let pet_id2 = pet_id.clone();
 
@@ -166,25 +209,52 @@ pub async fn update_pet_profile_for_pet_id(
 }
 
 /// Deletes a pet profile by pet ID
-#[tracing::instrument(level = "info", skip(app_data))]
+#[tracing::instrument(level = "info", skip(app_data, req))]
 pub async fn delete_pet_profile_for_pet_id(
     app_data: web::Data<AppData>,
     path: web::Path<PetProfileId>,
+    req: HttpRequest,
 ) -> Result<HttpResponse, DomainError> {
     let pet_id = path.into_inner();
+    let pet_id_for_check = pet_id.clone();
+    let pet_id_for_ownership = pet_id.clone();
+
+    // Extract authenticated user ID from request headers
+    let auth_user_id =
+        crate::utils::extract_user_id_from_header(req.headers())?;
 
     // First check if the pet profile exists
-    let pet_id2 = pet_id.clone();
-    let pool2 = app_data.pool.clone();
+    let pool_check = app_data.pool.clone();
     let exists = web::block(move || {
-        let mut conn = pool2.get()?;
-        actions::pet_profile_full::check_pet_profile_exists(&pet_id2, &mut conn)
+        let mut conn = pool_check.get()?;
+        actions::pet_profile_full::check_pet_profile_exists(
+            &pet_id_for_check,
+            &mut conn,
+        )
     })
     .await??;
 
     if !exists {
         return Err(DomainError::new_entity_does_not_exist_error(format!(
             "Pet profile with id {pet_id} does not exist"
+        )));
+    }
+
+    // Check if the authenticated user owns this pet profile
+    let pool_ownership = app_data.pool.clone();
+    let is_owner = web::block(move || {
+        let mut conn = pool_ownership.get()?;
+        actions::pet_profile_full::check_pet_profile_ownership(
+            &pet_id_for_ownership,
+            &auth_user_id,
+            &mut conn,
+        )
+    })
+    .await??;
+
+    if !is_owner {
+        return Err(DomainError::new_bad_input_error(format!(
+            "You can only delete your own pet profiles"
         )));
     }
 
