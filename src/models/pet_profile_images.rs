@@ -22,3 +22,21 @@ pub struct NewPetProfileImage {
     pub is_primary: Option<bool>,
     pub sort_order: Option<i32>,
 }
+
+pub struct UpdatePetProfileImage {
+    pub image_url: Option<String>,
+    pub is_primary: Option<Option<bool>>,
+}
+
+/// Request DTO for adding a single image to a pet profile
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct AddImageRequest {
+    pub image_url: String,
+    pub is_primary: Option<bool>,
+}
+
+/// Request DTO for adding multiple images to a pet profile
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct AddImagesRequest {
+    pub image_urls: Vec<String>,
+}

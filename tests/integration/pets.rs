@@ -1962,6 +1962,406 @@ mod tests {
         }
     }
 
+    mod add_pet_profile_image_api {
+        use actix_demo::models::misc::ErrorResponse;
+        use actix_web::http::StatusCode;
+
+        use crate::common::{TestContext, WithToken};
+
+        use super::*;
+
+        #[actix_rt::test]
+        async fn should_add_a_single_image_to_pet_profile() {
+            let ctx = TestContext::new(None).await;
+
+            // Create a pet profile without images
+            let pet_data_json = serde_json::json!({
+                "user_id": 1,
+                "pet_name": "Buddy",
+                "pet_type": "dog",
+                "breed": "Golden Retriever",
+                "age": "2",
+                "weight_kg": 25.0,
+                "gender": "male",
+                "bio": "A friendly dog",
+                "owner_name": "Owner Name",
+                "location": "Location",
+                "special_needs": false,
+                "images": []
+            });
+
+            let mut create_resp = ctx
+                .test_server
+                .post("/api/pets")
+                .with_token(&ctx._token)
+                .send_json(&pet_data_json)
+                .await
+                .unwrap();
+
+            assert_eq!(create_resp.status(), StatusCode::CREATED);
+
+            let created_pet: FullPetProfile = create_resp.json().await.unwrap();
+            let pet_id = created_pet.basic_info.id;
+
+            // Add a single image
+            let add_image_data = serde_json::json!({
+                "image_url": "https://example.com/image1.jpg",
+                "is_primary": true
+            });
+
+            let mut resp = ctx
+                .test_server
+                .post(&format!("/api/pets/{}/images", pet_id))
+                .with_token(&ctx._token)
+                .send_json(&add_image_data)
+                .await
+                .unwrap();
+
+            assert_eq!(resp.status(), StatusCode::OK);
+
+            let added_image: actix_demo::models::pet_profile_images::PetProfileImage =
+                resp.json().await.unwrap();
+            assert_eq!(added_image.image_url, "https://example.com/image1.jpg");
+            assert_eq!(added_image.is_primary, Some(true));
+            assert_eq!(added_image.sort_order, Some(1));
+
+            // Verify the image is in the profile
+            let mut get_resp = ctx
+                .test_server
+                .get(&format!("/api/pets/{}", pet_id))
+                .with_token(&ctx._token)
+                .send()
+                .await
+                .unwrap();
+
+            assert_eq!(get_resp.status(), StatusCode::OK);
+
+            let updated_pet: FullPetProfile = get_resp.json().await.unwrap();
+            assert_eq!(updated_pet.images.len(), 1);
+            assert_eq!(updated_pet.images[0].image_url, "https://example.com/image1.jpg");
+        }
+
+        #[actix_rt::test]
+        async fn should_add_multiple_images_to_pet_profile() {
+            let ctx = TestContext::new(None).await;
+
+            // Create a pet profile without images
+            let pet_data_json = serde_json::json!({
+                "user_id": 1,
+                "pet_name": "Buddy",
+                "pet_type": "dog",
+                "breed": "Golden Retriever",
+                "age": "2",
+                "weight_kg": 25.0,
+                "gender": "male",
+                "bio": "A friendly dog",
+                "owner_name": "Owner Name",
+                "location": "Location",
+                "special_needs": false,
+                "images": []
+            });
+
+            let mut create_resp = ctx
+                .test_server
+                .post("/api/pets")
+                .with_token(&ctx._token)
+                .send_json(&pet_data_json)
+                .await
+                .unwrap();
+
+            assert_eq!(create_resp.status(), StatusCode::CREATED);
+
+            let created_pet: FullPetProfile = create_resp.json().await.unwrap();
+            let pet_id = created_pet.basic_info.id;
+
+            // Add multiple images
+            let add_images_data = serde_json::json!({
+                "image_urls": [
+                    "https://example.com/image1.jpg",
+                    "https://example.com/image2.jpg",
+                    "https://example.com/image3.jpg"
+                ]
+            });
+
+            let mut resp = ctx
+                .test_server
+                .post(&format!("/api/pets/{}/images/bulk", pet_id))
+                .with_token(&ctx._token)
+                .send_json(&add_images_data)
+                .await
+                .unwrap();
+
+            assert_eq!(resp.status(), StatusCode::OK);
+
+            let added_images: Vec<actix_demo::models::pet_profile_images::PetProfileImage> =
+                resp.json().await.unwrap();
+            assert_eq!(added_images.len(), 3);
+            assert_eq!(added_images[0].image_url, "https://example.com/image1.jpg");
+            assert_eq!(added_images[1].image_url, "https://example.com/image2.jpg");
+            assert_eq!(added_images[2].image_url, "https://example.com/image3.jpg");
+
+            // Verify sort orders are sequential
+            assert_eq!(added_images[0].sort_order, Some(1));
+            assert_eq!(added_images[1].sort_order, Some(2));
+            assert_eq!(added_images[2].sort_order, Some(3));
+
+            // Verify all images are in the profile
+            let mut get_resp = ctx
+                .test_server
+                .get(&format!("/api/pets/{}", pet_id))
+                .with_token(&ctx._token)
+                .send()
+                .await
+                .unwrap();
+
+            assert_eq!(get_resp.status(), StatusCode::OK);
+
+            let updated_pet: FullPetProfile = get_resp.json().await.unwrap();
+            assert_eq!(updated_pet.images.len(), 3);
+        }
+
+        #[actix_rt::test]
+        async fn should_set_primary_image() {
+            let ctx = TestContext::new(None).await;
+
+            // Create a pet profile with multiple images
+            let pet_data_json = serde_json::json!({
+                "user_id": 1,
+                "pet_name": "Buddy",
+                "pet_type": "dog",
+                "breed": "Golden Retriever",
+                "age": "2",
+                "weight_kg": 25.0,
+                "gender": "male",
+                "bio": "A friendly dog",
+                "owner_name": "Owner Name",
+                "location": "Location",
+                "special_needs": false,
+                "images": [
+                    {
+                        "image_url": "https://example.com/image1.jpg",
+                        "is_primary": true,
+                        "sort_order": 1
+                    },
+                    {
+                        "image_url": "https://example.com/image2.jpg",
+                        "is_primary": false,
+                        "sort_order": 2
+                    },
+                    {
+                        "image_url": "https://example.com/image3.jpg",
+                        "is_primary": false,
+                        "sort_order": 3
+                    }
+                ]
+            });
+
+            let mut create_resp = ctx
+                .test_server
+                .post("/api/pets")
+                .with_token(&ctx._token)
+                .send_json(&pet_data_json)
+                .await
+                .unwrap();
+
+            assert_eq!(create_resp.status(), StatusCode::CREATED);
+
+            let created_pet: FullPetProfile = create_resp.json().await.unwrap();
+            let pet_id = created_pet.basic_info.id;
+
+            // Get the pet profile to find the image IDs
+            let mut get_resp = ctx
+                .test_server
+                .get(&format!("/api/pets/{}", pet_id))
+                .with_token(&ctx._token)
+                .send()
+                .await
+                .unwrap();
+
+            assert_eq!(get_resp.status(), StatusCode::OK);
+
+            let pet_with_images: FullPetProfile = get_resp.json().await.unwrap();
+            let image_id = pet_with_images.images[1].id; // Get the second image
+
+            // Set the second image as primary
+            let mut resp = ctx
+                .test_server
+                .put(&format!("/api/pets/{}/images/{}/primary", pet_id, image_id))
+                .with_token(&ctx._token)
+                .send()
+                .await
+                .unwrap();
+
+            assert_eq!(resp.status(), StatusCode::OK);
+
+            let updated_image: actix_demo::models::pet_profile_images::PetProfileImage =
+                resp.json().await.unwrap();
+            assert_eq!(updated_image.id, image_id);
+            assert_eq!(updated_image.is_primary, Some(true));
+
+            // Verify the second image is now primary
+            let mut get_resp = ctx
+            .test_server
+            .get(&format!("/api/pets/{}", pet_id))
+            .with_token(&ctx._token)
+            .send()
+            .await
+            .unwrap();
+            
+            assert_eq!(get_resp.status(), StatusCode::OK);
+            
+            let updated_pet: FullPetProfile = get_resp.json().await.unwrap();
+            assert_eq!(updated_pet.images.iter().filter(|img| img.is_primary == Some(true)).count(), 1);
+            
+            // Find images by ID and verify their primary status
+            let second_image = updated_pet.images.iter().find(|img| img.id == pet_with_images.images[1].id).unwrap();
+            assert_eq!(second_image.is_primary, Some(true));
+            }
+
+        #[actix_rt::test]
+        async fn should_return_error_when_adding_image_to_nonexistent_pet_profile() {
+            let ctx = TestContext::new(None).await;
+
+            // Try to add an image to a non-existent pet profile
+            let add_image_data = serde_json::json!({
+                "image_url": "https://example.com/image1.jpg",
+                "is_primary": true
+            });
+
+            let mut resp = ctx
+                .test_server
+                .post("/api/pets/999/images")
+                .with_token(&ctx._token)
+                .send_json(&add_image_data)
+                .await
+                .unwrap();
+
+            assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+
+            let body: ErrorResponse<String> = resp.json().await.unwrap();
+            assert!(body.cause.contains("Pet profile with id 999 does not exist"));
+        }
+
+        #[actix_rt::test]
+        async fn should_return_error_when_set_primary_image_to_nonexistent() {
+            let ctx = TestContext::new(None).await;
+
+            // Create a pet profile
+            let pet_data_json = serde_json::json!({
+                "user_id": 1,
+                "pet_name": "Buddy",
+                "pet_type": "dog",
+                "breed": "Golden Retriever",
+                "age": "2",
+                "weight_kg": 25.0,
+                "gender": "male",
+                "bio": "A friendly dog",
+                "owner_name": "Owner Name",
+                "location": "Location",
+                "special_needs": false,
+                "images": []
+            });
+
+            let mut create_resp = ctx
+                .test_server
+                .post("/api/pets")
+                .with_token(&ctx._token)
+                .send_json(&pet_data_json)
+                .await
+                .unwrap();
+
+            assert_eq!(create_resp.status(), StatusCode::CREATED);
+
+            let created_pet: FullPetProfile = create_resp.json().await.unwrap();
+            let pet_id = created_pet.basic_info.id;
+
+            // Try to set a non-existent image as primary
+            let resp = ctx
+                .test_server
+                .put(&format!("/api/pets/{}/images/999/primary", pet_id))
+                .with_token(&ctx._token)
+                .send()
+                .await
+                .unwrap();
+
+            assert_eq!(resp.status(), StatusCode::INTERNAL_SERVER_ERROR);
+        }
+
+        #[actix_rt::test]
+        async fn should_return_error_when_adding_image_without_ownership() {
+            use crate::common::create_http_user;
+
+            let ctx = TestContext::new(None).await;
+
+            // Create a pet profile with user 1
+            let pet_data_json = serde_json::json!({
+                "user_id": 1,
+                "pet_name": "Buddy",
+                "pet_type": "dog",
+                "breed": "Golden Retriever",
+                "age": "2",
+                "weight_kg": 25.0,
+                "gender": "male",
+                "bio": "A friendly dog",
+                "owner_name": "Owner Name",
+                "location": "Location",
+                "special_needs": false,
+                "images": []
+            });
+
+            let mut create_resp = ctx
+                .test_server
+                .post("/api/pets")
+                .with_token(&ctx._token)
+                .send_json(&pet_data_json)
+                .await
+                .unwrap();
+
+            assert_eq!(create_resp.status(), StatusCode::CREATED);
+
+            let created_pet: FullPetProfile = create_resp.json().await.unwrap();
+            let pet_id = created_pet.basic_info.id;
+
+            // Create a second user (user2) via registration API
+            let _ = create_http_user(
+                &ctx.addr,
+                "user2",
+                "password123",
+                &ctx.client,
+            )
+            .await;
+
+            // Get token for user 2
+            let user2_token = crate::common::get_http_token(
+                &ctx.addr,
+                "user2",
+                "password123",
+                &ctx.client,
+            )
+            .await
+            .unwrap();
+
+            // Try to add an image with user 2's token
+            let add_image_data = serde_json::json!({
+                "image_url": "https://example.com/image1.jpg",
+                "is_primary": true
+            });
+
+            let mut resp = ctx
+                .test_server
+                .post(&format!("/api/pets/{}/images", pet_id))
+                .with_token(&user2_token)
+                .send_json(&add_image_data)
+                .await
+                .unwrap();
+
+            assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+
+            let body: ErrorResponse<String> = resp.json().await.unwrap();
+            assert!(body.cause.contains("You can only add images to your own pet profiles"));
+        }
+    }
+
     mod ownership_validation {
         use crate::common::{create_http_user, TestContext, WithToken};
         use actix_demo::models::misc::ErrorResponse;

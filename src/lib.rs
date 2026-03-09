@@ -286,6 +286,24 @@ pub fn configure_app(
                                 web::delete().to(
                                     routes::pets::delete_pet_profile_image,
                                 ),
+                            )
+                            .route(
+                                "/{pet_id}/images",
+                                web::post().to(
+                                    routes::pets::add_pet_profile_image,
+                                ),
+                            )
+                            .route(
+                                "/{pet_id}/images/bulk",
+                                web::post().to(
+                                    routes::pets::add_pet_profile_images,
+                                ),
+                            )
+                            .route(
+                                "/{pet_id}/images/{image_id}/primary",
+                                web::put().to(
+                                    routes::pets::set_primary_image,
+                                ),
                             ),
                     ),
             );

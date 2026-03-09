@@ -28,6 +28,10 @@ impl PetProfileId {
     pub fn as_uint(&self) -> u32 {
         self.0.try_into().unwrap()
     }
+
+    pub fn as_i32(&self) -> i32 {
+        self.0
+    }
 }
 
 #[derive(Validator, Debug, Clone, DieselNewType, PartialEq, Eq)]
