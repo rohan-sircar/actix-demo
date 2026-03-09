@@ -1,4 +1,14 @@
 -- This file should undo anything in `up.sql`
+-- Drop indexes
+DROP INDEX IF EXISTS idx_pet_profile_images_primary;
+DROP INDEX IF EXISTS idx_pet_profile_images_pet_profile_uuid;
+DROP INDEX IF EXISTS idx_pet_adoption_details_pet_uuid;
+DROP INDEX IF EXISTS idx_pet_location_owner_pet_uuid;
+DROP INDEX IF EXISTS idx_pet_activities_pet_uuid;
+DROP INDEX IF EXISTS idx_pet_personality_traits_pet_uuid;
+DROP INDEX IF EXISTS idx_pet_basic_info_user_id;
+DROP INDEX IF EXISTS idx_pet_basic_info_uuid;
+
 -- Drop pet_profile_images table
 DROP TABLE IF EXISTS pet_profile_images;
 

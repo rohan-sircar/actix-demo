@@ -6,14 +6,16 @@ use crate::models::pet_profile_images::PetProfileImage;
 use crate::models::pet_profile_update::PetProfileUpdateData;
 use crate::models::pets::PetActivities;
 use crate::models::pets::PetAdoptionDetails;
+use crate::models::pets::PetBasicInfo;
 use crate::models::pets::PetLocationOwner;
+use crate::models::pets::PetProfileId;
+use crate::models::pets::PetProfileUuid;
 use crate::models::pets::PetPersonalityTraits;
-use crate::models::pets::{PetBasicInfo, PetProfileId};
 use crate::types::DbConnection;
 
 /// Update a complete pet profile with all related data in a single transaction
 pub fn update_full_pet_profile(
-    pet_id: &PetProfileId,
+    pet_uuid: &PetProfileUuid,
     update_data: PetProfileUpdateData,
     conn: &mut DbConnection,
 ) -> Result<FullPetProfile, DomainError> {
@@ -22,14 +24,28 @@ pub fn update_full_pet_profile(
         pet_location_owner, pet_personality_traits, pet_profile_images,
     };
 
-    let _ = tracing::info!("Updating full pet profile for pet ID {pet_id}");
+    let _ = tracing::info!("Updating full pet profile for pet UUID {pet_uuid}");
+
+    // First, get the internal ID from the UUID
+    let pet_id: PetProfileId = pet_basic_info::table
+        .filter(pet_basic_info::uuid.eq(pet_uuid))
+        .select(pet_basic_info::id)
+        .first(conn)
+        .map_err(|err| {
+            DomainError::new_internal_error(format!(
+                "Failed to get pet profile ID from UUID: {err}"
+            ))
+        })?;
+
+    // Clone pet_id for multiple uses in the transaction
+    let pet_id_for_update = pet_id.clone();
 
     conn.transaction::<_, DomainError, _>(|txn| {
         // Update basic pet info only if data is provided
         if update_data.basic_info.is_some() {
             let basic_info = update_data.to_update_pet_basic_info()?;
             if let Some(basic_info) = basic_info {
-                diesel::update(pet_basic_info::table.find(pet_id))
+                diesel::update(pet_basic_info::table.find(pet_id.clone()))
                     .set(basic_info)
                     .execute(txn)
                     .map_err(|err| {
@@ -45,7 +61,7 @@ pub fn update_full_pet_profile(
             let personality_traits =
                 update_data.to_update_pet_personality_traits();
             if let Some(personality_traits) = personality_traits {
-                diesel::update(pet_personality_traits::table.find(pet_id))
+                diesel::update(pet_personality_traits::table.find(pet_id.clone()))
                     .set(personality_traits)
                     .execute(txn)
                     .map_err(|err| {
@@ -60,7 +76,7 @@ pub fn update_full_pet_profile(
         if update_data.activities.is_some() {
             let activities = update_data.to_update_pet_activities();
             if let Some(activities) = activities {
-                diesel::update(pet_activities::table.find(pet_id))
+                diesel::update(pet_activities::table.find(pet_id.clone()))
                     .set(activities)
                     .execute(txn)
                     .map_err(|err| {
@@ -75,7 +91,7 @@ pub fn update_full_pet_profile(
         if update_data.location_owner.is_some() {
             let location_owner = update_data.to_update_pet_location_owner();
             if let Some(location_owner) = location_owner {
-                diesel::update(pet_location_owner::table.find(pet_id))
+                diesel::update(pet_location_owner::table.find(pet_id.clone()))
                     .set(location_owner)
                     .execute(txn)
                     .map_err(|err| {
@@ -90,7 +106,7 @@ pub fn update_full_pet_profile(
         if update_data.adoption_details.is_some() {
             let adoption_details = update_data.to_update_pet_adoption_details();
             if let Some(adoption_details) = adoption_details {
-                diesel::update(pet_adoption_details::table.find(pet_id))
+                diesel::update(pet_adoption_details::table.find(pet_id.clone()))
                     .set(adoption_details)
                     .execute(txn)
                     .map_err(|err| {
@@ -117,7 +133,7 @@ pub fn update_full_pet_profile(
 
         // Fetch and return the complete updated profile
         let basic_info: PetBasicInfo = pet_basic_info::table
-            .find(pet_id)
+            .find(pet_id_for_update.clone())
             .first(txn)
             .map_err(|err| {
                 DomainError::new_internal_error(format!(
@@ -127,7 +143,7 @@ pub fn update_full_pet_profile(
 
         let personality_traits: Option<PetPersonalityTraits> =
             pet_personality_traits::table
-                .find(pet_id)
+                .find(pet_id_for_update.clone())
                 .first(txn)
                 .optional()
                 .map_err(|err| {
@@ -137,7 +153,7 @@ pub fn update_full_pet_profile(
                 })?;
 
         let activities: Option<PetActivities> = pet_activities::table
-            .find(pet_id)
+            .find(pet_id_for_update.clone())
             .first(txn)
             .optional()
             .map_err(|err| {
@@ -146,20 +162,19 @@ pub fn update_full_pet_profile(
                 ))
             })?;
 
-        let location_owner: Option<PetLocationOwner> =
-            pet_location_owner::table
-                .find(pet_id)
-                .first(txn)
-                .optional()
-                .map_err(|err| {
-                    DomainError::new_internal_error(format!(
-                        "Failed to fetch updated location/owner info: {err}"
-                    ))
-                })?;
+        let location_owner: Option<PetLocationOwner> = pet_location_owner::table
+            .find(pet_id_for_update.clone())
+            .first(txn)
+            .optional()
+            .map_err(|err| {
+                DomainError::new_internal_error(format!(
+                    "Failed to fetch updated location/owner info: {err}"
+                ))
+            })?;
 
         let adoption_details: Option<PetAdoptionDetails> =
             pet_adoption_details::table
-                .find(pet_id)
+                .find(pet_id_for_update.clone())
                 .first(txn)
                 .optional()
                 .map_err(|err| {
@@ -169,8 +184,9 @@ pub fn update_full_pet_profile(
                 })?;
 
         let images: Vec<PetProfileImage> = pet_profile_images::table
-            .filter(pet_profile_images::pet_profile_id.eq(pet_id))
-            .load(txn)
+            .filter(pet_profile_images::pet_profile_uuid.eq(pet_uuid))
+            .order_by(pet_profile_images::sort_order.asc())
+            .load::<PetProfileImage>(txn)
             .map_err(|err| {
                 DomainError::new_internal_error(format!(
                     "Failed to fetch pet images: {err}"

@@ -4,7 +4,7 @@ use diesel::QueryableByName;
 
 use crate::errors::DomainError;
 use crate::models::pet_profile_images::{NewPetProfileImage, PetProfileImage};
-use crate::models::pets::PetProfileId;
+use crate::models::pets::PetProfileUuid;
 use crate::schema::pet_profile_images;
 use crate::types::DbConnection;
 
@@ -17,20 +17,20 @@ struct SortOrderResult {
 
 /// Add a single image to an existing pet profile
 pub fn add_pet_profile_image(
-    pet_id: &PetProfileId,
+    pet_uuid: &PetProfileUuid,
     image_url: String,
     is_primary: Option<bool>,
     conn: &mut DbConnection,
 ) -> Result<PetProfileImage, DomainError> {
     let _ = tracing::info!(
-        "Adding image to pet profile {pet_id}: {image_url:?}"
+        "Adding image to pet profile {pet_uuid}: {image_url:?}"
     );
 
     // Determine sort_order - use max existing + 1, or 0 if no images exist
     let max_sort_order: i32 = diesel::sql_query(
-        "SELECT COALESCE(MAX(sort_order), 0) + 1 as sort_order FROM pet_profile_images WHERE pet_profile_id = $1"
+        "SELECT COALESCE(MAX(sort_order), 0) + 1 as sort_order FROM pet_profile_images WHERE pet_profile_uuid = $1"
     )
-    .bind::<Integer, _>(pet_id.as_i32())
+    .bind::<diesel::sql_types::Uuid, _>(pet_uuid)
     .get_result::<SortOrderResult>(conn)
     .map_err(|err| {
         DomainError::new_internal_error(format!(
@@ -41,7 +41,7 @@ pub fn add_pet_profile_image(
     .unwrap_or(1);
 
     let new_image = NewPetProfileImage {
-        pet_profile_id: pet_id.clone(),
+        pet_profile_uuid: pet_uuid.clone(),
         image_url: image_url.clone(),
         is_primary,
         sort_order: Some(max_sort_order),
@@ -60,20 +60,20 @@ pub fn add_pet_profile_image(
 
 /// Add multiple images to an existing pet profile
 pub fn add_pet_profile_images(
-    pet_id: &PetProfileId,
+    pet_uuid: &PetProfileUuid,
     image_urls: Vec<String>,
     conn: &mut DbConnection,
 ) -> Result<Vec<PetProfileImage>, DomainError> {
     let _ = tracing::info!(
-        "Adding {count} images to pet profile {pet_id}",
+        "Adding {count} images to pet profile {pet_uuid}",
         count = image_urls.len()
     );
 
     // Get existing sort order max
     let base_sort_order: i32 = diesel::sql_query(
-        "SELECT COALESCE(MAX(sort_order), 0) as sort_order FROM pet_profile_images WHERE pet_profile_id = $1"
+        "SELECT COALESCE(MAX(sort_order), 0) as sort_order FROM pet_profile_images WHERE pet_profile_uuid = $1"
     )
-    .bind::<Integer, _>(pet_id.as_i32())
+    .bind::<diesel::sql_types::Uuid, _>(pet_uuid)
     .get_result::<SortOrderResult>(conn)
     .map_err(|err| {
         DomainError::new_internal_error(format!(
@@ -87,7 +87,7 @@ pub fn add_pet_profile_images(
 
     for (index, url) in image_urls.into_iter().enumerate() {
         let new_image = NewPetProfileImage {
-            pet_profile_id: pet_id.clone(),
+            pet_profile_uuid: pet_uuid.clone(),
             image_url: url.clone(),
             is_primary: None,
             sort_order: Some(base_sort_order + index as i32 + 1),
@@ -108,32 +108,30 @@ pub fn add_pet_profile_images(
     Ok(inserted_images)
 }
 
-/// Set the primary image for a pet profile
+/// Set a specific image as primary for a pet profile
 pub fn set_primary_image(
-    pet_id: &PetProfileId,
+    pet_uuid: &PetProfileUuid,
     image_id: i32,
     conn: &mut DbConnection,
 ) -> Result<PetProfileImage, DomainError> {
     let _ = tracing::info!(
-        "Setting image {image_id} as primary for pet profile {pet_id}"
+        "Setting image {image_id} as primary for pet profile {pet_uuid}"
     );
 
     // First, unset all other images as primary
-    diesel::update(
-        pet_profile_images::table
-            .filter(pet_profile_images::pet_profile_id.eq(pet_id.as_i32())),
-    )
-    .set(pet_profile_images::is_primary.eq::<Option<bool>>(None))
-    .execute(conn)
-    .map_err(|err| {
-        DomainError::new_internal_error(format!(
-            "Failed to unset primary images: {err}"
-        ))
-    })?;
+    diesel::update(pet_profile_images::table)
+        .filter(pet_profile_images::pet_profile_uuid.eq(pet_uuid))
+        .set(pet_profile_images::is_primary.eq::<Option<bool>>(None))
+        .execute(conn)
+        .map_err(|err| {
+            DomainError::new_internal_error(format!(
+                "Failed to unset primary images: {err}"
+            ))
+        })?;
 
     // Then set the specified image as primary
     diesel::update(pet_profile_images::table.find(image_id))
-        .filter(pet_profile_images::pet_profile_id.eq(pet_id.as_i32()))
+        .filter(pet_profile_images::pet_profile_uuid.eq(pet_uuid))
         .set(pet_profile_images::is_primary.eq::<Option<bool>>(Some(true)))
         .get_result(conn)
         .map_err(|err| {

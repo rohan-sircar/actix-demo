@@ -8,19 +8,20 @@ use crate::models::pets::PetActivities;
 use crate::models::pets::PetAdoptionDetails;
 use crate::models::pets::PetLocationOwner;
 use crate::models::pets::PetPersonalityTraits;
-use crate::models::pets::{PetBasicInfo, PetProfileId};
+use crate::models::pets::{PetBasicInfo, PetProfileId, PetProfileUuid};
 use crate::models::users::UserId;
 use crate::types::DbConnection;
 
-/// Helper function to fetch pet images
-fn fetch_pet_images(
-    pet_id: &PetProfileId,
+
+/// Helper function to fetch pet images by UUID
+fn fetch_pet_images_by_uuid(
+    pet_uuid: &PetProfileUuid,
     txn: &mut DbConnection,
 ) -> Result<Vec<PetProfileImage>, DomainError> {
     use crate::schema::pet_profile_images::dsl as images;
 
     images::pet_profile_images
-        .filter(images::pet_profile_id.eq(pet_id))
+        .filter(images::pet_profile_uuid.eq(pet_uuid))
         .order_by(images::sort_order.asc())
         .select(PetProfileImage::as_select())
         .load::<PetProfileImage>(txn)
@@ -31,9 +32,9 @@ fn fetch_pet_images(
         })
 }
 
-/// Helper function to fetch all related data for a single pet
-fn fetch_pet_related_data(
-    pet_id: &PetProfileId,
+/// Helper function to fetch all related data for a single pet by UUID
+fn fetch_pet_related_data_by_uuid(
+    pet_uuid: &PetProfileUuid,
     txn: &mut DbConnection,
 ) -> Result<
     (
@@ -51,57 +52,57 @@ fn fetch_pet_related_data(
     use crate::schema::pet_personality_traits::dsl as personality_traits;
 
     // Fetch personality traits
-    let _ = info!("Fetching personality traits for pet {pet_id}");
+    let _ = info!("Fetching personality traits for pet {pet_uuid}");
     let personality_traits = personality_traits::pet_personality_traits
-        .filter(personality_traits::pet_profile_id.eq(pet_id))
+        .filter(personality_traits::pet_profile_uuid.eq(pet_uuid))
         .select(PetPersonalityTraits::as_select())
         .first::<PetPersonalityTraits>(txn)
         .optional()?;
     let _ = tracing::debug!(
-        "Personality traits result for pet {pet_id}: {:?}",
+        "Personality traits result for pet {pet_uuid}: {:?}",
         &personality_traits
     );
 
     // Fetch activities
-    let _ = info!("Fetching activities for pet {pet_id}");
+    let _ = info!("Fetching activities for pet {pet_uuid}");
     let activities = activities::pet_activities
-        .filter(activities::pet_profile_id.eq(pet_id))
+        .filter(activities::pet_profile_uuid.eq(pet_uuid))
         .select(PetActivities::as_select())
         .first::<PetActivities>(txn)
         .optional()?;
     let _ = tracing::debug!(
-        "Activities result for pet {pet_id}: {:?}",
+        "Activities result for pet {pet_uuid}: {:?}",
         &activities
     );
 
     // Fetch location/owner info
-    let _ = info!("Fetching location/owner info for pet {pet_id}");
+    let _ = info!("Fetching location/owner info for pet {pet_uuid}");
     let location_owner = location_owner::pet_location_owner
-        .filter(location_owner::pet_profile_id.eq(pet_id))
+        .filter(location_owner::pet_profile_uuid.eq(pet_uuid))
         .first::<PetLocationOwner>(txn)
         .optional()?;
     let _ = tracing::debug!(
-        "Location/owner info result for pet {pet_id}: {:?}",
+        "Location/owner info result for pet {pet_uuid}: {:?}",
         &location_owner
     );
 
     // Fetch adoption details
-    let _ = info!("Fetching adoption details for pet {pet_id}");
+    let _ = info!("Fetching adoption details for pet {pet_uuid}");
     let adoption_details = adoption_details::pet_adoption_details
-        .filter(adoption_details::pet_profile_id.eq(pet_id))
+        .filter(adoption_details::pet_profile_uuid.eq(pet_uuid))
         .select(PetAdoptionDetails::as_select())
         .first::<PetAdoptionDetails>(txn)
         .optional()?;
     let _ = tracing::debug!(
-        "Adoption details result for pet {pet_id}: {:?}",
+        "Adoption details result for pet {pet_uuid}: {:?}",
         &adoption_details
     );
 
     // Fetch images
-    let _ = info!("Fetching images for pet {pet_id}");
-    let images = fetch_pet_images(pet_id, txn)?;
+    let _ = info!("Fetching images for pet {pet_uuid}");
+    let images = fetch_pet_images_by_uuid(pet_uuid, txn)?;
     let _ =
-        tracing::debug!("Images result for pet {pet_id}: {:?}", &images.len());
+        tracing::debug!("Images result for pet {pet_uuid}: {:?}", &images.len());
 
     Ok((
         personality_traits,
@@ -120,7 +121,7 @@ pub fn check_pet_profile_exists(
 
     let _ = tracing::info!("Getting complete pet profile for pet {pet_id}");
 
-    // Fetch basic info
+    // Fetch basic info by ID
     let res = basic_info::pet_basic_info
         .find(pet_id)
         .select(basic_info::id)
@@ -135,7 +136,82 @@ pub fn check_pet_profile_exists(
     Ok(res.is_some())
 }
 
-/// Check if the authenticated user owns the pet profile
+/// Helper function to fetch all related data for a single pet by ID
+fn fetch_pet_related_data(
+    pet_id: &PetProfileId,
+    txn: &mut DbConnection,
+) -> Result<
+    (
+        Option<PetPersonalityTraits>,
+        Option<PetActivities>,
+        Option<PetLocationOwner>,
+        Option<PetAdoptionDetails>,
+        Vec<PetProfileImage>,
+    ),
+    DomainError,
+> {
+    use crate::schema::pet_basic_info::dsl as basic_info;
+
+    // First, get the UUID from the ID
+    let pet_uuid: PetProfileUuid = basic_info::pet_basic_info
+        .find(pet_id)
+        .select(basic_info::uuid)
+        .first(txn)
+        .map_err(|err| {
+            DomainError::new_internal_error(format!(
+                "Failed to get UUID for pet {pet_id}: {err}"
+            ))
+        })?;
+
+    // Then fetch related data by UUID
+    fetch_pet_related_data_by_uuid(&pet_uuid, txn)
+}
+
+pub fn get_pet_uuid_from_id(
+    pet_id: &PetProfileId,
+    conn: &mut DbConnection,
+) -> Result<PetProfileUuid, DomainError> {
+    use crate::schema::pet_basic_info::dsl as basic_info;
+
+    let _ = tracing::info!("Getting UUID for pet {pet_id}");
+
+    let res = basic_info::pet_basic_info
+        .find(pet_id)
+        .select(basic_info::uuid)
+        .first::<PetProfileUuid>(conn)
+        .map_err(|err| {
+            DomainError::new_internal_error(format!(
+                "Failed to retrieve pet UUID: {err}"
+            ))
+        })?;
+
+    Ok(res)
+}
+
+pub fn check_pet_profile_exists_by_uuid(
+    pet_uuid: &PetProfileUuid,
+    conn: &mut DbConnection,
+) -> Result<bool, DomainError> {
+    use crate::schema::pet_basic_info::dsl as basic_info;
+
+    let _ = tracing::info!("Getting complete pet profile for pet {pet_uuid}");
+
+    // Fetch basic info by UUID
+    let res = basic_info::pet_basic_info
+        .filter(basic_info::uuid.eq(pet_uuid))
+        .select(basic_info::id)
+        .first::<PetProfileId>(conn)
+        .optional()
+        .map_err(|err| {
+            DomainError::new_internal_error(format!(
+                "Failed to retrieve pet basic info: {err}"
+            ))
+        })?;
+
+    Ok(res.is_some())
+}
+
+/// Check if the authenticated user owns the pet profile by ID
 /// Returns true if the user_id matches, false otherwise
 pub fn check_pet_profile_ownership(
     pet_id: &PetProfileId,
@@ -175,7 +251,47 @@ pub fn check_pet_profile_ownership(
     }
 }
 
-// Get complete pet profile with all related data for a specific pet
+/// Check if the authenticated user owns the pet profile by UUID
+/// Returns true if the user_id matches, false otherwise
+pub fn check_pet_profile_ownership_by_uuid(
+    pet_uuid: &PetProfileUuid,
+    auth_user_id: &UserId,
+    conn: &mut DbConnection,
+) -> Result<bool, DomainError> {
+    use crate::schema::pet_basic_info::dsl as basic_info;
+
+    let _ = tracing::info!(
+        "Checking ownership of pet profile {pet_uuid} for user {auth_user_id}"
+    );
+
+    // Fetch the user_id of the pet profile and compare with auth_user_id
+    let profile_user_id: Option<UserId> = basic_info::pet_basic_info
+        .filter(basic_info::uuid.eq(pet_uuid))
+        .select(basic_info::user_id)
+        .first(conn)
+        .optional()
+        .map_err(|err| {
+            DomainError::new_internal_error(format!(
+                "Failed to retrieve pet profile user_id: {err}"
+            ))
+        })?;
+
+    match profile_user_id {
+        Some(profile_user_id) => {
+            let is_owner = profile_user_id == *auth_user_id;
+            let _ = tracing::info!(
+                "Ownership check result for pet {pet_uuid}: owner={is_owner}"
+            );
+            Ok(is_owner)
+        }
+        None => {
+            // If the pet profile doesn't exist, the user cannot own it
+            Ok(false)
+        }
+    }
+}
+
+// Get complete pet profile with all related data for a specific pet by ID
 pub fn get_full_pet_profile(
     pet_id: &PetProfileId,
     conn: &mut DbConnection,
@@ -205,6 +321,52 @@ pub fn get_full_pet_profile(
                 adoption_details,
                 images,
             ) = fetch_pet_related_data(pet_id, txn)?;
+
+            // Fetch all related data using helper function
+            Ok(Some(FullPetProfile {
+                basic_info: pet_basic_info,
+                personality_traits,
+                activities,
+                location_owner,
+                adoption_details,
+                images,
+            }))
+        } else {
+            Ok(None)
+        }
+    })
+}
+
+// Get complete pet profile with all related data for a specific pet by UUID
+pub fn get_full_pet_profile_by_uuid(
+    pet_uuid: &PetProfileUuid,
+    conn: &mut DbConnection,
+) -> Result<Option<FullPetProfile>, DomainError> {
+    use crate::schema::pet_basic_info::dsl as basic_info;
+
+    let _ = tracing::info!("Getting complete pet profile for pet {pet_uuid}");
+
+    // Execute all database operations within a single transaction
+    conn.transaction::<_, DomainError, _>(|txn| {
+        // Fetch basic info by UUID
+        let res = basic_info::pet_basic_info
+            .filter(basic_info::uuid.eq(pet_uuid))
+            .first::<PetBasicInfo>(txn)
+            .optional()
+            .map_err(|err| {
+                DomainError::new_internal_error(format!(
+                    "Failed to retrieve pet basic info: {err}"
+                ))
+            })?;
+
+        if let Some(pet_basic_info) = res {
+            let (
+                personality_traits,
+                activities,
+                location_owner,
+                adoption_details,
+                images,
+            ) = fetch_pet_related_data_by_uuid(pet_uuid, txn)?;
 
             // Fetch all related data using helper function
             Ok(Some(FullPetProfile {

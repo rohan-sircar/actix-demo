@@ -4,6 +4,8 @@ use derive_more::Display;
 use diesel::pg::Pg;
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
+use uuid::Uuid;
 use validators::Validator;
 
 use crate::schema::pet_location_owner;
@@ -31,6 +33,33 @@ impl PetProfileId {
 
     pub fn as_i32(&self) -> i32 {
         self.0
+    }
+}
+
+#[derive(
+    Debug,
+    Display,
+    Clone,
+    Deserialize,
+    Serialize,
+    DieselNewType,
+    Eq,
+    PartialEq,
+    Hash,
+)]
+pub struct PetProfileUuid(Uuid);
+
+impl PetProfileUuid {
+    pub fn as_uuid(&self) -> Uuid {
+        self.0
+    }
+}
+
+impl FromStr for PetProfileUuid {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Uuid::parse_str(s).map(PetProfileUuid).map_err(|e| e.to_string())
     }
 }
 
@@ -100,6 +129,7 @@ impl PetAge {
 #[diesel(table_name = pet_basic_info)]
 pub struct PetBasicInfo {
     pub id: PetProfileId,
+    pub uuid: PetProfileUuid,
     pub user_id: UserId,
     pub pet_name: Petname,
     pub pet_type: PetType,
@@ -152,7 +182,7 @@ use crate::schema::pet_activities;
 #[diesel(check_for_backend(Pg))]
 pub struct PetActivities {
     pub id: i32,
-    pub pet_profile_id: PetProfileId,
+    pub pet_profile_uuid: PetProfileUuid,
     pub favorite_activities: Option<Vec<Option<String>>>,
     pub likes: Option<Vec<Option<String>>>,
     pub dislikes: Option<Vec<Option<String>>>,
@@ -164,7 +194,7 @@ pub struct PetActivities {
 #[derive(Debug, Clone, Insertable)]
 #[diesel(table_name = pet_activities)]
 pub struct NewPetActivities {
-    pub pet_profile_id: PetProfileId,
+    pub pet_profile_uuid: PetProfileUuid,
     pub favorite_activities: Option<Vec<String>>,
     pub likes: Option<Vec<String>>,
     pub dislikes: Option<Vec<String>>,
@@ -189,7 +219,7 @@ use crate::schema::pet_adoption_details;
 #[derive(Debug, Clone, Insertable)]
 #[diesel(table_name = pet_adoption_details)]
 pub struct NewPetAdoptionDetails {
-    pub pet_profile_id: PetProfileId,
+    pub pet_profile_uuid: PetProfileUuid,
     pub special_needs: bool,
     pub special_needs_description: Option<String>,
     pub adoption_status: Option<AdoptionStatusType>,
@@ -212,7 +242,7 @@ pub struct UpdatePetAdoptionDetails {
 #[diesel(check_for_backend(Pg))]
 pub struct PetAdoptionDetails {
     pub id: i32,
-    pub pet_profile_id: PetProfileId,
+    pub pet_profile_uuid: PetProfileUuid,
     pub special_needs: Option<bool>,
     pub special_needs_description: Option<String>,
     pub adoption_status: Option<AdoptionStatusType>,
@@ -225,7 +255,7 @@ pub struct PetAdoptionDetails {
 #[diesel(table_name = pet_location_owner)]
 pub struct PetLocationOwner {
     pub id: i32,
-    pub pet_profile_id: PetProfileId,
+    pub pet_profile_uuid: PetProfileUuid,
     pub owner_name: String,
     pub location: String,
     pub address: Option<String>,
@@ -236,7 +266,7 @@ pub struct PetLocationOwner {
 #[derive(Debug, Clone, Insertable)]
 #[diesel(table_name = pet_location_owner)]
 pub struct NewPetLocationOwner {
-    pub pet_profile_id: PetProfileId,
+    pub pet_profile_uuid: PetProfileUuid,
     pub owner_name: String,
     pub location: String,
     pub address: Option<String>,
@@ -263,7 +293,7 @@ use crate::schema::pet_personality_traits;
 #[diesel(check_for_backend(Pg))]
 pub struct PetPersonalityTraits {
     pub id: i32,
-    pub pet_profile_id: PetProfileId,
+    pub pet_profile_uuid: PetProfileUuid,
     pub bio: Option<String>,
     pub personality_traits: Option<Vec<Option<String>>>,
     pub good_with_dogs: Option<bool>,
@@ -278,7 +308,7 @@ pub struct PetPersonalityTraits {
 #[derive(Debug, Clone, Insertable)]
 #[diesel(table_name = pet_personality_traits)]
 pub struct NewPetPersonalityTraits {
-    pub pet_profile_id: PetProfileId,
+    pub pet_profile_uuid: PetProfileUuid,
     pub bio: Option<String>,
     pub personality_traits: Option<Vec<Option<String>>>,
     pub good_with_dogs: Option<bool>,
