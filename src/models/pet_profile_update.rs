@@ -21,7 +21,7 @@ pub struct PetBasicInfoUpdate {
     pub pet_type: Option<PetType>,
     pub breed:
         Option<validators::Result<Breedname, validators::errors::RegexError>>,
-    pub age: Option<validators::Result<PetAge, validators::errors::SignedIntegerError>>,
+    pub age: Option<PetAge>,
     pub weight_kg: Option<validators::Result<WeightKg, validators::errors::NumberError>>,
     pub gender: Option<GenderType>,
     pub size: Option<Option<SizeType>>,
@@ -125,12 +125,7 @@ impl PetProfileUpdateData {
             }
         }
 
-        // Validate age
-        if let Some(age) = &basic_info.age {
-            if let Err(err) = age.as_std_result() {  
-                errors.push(format!("Invalid age: {}", err))
-            }
-        }
+        // Validate age - PetAge is already validated by serde, no need to re-validate
 
         // If we have any validation errors, return them all at once
         if !errors.is_empty() {
@@ -149,10 +144,7 @@ impl PetProfileUpdateData {
                 .breed
                 .as_ref()
                 .map(|v| v.as_std_result().clone().unwrap()),
-            age: basic_info
-                .age
-                .as_ref()
-                .map(|v| v.as_std_result().clone().unwrap()),
+            age: basic_info.age.clone(),
             weight_kg: basic_info
                 .weight_kg
                 .as_ref()

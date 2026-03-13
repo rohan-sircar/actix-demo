@@ -112,14 +112,33 @@ impl WeightKg {
     Eq,
     PartialOrd,
     Ord,
-    Validator,
+    Serialize,
+    Deserialize,
 )]
-#[validator(signed_integer(range(Inside(min = 1, max = 30))))]
+#[serde(try_from = "i32", into = "i32")]
 pub struct PetAge(pub i32);
 
 impl PetAge {
     pub fn as_i32(&self) -> i32 {
         self.0
+    }
+}
+
+impl TryFrom<i32> for PetAge {
+    type Error = String;
+
+    fn try_from(value: i32) -> Result<Self, Self::Error> {
+        if value >= 1 && value <= 30 {
+            Ok(PetAge(value))
+        } else {
+            Err(format!("PetAge must be between 1 and 30, got {value}"))
+        }
+    }
+}
+
+impl From<PetAge> for i32 {
+    fn from(age: PetAge) -> i32 {
+        age.0
     }
 }
 
@@ -134,7 +153,7 @@ pub struct PetBasicInfo {
     pub pet_name: Petname,
     pub pet_type: PetType,
     pub breed: Breedname,
-    pub age: i32,
+    pub age: PetAge,
     pub weight_kg: WeightKg,
     pub gender: GenderType,
     pub size: Option<SizeType>,
@@ -151,7 +170,7 @@ pub struct NewPetBasicInfo {
     pub pet_name: Petname,
     pub pet_type: PetType,
     pub breed: Breedname,
-    pub age: i32,
+    pub age: PetAge,
     pub weight_kg: WeightKg,
     pub gender: GenderType,
     pub size: Option<SizeType>,
@@ -341,34 +360,75 @@ mod tests {
     #[test]
     fn test_pet_age_valid() {
         // Test valid ages within range (1-30)
-        assert!(PetAge::parse_i32(1).is_ok());
-        assert!(PetAge::parse_i32(15).is_ok());
-        assert!(PetAge::parse_i32(30).is_ok());
+        assert!(PetAge::try_from(2).is_ok());
+        assert!(PetAge::try_from(15).is_ok());
+        assert!(PetAge::try_from(30).is_ok());
     }
 
     #[test]
     fn test_pet_age_invalid() {
         // Test invalid ages outside range
-        assert!(PetAge::parse_i32(0).is_err());
-        assert!(PetAge::parse_i32(-1).is_err());
-        assert!(PetAge::parse_i32(31).is_err());
-        assert!(PetAge::parse_i32(100).is_err());
+        assert!(PetAge::try_from(0).is_err());
+        assert!(PetAge::try_from(-1).is_err());
+        assert!(PetAge::try_from(31).is_err());
+        assert!(PetAge::try_from(100).is_err());
     }
 
     #[test]
     fn test_pet_age_parse_string() {
         // Test parsing from string
-        assert!(PetAge::parse_string("1").is_ok());
-        assert!(PetAge::parse_string("30").is_ok());
-        assert!(PetAge::parse_string("0").is_err());
-        assert!(PetAge::parse_string("31").is_err());
+        assert!(PetAge::try_from("1".parse::<i32>().unwrap()).is_ok());
+        assert!(PetAge::try_from("30".parse::<i32>().unwrap()).is_ok());
+        assert!(PetAge::try_from("0".parse::<i32>().unwrap()).is_err());
+        assert!(PetAge::try_from("31".parse::<i32>().unwrap()).is_err());
+        assert!(PetAge::try_from("-1".parse::<i32>().unwrap()).is_err());
     }
 
     #[test]
     fn test_pet_age_as_i32() {
         // Test conversion to i32
-        let age = PetAge::parse_i32(25).unwrap();
+        let age = PetAge::try_from(25i32).unwrap();
         assert_eq!(age.as_i32(), 25);
+    }
+
+    #[test]
+    fn test_pet_age_to_i32() {
+        // Test conversion from PetAge to i32
+        let age = PetAge::try_from(25i32).unwrap();
+        let i32_val: i32 = age.into();
+        assert_eq!(i32_val, 25);
+    }
+
+    #[test]
+    fn test_pet_age_serde_deserialize() {
+        // Test serde deserialize with valid value
+        let json = r#"25"#;
+        let result: Result<PetAge, _> = serde_json::from_str(json);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().as_i32(), 25);
+
+        // Test serde deserialize with invalid value (0)
+        let json = r#"0"#;
+        let result: Result<PetAge, _> = serde_json::from_str(json);
+        assert!(result.is_err());
+
+        // Test serde deserialize with invalid value (31)
+        let json = r#"31"#;
+        let result: Result<PetAge, _> = serde_json::from_str(json);
+        assert!(result.is_err());
+
+        // Test serde deserialize with invalid value (-1)
+        let json = r#"-1"#;
+        let result: Result<PetAge, _> = serde_json::from_str(json);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_pet_age_serde_serialize() {
+        // Test serde serialize
+        let age = PetAge::try_from(25i32).unwrap();
+        let json = serde_json::to_string(&age).unwrap();
+        assert_eq!(json, "25");
     }
 
     #[test]
