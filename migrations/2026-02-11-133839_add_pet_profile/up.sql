@@ -128,12 +128,15 @@ CREATE TRIGGER update_pet_basic_info_updated_at
 -- Create separate image table
 CREATE TABLE pet_profile_images (
     id SERIAL PRIMARY KEY,
+    uuid UUID NOT NULL DEFAULT gen_random_uuid() UNIQUE,
     pet_profile_uuid UUID NOT NULL REFERENCES pet_basic_info(uuid) ON DELETE CASCADE,
     image_url TEXT NOT NULL,
     is_primary BOOLEAN DEFAULT false,
     sort_order INTEGER DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX idx_pet_profile_images_uuid ON pet_profile_images(uuid);
 
 CREATE INDEX idx_pet_profile_images_pet_profile_uuid ON pet_profile_images(pet_profile_uuid);
 

@@ -63,6 +63,33 @@ impl FromStr for PetProfileUuid {
     }
 }
 
+#[derive(
+    Debug,
+    Display,
+    Clone,
+    Deserialize,
+    Serialize,
+    DieselNewType,
+    Eq,
+    PartialEq,
+    Hash,
+)]
+pub struct PetProfileImageUuid(Uuid);
+
+impl PetProfileImageUuid {
+    pub fn as_uuid(&self) -> Uuid {
+        self.0
+    }
+}
+
+impl FromStr for PetProfileImageUuid {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Uuid::parse_str(s).map(PetProfileImageUuid).map_err(|e| e.to_string())
+    }
+}
+
 #[derive(Validator, Debug, Clone, DieselNewType, PartialEq, Eq)]
 #[validator(regex(regex(regex::PETNAME_REG)))]
 pub struct Petname(String);

@@ -4,7 +4,7 @@ use diesel::QueryableByName;
 
 use crate::errors::DomainError;
 use crate::models::pet_profile_images::{NewPetProfileImage, PetProfileImage};
-use crate::models::pets::PetProfileUuid;
+use crate::models::pets::{PetProfileImageUuid, PetProfileUuid};
 use crate::schema::pet_profile_images;
 use crate::types::DbConnection;
 
@@ -108,20 +108,21 @@ pub fn add_pet_profile_images(
     Ok(inserted_images)
 }
 
-/// Set a specific image as primary for a pet profile
-pub fn set_primary_image(
+/// Set a specific image as primary for a pet profile by UUID
+pub fn set_primary_image_by_uuid(
     pet_uuid: &PetProfileUuid,
-    image_id: i32,
+    image_uuid: &PetProfileImageUuid,
     conn: &mut DbConnection,
 ) -> Result<PetProfileImage, DomainError> {
     let _ = tracing::info!(
-        "Setting image {image_id} as primary for pet profile {pet_uuid}"
+        "Setting image {image_uuid} as primary for pet profile {pet_uuid}"
     );
 
+    use crate::schema::pet_profile_images::dsl::*;
+
     // First, unset all other images as primary
-    diesel::update(pet_profile_images::table)
-        .filter(pet_profile_images::pet_profile_uuid.eq(pet_uuid))
-        .set(pet_profile_images::is_primary.eq::<Option<bool>>(None))
+    diesel::update(pet_profile_images.filter(pet_profile_uuid.eq(pet_uuid)))
+        .set(is_primary.eq::<Option<bool>>(None))
         .execute(conn)
         .map_err(|err| {
             DomainError::new_internal_error(format!(
@@ -130,9 +131,9 @@ pub fn set_primary_image(
         })?;
 
     // Then set the specified image as primary
-    diesel::update(pet_profile_images::table.find(image_id))
-        .filter(pet_profile_images::pet_profile_uuid.eq(pet_uuid))
-        .set(pet_profile_images::is_primary.eq::<Option<bool>>(Some(true)))
+    diesel::update(pet_profile_images.filter(uuid.eq(image_uuid)))
+        .filter(pet_profile_uuid.eq(pet_uuid))
+        .set(is_primary.eq::<Option<bool>>(Some(true)))
         .get_result(conn)
         .map_err(|err| {
             DomainError::new_internal_error(format!(

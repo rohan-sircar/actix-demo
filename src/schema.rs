@@ -150,6 +150,7 @@ diesel::table! {
 diesel::table! {
     pet_profile_images (id) {
         id -> Int4,
+        uuid -> Uuid,
         pet_profile_uuid -> Uuid,
         image_url -> Text,
         is_primary -> Nullable<Bool>,

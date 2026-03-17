@@ -1,12 +1,13 @@
 use diesel::{pg::Pg, prelude::*};
 use serde::{Deserialize, Serialize};
 
-use crate::{models::pets::PetProfileUuid, schema::pet_profile_images};
+use crate::{models::pets::{PetProfileUuid, PetProfileImageUuid}, schema::pet_profile_images};
 
 #[derive(Debug, Clone, Deserialize, Serialize, Queryable, Selectable)]
 #[diesel(check_for_backend(Pg))]
 pub struct PetProfileImage {
     pub id: i32,
+    pub uuid: PetProfileImageUuid,
     pub pet_profile_uuid: PetProfileUuid,
     pub image_url: String,
     pub is_primary: Option<bool>,
@@ -21,6 +22,16 @@ pub struct NewPetProfileImage {
     pub image_url: String,
     pub is_primary: Option<bool>,
     pub sort_order: Option<i32>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PetProfileImageResponse {
+    pub uuid: PetProfileImageUuid,
+    pub pet_profile_uuid: PetProfileUuid,
+    pub image_url: String,
+    pub is_primary: Option<bool>,
+    pub sort_order: Option<i32>,
+    pub created_at: chrono::NaiveDateTime,
 }
 
 pub struct UpdatePetProfileImage {

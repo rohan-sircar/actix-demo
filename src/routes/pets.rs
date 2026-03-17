@@ -6,7 +6,7 @@ use crate::models::pet_profile_images::{AddImageRequest, AddImagesRequest};
 use crate::models::pet_profile_images::PetProfileImage;
 use crate::models::pet_profile_insert::PetProfileInsertData;
 use crate::models::pet_profile_update::PetProfileUpdateData;
-use crate::models::pets::PetProfileUuid;
+use crate::models::pets::{PetProfileImageUuid, PetProfileUuid};
 use crate::models::users::UserId;
 use crate::{errors::DomainError, AppData};
 
@@ -244,15 +244,16 @@ pub async fn delete_pet_profile_for_pet_id(
     Ok(HttpResponse::NoContent().finish())
 }
 
-/// Deletes a specific pet profile image by image ID
+/// Deletes a specific pet profile image by image UUID
 #[tracing::instrument(level = "info", skip(app_data, req))]
 pub async fn delete_pet_profile_image(
     app_data: web::Data<AppData>,
-    path: web::Path<(PetProfileUuid, i32)>,
+    path: web::Path<(PetProfileUuid, PetProfileImageUuid)>,
     req: HttpRequest,
 ) -> Result<HttpResponse, DomainError> {
-    let (pet_uuid, image_id) = path.into_inner();
+    let (pet_uuid, image_uuid) = path.into_inner();
     let pet_uuid_for_log = pet_uuid.clone();
+    let image_uuid_for_log = image_uuid.clone();
 
     // Extract authenticated user ID from request headers
     let auth_user_id =
@@ -288,16 +289,16 @@ pub async fn delete_pet_profile_image(
         }
 
         // Delete the pet profile image
-        actions::pet_profile_image_delete::delete_pet_profile_image(
+        actions::pet_profile_image_delete::delete_pet_profile_image_by_uuid(
             &pet_uuid,
-            image_id,
+            &image_uuid,
             &mut conn,
         )
     })
     .await??;
 
     let _ = tracing::info!(
-        "Successfully deleted pet profile image {image_id} for pet profile {pet_uuid_for_log}"
+        "Successfully deleted pet profile image {image_uuid_for_log} for pet profile {pet_uuid_for_log}"
     );
     let _ = tracing::debug!("Deleted image: {:?}", deleted_image);
     Ok(HttpResponse::Ok().json(deleted_image))
@@ -435,11 +436,12 @@ pub async fn add_pet_profile_images(
 #[tracing::instrument(level = "info", skip(app_data, req))]
 pub async fn set_primary_image(
     app_data: web::Data<AppData>,
-    path: web::Path<(PetProfileUuid, i32)>,
+    path: web::Path<(PetProfileUuid, PetProfileImageUuid)>,
     req: HttpRequest,
 ) -> Result<HttpResponse, DomainError> {
-    let (pet_uuid, image_id) = path.into_inner();
+    let (pet_uuid, image_uuid) = path.into_inner();
     let pet_uuid_for_log = pet_uuid.clone();
+    let image_uuid_for_log = image_uuid.clone();
 
     // Extract authenticated user ID from request headers
     let auth_user_id =
@@ -475,17 +477,16 @@ pub async fn set_primary_image(
         }
 
         // Set the primary image
-        pet_profile_image_add::set_primary_image(
+        pet_profile_image_add::set_primary_image_by_uuid(
             &pet_uuid,
-            image_id,
+            &image_uuid,
             &mut conn,
         )
     })
     .await??;
 
     let _ = tracing::info!(
-        "Successfully set image {image_id} as primary for pet profile {pet_uuid}",
-        image_id = updated_image.id,
+        "Successfully set image {image_uuid_for_log} as primary for pet profile {pet_uuid}",
         pet_uuid = pet_uuid_for_log
     );
 
