@@ -136,8 +136,15 @@ pub fn set_primary_image_by_uuid(
         .set(is_primary.eq::<Option<bool>>(Some(true)))
         .get_result(conn)
         .map_err(|err| {
-            DomainError::new_internal_error(format!(
-                "Failed to set primary image: {err}"
-            ))
+            match err {
+                diesel::result::Error::NotFound => {
+                    DomainError::new_entity_does_not_exist_error(format!(
+                        "Pet profile image {image_uuid} not found for pet profile {pet_uuid}"
+                    ))
+                }
+                _ => DomainError::new_internal_error(format!(
+                    "Failed to set primary image: {err}"
+                )),
+            }
         })
 }

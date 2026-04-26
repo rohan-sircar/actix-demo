@@ -1766,7 +1766,7 @@ mod tests {
             let created_pet: FullPetProfile = create_resp.json().await.unwrap();
             let pet_uuid = created_pet.basic_info.uuid;
 
-            // Get the pet profile to find the image ID
+            // Get the pet profile to find the image UUID
             let mut get_resp = ctx
                 .test_server
                 .get(&format!("/api/pets/{}", pet_uuid))
@@ -1778,12 +1778,12 @@ mod tests {
             assert_eq!(get_resp.status(), StatusCode::OK);
 
             let pet_with_images: FullPetProfile = get_resp.json().await.unwrap();
-            let image_id = pet_with_images.images[0].id;
+            let image_uuid = pet_with_images.images[0].uuid.clone();
 
             // Delete the image
             let mut delete_resp = ctx
                 .test_server
-                .delete(&format!("/api/pets/{}/images/{}", pet_uuid, image_id))
+                .delete(&format!("/api/pets/{}/images/{}", pet_uuid, image_uuid))
                 .with_token(&ctx._token)
                 .send()
                 .await
@@ -1793,7 +1793,7 @@ mod tests {
 
             let deleted_image: actix_demo::models::pet_profile_images::PetProfileImage =
                 delete_resp.json().await.unwrap();
-            assert_eq!(deleted_image.id, image_id);
+            assert_eq!(deleted_image.uuid, image_uuid);
 
             // Verify the image is no longer in the profile
             let mut get_resp = ctx
@@ -1808,7 +1808,7 @@ mod tests {
 
             let updated_pet: FullPetProfile = get_resp.json().await.unwrap();
             assert_eq!(updated_pet.images.len(), 1);
-            assert_ne!(updated_pet.images[0].id, image_id);
+            assert_ne!(updated_pet.images[0].uuid, image_uuid);
         }
 
         #[actix_rt::test]
@@ -1844,26 +1844,26 @@ mod tests {
             let created_pet: FullPetProfile = create_resp.json().await.unwrap();
             let pet_uuid = created_pet.basic_info.uuid;
 
-            // Try to delete a non-existent image
+            // Try to delete a non-existent image (using invalid UUID)
             let resp = ctx
                 .test_server
-                .delete(&format!("/api/pets/{}/images/999", pet_uuid))
+                .delete(&format!("/api/pets/{}/images/00000000-0000-0000-0000-000000000000", pet_uuid))
                 .with_token(&ctx._token)
                 .send()
                 .await
                 .unwrap();
 
-            assert_eq!(resp.status(), StatusCode::INTERNAL_SERVER_ERROR);
+            assert_eq!(resp.status(), StatusCode::NOT_FOUND);
         }
 
         #[actix_rt::test]
         async fn should_return_error_when_deleting_image_from_nonexistent_pet_profile() {
             let ctx = TestContext::new(None).await;
 
-            // Try to delete an image from a non-existent pet profile
+            // Try to delete an image from a non-existent pet profile (using a valid UUID format for image)
             let mut resp = ctx
                 .test_server
-                .delete("/api/pets/00000000-0000-0000-0000-000000000000/images/1")
+                .delete("/api/pets/00000000-0000-0000-0000-000000000000/images/11111111-1111-1111-1111-111111111111")
                 .with_token(&ctx._token)
                 .send()
                 .await
@@ -1914,12 +1914,12 @@ mod tests {
             assert_eq!(create_resp.status(), StatusCode::CREATED);
 
             let created_pet: FullPetProfile = create_resp.json().await.unwrap();
-            let pet_id = created_pet.basic_info.uuid;
+            let pet_uuid = created_pet.basic_info.uuid;
 
-            // Get the pet profile to find the image ID
+            // Get the pet profile to find the image UUID
             let mut get_resp = ctx
                 .test_server
-                .get(&format!("/api/pets/{}", pet_id))
+                .get(&format!("/api/pets/{}", pet_uuid))
                 .with_token(&ctx._token)
                 .send()
                 .await
@@ -1928,7 +1928,7 @@ mod tests {
             assert_eq!(get_resp.status(), StatusCode::OK);
 
             let pet_with_images: FullPetProfile = get_resp.json().await.unwrap();
-            let image_id = pet_with_images.images[0].id;
+            let image_uuid = pet_with_images.images[0].uuid.clone();
 
             // Create a second user (user2) via registration API
             let _ = create_http_user(
@@ -1952,7 +1952,7 @@ mod tests {
             // Try to delete the image with user 2's token
             let mut resp = ctx
                 .test_server
-                .delete(&format!("/api/pets/{}/images/{}", pet_id, image_id))
+                .delete(&format!("/api/pets/{}/images/{}", pet_uuid, image_uuid))
                 .with_token(&user2_token)
                 .send()
                 .await
@@ -2172,7 +2172,7 @@ mod tests {
             let created_pet: FullPetProfile = create_resp.json().await.unwrap();
             let pet_uuid = created_pet.basic_info.uuid;
 
-            // Get the pet profile to find the image IDs
+            // Get the pet profile to find the image UUIDs
             let mut get_resp = ctx
                 .test_server
                 .get(&format!("/api/pets/{}", pet_uuid))
@@ -2184,12 +2184,12 @@ mod tests {
             assert_eq!(get_resp.status(), StatusCode::OK);
 
             let pet_with_images: FullPetProfile = get_resp.json().await.unwrap();
-            let image_id = pet_with_images.images[1].id; // Get the second image
+            let image_uuid = pet_with_images.images[1].uuid.clone(); // Get the second image
 
             // Set the second image as primary
             let mut resp = ctx
                 .test_server
-                .put(&format!("/api/pets/{}/images/{}/primary", pet_uuid, image_id))
+                .put(&format!("/api/pets/{}/images/{}/primary", pet_uuid, image_uuid))
                 .with_token(&ctx._token)
                 .send()
                 .await
@@ -2199,7 +2199,7 @@ mod tests {
 
             let updated_image: actix_demo::models::pet_profile_images::PetProfileImage =
                 resp.json().await.unwrap();
-            assert_eq!(updated_image.id, image_id);
+            assert_eq!(updated_image.uuid, image_uuid);
             assert_eq!(updated_image.is_primary, Some(true));
 
             // Verify the second image is now primary
@@ -2216,8 +2216,8 @@ mod tests {
             let updated_pet: FullPetProfile = get_resp.json().await.unwrap();
             assert_eq!(updated_pet.images.iter().filter(|img| img.is_primary == Some(true)).count(), 1);
             
-            // Find images by ID and verify their primary status
-            let second_image = updated_pet.images.iter().find(|img| img.id == pet_with_images.images[1].id).unwrap();
+            // Find images by UUID and verify their primary status
+            let second_image = updated_pet.images.iter().find(|img| img.uuid == pet_with_images.images[1].uuid).unwrap();
             assert_eq!(second_image.is_primary, Some(true));
             }
 
@@ -2278,16 +2278,16 @@ mod tests {
             let created_pet: FullPetProfile = create_resp.json().await.unwrap();
             let pet_uuid = created_pet.basic_info.uuid;
 
-            // Try to set a non-existent image as primary
+            // Try to set a non-existent image as primary (using invalid UUID)
             let resp = ctx
                 .test_server
-                .put(&format!("/api/pets/{}/images/999/primary", pet_uuid))
+                .put(&format!("/api/pets/{}/images/00000000-0000-0000-0000-000000000000/primary", pet_uuid))
                 .with_token(&ctx._token)
                 .send()
                 .await
                 .unwrap();
 
-            assert_eq!(resp.status(), StatusCode::INTERNAL_SERVER_ERROR);
+            assert_eq!(resp.status(), StatusCode::NOT_FOUND);
         }
 
         #[actix_rt::test]

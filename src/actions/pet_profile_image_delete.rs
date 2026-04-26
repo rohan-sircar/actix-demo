@@ -24,9 +24,16 @@ pub fn delete_pet_profile_image_by_uuid(
             .returning(PetProfileImage::as_returning())
             .get_result(txn)
             .map_err(|err| {
-                DomainError::new_internal_error(format!(
-                    "Failed to delete pet profile image: {err}"
-                ))
+                match err {
+                    diesel::result::Error::NotFound => {
+                        DomainError::new_entity_does_not_exist_error(format!(
+                            "Pet profile image {image_uuid} not found for pet profile {pet_uuid}"
+                        ))
+                    }
+                    _ => DomainError::new_internal_error(format!(
+                        "Failed to delete pet profile image: {err}"
+                    )),
+                }
             })
     })?;
 
