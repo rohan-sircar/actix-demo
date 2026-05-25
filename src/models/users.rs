@@ -125,6 +125,11 @@ pub struct NewUser {
     pub password: Password,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+pub struct UpdateUserProfile {
+    pub username: Option<Username>,
+}
+
 #[derive(Debug, Clone, Deserialize, Queryable)]
 pub struct UserLogin {
     pub username: Username,

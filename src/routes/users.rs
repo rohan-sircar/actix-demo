@@ -4,7 +4,7 @@ use time::OffsetDateTime;
 
 use crate::models::misc::{Pagination, SearchQuery};
 // use crate::models::roles::RoleEnum;
-use crate::models::users::{NewUser, UserId};
+use crate::models::users::{NewUser, UpdateUserProfile, UserId};
 use crate::{actions, utils};
 use crate::{errors::DomainError, AppData};
 // use actix_web_grants::protect;
@@ -184,6 +184,51 @@ pub async fn get_user_avatar(
     Ok(HttpResponse::Ok()
         .content_type(content_type)
         .streaming(stream))
+}
+
+/// Get the authenticated user's profile.
+#[tracing::instrument(level = "info", skip(app_data))]
+pub async fn get_my_profile(
+    req: HttpRequest,
+    app_data: web::Data<AppData>,
+) -> Result<HttpResponse, DomainError> {
+    let user_id = utils::extract_user_id_from_header(req.headers())?;
+
+    let res = web::block(move || {
+        let pool = &app_data.pool;
+        let mut conn = pool.get()?;
+        actions::users::find_user_by_uid(&user_id, &mut conn)
+    })
+    .await??;
+
+    match res {
+        Some(user) => Ok(HttpResponse::Ok().json(user)),
+        None => {
+            let err = DomainError::new_entity_does_not_exist_error(
+                "User not found".to_string(),
+            );
+            Err(err)
+        }
+    }
+}
+
+/// Update the authenticated user's profile.
+#[tracing::instrument(level = "info", skip(app_data))]
+pub async fn update_my_profile(
+    req: HttpRequest,
+    app_data: web::Data<AppData>,
+    form: web::Json<UpdateUserProfile>,
+) -> Result<HttpResponse, DomainError> {
+    let user_id = utils::extract_user_id_from_header(req.headers())?;
+
+    let user = web::block(move || {
+        let pool = &app_data.pool;
+        let mut conn = pool.get()?;
+        actions::users::update_user_profile(&user_id, form.0, &mut conn)
+    })
+    .await??;
+
+    Ok(HttpResponse::Ok().json(user))
 }
 
 /// Delete the authenticated user's account (soft delete).
