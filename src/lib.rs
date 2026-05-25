@@ -218,11 +218,19 @@ pub fn configure_app(
                         "/cmd/{job_id}",
                         web::delete().to(routes::command::handle_abort_job),
                     )
-                    .service(web::scope("/avatars").route(
-                        "",
-                        web::put().to(routes::users::upload_user_avatar),
-                        // TODO DELETE endpoint
-                    ))
+                    .service(
+                        web::scope("/avatars")
+                            .route(
+                                "",
+                                web::put()
+                                    .to(routes::users::upload_user_avatar),
+                            )
+                            .route(
+                                "",
+                                web::delete()
+                                    .to(routes::users::delete_user_avatar),
+                            ),
+                    )
                     .service(
                         web::scope("/sessions")
                             .route(
