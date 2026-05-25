@@ -197,7 +197,7 @@ pub async fn get_my_profile(
     let res = web::block(move || {
         let pool = &app_data.pool;
         let mut conn = pool.get()?;
-        actions::users::find_user_by_uid(&user_id, &mut conn)
+        actions::users::find_active_user_by_uid(&user_id, &mut conn)
     })
     .await??;
 
@@ -220,6 +220,12 @@ pub async fn update_my_profile(
     form: web::Json<UpdateUserProfile>,
 ) -> Result<HttpResponse, DomainError> {
     let user_id = utils::extract_user_id_from_header(req.headers())?;
+
+    if form.username.is_none() {
+        return Err(DomainError::new_bad_input_error(
+            "At least one field must be provided for update".to_string(),
+        ));
+    }
 
     let user = web::block(move || {
         let pool = &app_data.pool;

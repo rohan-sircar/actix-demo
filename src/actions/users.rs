@@ -63,6 +63,32 @@ pub fn find_user_by_uid(
     })
 }
 
+/// Like `find_user_by_uid` but excludes soft-deleted users.
+pub fn find_active_user_by_uid(
+    uid: &UserId,
+    conn: &mut DbConnection,
+) -> Result<Option<UserWithRoles>, DomainError> {
+    use crate::schema::users::dsl as users;
+
+    conn.transaction(|conn| {
+        let mb_user = users::users
+            .select((
+                users::id,
+                users::username,
+                users::created_at,
+                users::deleted_at,
+            ))
+            .filter(users::id.eq(uid))
+            .filter(users::deleted_at.is_null())
+            .first::<User>(conn)
+            .optional()?;
+
+        let roles = get_roles_for_user(uid, conn)?;
+
+        Ok(mb_user.map(|user| UserWithRoles::from_user(&user, &roles)))
+    })
+}
+
 pub fn find_user_by_name(
     user_name: &Username,
     conn: &mut DbConnection,
