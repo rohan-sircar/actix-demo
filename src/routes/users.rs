@@ -221,7 +221,7 @@ pub async fn update_my_profile(
 ) -> Result<HttpResponse, DomainError> {
     let user_id = utils::extract_user_id_from_header(req.headers())?;
 
-    if form.username.is_none() {
+    if *form == UpdateUserProfile::default() {
         return Err(DomainError::new_bad_input_error(
             "At least one field must be provided for update".to_string(),
         ));
