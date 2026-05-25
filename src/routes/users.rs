@@ -202,10 +202,13 @@ pub async fn delete_my_account(
     })
     .await??;
 
-    let _ = app_data
+    if let Err(e) = app_data
         .credentials_repo
         .delete_all_sessions(&user_id)
-        .await;
+        .await
+    {
+        tracing::error!(error = %e, user_id = %user_id, "Failed to delete sessions during account deletion");
+    }
 
     let bucket = app_data.config.minio.bucket_name.clone();
     let minio_client = app_data.minio.client.clone();

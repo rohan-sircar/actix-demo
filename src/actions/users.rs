@@ -168,6 +168,7 @@ pub fn get_all_user_ids(
     } else {
         let users = users::users
             .select(users::id)
+            .filter(users::deleted_at.is_null())
             .order_by(users::created_at)
             .load::<UserId>(conn)?;
 
@@ -230,7 +231,7 @@ pub fn insert_new_user(
     };
 
     conn.transaction(|conn| {
-        let _ = diesel::insert_into(users::users)
+        diesel::insert_into(users::users)
             .values(&nu)
             .execute(conn)?;
         let role_id = roles::roles
@@ -245,9 +246,10 @@ pub fn insert_new_user(
                 users::deleted_at,
             ))
             .filter(users::username.eq(nu.username))
+            .filter(users::deleted_at.is_null())
             .first::<User>(conn)?;
 
-        let _ = diesel::insert_into(users_roles::users_roles)
+        diesel::insert_into(users_roles::users_roles)
             .values(NewUserRole {
                 user_id: user.id,
                 role_id,
@@ -264,7 +266,7 @@ pub fn insert_new_user(
         };
 
         // Invalidate the cache since we've added a new user
-        if let Err(e) = user_ids_cache.remove(&"user_id".to_owned()) {
+        if let Err(e) = user_ids_cache.remove(&"user_ids".to_owned()) {
             tracing::error!(error = %e, "Failed to invalidate user IDs cache");
         }
 
