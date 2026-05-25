@@ -17,7 +17,7 @@ diesel::table! {
     jobs (id) {
         id -> Int4,
         job_id -> Uuid,
-        started_by -> Int4,
+        started_by -> Nullable<Int4>,
         status -> JobStatus,
         status_message -> Nullable<Varchar>,
         created_at -> Timestamp,
@@ -35,12 +35,13 @@ diesel::table! {
 }
 
 diesel::table! {
-    users (id) {
-        id -> Int4,
-        username -> Varchar,
-        password -> Varchar,
-        created_at -> Timestamp,
-    }
+     users (id) {
+          id -> Int4,
+          username -> Varchar,
+          password -> Varchar,
+          created_at -> Timestamp,
+          deleted_at -> Nullable<Timestamp>,
+      }
 }
 
 diesel::table! {

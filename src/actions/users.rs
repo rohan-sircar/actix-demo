@@ -47,7 +47,12 @@ pub fn find_user_by_uid(
 
     conn.transaction(|conn| {
         let mb_user = users::users
-            .select((users::id, users::username, users::created_at))
+            .select((
+                users::id,
+                users::username,
+                users::created_at,
+                users::deleted_at,
+            ))
             .filter(users::id.eq(uid))
             .first::<User>(conn)
             .optional()?;
@@ -66,7 +71,12 @@ pub fn find_user_by_name(
 
     conn.transaction(|conn| {
         let mb_user = users::users
-            .select((users::id, users::username, users::created_at))
+            .select((
+                users::id,
+                users::username,
+                users::created_at,
+                users::deleted_at,
+            ))
             .filter(users::username.eq(user_name))
             .first::<User>(conn)
             .optional()?;
@@ -127,7 +137,12 @@ pub fn get_all_users(
 
     conn.transaction(|conn| {
         let users = users::users
-            .select((users::id, users::username, users::created_at))
+            .select((
+                users::id,
+                users::username,
+                users::created_at,
+                users::deleted_at,
+            ))
             .order_by(users::created_at)
             .offset(pagination.calc_offset().as_uint().into())
             .limit(pagination.limit.as_uint().into())
@@ -174,7 +189,12 @@ pub fn search_users(
 
     conn.transaction(|conn| {
         let users = users::users
-            .select((users::id, users::username, users::created_at))
+            .select((
+                users::id,
+                users::username,
+                users::created_at,
+                users::deleted_at,
+            ))
             .filter(users::username.like(format!("%{}%", query)))
             .order_by(users::created_at)
             .offset(pagination.calc_offset().as_uint().into())
@@ -214,7 +234,12 @@ pub fn insert_new_user(
             .filter(roles::role_name.eq(role))
             .first::<RoleId>(conn)?;
         let user = users::users
-            .select((users::id, users::username, users::created_at))
+            .select((
+                users::id,
+                users::username,
+                users::created_at,
+                users::deleted_at,
+            ))
             .filter(users::username.eq(nu.username))
             .first::<User>(conn)?;
 
@@ -250,4 +275,77 @@ pub fn insert_new_regular_user(
     conn: &mut DbConnection,
 ) -> Result<UserWithRoles, DomainError> {
     insert_new_user(nu, RoleEnum::RoleUser, hash_cost, user_ids_cache, conn)
+}
+
+/// Soft-delete a user by setting deleted_at timestamp.
+/// Returns an error if the user is already deleted or doesn't exist.
+pub fn soft_delete_user(
+    user_id: &UserId,
+    conn: &mut DbConnection,
+) -> Result<(), DomainError> {
+    use crate::schema::users::dsl as users;
+
+    let existing = users::users
+        .select((users::id, users::deleted_at))
+        .filter(users::id.eq(user_id))
+        .first::<(UserId, Option<chrono::NaiveDateTime>)>(conn)
+        .optional()?;
+
+    match existing {
+        None => Err(DomainError::new_entity_does_not_exist_error(format!(
+            "User not found: {}",
+            user_id
+        ))),
+        Some((_, Some(_))) => Err(DomainError::new_account_deleted_error(
+            format!("User {} is already deleted", user_id),
+        )),
+        Some((id, None)) => {
+            conn.transaction::<_, DomainError, _>(|conn| {
+                diesel::update(users::users.filter(users::id.eq(id)))
+                    .set(users::deleted_at.eq(chrono::Utc::now().naive_utc()))
+                    .execute(conn)?;
+
+                Ok(())
+            })?;
+
+            tracing::info!(user_id = %user_id, "User soft-deleted");
+            Ok(())
+        }
+    }
+}
+
+/// Delete a user's avatar from MinIO.
+/// Non-fatal: returns Ok even if the avatar doesn't exist.
+pub async fn delete_user_avatar(
+    user_id: &UserId,
+    minio: &minior::Minio,
+    bucket_name: &str,
+) -> Result<(), DomainError> {
+    let object_key = format!("avatars/{}", user_id);
+
+    match minio
+        .client
+        .delete_object()
+        .bucket(bucket_name)
+        .key(&object_key)
+        .send()
+        .await
+    {
+        Ok(_) => {
+            tracing::info!(user_id = %user_id, object_key = %object_key, "Avatar deleted from MinIO");
+            Ok(())
+        }
+        Err(e) => {
+            let err_str = format!("{:?}", e);
+            if err_str.contains("404") || err_str.contains("NoSuchKey") {
+                tracing::warn!(user_id = %user_id, object_key = %object_key, "Avatar not found, skipping deletion");
+                Ok(())
+            } else {
+                Err(DomainError::new_internal_error(format!(
+                    "Failed to delete avatar from MinIO: {}",
+                    err_str
+                )))
+            }
+        }
+    }
 }
