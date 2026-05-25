@@ -16,7 +16,6 @@ mod tests {
     use actix_web::dev::Service as _;
     use actix_web::http::StatusCode;
     use actix_web::test;
-    use jwt_simple::prelude::HS256Key;
 
     #[actix_rt::test]
     async fn get_build_info_should_succeed() {
@@ -54,8 +53,7 @@ mod tests {
             .await
             .unwrap();
             let token = common::get_default_token(&test_app).await;
-            let jwt_key =
-                HS256Key::from_bytes(b"test-jwt-secret-key-at-least-12-bytes");
+            let jwt_key = common::TEST_JWT_KEY.clone();
 
             let claims = utils::get_claims(&jwt_key, &token)?;
             let user_id = claims.custom.user_id;

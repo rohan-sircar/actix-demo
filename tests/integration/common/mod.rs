@@ -65,6 +65,11 @@ pub const DEFAULT_USER: &str = "admin";
 pub const X_RATELIMIT_LIMIT: &str = "x-ratelimit-limit";
 pub const X_RATELIMIT_REMAINING: &str = "x-ratelimit-remaining";
 pub const X_RATELIMIT_RESET: &str = "x-ratelimit-reset";
+pub const JWT_SECRET_KEY: &[u8] = b"test-jwt-secret-key-at-least-12-bytes";
+
+lazy_static::lazy_static! {
+    pub static ref TEST_JWT_KEY: HS256Key = HS256Key::from_bytes(JWT_SECRET_KEY);
+}
 
 #[derive(Clone, Debug)]
 pub struct BinFile {
@@ -321,7 +326,7 @@ pub async fn app_data(
         metrics.active_sessions.clone(),
     );
 
-    let key = HS256Key::from_bytes(b"test-jwt-secret-key-at-least-12-bytes");
+    let key = TEST_JWT_KEY.clone();
 
     // Create MinIO client
     let cred = aws_sdk_s3::config::Credentials::new(
