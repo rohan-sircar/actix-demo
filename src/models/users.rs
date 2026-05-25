@@ -94,6 +94,7 @@ pub struct User {
     pub id: UserId,
     pub username: Username,
     pub created_at: chrono::NaiveDateTime,
+    pub deleted_at: Option<chrono::NaiveDateTime>,
     // pub role: Vec<RoleEnum>,
 }
 

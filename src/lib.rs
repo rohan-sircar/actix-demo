@@ -238,7 +238,11 @@ pub fn configure_app(
                                 web::post()
                                     .to(routes::auth::revoke_other_sessions),
                             ),
-                    ),
+                    )
+                    .service(web::scope("/users").route(
+                        "/me/delete",
+                        web::post().to(routes::users::delete_my_account),
+                    )),
             );
     })
 }

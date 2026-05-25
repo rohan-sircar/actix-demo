@@ -75,6 +75,7 @@ dependencies = [
  "testcontainers",
  "testcontainers-modules",
  "thiserror 2.0.12",
+ "time",
  "tokio",
  "tokio-postgres",
  "tokio-util",

@@ -1,4 +1,6 @@
 use actix_web::{web, HttpRequest, HttpResponse};
+use awc::cookie::{Cookie, SameSite};
+use time::OffsetDateTime;
 
 use crate::models::misc::{Pagination, SearchQuery};
 // use crate::models::roles::RoleEnum;
@@ -182,4 +184,52 @@ pub async fn get_user_avatar(
     Ok(HttpResponse::Ok()
         .content_type(content_type)
         .streaming(stream))
+}
+
+/// Delete the authenticated user's account (soft delete).
+/// Clears all sessions and avatar. Orphans associated jobs.
+#[tracing::instrument(level = "info", skip(app_data, req))]
+pub async fn delete_my_account(
+    req: HttpRequest,
+    app_data: web::Data<AppData>,
+) -> Result<HttpResponse, DomainError> {
+    let user_id = utils::extract_user_id_from_header(req.headers())?;
+
+    let pool = app_data.pool.clone();
+    web::block(move || {
+        let mut conn = pool.get()?;
+        actions::users::soft_delete_user(&user_id, &mut conn)
+    })
+    .await??;
+
+    if let Err(e) = app_data
+        .credentials_repo
+        .delete_all_sessions(&user_id)
+        .await
+    {
+        tracing::error!(error = %e, user_id = %user_id, "Failed to delete sessions during account deletion");
+    }
+
+    let bucket = app_data.config.minio.bucket_name.clone();
+    let minio_client = app_data.minio.client.clone();
+    tokio::spawn(async move {
+        let minio = minior::Minio {
+            client: minio_client,
+        };
+        if let Err(e) =
+            actions::users::delete_user_avatar(&user_id, &minio, &bucket).await
+        {
+            tracing::warn!(user_id = %user_id, error = %e, "Failed to delete avatar on account deletion");
+        }
+    });
+
+    let cookie = Cookie::build("X-AUTH-TOKEN", "")
+        .http_only(true)
+        .secure(true)
+        .same_site(SameSite::Lax)
+        .path("/")
+        .expires(OffsetDateTime::UNIX_EPOCH)
+        .finish();
+
+    Ok(HttpResponse::Ok().cookie(cookie).finish())
 }

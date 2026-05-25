@@ -5,26 +5,27 @@ use custom_error::custom_error;
 use std::convert::From;
 
 custom_error! { #[derive(new)] #[allow(clippy::enum_variant_names)]
-    pub DomainError
-    PwdHashError {source: BcryptError} = "Failed to hash password",
-    FieldValidationError {message: String} = "Failed to validate one or more fields",
-    DbError {source: diesel::result::Error} = "Database error",
-    DbPoolError {source: r2d2::Error} = "Failed to get connection from pool",
-    BadInputError {message: String} = "Bad inputs to request: {message}",
-    EntityDoesNotExistError {message: String} = "Entity does not exist - {message}",
-    BlockingError {source: actix_web::error::BlockingError} = "Blocking error - {source}",
-    AuthError {message: String} = "Authentication Error - {message}",
-    JwtError {message: String} = "Jwt Error - {message}",
-    RedisError {source: redis::RedisError} = "Redis Error = {source}",
-    WsProtocolError {source: actix_ws::ProtocolError} = "WS Protocol Error = {source}",
-    UninitializedError { message: String } = "A required component was not initialized - {message}",
-    JoinError {source: tokio::task::JoinError } = "Join error - {source}",
-    InternalError {message: String} = "An internal error occured - {message}",
-    RateLimitError {message: String} = "Rate limit exceeded: {message}",
-    FileSizeExceeded {max_bytes: u64} = "File size exceeded: max {max_bytes} bytes",
-    InvalidMimeType {detected: String} = "Invalid MIME type: {detected}",
-    FileUploadFailed {message: String} = "Failed to upload file: {message}",
-    PayloadError { source: actix_web::error::PayloadError } = "Payload error: {source}",
+   pub DomainError
+   PwdHashError {source: BcryptError} = "Failed to hash password",
+   FieldValidationError {message: String} = "Failed to validate one or more fields",
+   DbError {source: diesel::result::Error} = "Database error",
+   DbPoolError {source: r2d2::Error} = "Failed to get connection from pool",
+   BadInputError {message: String} = "Bad inputs to request: {message}",
+   EntityDoesNotExistError {message: String} = "Entity does not exist - {message}",
+   BlockingError {source: actix_web::error::BlockingError} = "Blocking error - {source}",
+   AuthError {message: String} = "Authentication Error - {message}",
+   JwtError {message: String} = "Jwt Error - {message}",
+   RedisError {source: redis::RedisError} = "Redis Error = {source}",
+   WsProtocolError {source: actix_ws::ProtocolError} = "WS Protocol Error = {source}",
+   UninitializedError { message: String } = "A required component was not initialized - {message}",
+   JoinError {source: tokio::task::JoinError } = "Join error - {source}",
+   InternalError {message: String} = "An internal error occured - {message}",
+   RateLimitError {message: String} = "Rate limit exceeded: {message}",
+   FileSizeExceeded {max_bytes: u64} = "File size exceeded: max {max_bytes} bytes",
+   InvalidMimeType {detected: String} = "Invalid MIME type: {detected}",
+   FileUploadFailed {message: String} = "Failed to upload file: {message}",
+   PayloadError { source: actix_web::error::PayloadError } = "Payload error: {source}",
+   AccountDeletedError { message: String } = "Account deletion failed: {message}",
 }
 
 impl DomainError {
@@ -117,6 +118,10 @@ impl ResponseError for DomainError {
             }
             DomainError::PayloadError { source } => HttpResponse::BadRequest()
                 .json(ErrorResponse::new(format!("Payload error: {source}"))),
+            DomainError::AccountDeletedError { message: _ } => {
+                HttpResponse::Conflict()
+                    .json(ErrorResponse::new(self.to_string()))
+            }
         }
     }
 }
