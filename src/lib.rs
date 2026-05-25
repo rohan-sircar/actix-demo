@@ -218,11 +218,19 @@ pub fn configure_app(
                         "/cmd/{job_id}",
                         web::delete().to(routes::command::handle_abort_job),
                     )
-                    .service(web::scope("/avatars").route(
-                        "",
-                        web::put().to(routes::users::upload_user_avatar),
-                        // TODO DELETE endpoint
-                    ))
+                    .service(
+                        web::scope("/avatars")
+                            .route(
+                                "",
+                                web::put()
+                                    .to(routes::users::upload_user_avatar),
+                            )
+                            .route(
+                                "",
+                                web::delete()
+                                    .to(routes::users::delete_user_avatar),
+                            ),
+                    )
                     .service(
                         web::scope("/sessions")
                             .route(
@@ -239,10 +247,23 @@ pub fn configure_app(
                                     .to(routes::auth::revoke_other_sessions),
                             ),
                     )
-                    .service(web::scope("/users").route(
-                        "/me/delete",
-                        web::post().to(routes::users::delete_my_account),
-                    )),
+                    .service(
+                        web::scope("/users")
+                            .route(
+                                "",
+                                web::get().to(routes::users::get_my_profile),
+                            )
+                            .route(
+                                "",
+                                web::patch()
+                                    .to(routes::users::update_my_profile),
+                            )
+                            .route(
+                                "/me/delete",
+                                web::post()
+                                    .to(routes::users::delete_my_account),
+                            ),
+                    ),
             );
     })
 }

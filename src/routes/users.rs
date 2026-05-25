@@ -4,7 +4,7 @@ use time::OffsetDateTime;
 
 use crate::models::misc::{Pagination, SearchQuery};
 // use crate::models::roles::RoleEnum;
-use crate::models::users::{NewUser, UserId};
+use crate::models::users::{NewUser, UpdateUserProfile, UserId};
 use crate::{actions, utils};
 use crate::{errors::DomainError, AppData};
 // use actix_web_grants::protect;
@@ -151,6 +151,29 @@ pub async fn upload_user_avatar(
     Ok(HttpResponse::Ok().json(object_key))
 }
 
+/// Delete user avatar
+#[tracing::instrument(level = "info", skip(app_data, req))]
+pub async fn delete_user_avatar(
+    app_data: web::Data<AppData>,
+    req: HttpRequest,
+) -> Result<HttpResponse, DomainError> {
+    let user_id = utils::extract_user_id_from_header(req.headers())?;
+
+    let bucket = app_data.config.minio.bucket_name.clone();
+    let minio_client = app_data.minio.client.clone();
+
+    actions::users::delete_user_avatar(
+        &user_id,
+        &minior::Minio {
+            client: minio_client,
+        },
+        &bucket,
+    )
+    .await?;
+
+    Ok(HttpResponse::NoContent().finish())
+}
+
 /// Get user avatar
 #[tracing::instrument(level = "info", skip(app_data))]
 pub async fn get_user_avatar(
@@ -186,6 +209,57 @@ pub async fn get_user_avatar(
         .streaming(stream))
 }
 
+/// Get the authenticated user's profile.
+#[tracing::instrument(level = "info", skip(app_data))]
+pub async fn get_my_profile(
+    req: HttpRequest,
+    app_data: web::Data<AppData>,
+) -> Result<HttpResponse, DomainError> {
+    let user_id = utils::extract_user_id_from_header(req.headers())?;
+
+    let res = web::block(move || {
+        let pool = &app_data.pool;
+        let mut conn = pool.get()?;
+        actions::users::find_active_user_by_uid(&user_id, &mut conn)
+    })
+    .await??;
+
+    match res {
+        Some(user) => Ok(HttpResponse::Ok().json(user)),
+        None => {
+            let err = DomainError::new_entity_does_not_exist_error(
+                "User not found".to_string(),
+            );
+            Err(err)
+        }
+    }
+}
+
+/// Update the authenticated user's profile.
+#[tracing::instrument(level = "info", skip(app_data))]
+pub async fn update_my_profile(
+    req: HttpRequest,
+    app_data: web::Data<AppData>,
+    form: web::Json<UpdateUserProfile>,
+) -> Result<HttpResponse, DomainError> {
+    let user_id = utils::extract_user_id_from_header(req.headers())?;
+
+    if *form == UpdateUserProfile::default() {
+        return Err(DomainError::new_bad_input_error(
+            "At least one field must be provided for update".to_string(),
+        ));
+    }
+
+    let user = web::block(move || {
+        let pool = &app_data.pool;
+        let mut conn = pool.get()?;
+        actions::users::update_user_profile(&user_id, form.0, &mut conn)
+    })
+    .await??;
+
+    Ok(HttpResponse::Ok().json(user))
+}
+
 /// Delete the authenticated user's account (soft delete).
 /// Clears all sessions and avatar. Orphans associated jobs.
 #[tracing::instrument(level = "info", skip(app_data, req))]
@@ -211,17 +285,14 @@ pub async fn delete_my_account(
     }
 
     let bucket = app_data.config.minio.bucket_name.clone();
-    let minio_client = app_data.minio.client.clone();
-    tokio::spawn(async move {
-        let minio = minior::Minio {
-            client: minio_client,
-        };
-        if let Err(e) =
-            actions::users::delete_user_avatar(&user_id, &minio, &bucket).await
-        {
-            tracing::warn!(user_id = %user_id, error = %e, "Failed to delete avatar on account deletion");
-        }
-    });
+    let minio = minior::Minio {
+        client: app_data.minio.client.clone(),
+    };
+    if let Err(e) =
+        actions::users::delete_user_avatar(&user_id, &minio, &bucket).await
+    {
+        tracing::error!(error = %e, user_id = %user_id, "Failed to delete avatar during account deletion");
+    }
 
     let cookie = Cookie::build("X-AUTH-TOKEN", "")
         .http_only(true)

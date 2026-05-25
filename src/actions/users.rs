@@ -4,8 +4,8 @@ use crate::errors::DomainError;
 use crate::models::misc::Pagination;
 use crate::models::roles::{NewUserRole, RoleEnum, RoleId};
 use crate::models::users::{
-    NewUser, Password, User, UserAuthDetails, UserAuthDetailsWithRoles, UserId,
-    UserWithRoles, Username,
+    NewUser, Password, UpdateUserProfile, User, UserAuthDetails,
+    UserAuthDetailsWithRoles, UserId, UserWithRoles, Username,
 };
 use crate::types::DbConnection;
 use crate::utils::InstrumentedRedisCache;
@@ -54,6 +54,32 @@ pub fn find_user_by_uid(
                 users::deleted_at,
             ))
             .filter(users::id.eq(uid))
+            .first::<User>(conn)
+            .optional()?;
+
+        let roles = get_roles_for_user(uid, conn)?;
+
+        Ok(mb_user.map(|user| UserWithRoles::from_user(&user, &roles)))
+    })
+}
+
+/// Like `find_user_by_uid` but excludes soft-deleted users.
+pub fn find_active_user_by_uid(
+    uid: &UserId,
+    conn: &mut DbConnection,
+) -> Result<Option<UserWithRoles>, DomainError> {
+    use crate::schema::users::dsl as users;
+
+    conn.transaction(|conn| {
+        let mb_user = users::users
+            .select((
+                users::id,
+                users::username,
+                users::created_at,
+                users::deleted_at,
+            ))
+            .filter(users::id.eq(uid))
+            .filter(users::deleted_at.is_null())
             .first::<User>(conn)
             .optional()?;
 
@@ -281,6 +307,90 @@ pub fn insert_new_regular_user(
     conn: &mut DbConnection,
 ) -> Result<UserWithRoles, DomainError> {
     insert_new_user(nu, RoleEnum::RoleUser, hash_cost, user_ids_cache, conn)
+}
+
+/// Update the authenticated user's profile fields.
+pub fn update_user_profile(
+    user_id: &UserId,
+    updates: UpdateUserProfile,
+    conn: &mut DbConnection,
+) -> Result<UserWithRoles, DomainError> {
+    use crate::schema::users::dsl as users;
+
+    conn.transaction(|conn| {
+        let existing = users::users
+            .select((users::id, users::deleted_at))
+            .filter(users::id.eq(user_id))
+            .first::<(UserId, Option<chrono::NaiveDateTime>)>(conn)
+            .optional()?;
+
+        let existing = match existing {
+            None => {
+                return Err(DomainError::new_entity_does_not_exist_error(
+                    format!("User not found: {}", user_id),
+                ))
+            }
+            Some((_, Some(_))) => {
+                return Err(DomainError::new_account_deleted_error(format!(
+                    "User {} is deleted",
+                    user_id
+                )))
+            }
+            Some((id, None)) => id,
+        };
+
+        let new_username = updates.username;
+
+        if let Some(ref username) = new_username {
+            let taken = users::users
+                .select(users::id)
+                .filter(users::username.eq(username))
+                .filter(users::deleted_at.is_null())
+                .filter(users::id.ne(user_id))
+                .first::<UserId>(conn)
+                .optional()?;
+
+            if taken.is_some() {
+                return Err(DomainError::new_field_validation_error(format!(
+                    "Username '{}' is already taken",
+                    username.as_str()
+                )));
+            }
+
+            match diesel::update(users::users.filter(users::id.eq(existing)))
+                .set(users::username.eq(username))
+                .execute(conn)
+            {
+                Ok(_) => {}
+                Err(diesel::result::Error::DatabaseError(
+                    diesel::result::DatabaseErrorKind::UniqueViolation,
+                    _,
+                )) => {
+                    return Err(DomainError::new_field_validation_error(
+                        format!(
+                            "Username '{}' is already taken",
+                            username.as_str()
+                        ),
+                    ));
+                }
+                Err(e) => return Err(e.into()),
+            }
+        }
+
+        let user = users::users
+            .select((
+                users::id,
+                users::username,
+                users::created_at,
+                users::deleted_at,
+            ))
+            .filter(users::id.eq(user_id))
+            .first::<User>(conn)?;
+
+        let roles = get_roles_for_user(user_id, conn)?;
+
+        Ok(UserWithRoles::from_user(&user, &roles))
+    })
 }
 
 /// Soft-delete a user by setting deleted_at timestamp.
