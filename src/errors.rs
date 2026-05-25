@@ -25,7 +25,7 @@ custom_error! { #[derive(new)] #[allow(clippy::enum_variant_names)]
    InvalidMimeType {detected: String} = "Invalid MIME type: {detected}",
    FileUploadFailed {message: String} = "Failed to upload file: {message}",
    PayloadError { source: actix_web::error::PayloadError } = "Payload error: {source}",
-    AccountDeletedError { message: String } = "Account deletion failed: {message}",
+   AccountDeletedError { message: String } = "Account deletion failed: {message}",
 }
 
 impl DomainError {

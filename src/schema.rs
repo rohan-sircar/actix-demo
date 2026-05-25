@@ -35,13 +35,13 @@ diesel::table! {
 }
 
 diesel::table! {
-     users (id) {
-          id -> Int4,
-          username -> Varchar,
-          password -> Varchar,
-          created_at -> Timestamp,
-          deleted_at -> Nullable<Timestamp>,
-      }
+    users (id) {
+        id -> Int4,
+        username -> Varchar,
+        password -> Varchar,
+        created_at -> Timestamp,
+        deleted_at -> Nullable<Timestamp>,
+    }
 }
 
 diesel::table! {

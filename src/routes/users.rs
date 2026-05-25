@@ -196,13 +196,12 @@ pub async fn delete_my_account(
     let user_id = utils::extract_user_id_from_header(req.headers())?;
 
     let pool = app_data.pool.clone();
-    let result = web::block(move || {
+    web::block(move || {
         let mut conn = pool.get()?;
         actions::users::soft_delete_user(&user_id, &mut conn)
     })
     .await??;
 
-    let _ = result;
     let _ = app_data
         .credentials_repo
         .delete_all_sessions(&user_id)

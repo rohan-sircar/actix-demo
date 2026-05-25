@@ -78,6 +78,7 @@ pub fn find_user_by_name(
                 users::deleted_at,
             ))
             .filter(users::username.eq(user_name))
+            .filter(users::deleted_at.is_null())
             .first::<User>(conn)
             .optional()?;
 
@@ -111,6 +112,7 @@ pub fn get_user_auth_details(
         let mb_user = users::users
             .select((users::id, users::username, users::password))
             .filter(users::username.eq(user_name))
+            .filter(users::deleted_at.is_null())
             .first::<UserAuthDetails>(conn)
             .optional()?;
 
@@ -143,6 +145,7 @@ pub fn get_all_users(
                 users::created_at,
                 users::deleted_at,
             ))
+            .filter(users::deleted_at.is_null())
             .order_by(users::created_at)
             .offset(pagination.calc_offset().as_uint().into())
             .limit(pagination.limit.as_uint().into())
@@ -195,6 +198,7 @@ pub fn search_users(
                 users::created_at,
                 users::deleted_at,
             ))
+            .filter(users::deleted_at.is_null())
             .filter(users::username.like(format!("%{}%", query)))
             .order_by(users::created_at)
             .offset(pagination.calc_offset().as_uint().into())
@@ -301,8 +305,14 @@ pub fn soft_delete_user(
         )),
         Some((id, None)) => {
             conn.transaction::<_, DomainError, _>(|conn| {
+                use crate::schema::jobs::dsl as jobs;
+
                 diesel::update(users::users.filter(users::id.eq(id)))
                     .set(users::deleted_at.eq(chrono::Utc::now().naive_utc()))
+                    .execute(conn)?;
+
+                diesel::update(jobs::jobs.filter(jobs::started_by.eq(id)))
+                    .set(jobs::started_by.eq(None::<i32>))
                     .execute(conn)?;
 
                 Ok(())
