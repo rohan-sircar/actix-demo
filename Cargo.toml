@@ -5,21 +5,21 @@ authors = ['Rohan Sircar <rohansircar@protonmail.com>']
 edition = '2021'
 
 [dependencies]
-reqwest = { version = "0.12.15", features = ["json"] }
-actix-extensible-rate-limit = { version = "0.4.0", features = ["redis"] }
+reqwest = { version = "0.13", features = ["json"] }
+actix-extensible-rate-limit = { git = "https://github.com/rohan-sircar/actix-extensible-rate-limit", branch = "master", features = ["redis"] }
 actix-files = "0.6.2"
 actix-http = "3.2.2"
 actix-rt = "2.7.0"
-actix-web-prom = "0.9.0"
+actix-web-prom = "0.10"
 actix-web = "4.9.0"
 actix-web-grants = "4.1.2"
-actix-ws = "0.3.0"
+actix-ws = "0.4"
 anyhow = "1.0.66"
 awc = "3.5.1"
 aws-config = { version = "1.1.7", features = ["behavior-version-latest"] }
 backoff = { version = "0.4", features = ["tokio"] }
-bcrypt = "0.17.0"
-cached = { version = "0.55.1", features = [
+bcrypt = "0.19"
+cached = { version = "1", features = [
     "redis_store",
     "redis_tokio",
     "redis_connection_manager",
@@ -30,15 +30,15 @@ chrono-tz = { version = "0.10.3", features = ['serde'] }
 custom_error = "1.9.2"
 derive_builder = "0.20.2"
 derive_more = { version = "2.0.1", features = ["display", "into"] }
-diesel = { version = "2.2.7", features = [
+diesel = { version = "2.3", features = [
     'r2d2',
     'chrono',
     'postgres',
     'uuid',
 ] }
 diesel-derive-enum = { version = "2.1.0", features = ["postgres"] }
-diesel-tracing = { version = "0.3.1", features = ["postgres", "r2d2"] }
-diesel_migrations = "2.2.0"
+diesel-tracing = { version = "0.4", features = ["postgres", "r2d2"] }
+diesel_migrations = "2.3"
 do-notation = "0.1.3"
 dotenvy = "0.15"
 envy = "0.4"
@@ -50,11 +50,11 @@ jwt-simple = { version = "0.12.11", default-features = false, features = [
 lazy_static = "1.4.0"
 minior = "=0.1.16"
 once_cell = "1.16.0"
-process-stream = "0.4.1"
-prometheus = "0.13.4"
+process-stream = "0.5"
+prometheus = "0.14"
 r2d2 = { version = "0.8" }
-rand = "0.9.0"
-redis = { version = "0.26.0", features = [
+rand = "0.10"
+redis = { version = "1", features = [
     "tokio-comp",
     "json",
     "connection-manager",

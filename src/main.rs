@@ -21,7 +21,7 @@ use actix_demo::{
 use actix_web::web::Data;
 use actix_web_prom::PrometheusMetricsBuilder;
 use anyhow::Context;
-use cached::stores::RedisCacheBuilder;
+use cached::RedisCacheBuilder;
 use diesel::r2d2::ConnectionManager;
 use diesel_migrations::{FileBasedMigrations, MigrationHarness};
 use diesel_tracing::pg::InstrumentedPgConnection;
@@ -139,8 +139,8 @@ async fn main() -> anyhow::Result<()> {
     let pool_clone = pool.clone();
 
     let user_ids_cache = InstrumentedRedisCache::new(
-        RedisCacheBuilder::new("user_ids", 3600)
-            .set_connection_string(&env_config.redis_url)
+        RedisCacheBuilder::new("user_ids", Duration::from_secs(3600))
+            .connection_string(&env_config.redis_url)
             .build()
             .map_err(|e| {
                 anyhow::anyhow!("Failed to build user_ids cache: {:?}", e)

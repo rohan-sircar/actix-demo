@@ -1,5 +1,5 @@
 use crate::metrics::CacheMetrics;
-use cached::IOCached;
+use cached::ConcurrentCached;
 use cached::RedisCache;
 use cached::RedisCacheError;
 use serde::de::DeserializeOwned;

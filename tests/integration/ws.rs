@@ -82,7 +82,6 @@ mod tests {
     };
     use actix_http::StatusCode;
     use actix_rt::time::sleep;
-    use jwt_simple::prelude::HS256Key;
     use ws_utils::*;
 
     #[ignore]
@@ -131,7 +130,7 @@ mod tests {
             common::get_http_token(&ctx.addr, username, password, &ctx.client)
                 .await
                 .unwrap();
-        let jwt_key = HS256Key::from_bytes("test".as_bytes());
+        let jwt_key = common::TEST_JWT_KEY.clone();
 
         let claims = utils::get_claims(&jwt_key, &token).unwrap();
         let user_id = claims.custom.user_id;
@@ -230,7 +229,7 @@ mod tests {
             common::get_http_token(&ctx.addr, username, password, &ctx.client)
                 .await
                 .unwrap();
-        let jwt_key = HS256Key::from_bytes("test".as_bytes());
+        let jwt_key = common::TEST_JWT_KEY.clone();
 
         let claims = utils::get_claims(&jwt_key, &token).unwrap();
         let user_id = claims.custom.user_id;

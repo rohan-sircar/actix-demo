@@ -25,7 +25,7 @@ use actix_web_prom::PrometheusMetricsBuilder;
 use anyhow::Context;
 use awc::cookie::Cookie;
 use awc::{Client, ClientRequest};
-use cached::stores::RedisCacheBuilder;
+use cached::RedisCacheBuilder;
 use derive_builder::Builder;
 use diesel::r2d2::{self, ConnectionManager};
 use diesel_migrations::{FileBasedMigrations, MigrationHarness};
@@ -38,7 +38,7 @@ use std::fs;
 use std::io::Write;
 use std::os::unix::prelude::OpenOptionsExt;
 use std::sync::Arc;
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 use testcontainers_modules::minio::{self, MinIO};
 use testcontainers_modules::postgres::{self, Postgres};
 use testcontainers_modules::redis::{Redis, REDIS_PORT};
@@ -65,6 +65,11 @@ pub const DEFAULT_USER: &str = "admin";
 pub const X_RATELIMIT_LIMIT: &str = "x-ratelimit-limit";
 pub const X_RATELIMIT_REMAINING: &str = "x-ratelimit-remaining";
 pub const X_RATELIMIT_RESET: &str = "x-ratelimit-reset";
+pub const JWT_SECRET_KEY: &[u8] = b"test-jwt-secret-key-at-least-12-bytes";
+
+lazy_static::lazy_static! {
+    pub static ref TEST_JWT_KEY: HS256Key = HS256Key::from_bytes(JWT_SECRET_KEY);
+}
 
 #[derive(Clone, Debug)]
 pub struct BinFile {
@@ -272,8 +277,8 @@ pub async fn app_data(
         actix_demo::metrics::Metrics::new(prometheus.clone().registry);
 
     let user_ids_cache = InstrumentedRedisCache::new(
-        RedisCacheBuilder::new("test_user_ids", 3600)
-            .set_connection_string(redis_connstr)
+        RedisCacheBuilder::new("test_user_ids", Duration::from_secs(3600))
+            .connection_string(redis_connstr)
             .build()
             .unwrap(),
         metrics.cache.clone(),
@@ -321,7 +326,7 @@ pub async fn app_data(
         metrics.active_sessions.clone(),
     );
 
-    let key = HS256Key::from_bytes("test".as_bytes());
+    let key = TEST_JWT_KEY.clone();
 
     // Create MinIO client
     let cred = aws_sdk_s3::config::Credentials::new(
