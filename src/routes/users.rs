@@ -152,7 +152,7 @@ pub async fn upload_user_avatar(
 }
 
 /// Delete user avatar
-#[tracing::instrument(level = "info", skip_all)]
+#[tracing::instrument(level = "info", skip(app_data, req))]
 pub async fn delete_user_avatar(
     app_data: web::Data<AppData>,
     req: HttpRequest,
