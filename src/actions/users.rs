@@ -357,9 +357,24 @@ pub fn update_user_profile(
                 )));
             }
 
-            diesel::update(users::users.filter(users::id.eq(existing)))
+            match diesel::update(users::users.filter(users::id.eq(existing)))
                 .set(users::username.eq(username))
-                .execute(conn)?;
+                .execute(conn)
+            {
+                Ok(_) => {}
+                Err(diesel::result::Error::DatabaseError(
+                    diesel::result::DatabaseErrorKind::UniqueViolation,
+                    _,
+                )) => {
+                    return Err(DomainError::new_field_validation_error(
+                        format!(
+                            "Username '{}' is already taken",
+                            username.as_str()
+                        ),
+                    ));
+                }
+                Err(e) => return Err(e.into()),
+            }
         }
 
         let user = users::users
