@@ -305,9 +305,10 @@ pub fn update_user_profile(
                 ))
             }
             Some((_, Some(_))) => {
-                return Err(DomainError::new_account_deleted_error(
-                    format!("User {} is deleted", user_id),
-                ))
+                return Err(DomainError::new_account_deleted_error(format!(
+                    "User {} is deleted",
+                    user_id
+                )))
             }
             Some((id, None)) => id,
         };
@@ -324,9 +325,10 @@ pub fn update_user_profile(
                 .optional()?;
 
             if taken.is_some() {
-                return Err(DomainError::new_field_validation_error(
-                    format!("Username '{}' is already taken", username.as_str()),
-                ));
+                return Err(DomainError::new_field_validation_error(format!(
+                    "Username '{}' is already taken",
+                    username.as_str()
+                )));
             }
 
             diesel::update(users::users.filter(users::id.eq(existing)))
