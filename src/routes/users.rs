@@ -285,17 +285,14 @@ pub async fn delete_my_account(
     }
 
     let bucket = app_data.config.minio.bucket_name.clone();
-    let minio_client = app_data.minio.client.clone();
-    tokio::spawn(async move {
-        let minio = minior::Minio {
-            client: minio_client,
-        };
-        if let Err(e) =
-            actions::users::delete_user_avatar(&user_id, &minio, &bucket).await
-        {
-            tracing::warn!(user_id = %user_id, error = %e, "Failed to delete avatar on account deletion");
-        }
-    });
+    let minio = minior::Minio {
+        client: app_data.minio.client.clone(),
+    };
+    if let Err(e) =
+        actions::users::delete_user_avatar(&user_id, &minio, &bucket).await
+    {
+        tracing::error!(error = %e, user_id = %user_id, "Failed to delete avatar during account deletion");
+    }
 
     let cookie = Cookie::build("X-AUTH-TOKEN", "")
         .http_only(true)
