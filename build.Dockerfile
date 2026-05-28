@@ -1,4 +1,4 @@
-FROM --platform=${BUILDPLATFORM} rust:1.85 as builder
+FROM --platform=${BUILDPLATFORM} rust:1.91 AS builder
 ARG TARGETPLATFORM
 ARG PROFILE=debug
 
