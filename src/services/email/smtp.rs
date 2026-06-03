@@ -9,6 +9,17 @@ use lettre::{
     AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor,
 };
 
+pub struct SmtpSenderConfig {
+    pub smtp_host: String,
+    pub smtp_port: u16,
+    pub tls_mode: TlsMode,
+    pub username: String,
+    pub password: String,
+    pub from_email: String,
+    pub verification_link_template: String,
+    pub password_reset_link_template: String,
+}
+
 pub struct SmtpSender {
     transport: AsyncSmtpTransport<Tokio1Executor>,
     from_email: String,
@@ -17,50 +28,44 @@ pub struct SmtpSender {
 }
 
 impl SmtpSender {
-    pub fn new(
-        smtp_host: &str,
-        smtp_port: u16,
-        tls_mode: TlsMode,
-        username: &str,
-        password: &str,
-        from_email: &str,
-        verification_link_template: &str,
-        password_reset_link_template: &str,
-    ) -> Result<Self, DomainError> {
-        let tls_config = match tls_mode {
+    pub fn new(config: &SmtpSenderConfig) -> Result<Self, DomainError> {
+        let tls_config = match &config.tls_mode {
             TlsMode::None => Tls::None,
             TlsMode::StartTls => {
-                let tls_params = TlsParameters::new(smtp_host.to_owned())
+                let tls_params = TlsParameters::new(config.smtp_host.clone())
                     .map_err(|e| {
-                        DomainError::new_internal_error(format!(
-                            "TLS config error: {e}"
-                        ))
-                    })?;
+                    DomainError::new_internal_error(format!(
+                        "TLS config error: {e}"
+                    ))
+                })?;
                 Tls::Required(tls_params)
             }
             TlsMode::Tls => {
-                let tls_params = TlsParameters::builder(smtp_host.to_owned())
-                    .dangerous_accept_invalid_certs(true)
-                    .dangerous_accept_invalid_hostnames(true)
-                    .build()
-                    .map_err(|e| {
-                        DomainError::new_internal_error(format!(
-                            "TLS config error: {e}"
-                        ))
-                    })?;
+                let tls_params =
+                    TlsParameters::builder(config.smtp_host.clone())
+                        .dangerous_accept_invalid_certs(true)
+                        .dangerous_accept_invalid_hostnames(true)
+                        .build()
+                        .map_err(|e| {
+                            DomainError::new_internal_error(format!(
+                                "TLS config error: {e}"
+                            ))
+                        })?;
                 Tls::Wrapper(tls_params)
             }
         };
 
         let mut builder =
-            AsyncSmtpTransport::<Tokio1Executor>::builder_dangerous(smtp_host)
-                .port(smtp_port)
-                .tls(tls_config);
+            AsyncSmtpTransport::<Tokio1Executor>::builder_dangerous(
+                &config.smtp_host,
+            )
+            .port(config.smtp_port)
+            .tls(tls_config);
 
-        if !username.is_empty() {
+        if !config.username.is_empty() {
             builder = builder.credentials(Credentials::new(
-                username.to_owned(),
-                password.to_owned(),
+                config.username.clone(),
+                config.password.clone(),
             ));
         }
 
@@ -68,10 +73,13 @@ impl SmtpSender {
 
         Ok(Self {
             transport,
-            from_email: from_email.to_owned(),
-            verification_link_template: verification_link_template.to_owned(),
-            password_reset_link_template: password_reset_link_template
-                .to_owned(),
+            from_email: config.from_email.clone(),
+            verification_link_template: config
+                .verification_link_template
+                .clone(),
+            password_reset_link_template: config
+                .password_reset_link_template
+                .clone(),
         })
     }
 

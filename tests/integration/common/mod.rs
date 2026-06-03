@@ -370,14 +370,16 @@ pub async fn app_data(
         },
         mailer: Arc::new(
             SmtpSender::new(
-                "localhost",
-                587,
-                TlsMode::None,
-                "",
-                "",
-                "noreply@example.com",
-                "https://app.example.com/verify?token={token}&user={user_name}",
-                "https://app.example.com/reset?token={token}&user={user_name}",
+                &actix_demo::services::email::smtp::SmtpSenderConfig {
+                    smtp_host: "localhost".to_string(),
+                    smtp_port: 587,
+                    tls_mode: TlsMode::None,
+                    username: "".to_string(),
+                    password: "".to_string(),
+                    from_email: "noreply@example.com".to_string(),
+                    verification_link_template: "https://app.example.com/verify?token={token}&user={user_name}".to_string(),
+                    password_reset_link_template: "https://app.example.com/reset?token={token}&user={user_name}".to_string(),
+                },
             )
             .unwrap(),
         ),
