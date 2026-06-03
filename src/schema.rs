@@ -39,6 +39,7 @@ diesel::table! {
         id -> Int4,
         username -> Varchar,
         password -> Varchar,
+        email -> Varchar,
         created_at -> Timestamp,
         deleted_at -> Nullable<Timestamp>,
     }
@@ -56,4 +57,33 @@ diesel::joinable!(jobs -> users (started_by));
 diesel::joinable!(users_roles -> roles (role_id));
 diesel::joinable!(users_roles -> users (user_id));
 
-diesel::allow_tables_to_appear_in_same_query!(jobs, roles, users, users_roles,);
+diesel::table! {
+    use diesel::sql_types::*;
+
+    email_verification_tokens (id) {
+        id -> Int4,
+        user_id -> Int4,
+        token_hash -> Varchar,
+        expires_at -> Timestamptz,
+        used -> Bool,
+        created_at -> Timestamptz,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+
+    password_reset_tokens (id) {
+        id -> Int4,
+        user_id -> Int4,
+        token_hash -> Varchar,
+        expires_at -> Timestamptz,
+        used -> Bool,
+        created_at -> Timestamptz,
+    }
+}
+
+diesel::joinable!(email_verification_tokens -> users (user_id));
+diesel::joinable!(password_reset_tokens -> users (user_id));
+
+diesel::allow_tables_to_appear_in_same_query!(jobs, roles, users, users_roles, email_verification_tokens, password_reset_tokens,);

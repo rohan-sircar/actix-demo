@@ -4,7 +4,7 @@ use crate::errors::DomainError;
 use crate::models::misc::Pagination;
 use crate::models::roles::{NewUserRole, RoleEnum, RoleId};
 use crate::models::users::{
-    NewUser, Password, UpdateUserProfile, User, UserAuthDetails,
+    Email, NewUser, Password, UpdateUserProfile, User, UserAuthDetails,
     UserAuthDetailsWithRoles, UserId, UserWithRoles, Username,
 };
 use crate::types::DbConnection;
@@ -136,7 +136,7 @@ pub fn get_user_auth_details(
 
     conn.transaction(|conn| {
         let mb_user = users::users
-            .select((users::id, users::username, users::password))
+            .select((users::id, users::username, users::password, users::email))
             .filter(users::username.eq(user_name))
             .filter(users::deleted_at.is_null())
             .first::<UserAuthDetails>(conn)
@@ -236,6 +236,58 @@ pub fn search_users(
     })
 }
 
+pub fn find_user_by_email(
+    email: &Email,
+    conn: &mut DbConnection,
+) -> Result<Option<UserWithRoles>, DomainError> {
+    use crate::schema::users::dsl as users;
+
+    let mb_user = users::users
+        .select((
+            users::id,
+            users::username,
+            users::created_at,
+            users::deleted_at,
+        ))
+        .filter(users::email.eq(email))
+        .filter(users::deleted_at.is_null())
+        .first::<User>(conn)
+        .optional()?;
+
+    let roles = match &mb_user {
+        Some(user) => Some(get_roles_for_user(&user.id, conn)?),
+        None => None,
+    };
+
+    let mb_user_with_roles = m! {
+        user <- mb_user;
+        roles <- roles;
+        Some(UserWithRoles {
+            id: user.id,
+            username: user.username,
+            created_at: user.created_at,
+            roles,
+        })
+    };
+
+    Ok(mb_user_with_roles)
+}
+
+pub fn email_exists(
+    email: &Email,
+    conn: &mut DbConnection,
+) -> Result<bool, DomainError> {
+    use crate::schema::users::dsl as users;
+
+    let count: i64 = users::users
+        .count()
+        .filter(users::email.eq(email))
+        .filter(users::deleted_at.is_null())
+        .get_result(conn)?;
+
+    Ok(count > 0)
+}
+
 pub fn insert_new_user(
     nu: NewUser,
     role: RoleEnum,
@@ -257,6 +309,18 @@ pub fn insert_new_user(
     };
 
     conn.transaction(|conn| {
+        let email_taken: i64 = users::users
+            .count()
+            .filter(users::email.eq(&nu.email))
+            .filter(users::deleted_at.is_null())
+            .get_result(conn)?;
+
+        if email_taken > 0 {
+            return Err(DomainError::new_field_validation_error(
+                format!("Email '{}' is already registered", nu.email),
+            ));
+        }
+
         diesel::insert_into(users::users)
             .values(&nu)
             .execute(conn)?;
@@ -370,6 +434,42 @@ pub fn update_user_profile(
                         format!(
                             "Username '{}' is already taken",
                             username.as_str()
+                        ),
+                    ));
+                }
+                Err(e) => return Err(e.into()),
+            }
+        }
+
+        if let Some(ref email) = updates.email {
+            let already_taken = users::users
+                .select(users::id)
+                .filter(users::email.eq(email))
+                .filter(users::deleted_at.is_null())
+                .filter(users::id.ne(user_id))
+                .first::<UserId>(conn)
+                .optional()?;
+
+            if already_taken.is_some() {
+                return Err(DomainError::new_field_validation_error(format!(
+                    "Email '{}' is already in use",
+                    email.as_str()
+                )));
+            }
+
+            match diesel::update(users::users.filter(users::id.eq(existing)))
+                .set(users::email.eq(email))
+                .execute(conn)
+            {
+                Ok(_) => {}
+                Err(diesel::result::Error::DatabaseError(
+                    diesel::result::DatabaseErrorKind::UniqueViolation,
+                    _,
+                )) => {
+                    return Err(DomainError::new_field_validation_error(
+                        format!(
+                            "Email '{}' is already in use",
+                            email.as_str()
                         ),
                     ));
                 }

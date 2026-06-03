@@ -3,4 +3,6 @@ use regex::Regex;
 lazy_static! {
     pub static ref USERNAME_REG: Regex =
         Regex::new(r"^([a-z\d.]+-)*[a-z\d.]+{5,35}$").unwrap();
+    pub static ref EMAIL_REG: Regex =
+        Regex::new(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$").unwrap();
 }

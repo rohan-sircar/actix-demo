@@ -95,3 +95,39 @@ pub fn default_smtp_password() -> String {
 pub fn default_smtp_from_email() -> String {
     "noreply@example.com".to_string()
 }
+
+pub fn default_tls_mode() -> crate::config::TlsMode {
+    crate::config::TlsMode::None
+}
+
+pub fn default_email_token_ttl_verification_secs() -> u64 {
+    86400 // 24 hours
+}
+
+pub fn default_email_token_ttl_reset_secs() -> u64 {
+    900 // 15 minutes
+}
+
+pub fn default_verification_link_template() -> String {
+    "https://yourapp.com/verify?token={token}&user={user_name}".to_string()
+}
+
+pub fn default_password_reset_link_template() -> String {
+    "https://yourapp.com/reset-password?token={token}&user={user_name}".to_string()
+}
+
+pub fn default_rate_limit_registration_max_requests() -> u32 {
+    3
+}
+
+pub fn default_rate_limit_registration_window_secs() -> u64 {
+    3600 // 1 hour
+}
+
+pub fn default_rate_limit_password_reset_max_requests() -> u32 {
+    5
+}
+
+pub fn default_rate_limit_password_reset_window_secs() -> u64 {
+    300 // 5 minutes
+}

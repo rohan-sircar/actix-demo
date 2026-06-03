@@ -4,8 +4,6 @@
 extern crate diesel;
 #[macro_use]
 extern crate derive_new;
-// #[macro_use]
-// extern crate validators_derive;
 #[macro_use]
 extern crate diesel_derive_newtype;
 
@@ -19,12 +17,13 @@ pub mod models;
 mod rate_limit;
 mod routes;
 mod schema;
-// mod services;
+pub mod services;
 pub mod telemetry;
 pub mod types;
 pub mod utils;
 pub mod workers;
 
+use std::sync::Arc;
 use std::time::SystemTime;
 
 use actix_web_prom::PrometheusMetrics;
@@ -33,7 +32,7 @@ use actix_web::middleware::from_fn;
 use actix_web::web::{Data, ServiceConfig};
 use actix_web::{middleware, web, App, HttpServer};
 use actix_web_grants::GrantsMiddleware;
-use config::MinioConfig;
+use config::{MinioConfig, TlsMode};
 use health::{HealthChecker, HealthcheckName};
 use jwt_simple::prelude::HS256Key;
 use metrics::Metrics;
@@ -43,6 +42,7 @@ use models::users::UserId;
 use redis::aio::ConnectionManager;
 use redis::Client;
 use serde::Deserialize;
+use services::email::Mailer;
 use telemetry::DomainRootSpanBuilder;
 use tokio::task::JoinHandle;
 use tracing_actix_web::TracingLogger;
@@ -66,6 +66,7 @@ pub struct SmtpConfig {
     pub username: String,
     pub password: String,
     pub from_email: String,
+    pub tls_mode: TlsMode,
 }
 
 pub struct AppConfig {
@@ -77,6 +78,8 @@ pub struct AppConfig {
     pub minio: MinioConfig,
     pub timezone: chrono_tz::Tz,
     pub smtp: SmtpConfig,
+    pub email_token_ttl_verification_secs: u64,
+    pub email_token_ttl_reset_secs: u64,
 }
 
 pub struct AppData {
@@ -94,6 +97,7 @@ pub struct AppData {
     pub user_ids_cache: InstrumentedRedisCache<String, Vec<UserId>>,
     pub health_checkers: Vec<(HealthcheckName, HealthChecker)>,
     pub minio: minior::Minio,
+    pub mailer: Arc<dyn Mailer>,
 }
 
 pub fn configure_app(
@@ -153,6 +157,27 @@ pub fn configure_app(
                         &app_data.config.rate_limit.api_public,
                     ))
                     .route(web::post().to(routes::users::add_user)),
+            )
+            .service(
+                web::resource("/api/email/verify")
+                    .wrap(api_rate_limiter(
+                        &app_data.config.rate_limit.api_public,
+                    ))
+                    .route(web::post().to(routes::auth::verify_email)),
+            )
+            .service(
+                web::resource("/api/password-reset/request")
+                    .wrap(api_rate_limiter(
+                        &app_data.config.rate_limit.api_public,
+                    ))
+                    .route(web::post().to(routes::auth::request_password_reset)),
+            )
+            .service(
+                web::resource("/api/password-reset/complete")
+                    .wrap(api_rate_limiter(
+                        &app_data.config.rate_limit.api_public,
+                    ))
+                    .route(web::post().to(routes::auth::complete_password_reset)),
             )
             .service(
                 web::scope("/ws")

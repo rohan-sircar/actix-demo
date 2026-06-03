@@ -1,6 +1,6 @@
 extern crate actix_demo;
 use actix_demo::actions::misc::create_database_if_needed;
-use actix_demo::config::MinioConfig;
+use actix_demo::config::{MinioConfig, TlsMode};
 use actix_demo::models::rate_limit::{
     KeyStrategy, RateLimitConfig, RateLimitPolicy,
 };
@@ -8,11 +8,12 @@ use actix_demo::models::roles::RoleEnum;
 use actix_demo::models::session::{
     SessionConfig, SessionConfigBuilder, SessionInfo,
 };
-use actix_demo::models::users::{NewUser, Password, User, Username};
+use actix_demo::models::users::{Email, NewUser, Password, User, Username};
 use actix_demo::models::worker::{WorkerBackoffConfig, WorkerConfig};
 use actix_demo::telemetry::DomainRootSpanBuilder;
 use actix_demo::utils::redis_credentials_repo::RedisCredentialsRepo;
 use actix_demo::utils::InstrumentedRedisCache;
+use actix_demo::services::email::smtp::SmtpSender;
 use actix_demo::{utils, AppConfig, AppData, SmtpConfig};
 use actix_http::header::HeaderMap;
 use actix_web::dev::ServiceResponse;
@@ -245,12 +246,15 @@ pub async fn app_data(
                 actix_demo::config::default_avatar_size_limit(),
         },
         timezone: chrono_tz::Tz::UTC,
+        email_token_ttl_verification_secs: 86400,
+        email_token_ttl_reset_secs: 900,
         smtp: SmtpConfig {
             host: "localhost".to_string(),
             port: 587,
             username: "".to_string(),
             password: "".to_string(),
             from_email: "noreply@example.com".to_string(),
+            tls_mode: TlsMode::None,
         },
     };
 
@@ -303,6 +307,7 @@ pub async fn app_data(
                     NewUser {
                         username: Username::parse_str(DEFAULT_USER)?,
                         password: Password::parse_str(DEFAULT_USER)?,
+                        email: Email::try_from("admin@example.com".to_string()).unwrap(),
                     },
                     RoleEnum::RoleAdmin,
                     config.hash_cost,
@@ -362,6 +367,16 @@ pub async fn app_data(
         minio: minior::Minio {
             client: Arc::new(s3_client),
         },
+        mailer: Arc::new(SmtpSender::new(
+            "localhost",
+            587,
+            TlsMode::None,
+            "",
+            "",
+            "noreply@example.com",
+            "https://app.example.com/verify?token={token}&user={user_name}",
+            "https://app.example.com/reset?token={token}&user={user_name}",
+        ).unwrap()),
     });
     Ok(data)
 }
