@@ -16,7 +16,7 @@ pub mod middlewares;
 pub mod models;
 mod rate_limit;
 mod routes;
-mod schema;
+pub mod schema;
 pub mod services;
 pub mod telemetry;
 pub mod types;
