@@ -52,12 +52,12 @@ mod tests {
     mod password_reset_api {
         use crate::common::TestContext;
         use actix_web::http::StatusCode;
-        use diesel::RunQueryDsl;
         use diesel::ExpressionMethods;
+        use diesel::RunQueryDsl;
         use sha2::{Digest, Sha256};
 
-        use actix_demo::schema::password_reset_tokens::dsl::*;
         use super::*;
+        use actix_demo::schema::password_reset_tokens::dsl::*;
 
         #[actix_rt::test]
         async fn should_return_success_for_registered_email() {
@@ -173,7 +173,8 @@ mod tests {
                 .values((
                     user_id.eq(1i32),
                     token_hash.eq(&thash),
-                    expires_at.eq(chrono::Utc::now().naive_utc() - chrono::Duration::minutes(5)),
+                    expires_at.eq(chrono::Utc::now().naive_utc()
+                        - chrono::Duration::minutes(5)),
                 ))
                 .execute(&mut conn)
                 .unwrap();

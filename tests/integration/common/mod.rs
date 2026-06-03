@@ -12,10 +12,10 @@ use actix_demo::models::users::{Email, NewUser, Password, User, Username};
 use actix_demo::models::worker::{WorkerBackoffConfig, WorkerConfig};
 use actix_demo::services::email::smtp::SmtpSender;
 use actix_demo::telemetry::DomainRootSpanBuilder;
+pub use actix_demo::utils;
 use actix_demo::utils::redis_credentials_repo::RedisCredentialsRepo;
 use actix_demo::utils::InstrumentedRedisCache;
 use actix_demo::{AppConfig, AppData, SmtpConfig};
-pub use actix_demo::utils;
 use actix_http::header::HeaderMap;
 use actix_web::dev::ServiceResponse;
 use actix_web::test::TestRequest;
@@ -69,9 +69,7 @@ pub struct Mailpit {
 
 impl Default for Mailpit {
     fn default() -> Self {
-        Mailpit {
-            tag: "latest",
-        }
+        Mailpit { tag: "latest" }
     }
 }
 
@@ -90,7 +88,8 @@ impl Image for Mailpit {
 }
 
 /// Start a Mailpit container and return (smtp_host, http_port, container)
-pub async fn test_with_mailpit() -> anyhow::Result<(String, u16, ContainerAsync<Mailpit>)> {
+pub async fn test_with_mailpit(
+) -> anyhow::Result<(String, u16, ContainerAsync<Mailpit>)> {
     let container = Mailpit::default().start().await?;
     let smtp_port = container.get_host_port_ipv4(1025).await?;
     let http_port = container.get_host_port_ipv4(8025).await?;
@@ -99,7 +98,10 @@ pub async fn test_with_mailpit() -> anyhow::Result<(String, u16, ContainerAsync<
     let start = std::time::Instant::now();
     let poll_interval = Duration::from_millis(100);
     loop {
-        if tokio::net::TcpStream::connect(format!("127.0.0.1:{smtp_port}")).await.is_ok() {
+        if tokio::net::TcpStream::connect(format!("127.0.0.1:{smtp_port}"))
+            .await
+            .is_ok()
+        {
             break;
         }
         if start.elapsed() >= Duration::from_secs(10) {
@@ -183,7 +185,10 @@ impl MailpitClient {
     }
 
     /// Wait for a verification email to arrive and extract the token from it
-    pub async fn wait_for_verification_token(&self, timeout: Duration) -> anyhow::Result<String> {
+    pub async fn wait_for_verification_token(
+        &self,
+        timeout: Duration,
+    ) -> anyhow::Result<String> {
         let start = std::time::Instant::now();
         let poll_interval = Duration::from_millis(200);
         loop {
@@ -200,7 +205,10 @@ impl MailpitClient {
                     // Fetch full message details to get the body
                     let msg = self
                         .http
-                        .get(format!("{}/api/v1/message/{}", self.base_url, msg_summary.id))
+                        .get(format!(
+                            "{}/api/v1/message/{}",
+                            self.base_url, msg_summary.id
+                        ))
                         .send()
                         .await?
                         .json::<Message>()
@@ -227,7 +235,10 @@ impl MailpitClient {
     }
 
     /// Wait for any email to arrive and return the full message details
-    pub async fn wait_for_email(&self, timeout: Duration) -> anyhow::Result<Message> {
+    pub async fn wait_for_email(
+        &self,
+        timeout: Duration,
+    ) -> anyhow::Result<Message> {
         let start = std::time::Instant::now();
         let poll_interval = Duration::from_millis(200);
         loop {
@@ -243,7 +254,10 @@ impl MailpitClient {
                 // Fetch full message details
                 let msg = self
                     .http
-                    .get(format!("{}/api/v1/message/{}", self.base_url, msg_summary.id))
+                    .get(format!(
+                        "{}/api/v1/message/{}",
+                        self.base_url, msg_summary.id
+                    ))
                     .send()
                     .await?
                     .json::<Message>()
@@ -452,8 +466,11 @@ pub async fn app_data(
         email_token_ttl_verification_secs: 86400,
         email_token_ttl_reset_secs: 900,
         smtp: {
-            let smtp = smtp_host.clone().unwrap_or_else(|| "localhost:1025".to_string());
-            let (host, port) = smtp.rsplit_once(':')
+            let smtp = smtp_host
+                .clone()
+                .unwrap_or_else(|| "localhost:1025".to_string());
+            let (host, port) = smtp
+                .rsplit_once(':')
                 .map(|(h, p)| (h.to_string(), p.parse().unwrap_or(1025u16)))
                 .unwrap_or_else(|| ("localhost".to_string(), 1025u16));
             SmtpConfig {
@@ -578,8 +595,11 @@ pub async fn app_data(
             client: Arc::new(s3_client),
         },
         mailer: {
-            let smtp = smtp_host.clone().unwrap_or_else(|| "localhost:587".to_string());
-            let (host, port) = smtp.rsplit_once(':')
+            let smtp = smtp_host
+                .clone()
+                .unwrap_or_else(|| "localhost:587".to_string());
+            let (host, port) = smtp
+                .rsplit_once(':')
                 .map(|(h, p)| (h.to_string(), p.parse().unwrap_or(587u16)))
                 .unwrap_or_else(|| ("localhost".to_string(), 587u16));
             Arc::new(
@@ -617,7 +637,14 @@ pub async fn test_app(
 > {
     let app = App::new()
         .configure(configure_app(
-            app_data(pg_connstr, redis_connstr, minio_connstr, options, smtp_host).await?,
+            app_data(
+                pg_connstr,
+                redis_connstr,
+                minio_connstr,
+                options,
+                smtp_host,
+            )
+            .await?,
         ))
         .wrap(TracingLogger::<DomainRootSpanBuilder>::new());
     let test_app = test::init_service(app).await;
@@ -632,7 +659,8 @@ pub async fn test_http_app(
     smtp_host: Option<String>,
 ) -> anyhow::Result<(TestServer, web::Data<AppData>)> {
     let data =
-        app_data(pg_connstr, redis_connstr, minio_connstr, options, smtp_host).await?;
+        app_data(pg_connstr, redis_connstr, minio_connstr, options, smtp_host)
+            .await?;
     let data_clone = data.clone();
     let test_app = move || {
         App::new()
@@ -774,7 +802,10 @@ pub async fn create_http_user_with_email(
 
     let status = resp.status();
     if status != actix_web::http::StatusCode::CREATED {
-        let body = resp.json::<serde_json::Value>().await.unwrap_or(serde_json::json!({"raw": "unreadable"}));
+        let body = resp
+            .json::<serde_json::Value>()
+            .await
+            .unwrap_or(serde_json::json!({"raw": "unreadable"}));
         eprintln!("REGISTRATION ERROR status={} body={}", status, body);
         anyhow::bail!("Registration failed with status {}: {}", status, body);
     }
@@ -851,7 +882,8 @@ impl TestContext {
     }
 
     pub async fn new_with_mailpit(options: Option<TestAppOptions>) -> Self {
-        let (smtp_host, http_port, _mailpit) = test_with_mailpit().await.unwrap();
+        let (smtp_host, http_port, _mailpit) =
+            test_with_mailpit().await.unwrap();
         let (pg_connstr, _pg) = test_with_postgres().await.unwrap();
         let (redis_connstr, _redis) = test_with_redis().await.unwrap();
         let (minio_connstr, _minio) = test_with_minio().await.unwrap();

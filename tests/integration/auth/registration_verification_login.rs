@@ -25,9 +25,11 @@ mod tests {
             let email = "flowtest@test.local";
 
             // Step 1: Register the user
-            common::create_http_user_with_email(addr, username, password, email, client)
-                .await
-                .unwrap();
+            common::create_http_user_with_email(
+                addr, username, password, email, client,
+            )
+            .await
+            .unwrap();
 
             // Step 2: Wait for and extract verification token from email
             let token = mailpit
@@ -65,7 +67,8 @@ mod tests {
             assert_eq!(resp.status(), StatusCode::OK);
 
             // Step 5: Extract the auth token from response headers
-            let auth_token = common::utils::extract_auth_token(resp.headers()).unwrap();
+            let auth_token =
+                common::utils::extract_auth_token(resp.headers()).unwrap();
             assert!(!auth_token.is_empty(), "Expected X-AUTH-TOKEN to be set");
 
             // Step 6: Use the token to make a protected request
@@ -93,9 +96,11 @@ mod tests {
             let password = "pass123";
             let email = "emailtest@test.local";
 
-            common::create_http_user_with_email(addr, username, password, email, client)
-                .await
-                .unwrap();
+            common::create_http_user_with_email(
+                addr, username, password, email, client,
+            )
+            .await
+            .unwrap();
 
             let msg = mailpit
                 .wait_for_email(Duration::from_secs(5))
@@ -104,10 +109,7 @@ mod tests {
 
             assert_eq!(msg.to[0].address, email);
             assert!(msg.subject.contains("Verify"));
-            assert!(
-                msg.text.is_some(),
-                "Email should have a text body"
-            );
+            assert!(msg.text.is_some(), "Email should have a text body");
             let text = msg.text.unwrap();
             assert!(
                 text.contains("verify"),
@@ -166,12 +168,9 @@ mod tests {
 
             tokio::time::sleep(Duration::from_secs(2)).await;
 
-           let resp = mailpit
+            let resp = mailpit
                 .http
-                .get(format!(
-                    "{}/api/v1/messages?limit=1",
-                    mailpit.base_url
-                ))
+                .get(format!("{}/api/v1/messages?limit=1", mailpit.base_url))
                 .send()
                 .await
                 .unwrap()
@@ -200,9 +199,11 @@ mod tests {
             let email = "unverified@test.local";
 
             // Register the user
-            common::create_http_user_with_email(addr, username, password, email, client)
-                .await
-                .unwrap();
+            common::create_http_user_with_email(
+                addr, username, password, email, client,
+            )
+            .await
+            .unwrap();
 
             // Wait for the verification email to confirm it was sent
             let msg = mailpit
@@ -226,8 +227,12 @@ mod tests {
             // Current behavior: login succeeds even without email verification
             assert_eq!(resp.status(), StatusCode::OK);
 
-            let token = common::utils::extract_auth_token(resp.headers()).unwrap();
-            assert!(!token.is_empty(), "X-AUTH-TOKEN should be set even for unverified users");
+            let token =
+                common::utils::extract_auth_token(resp.headers()).unwrap();
+            assert!(
+                !token.is_empty(),
+                "X-AUTH-TOKEN should be set even for unverified users"
+            );
         }
 
         #[actix_rt::test]
@@ -264,9 +269,11 @@ mod tests {
             let password = "pass123";
             let email = "tokenextract@test.local";
 
-            common::create_http_user_with_email(addr, username, password, email, client)
-                .await
-                .unwrap();
+            common::create_http_user_with_email(
+                addr, username, password, email, client,
+            )
+            .await
+            .unwrap();
 
             let token = mailpit
                 .wait_for_verification_token(Duration::from_secs(5))
@@ -275,10 +282,7 @@ mod tests {
 
             // Token should be a non-empty string (base64url encoded)
             assert!(!token.is_empty());
-            assert!(
-                token.len() > 10,
-                "Token should be reasonably long"
-            );
+            assert!(token.len() > 10, "Token should be reasonably long");
 
             // The token should be usable for verification
             let mut resp = ctx
