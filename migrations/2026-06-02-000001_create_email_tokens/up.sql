@@ -8,7 +8,7 @@ CREATE TABLE email_verification_tokens (
 );
 
 CREATE INDEX idx_email_verification_tokens_hash ON email_verification_tokens(token_hash);
-CREATE INDEX idx_email_verification_tokens_expires ON email_verification_tokens(expires_at) WHERE expires_at > NOW();
+CREATE INDEX idx_email_verification_tokens_expires ON email_verification_tokens(expires_at);
 
 CREATE TABLE password_reset_tokens (
     id SERIAL PRIMARY KEY,
@@ -20,4 +20,4 @@ CREATE TABLE password_reset_tokens (
 );
 
 CREATE INDEX idx_password_reset_tokens_hash ON password_reset_tokens(token_hash);
-CREATE INDEX idx_password_reset_tokens_expires ON password_reset_tokens(expires_at) WHERE expires_at > NOW();
+CREATE INDEX idx_password_reset_tokens_expires ON password_reset_tokens(expires_at);

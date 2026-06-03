@@ -10,10 +10,10 @@ use actix_demo::models::session::{
 };
 use actix_demo::models::users::{Email, NewUser, Password, User, Username};
 use actix_demo::models::worker::{WorkerBackoffConfig, WorkerConfig};
+use actix_demo::services::email::smtp::SmtpSender;
 use actix_demo::telemetry::DomainRootSpanBuilder;
 use actix_demo::utils::redis_credentials_repo::RedisCredentialsRepo;
 use actix_demo::utils::InstrumentedRedisCache;
-use actix_demo::services::email::smtp::SmtpSender;
 use actix_demo::{utils, AppConfig, AppData, SmtpConfig};
 use actix_http::header::HeaderMap;
 use actix_web::dev::ServiceResponse;
@@ -307,7 +307,8 @@ pub async fn app_data(
                     NewUser {
                         username: Username::parse_str(DEFAULT_USER)?,
                         password: Password::parse_str(DEFAULT_USER)?,
-                        email: Email::try_from("admin@example.com".to_string()).unwrap(),
+                        email: Email::try_from("admin@example.com".to_string())
+                            .unwrap(),
                     },
                     RoleEnum::RoleAdmin,
                     config.hash_cost,
@@ -367,16 +368,19 @@ pub async fn app_data(
         minio: minior::Minio {
             client: Arc::new(s3_client),
         },
-        mailer: Arc::new(SmtpSender::new(
-            "localhost",
-            587,
-            TlsMode::None,
-            "",
-            "",
-            "noreply@example.com",
-            "https://app.example.com/verify?token={token}&user={user_name}",
-            "https://app.example.com/reset?token={token}&user={user_name}",
-        ).unwrap()),
+        mailer: Arc::new(
+            SmtpSender::new(
+                "localhost",
+                587,
+                TlsMode::None,
+                "",
+                "",
+                "noreply@example.com",
+                "https://app.example.com/verify?token={token}&user={user_name}",
+                "https://app.example.com/reset?token={token}&user={user_name}",
+            )
+            .unwrap(),
+        ),
     });
     Ok(data)
 }
@@ -527,11 +531,22 @@ pub async fn create_http_user(
     password: &str,
     client: &Client,
 ) -> anyhow::Result<()> {
+    let email = format!("{}@test.local", username);
+    create_http_user_with_email(addr, username, password, &email, client).await
+}
+
+pub async fn create_http_user_with_email(
+    addr: &str,
+    username: &str,
+    password: &str,
+    email: &str,
+    client: &Client,
+) -> anyhow::Result<()> {
     let _ = client
         .post(format!("http://{addr}/api/registration"))
         .insert_header(("content-type", "application/json"))
         .send_body(format!(
-            r#"{{"username":"{username}","password":"{password}"}}"#
+            r#"{{"username":"{username}","password":"{password}","email":"{email}"}}"#
         ))
         .await
         .map_err(|err| anyhow::anyhow!("{err}"))?;

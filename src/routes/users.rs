@@ -2,8 +2,8 @@ use actix_web::{web, HttpRequest, HttpResponse};
 use awc::cookie::{Cookie, SameSite};
 use time::OffsetDateTime;
 
-use crate::diesel::RunQueryDsl;
 use crate::diesel::ExpressionMethods;
+use crate::diesel::RunQueryDsl;
 use crate::models::misc::{Pagination, SearchQuery};
 // use crate::models::roles::RoleEnum;
 use crate::models::users::{NewUser, UpdateUserProfile, UserId};
@@ -112,7 +112,7 @@ pub async fn add_user(
     })
     .await??;
 
-    let uid = user.id;
+    let uid: i32 = user.id.as_uint() as i32;
     let user_name = user.username.as_str().to_string();
 
     tokio::spawn(async move {
@@ -125,10 +125,8 @@ pub async fn add_user(
                 .values((
                     user_id.eq(uid),
                     token_hash.eq(&thash),
-                    expires_at.eq(
-                        chrono::Utc::now().naive_utc()
-                            + chrono::Duration::seconds(ttl_secs as i64),
-                    ),
+                    expires_at.eq(chrono::Utc::now().naive_utc()
+                        + chrono::Duration::seconds(ttl_secs as i64)),
                 ))
                 .execute(&mut conn)
             {
@@ -136,17 +134,17 @@ pub async fn add_user(
             }
         }
 
-        if let Err(e) = mailer.send_verification_email(
+        if let Err(e) = mailer
+            .send_verification_email(
                 email_for_tokio.as_str(),
                 &user_name,
                 &token,
             )
-        .await
+            .await
         {
             tracing::error!(error = %e, "Failed to send verification email");
         }
     });
-
 
     let _ = tracing::info!("Created user with id={}", user.id);
     let _ = tracing::debug!("{:?}", user);
@@ -311,9 +309,9 @@ pub async fn update_my_profile(
     .await??;
 
     if has_email {
-        let uid = user.id;
+        let uid: i32 = user.id.as_uint() as i32;
         let user_name = user.username.as_str().to_string();
-        let email = email_update.expect("email is present when has_email is true");
+        let email = email_update.unwrap();
 
         tokio::spawn(async move {
             let token = tokens::generate_token();

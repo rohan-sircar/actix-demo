@@ -316,9 +316,10 @@ pub fn insert_new_user(
             .get_result(conn)?;
 
         if email_taken > 0 {
-            return Err(DomainError::new_field_validation_error(
-                format!("Email '{}' is already registered", nu.email),
-            ));
+            return Err(DomainError::new_field_validation_error(format!(
+                "Email '{}' is already registered",
+                nu.email
+            )));
         }
 
         diesel::insert_into(users::users)
@@ -467,10 +468,7 @@ pub fn update_user_profile(
                     _,
                 )) => {
                     return Err(DomainError::new_field_validation_error(
-                        format!(
-                            "Email '{}' is already in use",
-                            email.as_str()
-                        ),
+                        format!("Email '{}' is already in use", email.as_str()),
                     ));
                 }
                 Err(e) => return Err(e.into()),

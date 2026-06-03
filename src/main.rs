@@ -228,9 +228,8 @@ async fn main() -> anyhow::Result<()> {
         http_client,
     );
 
-    let mailer = create_mailer(&env_config).map_err(|e| {
-        anyhow::anyhow!("Failed to create mailer: {e}")
-    })?;
+    let mailer = create_mailer(&env_config)
+        .map_err(|e| anyhow::anyhow!("Failed to create mailer: {e}"))?;
 
     let app_data = Data::new(AppData {
         start_time,
@@ -245,7 +244,8 @@ async fn main() -> anyhow::Result<()> {
                 max_avatar_size_bytes: env_config.max_avatar_size_bytes,
             },
             timezone: env_config.timezone,
-            email_token_ttl_verification_secs: env_config.email_token_ttl_verification_secs,
+            email_token_ttl_verification_secs: env_config
+                .email_token_ttl_verification_secs,
             email_token_ttl_reset_secs: env_config.email_token_ttl_reset_secs,
             smtp: SmtpConfig {
                 host: env_config.smtp_host.clone(),

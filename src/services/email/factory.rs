@@ -2,10 +2,12 @@ use std::sync::Arc;
 
 use crate::config::EnvConfig;
 use crate::errors::DomainError;
-use crate::services::email::Mailer;
 use crate::services::email::smtp::SmtpSender;
+use crate::services::email::Mailer;
 
-pub fn create_mailer(config: &EnvConfig) -> Result<Arc<dyn Mailer>, DomainError> {
+pub fn create_mailer(
+    config: &EnvConfig,
+) -> Result<Arc<dyn Mailer>, DomainError> {
     let sender = SmtpSender::new(
         &config.smtp_host,
         config.smtp_port,

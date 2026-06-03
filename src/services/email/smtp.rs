@@ -1,13 +1,13 @@
 use crate::config::TlsMode;
 use crate::errors::DomainError;
 use crate::services::email::Mailer;
+use lettre::transport::smtp::client::Tls;
+use lettre::transport::smtp::client::TlsParameters;
 use lettre::{
     message::{header::ContentType, MultiPart, SinglePart},
     transport::smtp::authentication::Credentials,
     AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor,
 };
-use lettre::transport::smtp::client::Tls;
-use lettre::transport::smtp::client::TlsParameters;
 
 pub struct SmtpSender {
     transport: AsyncSmtpTransport<Tokio1Executor>,
@@ -31,7 +31,11 @@ impl SmtpSender {
             TlsMode::None => Tls::None,
             TlsMode::StartTls => {
                 let tls_params = TlsParameters::new(smtp_host.to_owned())
-                    .map_err(|e| DomainError::new_internal_error(format!("TLS config error: {e}")))?;
+                    .map_err(|e| {
+                        DomainError::new_internal_error(format!(
+                            "TLS config error: {e}"
+                        ))
+                    })?;
                 Tls::Required(tls_params)
             }
             TlsMode::Tls => {
@@ -39,14 +43,19 @@ impl SmtpSender {
                     .dangerous_accept_invalid_certs(true)
                     .dangerous_accept_invalid_hostnames(true)
                     .build()
-                    .map_err(|e| DomainError::new_internal_error(format!("TLS config error: {e}")))?;
+                    .map_err(|e| {
+                        DomainError::new_internal_error(format!(
+                            "TLS config error: {e}"
+                        ))
+                    })?;
                 Tls::Wrapper(tls_params)
             }
         };
 
-        let mut builder = AsyncSmtpTransport::<Tokio1Executor>::builder_dangerous(smtp_host)
-            .port(smtp_port)
-            .tls(tls_config);
+        let mut builder =
+            AsyncSmtpTransport::<Tokio1Executor>::builder_dangerous(smtp_host)
+                .port(smtp_port)
+                .tls(tls_config);
 
         if !username.is_empty() {
             builder = builder.credentials(Credentials::new(
@@ -61,7 +70,8 @@ impl SmtpSender {
             transport,
             from_email: from_email.to_owned(),
             verification_link_template: verification_link_template.to_owned(),
-            password_reset_link_template: password_reset_link_template.to_owned(),
+            password_reset_link_template: password_reset_link_template
+                .to_owned(),
         })
     }
 
@@ -139,12 +149,11 @@ impl Mailer for SmtpSender {
 
         tracing::info!(to_email = to_email, "Sending verification email");
 
-        self.transport
-            .send(email)
-            .await
-            .map_err(|e| DomainError::InternalError {
+        self.transport.send(email).await.map_err(|e| {
+            DomainError::InternalError {
                 message: format!("Failed to send verification email: {e}"),
-            })?;
+            }
+        })?;
 
         Ok(())
     }
@@ -175,12 +184,11 @@ impl Mailer for SmtpSender {
 
         tracing::info!(to_email = to_email, "Sending password reset email");
 
-        self.transport
-            .send(email)
-            .await
-            .map_err(|e| DomainError::InternalError {
+        self.transport.send(email).await.map_err(|e| {
+            DomainError::InternalError {
                 message: format!("Failed to send password reset email: {e}"),
-            })?;
+            }
+        })?;
 
         Ok(())
     }

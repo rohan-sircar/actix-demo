@@ -113,7 +113,8 @@ pub fn default_verification_link_template() -> String {
 }
 
 pub fn default_password_reset_link_template() -> String {
-    "https://yourapp.com/reset-password?token={token}&user={user_name}".to_string()
+    "https://yourapp.com/reset-password?token={token}&user={user_name}"
+        .to_string()
 }
 
 pub fn default_rate_limit_registration_max_requests() -> u32 {

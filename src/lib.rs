@@ -170,14 +170,18 @@ pub fn configure_app(
                     .wrap(api_rate_limiter(
                         &app_data.config.rate_limit.api_public,
                     ))
-                    .route(web::post().to(routes::auth::request_password_reset)),
+                    .route(
+                        web::post().to(routes::auth::request_password_reset),
+                    ),
             )
             .service(
                 web::resource("/api/password-reset/complete")
                     .wrap(api_rate_limiter(
                         &app_data.config.rate_limit.api_public,
                     ))
-                    .route(web::post().to(routes::auth::complete_password_reset)),
+                    .route(
+                        web::post().to(routes::auth::complete_password_reset),
+                    ),
             )
             .service(
                 web::scope("/ws")

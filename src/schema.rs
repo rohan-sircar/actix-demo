@@ -86,4 +86,11 @@ diesel::table! {
 diesel::joinable!(email_verification_tokens -> users (user_id));
 diesel::joinable!(password_reset_tokens -> users (user_id));
 
-diesel::allow_tables_to_appear_in_same_query!(jobs, roles, users, users_roles, email_verification_tokens, password_reset_tokens,);
+diesel::allow_tables_to_appear_in_same_query!(
+    jobs,
+    roles,
+    users,
+    users_roles,
+    email_verification_tokens,
+    password_reset_tokens,
+);

@@ -6,10 +6,6 @@ use crate::models::users::{Email, UserId, UserLogin, Username};
 use crate::services::email::tokens;
 use crate::utils::redis_credentials_repo::RedisCredentialsRepo;
 use crate::{diesel, utils, AppData};
-use diesel::QueryDsl;
-use diesel::RunQueryDsl;
-use diesel::ExpressionMethods;
-use diesel::OptionalExtension;
 use actix_http::header::{HeaderName, HeaderValue};
 use actix_web::dev::ServiceRequest;
 use actix_web::error::ErrorUnauthorized;
@@ -18,6 +14,10 @@ use actix_web::{Error, HttpRequest, HttpResponse};
 use awc::cookie::{Cookie, SameSite};
 use bcrypt::{hash, verify};
 use chrono::Utc;
+use diesel::ExpressionMethods;
+use diesel::OptionalExtension;
+use diesel::QueryDsl;
+use diesel::RunQueryDsl;
 use jwt_simple::prelude::*;
 
 use serde::{Deserialize, Serialize};
@@ -323,22 +323,21 @@ pub async fn verify_email(
     let token = form.into_inner().token;
     let thash = tokens::hash_token(&token);
 
-    let result: Option<i32> = web::block(move || {
+    let result = web::block(move || {
         let pool = &app_data.pool;
         let mut conn = pool.get()?;
 
         use crate::schema::email_verification_tokens::dsl::*;
 
         let token_record = email_verification_tokens
-            .select((
-                user_id,
-                expires_at,
-            ))
+            .select((user_id, expires_at))
             .filter(token_hash.eq(&thash))
             .filter(used.eq(false))
             .first::<(i32, chrono::NaiveDateTime)>(&mut conn)
             .optional()
-            .map_err(|e| DomainError::new_internal_error(format!("Database error: {e}")))?;
+            .map_err(|e| {
+                DomainError::new_internal_error(format!("Database error: {e}"))
+            })?;
 
         match token_record {
             None => Ok(None),
@@ -358,7 +357,7 @@ pub async fn verify_email(
             }
         }
     })
-    .await?;
+    .await??;
 
     if let Some(uid) = result {
         tracing::info!(user_id = %uid, "Email verified successfully");
@@ -407,10 +406,8 @@ pub async fn request_password_reset(
                     .values((
                         user_id.eq(uid),
                         token_hash.eq(&thash),
-                        expires_at.eq(
-                            chrono::Utc::now().naive_utc()
-                                + chrono::Duration::seconds(ttl_secs as i64),
-                        ),
+                        expires_at.eq(chrono::Utc::now().naive_utc()
+                            + chrono::Duration::seconds(ttl_secs as i64)),
                     ))
                     .execute(&mut conn)
                 {
@@ -418,12 +415,9 @@ pub async fn request_password_reset(
                 }
             }
 
-            if let Err(e) = mailer.send_reset_email(
-                email.as_str(),
-                &user_name,
-                &token,
-            )
-            .await
+            if let Err(e) = mailer
+                .send_reset_email(email.as_str(), &user_name, &token)
+                .await
             {
                 tracing::error!(error = %e, "Failed to send password reset email");
             }
@@ -448,22 +442,21 @@ pub async fn complete_password_reset(
     let hash_cost = app_data.config.hash_cost;
     let pool_clone = app_data.pool.clone();
 
-    let result: Option<(i32, String)> = web::block(move || {
+    let result = web::block(move || {
         let pool = &app_data.pool;
         let mut conn = pool.get()?;
 
         use crate::schema::password_reset_tokens::dsl::*;
 
         let token_record = password_reset_tokens
-            .select((
-                user_id,
-                expires_at,
-            ))
+            .select((user_id, expires_at))
             .filter(token_hash.eq(&thash))
             .filter(used.eq(false))
             .first::<(i32, chrono::NaiveDateTime)>(&mut conn)
             .optional()
-            .map_err(|e| DomainError::new_internal_error(format!("Database error: {e}")))?;
+            .map_err(|e| {
+                DomainError::new_internal_error(format!("Database error: {e}"))
+            })?;
 
         match token_record {
             None => Ok(None),
@@ -483,7 +476,7 @@ pub async fn complete_password_reset(
             }
         }
     })
-    .await?;
+    .await??;
 
     if let Some((uid, new_password)) = result {
         let uid_clone = uid;
