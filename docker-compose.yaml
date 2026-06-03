@@ -73,23 +73,46 @@ services:
     command: server /data --console-address ":9001"
     networks:
       - actix-demo-net
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: actix-demo-mailpit
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    networks:
+      - actix-demo-net
+
   actix-demo:
     image: rohansircar/actix-demo:devel
     container_name: actix-demo-app
     ports:
       - "8085:7800"
-    environment:
-      ACTIX_DEMO_DATABASE_URL: postgres://postgres:postgres@actix-demo-postgres:5432/actix_demo
-      ACTIX_DEMO_REDIS_URL: redis://actix-demo-redis
-      ACTIX_DEMO_LOKI_URL: http://actix-demo-loki:3100
-      ACTIX_DEMO_PROMETHEUS_URL: http://actix-demo-prometheus:9090
-      ACTIX_DEMO_MINIO_ENDPOINT: http://actix-demo-minio:9000
     depends_on:
       - redis
       - postgres
       - minio
       - loki
       - prometheus
+      - mailpit
+    environment:
+      ACTIX_DEMO_DATABASE_URL: postgres://postgres:postgres@actix-demo-postgres:5432/actix_demo
+      ACTIX_DEMO_REDIS_URL: redis://actix-demo-redis
+      ACTIX_DEMO_LOKI_URL: http://actix-demo-loki:3100
+      ACTIX_DEMO_PROMETHEUS_URL: http://actix-demo-prometheus:9090
+      ACTIX_DEMO_MINIO_ENDPOINT: http://actix-demo-minio:9000
+      ACTIX_DEMO_SMTP_HOST: mailpit
+      ACTIX_DEMO_SMTP_PORT: 1025
+      ACTIX_DEMO_SMTP_TLS_MODE: None
+      ACTIX_DEMO_SMTP_USERNAME: ""
+      ACTIX_DEMO_SMTP_PASSWORD: ""
+      ACTIX_DEMO_SMTP_FROM_EMAIL: noreply@actix-demo.local
+      ACTIX_DEMO_EMAIL_TOKEN_TTL_VERIFICATION_SECS: 3600
+      ACTIX_DEMO_EMAIL_TOKEN_TTL_RESET_SECS: 900
+      ACTIX_DEMO_REGISTRATION_RATE_LIMIT_MAX_REQUESTS: 3
+      ACTIX_DEMO_REGISTRATION_RATE_LIMIT_SECONDS: 3600
+      ACTIX_DEMO_PASSWORD_RESET_RATE_LIMIT_MAX_REQUESTS: 5
+      ACTIX_DEMO_PASSWORD_RESET_RATE_LIMIT_SECONDS: 300
     networks:
       - actix-demo-net
 

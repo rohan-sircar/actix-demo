@@ -2,9 +2,12 @@ use actix_web::{web, HttpRequest, HttpResponse};
 use awc::cookie::{Cookie, SameSite};
 use time::OffsetDateTime;
 
+use crate::diesel::ExpressionMethods;
+use crate::diesel::RunQueryDsl;
 use crate::models::misc::{Pagination, SearchQuery};
 // use crate::models::roles::RoleEnum;
 use crate::models::users::{NewUser, UpdateUserProfile, UserId};
+use crate::services::email::tokens;
 use crate::{actions, utils};
 use crate::{errors::DomainError, AppData};
 // use actix_web_grants::protect;
@@ -87,18 +90,61 @@ pub async fn add_user(
     app_data: web::Data<AppData>,
     form: web::Json<NewUser>,
 ) -> Result<HttpResponse, DomainError> {
+    let new_user = form.into_inner();
+
+    let email = new_user.email.clone();
+    let email_for_tokio = email.clone();
+    let mailer = app_data.mailer.clone();
+    let pool_clone = app_data.pool.clone();
+    let ttl_secs = app_data.config.email_token_ttl_verification_secs;
+
     let user = web::block(move || {
         let pool = &app_data.pool;
         let user_ids_cache = &app_data.user_ids_cache;
         let mut conn = pool.get()?;
+
         actions::users::insert_new_regular_user(
-            form.0,
+            new_user,
             app_data.config.hash_cost,
             user_ids_cache,
             &mut conn,
         )
     })
     .await??;
+
+    let uid: i32 = user.id.as_uint() as i32;
+    let user_name = user.username.as_str().to_string();
+
+    tokio::spawn(async move {
+        let token = tokens::generate_token();
+        let thash = tokens::hash_token(&token);
+
+        if let Ok(mut conn) = pool_clone.get() {
+            use crate::schema::email_verification_tokens::dsl::*;
+            if let Err(e) = diesel::insert_into(email_verification_tokens)
+                .values((
+                    user_id.eq(uid),
+                    token_hash.eq(&thash),
+                    expires_at.eq(chrono::Utc::now().naive_utc()
+                        + chrono::Duration::seconds(ttl_secs as i64)),
+                ))
+                .execute(&mut conn)
+            {
+                tracing::error!(error = %e, uid = %uid, "Failed to store email verification token");
+            }
+        }
+
+        if let Err(e) = mailer
+            .send_verification_email(
+                email_for_tokio.as_str(),
+                &user_name,
+                &token,
+            )
+            .await
+        {
+            tracing::error!(error = %e, "Failed to send verification email");
+        }
+    });
 
     let _ = tracing::info!("Created user with id={}", user.id);
     let _ = tracing::debug!("{:?}", user);
@@ -243,6 +289,7 @@ pub async fn update_my_profile(
     form: web::Json<UpdateUserProfile>,
 ) -> Result<HttpResponse, DomainError> {
     let user_id = utils::extract_user_id_from_header(req.headers())?;
+    let has_email = form.0.email.is_some();
 
     if *form == UpdateUserProfile::default() {
         return Err(DomainError::new_bad_input_error(
@@ -250,12 +297,59 @@ pub async fn update_my_profile(
         ));
     }
 
+    let email_update = form.0.email.clone();
+    let mailer = app_data.mailer.clone();
+    let pool_clone = app_data.pool.clone();
+    let ttl_secs = app_data.config.email_token_ttl_verification_secs;
     let user = web::block(move || {
         let pool = &app_data.pool;
         let mut conn = pool.get()?;
         actions::users::update_user_profile(&user_id, form.0, &mut conn)
     })
     .await??;
+
+    if has_email {
+        let uid: i32 = user.id.as_uint() as i32;
+        let user_name = user.username.as_str().to_string();
+        let email = email_update.unwrap();
+
+        tokio::spawn(async move {
+            let token = tokens::generate_token();
+            let thash = tokens::hash_token(&token);
+
+            if let Ok(mut conn) = pool_clone.get() {
+                use crate::schema::email_verification_tokens::dsl::*;
+
+                diesel::insert_into(email_verification_tokens)
+                    .values((
+                        user_id.eq(uid),
+                        token_hash.eq(&thash),
+                        expires_at.eq(
+                            chrono::Utc::now().naive_utc()
+                                + chrono::Duration::seconds(ttl_secs as i64),
+                        ),
+                    ))
+                    .execute(&mut conn)
+                    .map_err(|e| {
+                        tracing::error!(error = %e, uid = %uid, "Failed to store email verification token");
+                        e
+                    })
+                    .ok();
+            }
+
+            mailer.send_verification_email(
+                email.as_str(),
+                &user_name,
+                &token,
+            )
+            .await
+            .map_err(|e| {
+                tracing::error!(error = %e, "Failed to send verification email");
+                e
+            })
+            .ok();
+        });
+    }
 
     Ok(HttpResponse::Ok().json(user))
 }

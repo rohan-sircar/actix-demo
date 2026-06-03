@@ -10,6 +10,33 @@ use validators::prelude::*;
 
 use super::roles::RoleEnum;
 
+#[derive(Validator, Debug, Clone, DieselNewType, PartialEq, Eq)]
+#[validator(regex(regex(regex::EMAIL_REG)))]
+pub struct Email(String);
+
+impl Email {
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl fmt::Display for Email {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl TryFrom<String> for Email {
+    type Error = String;
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        if regex::EMAIL_REG.is_match(&value) {
+            Ok(Email(value))
+        } else {
+            Err(format!("Invalid email address: {}", value))
+        }
+    }
+}
+
 ///newtype to constrain id to positive int values
 #[derive(
     Debug,
@@ -95,7 +122,6 @@ pub struct User {
     pub username: Username,
     pub created_at: chrono::NaiveDateTime,
     pub deleted_at: Option<chrono::NaiveDateTime>,
-    // pub role: Vec<RoleEnum>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -123,12 +149,14 @@ pub struct NewUser {
     pub username: Username,
     #[serde(skip_serializing)]
     pub password: Password,
+    pub email: Email,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Deserialize)]
 #[serde(default)]
 pub struct UpdateUserProfile {
     pub username: Option<Username>,
+    pub email: Option<Email>,
 }
 
 #[derive(Debug, Clone, Deserialize, Queryable)]
@@ -140,11 +168,13 @@ pub struct UserLogin {
 }
 
 #[derive(Debug, Clone, Deserialize, Queryable)]
+#[diesel(table_name = users)]
 pub struct UserAuthDetails {
     pub id: UserId,
     pub username: Username,
     #[serde(skip_serializing)]
     pub password: Password,
+    pub email: Email,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -153,6 +183,7 @@ pub struct UserAuthDetailsWithRoles {
     pub username: Username,
     #[serde(skip_serializing)]
     pub password: Password,
+    pub email: Email,
     pub roles: Vec<RoleEnum>,
 }
 
@@ -165,6 +196,7 @@ impl UserAuthDetailsWithRoles {
             id: user.id,
             username: user.username,
             password: user.password,
+            email: user.email,
             roles,
         }
     }
@@ -201,7 +233,7 @@ mod test {
         );
         assert!(mb_user.is_err());
         let mb_user = serde_json::from_str::<User>(
-            r#"{"id":1,"username":"chaegw_eaef","password":"aeqfq3fq","role":"role_user","created_at":"2021-05-12T12:37:56"}"#,
+            r#"{"id":1,"username":"chaegw eaef","password":"aeqfq3fq","role":"role_user","created_at":"2021-05-12T12:37:56"}"#,
         );
         assert!(mb_user.is_err());
     }

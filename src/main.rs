@@ -12,6 +12,7 @@ use actix_demo::models::rate_limit::{
 };
 use actix_demo::models::session::{SessionConfig, SessionRenewalPolicy};
 use actix_demo::models::worker::{WorkerBackoffConfig, WorkerConfig};
+use actix_demo::services::email::factory::create_mailer;
 use actix_demo::utils::redis_credentials_repo::RedisCredentialsRepo;
 use actix_demo::utils::InstrumentedRedisCache;
 use actix_demo::SmtpConfig;
@@ -227,6 +228,9 @@ async fn main() -> anyhow::Result<()> {
         http_client,
     );
 
+    let mailer = create_mailer(&env_config)
+        .map_err(|e| anyhow::anyhow!("Failed to create mailer: {e}"))?;
+
     let app_data = Data::new(AppData {
         start_time,
         config: AppConfig {
@@ -240,12 +244,16 @@ async fn main() -> anyhow::Result<()> {
                 max_avatar_size_bytes: env_config.max_avatar_size_bytes,
             },
             timezone: env_config.timezone,
+            email_token_ttl_verification_secs: env_config
+                .email_token_ttl_verification_secs,
+            email_token_ttl_reset_secs: env_config.email_token_ttl_reset_secs,
             smtp: SmtpConfig {
                 host: env_config.smtp_host.clone(),
                 port: env_config.smtp_port,
                 username: env_config.smtp_username.clone(),
                 password: env_config.smtp_password.clone(),
                 from_email: env_config.smtp_from_email.clone(),
+                tls_mode: env_config.smtp_tls_mode,
             },
         },
         pool,
@@ -260,6 +268,7 @@ async fn main() -> anyhow::Result<()> {
         user_ids_cache,
         health_checkers,
         minio,
+        mailer,
     });
 
     let _app =

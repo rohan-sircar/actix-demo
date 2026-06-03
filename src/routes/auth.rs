@@ -2,17 +2,23 @@ use crate::actions::users::get_user_auth_details;
 use crate::errors::DomainError;
 use crate::models::roles::RoleEnum;
 use crate::models::session::{SessionInfo, SessionStatus};
-use crate::models::users::{UserId, UserLogin, Username};
+use crate::models::users::{Email, UserId, UserLogin, Username};
+use crate::services::email::tokens;
 use crate::utils::redis_credentials_repo::RedisCredentialsRepo;
-use crate::{utils, AppData};
+use crate::{diesel, utils, AppData};
 use actix_http::header::{HeaderName, HeaderValue};
 use actix_web::dev::ServiceRequest;
 use actix_web::error::ErrorUnauthorized;
 use actix_web::web::{self, Data};
 use actix_web::{Error, HttpRequest, HttpResponse};
 use awc::cookie::{Cookie, SameSite};
-use bcrypt::verify;
+use bcrypt::{hash, verify};
 use chrono::Utc;
+use diesel::Connection;
+use diesel::ExpressionMethods;
+use diesel::OptionalExtension;
+use diesel::QueryDsl;
+use diesel::RunQueryDsl;
 use jwt_simple::prelude::*;
 
 use serde::{Deserialize, Serialize};
@@ -292,4 +298,217 @@ pub async fn revoke_other_sessions(
     }
 
     Ok(HttpResponse::Ok().finish())
+}
+
+#[derive(Deserialize)]
+pub struct VerifyEmailRequest {
+    pub token: String,
+}
+
+#[derive(Deserialize)]
+pub struct PasswordResetRequest {
+    pub email: Email,
+}
+
+#[derive(Deserialize)]
+pub struct PasswordResetCompleteRequest {
+    pub token: String,
+    pub new_password: String,
+}
+
+#[tracing::instrument(level = "info", skip(app_data, form))]
+pub async fn verify_email(
+    app_data: web::Data<AppData>,
+    form: web::Json<VerifyEmailRequest>,
+) -> Result<HttpResponse, DomainError> {
+    let token = form.into_inner().token;
+    let thash = tokens::hash_token(&token);
+
+    let result = web::block(move || {
+        let pool = &app_data.pool;
+        let mut conn = pool.get()?;
+
+        use crate::schema::email_verification_tokens::dsl::*;
+
+        let result = conn.transaction::<_, DomainError, _>(|conn| {
+            let token_record = email_verification_tokens
+                .select((user_id, expires_at))
+                .filter(token_hash.eq(&thash))
+                .filter(used.eq(false))
+                .for_update()
+                .first::<(i32, chrono::NaiveDateTime)>(conn)
+                .optional()
+                .map_err(|e| {
+                    DomainError::new_internal_error(format!(
+                        "Database error: {e}"
+                    ))
+                })?;
+
+            match token_record {
+                None => Ok(None),
+                Some((uid, token_expires_at)) => {
+                    if chrono::Utc::now().naive_utc() > token_expires_at {
+                        return Err(DomainError::new_field_validation_error(
+                            "Verification link has expired".to_string(),
+                        ));
+                    }
+
+                    diesel::update(email_verification_tokens)
+                        .filter(token_hash.eq(&thash))
+                        .set(used.eq(true))
+                        .execute(conn)?;
+
+                    Ok(Some(uid))
+                }
+            }
+        });
+
+        result
+    })
+    .await??;
+
+    if let Some(uid) = result {
+        tracing::info!(user_id = %uid, "Email verified successfully");
+        return Ok(HttpResponse::Ok().json(serde_json::json!({
+            "success": true,
+            "message": "Email verified successfully"
+        })));
+    }
+
+    Ok(HttpResponse::Ok().json(serde_json::json!({
+        "success": true,
+        "message": "If the email is registered, you will receive a verification email"
+    })))
+}
+
+#[tracing::instrument(level = "info", skip(app_data, form))]
+pub async fn request_password_reset(
+    app_data: web::Data<AppData>,
+    form: web::Json<PasswordResetRequest>,
+) -> Result<HttpResponse, DomainError> {
+    let email = form.into_inner().email;
+    let mailer = app_data.mailer.clone();
+    let email_clone = email.clone();
+    let pool_clone = app_data.pool.clone();
+    let ttl_secs = app_data.config.email_token_ttl_reset_secs;
+
+    let result = web::block(move || {
+        let pool = &app_data.pool;
+        let mut conn = pool.get()?;
+        crate::actions::users::find_user_by_email(&email_clone, &mut conn)
+    })
+    .await??;
+
+    if let Some(user) = result {
+        let uid: i32 = user.id.as_uint() as i32;
+        let user_name = user.username.as_str().to_string();
+
+        let token = tokens::generate_token();
+        let thash = tokens::hash_token(&token);
+
+        tokio::spawn(async move {
+            if let Ok(mut conn) = pool_clone.get() {
+                use crate::schema::password_reset_tokens::dsl::*;
+
+                if let Err(e) = diesel::insert_into(password_reset_tokens)
+                    .values((
+                        user_id.eq(uid),
+                        token_hash.eq(&thash),
+                        expires_at.eq(chrono::Utc::now().naive_utc()
+                            + chrono::Duration::seconds(ttl_secs as i64)),
+                    ))
+                    .execute(&mut conn)
+                {
+                    tracing::error!(error = %e, uid = %uid, "Failed to store password reset token");
+                }
+            }
+
+            if let Err(e) = mailer
+                .send_reset_email(email.as_str(), &user_name, &token)
+                .await
+            {
+                tracing::error!(error = %e, "Failed to send password reset email");
+            }
+        });
+    }
+
+    Ok(HttpResponse::Ok().json(serde_json::json!({
+        "success": true,
+        "message": "If the email is registered, you will receive a password reset link"
+    })))
+}
+
+#[tracing::instrument(level = "info", skip(app_data, form))]
+pub async fn complete_password_reset(
+    app_data: web::Data<AppData>,
+    form: web::Json<PasswordResetCompleteRequest>,
+) -> Result<HttpResponse, DomainError> {
+    let req = form.into_inner();
+    let token = req.token;
+    let new_password = req.new_password;
+    let thash = tokens::hash_token(&token);
+    let hash_cost = app_data.config.hash_cost;
+
+    let result = web::block(move || {
+        let pool = &app_data.pool;
+        let mut conn = pool.get()?;
+
+        use crate::schema::password_reset_tokens::dsl::*;
+        use crate::schema::users::dsl as users;
+
+        let result = conn.transaction::<_, DomainError, _>(|conn| {
+            let token_record = password_reset_tokens
+                .select((user_id, expires_at))
+                .filter(token_hash.eq(&thash))
+                .filter(used.eq(false))
+                .for_update()
+                .first::<(i32, chrono::NaiveDateTime)>(conn)
+                .optional()
+                .map_err(|e| {
+                    DomainError::new_internal_error(format!(
+                        "Database error: {e}"
+                    ))
+                })?;
+
+            match token_record {
+                None => Ok(None),
+                Some((uid, token_expires_at)) => {
+                    if chrono::Utc::now().naive_utc() > token_expires_at {
+                        return Err(DomainError::new_field_validation_error(
+                            "Reset link has expired".to_string(),
+                        ));
+                    }
+
+                    diesel::update(password_reset_tokens)
+                        .filter(token_hash.eq(&thash))
+                        .set(used.eq(true))
+                        .execute(conn)?;
+
+                    let hashed_password = hash(new_password, hash_cost)?;
+
+                    diesel::update(users::users.filter(users::id.eq(uid)))
+                        .set(users::password.eq(hashed_password))
+                        .execute(conn)?;
+
+                    Ok(Some(uid))
+                }
+            }
+        });
+
+        result
+    })
+    .await??;
+
+    if let Some(uid) = result {
+        tracing::info!(user_id = %uid, "Password reset successfully");
+        return Ok(HttpResponse::Ok().json(serde_json::json!({
+            "success": true,
+            "message": "Password reset successfully"
+        })));
+    }
+
+    Ok(HttpResponse::Ok().json(serde_json::json!({
+        "success": true,
+        "message": "If the token is valid, the password will be reset"
+    })))
 }

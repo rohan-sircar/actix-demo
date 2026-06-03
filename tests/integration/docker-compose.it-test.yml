@@ -12,3 +12,9 @@ services:
     image: redis:7-alpine
     ports:
       - '5556:6379'
+  mailpit:
+    container_name: actix-demo-test-mailpit
+    image: axllent/mailpit:latest
+    ports:
+      - '10255:1025'
+      - '8026:8025'

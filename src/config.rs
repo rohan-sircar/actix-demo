@@ -1,6 +1,16 @@
 use crate::*;
 use serde::Deserialize;
 
+#[derive(Debug, Clone, Copy, PartialEq, Default, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum TlsMode {
+    #[default]
+    None,
+    #[serde(rename = "starttls")]
+    StartTls,
+    Tls,
+}
+
 #[derive(Deserialize, Debug, Clone)]
 pub struct EnvConfig {
     // system
@@ -89,6 +99,39 @@ pub struct EnvConfig {
     pub smtp_password: String,
     #[serde(default = "models::defaults::default_smtp_from_email")]
     pub smtp_from_email: String,
+    #[serde(default = "models::defaults::default_tls_mode")]
+    pub smtp_tls_mode: TlsMode,
+    // Email token TTLs
+    #[serde(
+        default = "models::defaults::default_email_token_ttl_verification_secs"
+    )]
+    pub email_token_ttl_verification_secs: u64,
+    #[serde(default = "models::defaults::default_email_token_ttl_reset_secs")]
+    pub email_token_ttl_reset_secs: u64,
+    // Link templates
+    #[serde(default = "models::defaults::default_verification_link_template")]
+    pub verification_link_template: String,
+    #[serde(
+        default = "models::defaults::default_password_reset_link_template"
+    )]
+    pub password_reset_link_template: String,
+    // Rate limiting for registration and password reset
+    #[serde(
+        default = "models::defaults::default_rate_limit_registration_max_requests"
+    )]
+    pub rate_limit_registration_max_requests: u32,
+    #[serde(
+        default = "models::defaults::default_rate_limit_registration_window_secs"
+    )]
+    pub rate_limit_registration_window_secs: u64,
+    #[serde(
+        default = "models::defaults::default_rate_limit_password_reset_max_requests"
+    )]
+    pub rate_limit_password_reset_max_requests: u32,
+    #[serde(
+        default = "models::defaults::default_rate_limit_password_reset_window_secs"
+    )]
+    pub rate_limit_password_reset_window_secs: u64,
 }
 
 #[derive(Deserialize, Debug, Clone)]

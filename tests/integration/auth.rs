@@ -1,4 +1,6 @@
+mod email_verification;
 mod rate_limit;
+mod registration_verification_login;
 mod session;
 use crate::common::{self, TestAppOptionsBuilder, TestContext};
 
