@@ -92,6 +92,7 @@ data-encoding = "2.5"
 actix-codec = "0.5.0"
 actix-test = "0.1.0"
 bytestring = { version = "1.2.0", features = ["serde"] }
+reqwest = { version = "0.13", features = ["json"] }
 testcontainers = "0.23.2"
 testcontainers-modules = { version = "0.11.6", features = [
     "postgres",

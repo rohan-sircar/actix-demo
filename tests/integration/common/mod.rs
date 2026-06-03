@@ -14,7 +14,8 @@ use actix_demo::services::email::smtp::SmtpSender;
 use actix_demo::telemetry::DomainRootSpanBuilder;
 use actix_demo::utils::redis_credentials_repo::RedisCredentialsRepo;
 use actix_demo::utils::InstrumentedRedisCache;
-use actix_demo::{utils, AppConfig, AppData, SmtpConfig};
+use actix_demo::{AppConfig, AppData, SmtpConfig};
+pub use actix_demo::utils;
 use actix_http::header::HeaderMap;
 use actix_web::dev::ServiceResponse;
 use actix_web::test::TestRequest;
@@ -34,6 +35,9 @@ use diesel_tracing::pg::InstrumentedPgConnection;
 use jwt_simple::prelude::HS256Key;
 use minior::aws_sdk_s3;
 use once_cell::sync::Lazy;
+use regex::Regex;
+use reqwest;
+use serde::Deserialize;
 use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
@@ -45,6 +49,7 @@ use testcontainers_modules::postgres::{self, Postgres};
 use testcontainers_modules::redis::{Redis, REDIS_PORT};
 use testcontainers_modules::testcontainers::runners::AsyncRunner;
 use testcontainers_modules::testcontainers::ContainerAsync;
+use testcontainers_modules::testcontainers::Image;
 use tracing::subscriber::set_global_default;
 use tracing_actix_web::TracingLogger;
 use tracing_log::LogTracer;
@@ -56,6 +61,203 @@ use validators::prelude::*;
 use actix_demo::configure_app;
 
 use testcontainers_modules::testcontainers::ImageExt;
+
+/// Mailpit test container for email testing
+pub struct Mailpit {
+    tag: &'static str,
+}
+
+impl Default for Mailpit {
+    fn default() -> Self {
+        Mailpit {
+            tag: "latest",
+        }
+    }
+}
+
+impl Image for Mailpit {
+    fn name(&self) -> &str {
+        "axllent/mailpit"
+    }
+
+    fn tag(&self) -> &str {
+        self.tag
+    }
+
+    fn ready_conditions(&self) -> Vec<testcontainers::core::WaitFor> {
+        vec![testcontainers::core::WaitFor::healthcheck()]
+    }
+}
+
+/// Start a Mailpit container and return (smtp_host, http_port, container)
+pub async fn test_with_mailpit() -> anyhow::Result<(String, u16, ContainerAsync<Mailpit>)> {
+    let container = Mailpit::default().start().await?;
+    let smtp_port = container.get_host_port_ipv4(1025).await?;
+    let http_port = container.get_host_port_ipv4(8025).await?;
+
+    // Wait for SMTP port to be ready (healthcheck only verifies HTTP)
+    let start = std::time::Instant::now();
+    let poll_interval = Duration::from_millis(100);
+    loop {
+        if tokio::net::TcpStream::connect(format!("127.0.0.1:{smtp_port}")).await.is_ok() {
+            break;
+        }
+        if start.elapsed() >= Duration::from_secs(10) {
+            anyhow::bail!("SMTP port {} not ready", smtp_port);
+        }
+        tokio::time::sleep(poll_interval).await;
+    }
+
+    let smtp_host = format!("127.0.0.1:{smtp_port}");
+    Ok((smtp_host, http_port, container))
+}
+
+/// Mailpit HTTP API client for interacting with the test mail server
+pub struct MailpitClient {
+    pub base_url: String,
+    pub http: reqwest::Client,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct MessageSummary {
+    #[serde(rename = "ID")]
+    pub id: String,
+    #[serde(rename = "From")]
+    pub from: Address,
+    #[serde(rename = "To")]
+    pub to: Vec<Address>,
+    #[serde(rename = "Subject")]
+    pub subject: String,
+    #[serde(rename = "Text")]
+    pub text: Option<String>,
+    #[serde(rename = "HTML")]
+    pub html: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct Address {
+    #[serde(rename = "Address")]
+    pub address: String,
+    #[serde(rename = "Name")]
+    pub display_name: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct MessagesResponse {
+    pub messages: Vec<MessageSummary>,
+}
+
+/// Full message details (from /api/v1/message/{ID} endpoint)
+#[derive(Deserialize, Debug)]
+pub struct Message {
+    #[serde(rename = "ID")]
+    pub id: String,
+    #[serde(rename = "From")]
+    pub from: Address,
+    #[serde(rename = "To")]
+    pub to: Vec<Address>,
+    #[serde(rename = "Subject")]
+    pub subject: String,
+    #[serde(rename = "Text")]
+    pub text: Option<String>,
+    #[serde(rename = "HTML")]
+    pub html: Option<String>,
+}
+
+impl MailpitClient {
+    pub fn new(http_port: u16) -> Self {
+        Self {
+            base_url: format!("http://127.0.0.1:{http_port}"),
+            http: reqwest::Client::new(),
+        }
+    }
+
+    /// Delete all messages in the mailbox (cleanup between tests)
+    pub async fn delete_all(&self) -> anyhow::Result<()> {
+        self.http
+            .delete(format!("{}/api/v1/messages", self.base_url))
+            .send()
+            .await?
+            .error_for_status()?;
+        Ok(())
+    }
+
+    /// Wait for a verification email to arrive and extract the token from it
+    pub async fn wait_for_verification_token(&self, timeout: Duration) -> anyhow::Result<String> {
+        let start = std::time::Instant::now();
+        let poll_interval = Duration::from_millis(200);
+        loop {
+            let resp = self
+                .http
+                .get(format!("{}/api/v1/messages?limit=1", self.base_url))
+                .send()
+                .await?
+                .json::<MessagesResponse>()
+                .await?;
+
+            if let Some(msg_summary) = resp.messages.into_iter().next() {
+                if msg_summary.subject.contains("Verify") {
+                    // Fetch full message details to get the body
+                    let msg = self
+                        .http
+                        .get(format!("{}/api/v1/message/{}", self.base_url, msg_summary.id))
+                        .send()
+                        .await?
+                        .json::<Message>()
+                        .await?;
+                    let text = msg
+                        .text
+                        .context("verification email has no text body")?;
+                    return Regex::new(r"token=([^&\s]+)")
+                        .unwrap()
+                        .captures(&text)
+                        .and_then(|c| c.get(1))
+                        .map(|m| m.as_str().to_string())
+                        .ok_or_else(|| {
+                            anyhow::anyhow!("could not find token in verification email text")
+                        });
+                }
+            }
+
+            if start.elapsed() >= timeout {
+                anyhow::bail!("timed out waiting for verification email");
+            }
+            tokio::time::sleep(poll_interval).await;
+        }
+    }
+
+    /// Wait for any email to arrive and return the full message details
+    pub async fn wait_for_email(&self, timeout: Duration) -> anyhow::Result<Message> {
+        let start = std::time::Instant::now();
+        let poll_interval = Duration::from_millis(200);
+        loop {
+            let resp = self
+                .http
+                .get(format!("{}/api/v1/messages?limit=1", self.base_url))
+                .send()
+                .await?
+                .json::<MessagesResponse>()
+                .await?;
+
+            if let Some(msg_summary) = resp.messages.into_iter().next() {
+                // Fetch full message details
+                let msg = self
+                    .http
+                    .get(format!("{}/api/v1/message/{}", self.base_url, msg_summary.id))
+                    .send()
+                    .await?
+                    .json::<Message>()
+                    .await?;
+                return Ok(msg);
+            }
+
+            if start.elapsed() >= timeout {
+                anyhow::bail!("timed out waiting for email");
+            }
+            tokio::time::sleep(poll_interval).await;
+        }
+    }
+}
 
 use actix_http::{header, Request, StatusCode};
 use actix_test::TestServer;
@@ -228,6 +430,7 @@ pub async fn app_data(
     redis_connstr: &str,
     minio_connstr: &str,
     options: TestAppOptions,
+    smtp_host: Option<String>,
 ) -> anyhow::Result<web::Data<AppData>> {
     let start_time = SystemTime::now();
     let _ = Lazy::force(&TRACING).as_ref().unwrap();
@@ -248,13 +451,19 @@ pub async fn app_data(
         timezone: chrono_tz::Tz::UTC,
         email_token_ttl_verification_secs: 86400,
         email_token_ttl_reset_secs: 900,
-        smtp: SmtpConfig {
-            host: "localhost".to_string(),
-            port: 587,
-            username: "".to_string(),
-            password: "".to_string(),
-            from_email: "noreply@example.com".to_string(),
-            tls_mode: TlsMode::None,
+        smtp: {
+            let smtp = smtp_host.clone().unwrap_or_else(|| "localhost:1025".to_string());
+            let (host, port) = smtp.rsplit_once(':')
+                .map(|(h, p)| (h.to_string(), p.parse().unwrap_or(1025u16)))
+                .unwrap_or_else(|| ("localhost".to_string(), 1025u16));
+            SmtpConfig {
+                host,
+                port,
+                username: "".to_string(),
+                password: "".to_string(),
+                from_email: "noreply@example.com".to_string(),
+                tls_mode: TlsMode::None,
+            }
         },
     };
 
@@ -368,21 +577,27 @@ pub async fn app_data(
         minio: minior::Minio {
             client: Arc::new(s3_client),
         },
-        mailer: Arc::new(
-            SmtpSender::new(
-                &actix_demo::services::email::smtp::SmtpSenderConfig {
-                    smtp_host: "localhost".to_string(),
-                    smtp_port: 587,
-                    tls_mode: TlsMode::None,
-                    username: "".to_string(),
-                    password: "".to_string(),
-                    from_email: "noreply@example.com".to_string(),
-                    verification_link_template: "https://app.example.com/verify?token={token}&user={user_name}".to_string(),
-                    password_reset_link_template: "https://app.example.com/reset?token={token}&user={user_name}".to_string(),
-                },
+        mailer: {
+            let smtp = smtp_host.clone().unwrap_or_else(|| "localhost:587".to_string());
+            let (host, port) = smtp.rsplit_once(':')
+                .map(|(h, p)| (h.to_string(), p.parse().unwrap_or(587u16)))
+                .unwrap_or_else(|| ("localhost".to_string(), 587u16));
+            Arc::new(
+                SmtpSender::new(
+                    &actix_demo::services::email::smtp::SmtpSenderConfig {
+                        smtp_host: host,
+                        smtp_port: port,
+                        tls_mode: TlsMode::None,
+                        username: "".to_string(),
+                        password: "".to_string(),
+                        from_email: "noreply@example.com".to_string(),
+                        verification_link_template: "https://app.example.com/verify?token={token}&user={user_name}".to_string(),
+                        password_reset_link_template: "https://app.example.com/reset?token={token}&user={user_name}".to_string(),
+                    },
+                )
+                .unwrap(),
             )
-            .unwrap(),
-        ),
+        },
     });
     Ok(data)
 }
@@ -392,6 +607,7 @@ pub async fn test_app(
     redis_connstr: &str,
     minio_connstr: &str,
     options: TestAppOptions,
+    smtp_host: Option<String>,
 ) -> anyhow::Result<
     impl Service<
         Request,
@@ -401,7 +617,7 @@ pub async fn test_app(
 > {
     let app = App::new()
         .configure(configure_app(
-            app_data(pg_connstr, redis_connstr, minio_connstr, options).await?,
+            app_data(pg_connstr, redis_connstr, minio_connstr, options, smtp_host).await?,
         ))
         .wrap(TracingLogger::<DomainRootSpanBuilder>::new());
     let test_app = test::init_service(app).await;
@@ -413,9 +629,10 @@ pub async fn test_http_app(
     redis_connstr: &str,
     minio_connstr: &str,
     options: TestAppOptions,
+    smtp_host: Option<String>,
 ) -> anyhow::Result<(TestServer, web::Data<AppData>)> {
     let data =
-        app_data(pg_connstr, redis_connstr, minio_connstr, options).await?;
+        app_data(pg_connstr, redis_connstr, minio_connstr, options, smtp_host).await?;
     let data_clone = data.clone();
     let test_app = move || {
         App::new()
@@ -544,14 +761,23 @@ pub async fn create_http_user_with_email(
     email: &str,
     client: &Client,
 ) -> anyhow::Result<()> {
-    let _ = client
+    let mut resp = client
         .post(format!("http://{addr}/api/registration"))
         .insert_header(("content-type", "application/json"))
-        .send_body(format!(
-            r#"{{"username":"{username}","password":"{password}","email":"{email}"}}"#
-        ))
+        .send_json(&serde_json::json!({
+            "username": username,
+            "password": password,
+            "email": email
+        }))
         .await
         .map_err(|err| anyhow::anyhow!("{err}"))?;
+
+    let status = resp.status();
+    if status != actix_web::http::StatusCode::CREATED {
+        let body = resp.json::<serde_json::Value>().await.unwrap_or(serde_json::json!({"raw": "unreadable"}));
+        eprintln!("REGISTRATION ERROR status={} body={}", status, body);
+        anyhow::bail!("Registration failed with status {}: {}", status, body);
+    }
 
     Ok(())
 }
@@ -583,6 +809,8 @@ pub struct TestContext {
     pub _minio: ContainerAsync<MinIO>,
     pub test_server: TestServer,
     pub app_data: web::Data<AppData>,
+    pub _mailpit: Option<ContainerAsync<Mailpit>>,
+    pub mailpit_client: Option<MailpitClient>,
 }
 
 impl TestContext {
@@ -596,6 +824,7 @@ impl TestContext {
             &redis_connstr,
             &minio_connstr,
             options.unwrap_or_default(),
+            None,
         )
         .await
         .unwrap();
@@ -616,6 +845,45 @@ impl TestContext {
             _minio,
             test_server,
             app_data,
+            _mailpit: None,
+            mailpit_client: None,
+        }
+    }
+
+    pub async fn new_with_mailpit(options: Option<TestAppOptions>) -> Self {
+        let (smtp_host, http_port, _mailpit) = test_with_mailpit().await.unwrap();
+        let (pg_connstr, _pg) = test_with_postgres().await.unwrap();
+        let (redis_connstr, _redis) = test_with_redis().await.unwrap();
+        let (minio_connstr, _minio) = test_with_minio().await.unwrap();
+
+        let (test_server, app_data) = test_http_app(
+            &pg_connstr,
+            &redis_connstr,
+            &minio_connstr,
+            options.unwrap_or_default(),
+            Some(smtp_host),
+        )
+        .await
+        .unwrap();
+
+        let addr = test_server.addr().to_string();
+        let client = Client::new();
+
+        let _token = get_http_token(&addr, DEFAULT_USER, DEFAULT_USER, &client)
+            .await
+            .unwrap();
+
+        Self {
+            addr,
+            _token,
+            client,
+            _pg,
+            _redis,
+            _minio,
+            test_server,
+            app_data,
+            _mailpit: Some(_mailpit),
+            mailpit_client: Some(MailpitClient::new(http_port)),
         }
     }
 
