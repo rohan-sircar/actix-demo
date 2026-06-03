@@ -14,6 +14,7 @@ use actix_web::{Error, HttpRequest, HttpResponse};
 use awc::cookie::{Cookie, SameSite};
 use bcrypt::{hash, verify};
 use chrono::Utc;
+use diesel::Connection;
 use diesel::ExpressionMethods;
 use diesel::OptionalExtension;
 use diesel::QueryDsl;
@@ -329,33 +330,40 @@ pub async fn verify_email(
 
         use crate::schema::email_verification_tokens::dsl::*;
 
-        let token_record = email_verification_tokens
-            .select((user_id, expires_at))
-            .filter(token_hash.eq(&thash))
-            .filter(used.eq(false))
-            .first::<(i32, chrono::NaiveDateTime)>(&mut conn)
-            .optional()
-            .map_err(|e| {
-                DomainError::new_internal_error(format!("Database error: {e}"))
-            })?;
+        let result = conn.transaction::<_, DomainError, _>(|conn| {
+            let token_record = email_verification_tokens
+                .select((user_id, expires_at))
+                .filter(token_hash.eq(&thash))
+                .filter(used.eq(false))
+                .for_update()
+                .first::<(i32, chrono::NaiveDateTime)>(conn)
+                .optional()
+                .map_err(|e| {
+                    DomainError::new_internal_error(format!(
+                        "Database error: {e}"
+                    ))
+                })?;
 
-        match token_record {
-            None => Ok(None),
-            Some((uid, token_expires_at)) => {
-                if chrono::Utc::now().naive_utc() > token_expires_at {
-                    return Err(DomainError::new_field_validation_error(
-                        "Verification link has expired".to_string(),
-                    ));
+            match token_record {
+                None => Ok(None),
+                Some((uid, token_expires_at)) => {
+                    if chrono::Utc::now().naive_utc() > token_expires_at {
+                        return Err(DomainError::new_field_validation_error(
+                            "Verification link has expired".to_string(),
+                        ));
+                    }
+
+                    diesel::update(email_verification_tokens)
+                        .filter(token_hash.eq(&thash))
+                        .set(used.eq(true))
+                        .execute(conn)?;
+
+                    Ok(Some(uid))
                 }
-
-                diesel::update(email_verification_tokens)
-                    .filter(token_hash.eq(&thash))
-                    .set(used.eq(true))
-                    .execute(&mut conn)?;
-
-                Ok(Some(uid))
             }
-        }
+        });
+
+        result
     })
     .await??;
 
@@ -440,61 +448,58 @@ pub async fn complete_password_reset(
     let new_password = req.new_password;
     let thash = tokens::hash_token(&token);
     let hash_cost = app_data.config.hash_cost;
-    let pool_clone = app_data.pool.clone();
 
     let result = web::block(move || {
         let pool = &app_data.pool;
         let mut conn = pool.get()?;
 
         use crate::schema::password_reset_tokens::dsl::*;
+        use crate::schema::users::dsl as users;
 
-        let token_record = password_reset_tokens
-            .select((user_id, expires_at))
-            .filter(token_hash.eq(&thash))
-            .filter(used.eq(false))
-            .first::<(i32, chrono::NaiveDateTime)>(&mut conn)
-            .optional()
-            .map_err(|e| {
-                DomainError::new_internal_error(format!("Database error: {e}"))
-            })?;
+        let result = conn.transaction::<_, DomainError, _>(|conn| {
+            let token_record = password_reset_tokens
+                .select((user_id, expires_at))
+                .filter(token_hash.eq(&thash))
+                .filter(used.eq(false))
+                .for_update()
+                .first::<(i32, chrono::NaiveDateTime)>(conn)
+                .optional()
+                .map_err(|e| {
+                    DomainError::new_internal_error(format!(
+                        "Database error: {e}"
+                    ))
+                })?;
 
-        match token_record {
-            None => Ok(None),
-            Some((uid, token_expires_at)) => {
-                if chrono::Utc::now().naive_utc() > token_expires_at {
-                    return Err(DomainError::new_field_validation_error(
-                        "Reset link has expired".to_string(),
-                    ));
+            match token_record {
+                None => Ok(None),
+                Some((uid, token_expires_at)) => {
+                    if chrono::Utc::now().naive_utc() > token_expires_at {
+                        return Err(DomainError::new_field_validation_error(
+                            "Reset link has expired".to_string(),
+                        ));
+                    }
+
+                    diesel::update(password_reset_tokens)
+                        .filter(token_hash.eq(&thash))
+                        .set(used.eq(true))
+                        .execute(conn)?;
+
+                    let hashed_password = hash(new_password, hash_cost)?;
+
+                    diesel::update(users::users.filter(users::id.eq(uid)))
+                        .set(users::password.eq(hashed_password))
+                        .execute(conn)?;
+
+                    Ok(Some(uid))
                 }
-
-                diesel::update(password_reset_tokens)
-                    .filter(token_hash.eq(&thash))
-                    .set(used.eq(true))
-                    .execute(&mut conn)?;
-
-                Ok(Some((uid, new_password)))
             }
-        }
+        });
+
+        result
     })
     .await??;
 
-    if let Some((uid, new_password)) = result {
-        let uid_clone = uid;
-        let hc = hash_cost;
-        web::block(move || {
-            let mut conn = pool_clone.get()?;
-
-            use crate::schema::users::dsl as users;
-            let hashed_password = hash(new_password, hc)?;
-
-            diesel::update(users::users.filter(users::id.eq(uid_clone)))
-                .set(users::password.eq(hashed_password))
-                .execute(&mut conn)?;
-
-            Ok::<(), DomainError>(())
-        })
-        .await??;
-
+    if let Some(uid) = result {
         tracing::info!(user_id = %uid, "Password reset successfully");
         return Ok(HttpResponse::Ok().json(serde_json::json!({
             "success": true,
