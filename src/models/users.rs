@@ -233,7 +233,7 @@ mod test {
         );
         assert!(mb_user.is_err());
         let mb_user = serde_json::from_str::<User>(
-            r#"{"id":1,"username":"chaegw_eaef","password":"aeqfq3fq","role":"role_user","created_at":"2021-05-12T12:37:56"}"#,
+            r#"{"id":1,"username":"chaegw eaef","password":"aeqfq3fq","role":"role_user","created_at":"2021-05-12T12:37:56"}"#,
         );
         assert!(mb_user.is_err());
     }
