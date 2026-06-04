@@ -1,4 +1,4 @@
-
+use crate::common;
 
 #[cfg(test)]
 mod tests {
@@ -12,6 +12,9 @@ mod tests {
 
         use super::*;
 
+        /// Verifies that non-admin users (RoleUser) get 403 on admin-only routes.
+        /// Registration via /api/registration assigns RoleUser by default
+        /// (insert_new_regular_user → insert_new_user with RoleEnum::RoleUser).
         #[actix_rt::test]
         async fn should_return_403_for_non_admin_on_post_cmd() {
             let ctx = TestContext::new(None).await;
@@ -124,14 +127,18 @@ mod tests {
             assert_eq!(resp.status(), StatusCode::FORBIDDEN);
         }
 
+        /// Verifies that the default test user (RoleAdmin, created at common/mod.rs:539)
+        /// is NOT blocked by the role gate on admin routes.
+        /// Note: assert_ne is intentional — this tests the role gate passes,
+        /// not that the handler succeeds (which may fail for other reasons
+        /// like missing bin, invalid args, etc.).
         #[actix_rt::test]
         async fn should_allow_admin_on_admin_routes() {
-            use actix_web::http::StatusCode;
             use uuid::Uuid;
 
             let ctx = TestContext::new(None).await;
 
-            // Admin is the default user, get their token
+            // DEFAULT_USER is RoleAdmin (see common/mod.rs:539)
             let admin_token = get_http_token(
                 &ctx.addr,
                 common::DEFAULT_USER,
@@ -142,7 +149,6 @@ mod tests {
             .unwrap();
 
             // POST /api/cmd should NOT return 403 for admin
-            // (it may fail for other reasons like missing bin, but not 403)
             let resp = ctx
                 .test_server
                 .post("/api/cmd")
@@ -176,6 +182,54 @@ mod tests {
                 .unwrap();
 
             assert_ne!(resp.status(), StatusCode::FORBIDDEN);
+        }
+    }
+
+    mod self_service_route_access {
+        use crate::common;
+
+        use crate::common::{get_http_token, TestContext, WithToken};
+
+        use super::*;
+
+        /// Verifies that regular users (RoleUser) CAN access self-service routes.
+        /// This is the complement to admin_route_access tests — confirms role
+        /// enforcement doesn't over-block non-admin users on permitted routes.
+        /// Each test uses fresh testcontainers (isolated DB per test), so no
+        /// manual cleanup of registered users is needed.
+        #[actix_rt::test]
+        async fn should_allow_regular_user_on_get_my_profile() {
+            let ctx = TestContext::new(None).await;
+
+            // Register a regular user (RoleUser)
+            let _ = common::create_http_user(
+                &ctx.addr,
+                "selfserviceuser",
+                "testpass",
+                &ctx.client,
+            )
+            .await;
+
+            // Login as regular user
+            let token = get_http_token(
+                &ctx.addr,
+                "selfserviceuser",
+                "testpass",
+                &ctx.client,
+            )
+            .await
+            .unwrap();
+
+            // GET /api/users/me should succeed (200) for any authenticated user
+            let resp = ctx
+                .test_server
+                .get("/api/users/me")
+                .with_token(&token)
+                .send()
+                .await
+                .unwrap();
+
+            assert_eq!(resp.status(), StatusCode::OK);
         }
     }
 }
