@@ -1,9 +1,9 @@
 ---
-name: project-rust
-description: Project-level Rust development commands for actix-demo. Use when running lint, format, unit tests, integration tests, or flaky tests. Front-load: lint-check, format, test, it-test, flaky-test.
+name: cargo-make
+description: Cargo make commands for actix-demo project. Use when running lint, format, unit tests, integration tests, or flaky tests. Front-load: lint-check, format, test, it-test, flaky-test.
 ---
 
-# Project Rust Commands
+# Cargo Make Commands
 
 All commands use `cargo make` (not raw `cargo`). Never run `cargo test` directly — it skips testcontainers shutdown hooks, leaving orphaned Docker containers.
 
