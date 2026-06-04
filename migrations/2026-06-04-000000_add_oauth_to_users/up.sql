@@ -1,4 +1,7 @@
-CREATE TYPE oauth_provider_type AS ENUM ('github', 'google');
+DO $$ BEGIN
+    CREATE TYPE oauth_provider_type AS ENUM ('github', 'google');
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
 
 ALTER TABLE users
 ADD COLUMN oauth_provider oauth_provider_type DEFAULT NULL,

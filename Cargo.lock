@@ -93,6 +93,7 @@ dependencies = [
  "tracing-loki",
  "tracing-subscriber",
  "url",
+ "urlencoding",
  "uuid",
  "validators",
 ]

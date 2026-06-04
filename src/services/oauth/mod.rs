@@ -73,8 +73,13 @@ pub async fn get_github_user_info(
     let primary_email = emails
         .iter()
         .find(|e| e.primary && e.verified)
-        .map(|e| e.email.clone())
-        .or_else(|| emails.first().map(|e| e.email.clone()));
+        .map(|e| e.email.clone());
+
+    if primary_email.is_none() {
+        return Err(DomainError::new_auth_error(
+            "GitHub did not return a verified email".to_owned(),
+        ));
+    }
 
     Ok(GitHubOAuthUser {
         id: github_user.id,

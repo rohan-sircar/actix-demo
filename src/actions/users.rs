@@ -578,46 +578,6 @@ pub async fn delete_user_avatar(
     }
 }
 
-/// Find a user by OAuth provider and provider user ID.
-pub fn find_user_by_oauth(
-    provider: &OAuthProvider,
-    provider_uid: &str,
-    conn: &mut DbConnection,
-) -> Result<Option<UserWithRoles>, DomainError> {
-    use crate::schema::users::dsl as users;
-
-    let mb_user = users::users
-        .select((
-            users::id,
-            users::username,
-            users::created_at,
-            users::deleted_at,
-        ))
-        .filter(users::oauth_provider.eq(Some(provider.clone())))
-        .filter(users::oauth_uid.eq(Some(provider_uid.to_string())))
-        .filter(users::deleted_at.is_null())
-        .first::<User>(conn)
-        .optional()?;
-
-    let roles = match &mb_user {
-        Some(user) => Some(get_roles_for_user(&user.id, conn)?),
-        None => None,
-    };
-
-    let mb_user_with_roles = m! {
-        user <- mb_user;
-        roles <- roles;
-        Some(UserWithRoles {
-            id: user.id,
-            username: user.username,
-            created_at: user.created_at,
-            roles,
-        })
-    };
-
-    Ok(mb_user_with_roles)
-}
-
 /// Find a user by email for OAuth login.
 pub fn find_oauth_user_by_email(
     email: &str,
@@ -649,7 +609,7 @@ pub fn find_or_create_oauth_user(
     provider: &OAuthProvider,
     provider_uid: &str,
     _display_name: Option<&str>,
-    hash_cost: u32,
+    _hash_cost: u32,
     user_ids_cache: &InstrumentedRedisCache<String, Vec<UserId>>,
     conn: &mut DbConnection,
 ) -> Result<(UserWithRoles, bool), DomainError> {
@@ -759,19 +719,28 @@ pub fn find_or_create_oauth_user(
             username = format!("{}_{}", username_base, attempt);
         }
 
-        let password_val =
-            format!("[oauth:{}:{}]", provider.as_str(), provider_uid);
-        let hashed_password = hash(&password_val, hash_cost)?;
-
-        diesel::insert_into(users::users)
-            .values((
-                users::username.eq(&username),
-                users::password.eq(&hashed_password),
-                users::email.eq(email),
-                users::oauth_provider.eq(Some(provider.clone())),
-                users::oauth_uid.eq(Some(provider_uid.to_string())),
-            ))
-            .execute(conn)?;
+        loop {
+            match diesel::insert_into(users::users)
+                .values((
+                    users::username.eq(&username),
+                    users::password.eq(""),
+                    users::email.eq(email),
+                    users::oauth_provider.eq(Some(provider.clone())),
+                    users::oauth_uid.eq(Some(provider_uid.to_string())),
+                ))
+                .execute(conn)
+            {
+                Ok(_) => break,
+                Err(diesel::result::Error::DatabaseError(
+                    diesel::result::DatabaseErrorKind::UniqueViolation,
+                    _,
+                )) => {
+                    attempt += 1;
+                    username = format!("{}_{}", username_base, attempt);
+                }
+                Err(e) => return Err(e.into()),
+            }
+        }
 
         let user = users::users
             .select((
