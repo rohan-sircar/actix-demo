@@ -10,7 +10,7 @@ mod tests {
 
         use actix_demo::models::{roles::RoleEnum, users::UserWithRoles};
 
-        use crate::common::TestContext;
+        use crate::common::{get_http_token, TestContext, WithToken};
 
         use super::*;
 
@@ -25,10 +25,19 @@ mod tests {
             )
             .await;
 
+            let token = get_http_token(
+                &ctx.addr,
+                common::DEFAULT_USER,
+                common::DEFAULT_USER,
+                &ctx.client,
+            )
+            .await
+            .unwrap();
+
             let mut resp = ctx
                 .test_server
-                .get("/api/public/users?page=0&limit=2")
-                // .with_token(&token)
+                .get("/api/users?page=0&limit=2")
+                .with_token(&token)
                 .send()
                 .await
                 .unwrap();
@@ -61,10 +70,20 @@ mod tests {
                 .await;
             }
 
+            let token = get_http_token(
+                &ctx.addr,
+                common::DEFAULT_USER,
+                common::DEFAULT_USER,
+                &ctx.client,
+            )
+            .await
+            .unwrap();
+
             // First page with 10 users
             let mut resp = ctx
                 .test_server
-                .get("/api/public/users?page=0&limit=10")
+                .get("/api/users?page=0&limit=10")
+                .with_token(&token)
                 .send()
                 .await
                 .unwrap();
@@ -75,7 +94,8 @@ mod tests {
             // Second page with > 1 user
             let mut resp = ctx
                 .test_server
-                .get("/api/public/users?page=1&limit=10")
+                .get("/api/users?page=1&limit=10")
+                .with_token(&token)
                 .send()
                 .await
                 .unwrap();
@@ -88,9 +108,19 @@ mod tests {
         async fn should_return_error_message_if_user_with_id_does_not_exist() {
             let ctx = TestContext::new(None).await;
 
+            let token = get_http_token(
+                &ctx.addr,
+                common::DEFAULT_USER,
+                common::DEFAULT_USER,
+                &ctx.client,
+            )
+            .await
+            .unwrap();
+
             let mut resp = ctx
                 .test_server
-                .get("/api/public/users/55")
+                .get("/api/users/55")
+                .with_token(&token)
                 .send()
                 .await
                 .unwrap();

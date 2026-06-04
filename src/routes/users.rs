@@ -5,16 +5,13 @@ use time::OffsetDateTime;
 use crate::diesel::ExpressionMethods;
 use crate::diesel::RunQueryDsl;
 use crate::models::misc::{Pagination, SearchQuery};
-// use crate::models::roles::RoleEnum;
 use crate::models::users::{NewUser, UpdateUserProfile, UserId};
 use crate::services::email::tokens;
 use crate::{actions, utils};
 use crate::{errors::DomainError, AppData};
-// use actix_web_grants::protect;
 
 /// Finds user by UID.
 #[tracing::instrument(level = "info", skip(app_data))]
-// #[protect("RoleEnum::RoleAdmin", ty = "RoleEnum")]
 pub async fn get_user(
     app_data: web::Data<AppData>,
     user_id: web::Path<UserId>,

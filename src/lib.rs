@@ -207,7 +207,14 @@ pub fn configure_app(
                     .route(
                         "/avatars/{user_id}",
                         web::get().to(routes::users::get_user_avatar),
-                    )
+                    ),
+            )
+            // public user endpoints (unauthenticated)
+            .service(
+                web::scope("/api/public")
+                    .wrap(api_rate_limiter(
+                        &app_data.config.rate_limit.api_public,
+                    ))
                     .service(
                         web::scope("/users")
                             .route("", web::get().to(routes::users::get_users))
@@ -279,7 +286,7 @@ pub fn configure_app(
                     .service(
                         web::scope("/users")
                             .route(
-                                "",
+                                "/me",
                                 web::get().to(routes::users::get_my_profile),
                             )
                             .route(
@@ -291,6 +298,15 @@ pub fn configure_app(
                                 "/me/delete",
                                 web::post()
                                     .to(routes::users::delete_my_account),
+                            )
+                            .route(
+                                "/{user_id}",
+                                web::get().to(routes::users::get_user),
+                            )
+                            .route("", web::get().to(routes::users::get_users))
+                            .route(
+                                "/search",
+                                web::get().to(routes::users::search_users),
                             ),
                     ),
             );
