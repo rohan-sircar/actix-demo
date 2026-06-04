@@ -132,3 +132,20 @@ pub fn default_rate_limit_password_reset_max_requests() -> u32 {
 pub fn default_rate_limit_password_reset_window_secs() -> u64 {
     300 // 5 minutes
 }
+
+pub fn default_oauth_enabled() -> bool {
+    false
+}
+
+pub fn default_oauth_base_url() -> String {
+    "http://localhost:7800".to_string()
+}
+
+pub fn default_oauth_config() -> crate::config::OAuthConfig {
+    crate::config::OAuthConfig {
+        enabled: default_oauth_enabled(),
+        base_url: default_oauth_base_url(),
+        github: crate::config::OAuthProviderConfig::default(),
+        google: crate::config::OAuthProviderConfig::default(),
+    }
+}

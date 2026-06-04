@@ -1,6 +1,6 @@
 extern crate actix_demo;
 use actix_demo::actions::misc::create_database_if_needed;
-use actix_demo::config::{MinioConfig, TlsMode};
+use actix_demo::config::{MinioConfig, OAuthConfig, TlsMode};
 use actix_demo::models::rate_limit::{
     KeyStrategy, RateLimitConfig, RateLimitPolicy,
 };
@@ -484,6 +484,12 @@ pub async fn app_data(
                 from_email: "noreply@example.com".to_string(),
                 tls_mode: TlsMode::None,
             }
+        },
+        oauth: OAuthConfig {
+            enabled: false,
+            base_url: "http://localhost:7800".to_string(),
+            github: actix_demo::config::OAuthProviderConfig::default(),
+            google: actix_demo::config::OAuthProviderConfig::default(),
         },
     };
 
