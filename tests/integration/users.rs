@@ -36,7 +36,7 @@ mod tests {
 
             let mut resp = ctx
                 .test_server
-                .get("/api/users?page=0&limit=2")
+                .get("/api/admin/users?page=0&limit=2")
                 .with_token(&token)
                 .send()
                 .await
@@ -82,7 +82,7 @@ mod tests {
             // First page with 10 users
             let mut resp = ctx
                 .test_server
-                .get("/api/users?page=0&limit=10")
+                .get("/api/admin/users?page=0&limit=10")
                 .with_token(&token)
                 .send()
                 .await
@@ -94,7 +94,7 @@ mod tests {
             // Second page with > 1 user
             let mut resp = ctx
                 .test_server
-                .get("/api/users?page=1&limit=10")
+                .get("/api/admin/users?page=1&limit=10")
                 .with_token(&token)
                 .send()
                 .await
@@ -119,7 +119,7 @@ mod tests {
 
             let mut resp = ctx
                 .test_server
-                .get("/api/users/55")
+                .get("/api/admin/users/55")
                 .with_token(&token)
                 .send()
                 .await

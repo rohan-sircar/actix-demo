@@ -284,7 +284,7 @@ pub fn configure_app(
                             ),
                     )
                     .service(
-                        web::scope("/users")
+                        web::scope("/user")
                             .route(
                                 "/me",
                                 web::get().to(routes::users::get_my_profile),
@@ -298,16 +298,24 @@ pub fn configure_app(
                                 "/me/delete",
                                 web::post()
                                     .to(routes::users::delete_my_account),
-                            )
-                            .route(
-                                "/{user_id}",
-                                web::get().to(routes::users::get_user),
-                            )
-                            .route("", web::get().to(routes::users::get_users))
-                            .route(
-                                "/search",
-                                web::get().to(routes::users::search_users),
                             ),
+                    )
+                    .service(
+                        web::scope("/admin").service(
+                            web::scope("/users")
+                                .route(
+                                    "",
+                                    web::get().to(routes::users::get_users),
+                                )
+                                .route(
+                                    "/search",
+                                    web::get().to(routes::users::search_users),
+                                )
+                                .route(
+                                    "/{user_id}",
+                                    web::get().to(routes::users::get_user),
+                                ),
+                        ),
                     ),
             );
     })

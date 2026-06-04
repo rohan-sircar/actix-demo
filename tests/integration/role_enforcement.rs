@@ -1,5 +1,3 @@
-use crate::common;
-
 #[cfg(test)]
 mod tests {
     use actix_http::header;
@@ -220,16 +218,144 @@ mod tests {
             .await
             .unwrap();
 
-            // GET /api/users/me should succeed (200) for any authenticated user
+            // GET /api/user/me should succeed (200) for any authenticated user
             let resp = ctx
                 .test_server
-                .get("/api/users/me")
+                .get("/api/user/me")
                 .with_token(&token)
                 .send()
                 .await
                 .unwrap();
 
             assert_eq!(resp.status(), StatusCode::OK);
+        }
+    }
+
+    mod admin_user_route_access {
+        use crate::common;
+
+        use crate::common::{get_http_token, TestContext, WithToken};
+
+        use super::*;
+
+        #[actix_rt::test]
+        async fn should_return_403_for_non_admin_on_get_users() {
+            let ctx = TestContext::new(None).await;
+
+            let _ = common::create_http_user(
+                &ctx.addr,
+                "nonadminuser1",
+                "testpass",
+                &ctx.client,
+            )
+            .await;
+
+            let token = get_http_token(
+                &ctx.addr,
+                "nonadminuser1",
+                "testpass",
+                &ctx.client,
+            )
+            .await
+            .unwrap();
+
+            let resp = ctx
+                .test_server
+                .get("/api/admin/users?page=0&limit=10")
+                .with_token(&token)
+                .send()
+                .await
+                .unwrap();
+
+            assert_eq!(resp.status(), StatusCode::FORBIDDEN);
+        }
+
+        #[actix_rt::test]
+        async fn should_return_403_for_non_admin_on_search_users() {
+            let ctx = TestContext::new(None).await;
+
+            let _ = common::create_http_user(
+                &ctx.addr,
+                "nonadminuser2",
+                "testpass",
+                &ctx.client,
+            )
+            .await;
+
+            let token = get_http_token(
+                &ctx.addr,
+                "nonadminuser2",
+                "testpass",
+                &ctx.client,
+            )
+            .await
+            .unwrap();
+
+            let resp = ctx
+                .test_server
+                .get("/api/admin/users/search?q=test&page=0&limit=10")
+                .with_token(&token)
+                .send()
+                .await
+                .unwrap();
+
+            assert_eq!(resp.status(), StatusCode::FORBIDDEN);
+        }
+
+        #[actix_rt::test]
+        async fn should_return_403_for_non_admin_on_get_user() {
+            let ctx = TestContext::new(None).await;
+
+            let _ = common::create_http_user(
+                &ctx.addr,
+                "nonadminuser3",
+                "testpass",
+                &ctx.client,
+            )
+            .await;
+
+            let token = get_http_token(
+                &ctx.addr,
+                "nonadminuser3",
+                "testpass",
+                &ctx.client,
+            )
+            .await
+            .unwrap();
+
+            let resp = ctx
+                .test_server
+                .get("/api/admin/users/55")
+                .with_token(&token)
+                .send()
+                .await
+                .unwrap();
+
+            assert_eq!(resp.status(), StatusCode::FORBIDDEN);
+        }
+
+        #[actix_rt::test]
+        async fn should_allow_admin_on_admin_user_routes() {
+            let ctx = TestContext::new(None).await;
+
+            let admin_token = get_http_token(
+                &ctx.addr,
+                common::DEFAULT_USER,
+                common::DEFAULT_USER,
+                &ctx.client,
+            )
+            .await
+            .unwrap();
+
+            let resp = ctx
+                .test_server
+                .get("/api/admin/users")
+                .with_token(&admin_token)
+                .send()
+                .await
+                .unwrap();
+
+            assert_ne!(resp.status(), StatusCode::FORBIDDEN);
         }
     }
 }
