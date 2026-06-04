@@ -77,8 +77,19 @@ impl TryFrom<u16> for PaginationPage {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Pagination {
+    #[serde(default = "default_page")]
     pub page: PaginationPage,
+    #[serde(default = "default_limit")]
     pub limit: PaginationLimit,
+    #[serde(default)]
+    pub q: Option<String>,
+}
+
+fn default_page() -> PaginationPage {
+    PaginationPage(0)
+}
+fn default_limit() -> PaginationLimit {
+    PaginationLimit(20)
 }
 
 impl Pagination {

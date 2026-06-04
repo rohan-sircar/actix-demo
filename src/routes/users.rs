@@ -1,20 +1,20 @@
 use actix_web::{web, HttpRequest, HttpResponse};
+use actix_web_grants::protect;
 use awc::cookie::{Cookie, SameSite};
 use time::OffsetDateTime;
 
 use crate::diesel::ExpressionMethods;
 use crate::diesel::RunQueryDsl;
-use crate::models::misc::{Pagination, SearchQuery};
-// use crate::models::roles::RoleEnum;
+use crate::models::misc::Pagination;
+use crate::models::roles::RoleEnum;
 use crate::models::users::{NewUser, UpdateUserProfile, UserId};
 use crate::services::email::tokens;
 use crate::{actions, utils};
 use crate::{errors::DomainError, AppData};
-// use actix_web_grants::protect;
 
 /// Finds user by UID.
-#[tracing::instrument(level = "info", skip(app_data))]
-// #[protect("RoleEnum::RoleAdmin", ty = "RoleEnum")]
+#[protect("RoleEnum::RoleAdmin", ty = RoleEnum)]
+#[tracing::instrument(level = "info", skip_all)]
 pub async fn get_user(
     app_data: web::Data<AppData>,
     user_id: web::Path<UserId>,
@@ -42,38 +42,22 @@ pub async fn get_user(
     }
 }
 
-#[tracing::instrument(level = "info", skip(app_data))]
+#[protect("RoleEnum::RoleAdmin", ty = RoleEnum)]
+#[tracing::instrument(level = "info", skip_all)]
 pub async fn get_users(
     app_data: web::Data<AppData>,
     pagination: web::Query<Pagination>,
 ) -> Result<HttpResponse, DomainError> {
-    let _ = tracing::info!("Paginated users request");
+    let _ = tracing::info!("Users request");
     let users = web::block(move || {
         let pool = &app_data.pool;
         let mut conn = pool.get()?;
         let p: Pagination = pagination.into_inner();
-        actions::users::get_all_users(&p, &mut conn)
-    })
-    .await??;
-
-    let _ = tracing::info!("Found {} users", users.len());
-    let _ = tracing::debug!("{:?}", users);
-
-    Ok(HttpResponse::Ok().json(users))
-}
-
-#[tracing::instrument(level = "info", skip(app_data))]
-pub async fn search_users(
-    app_data: web::Data<AppData>,
-    query: web::Query<SearchQuery>,
-    pagination: web::Query<Pagination>,
-) -> Result<HttpResponse, DomainError> {
-    let _ = tracing::info!("Search users request");
-    let users = web::block(move || {
-        let pool = &app_data.pool;
-        let mut conn = pool.get()?;
-        let p: Pagination = pagination.into_inner();
-        actions::users::search_users(query.q.as_str(), &p, &mut conn)
+        if let Some(ref q) = p.q {
+            actions::users::search_users(q.as_str(), &p, &mut conn)
+        } else {
+            actions::users::get_all_users(&p, &mut conn)
+        }
     })
     .await??;
 

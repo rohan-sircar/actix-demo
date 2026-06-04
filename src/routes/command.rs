@@ -1,6 +1,7 @@
 use std::{cell::RefCell, rc::Rc};
 
 use actix_web::{web, HttpRequest, HttpResponse};
+use actix_web_grants::protect;
 use futures::StreamExt;
 use process_stream::{Process, ProcessExt, ProcessItem};
 use redis::AsyncCommands;
@@ -13,6 +14,7 @@ use crate::{
     errors::DomainError,
     models::{
         misc::{Job, JobStatus, NewJob},
+        roles::RoleEnum,
         ws::MyProcessItem,
     },
     types::Task,
@@ -42,6 +44,7 @@ pub struct RunCommandRequest {
 /// 4. Handles job abort requests
 /// 5. Updates job status on completion
 #[tracing::instrument(level = "info", skip_all, fields(payload))]
+#[protect("RoleEnum::RoleAdmin", ty = RoleEnum)]
 pub async fn handle_run_command(
     req: HttpRequest,
     app_data: web::Data<AppData>,
@@ -265,6 +268,7 @@ pub async fn handle_run_command(
 ///
 /// * `DomainError` - If the provided job ID is not a valid UUID, or if the job does not exist.
 #[tracing::instrument(level = "info", skip(app_data))]
+#[protect("RoleEnum::RoleAdmin", ty = RoleEnum)]
 pub async fn handle_get_job(
     app_data: web::Data<AppData>,
     job_id: web::Path<String>,
@@ -347,6 +351,7 @@ pub async fn handle_get_job_metrics(
 ///
 /// * `DomainError` - If there is an error publishing to the Redis channel.
 #[tracing::instrument(level = "info", skip(app_data))]
+#[protect("RoleEnum::RoleAdmin", ty = RoleEnum)]
 pub async fn handle_abort_job(
     req: HttpRequest,
     app_data: web::Data<AppData>,

@@ -180,7 +180,7 @@ mod tests {
                 .unwrap();
 
             // Call the endpoint — should hit the expired path, not the "not found" path
-            let mut resp = ctx
+            let resp = ctx
                 .test_server
                 .post("/api/password-reset/complete")
                 .append_header(("content-type", "application/json"))

@@ -121,6 +121,7 @@ pub struct MailpitClient {
 }
 
 #[derive(Deserialize, Debug)]
+#[allow(dead_code)]
 pub struct MessageSummary {
     #[serde(rename = "ID")]
     pub id: String,
@@ -137,6 +138,7 @@ pub struct MessageSummary {
 }
 
 #[derive(Deserialize, Debug)]
+#[allow(dead_code)]
 pub struct Address {
     #[serde(rename = "Address")]
     pub address: String,
@@ -151,6 +153,7 @@ pub struct MessagesResponse {
 
 /// Full message details (from /api/v1/message/{ID} endpoint)
 #[derive(Deserialize, Debug)]
+#[allow(dead_code)]
 pub struct Message {
     #[serde(rename = "ID")]
     pub id: String,
@@ -973,7 +976,7 @@ impl TestContext {
     ) -> Vec<User> {
         let mut resp = self
             .test_server
-            .get(format!("/api/users?page={page}&limit={limit}"))
+            .get(format!("/api/admin/users?page={page}&limit={limit}"))
             .with_token(token)
             .send()
             .await
