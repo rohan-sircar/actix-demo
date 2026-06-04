@@ -54,11 +54,10 @@ pub async fn github_callback(
     query: web::Query<OAuthCallbackQuery>,
 ) -> Result<HttpResponse, DomainError> {
     if let Some(ref error) = query.error {
-        let error_url =
-            format!("/auth/login?error={}", urlencoding::encode(error));
-        return Ok(HttpResponse::TemporaryRedirect()
-            .append_header(("Location", error_url))
-            .finish());
+        tracing::warn!(error = %error, "OAuth error from GitHub");
+        return Ok(HttpResponse::BadRequest()
+            .content_type("application/json")
+            .body(format!("{{\"error\":\"{}\"}}", error)));
     }
 
     let config = &app_data.config.oauth;
@@ -138,11 +137,10 @@ pub async fn google_callback(
     query: web::Query<OAuthCallbackQuery>,
 ) -> Result<HttpResponse, DomainError> {
     if let Some(ref error) = query.error {
-        let error_url =
-            format!("/auth/login?error={}", urlencoding::encode(error));
-        return Ok(HttpResponse::TemporaryRedirect()
-            .append_header(("Location", error_url))
-            .finish());
+        tracing::warn!(error = %error, "OAuth error from Google");
+        return Ok(HttpResponse::BadRequest()
+            .content_type("application/json")
+            .body(format!("{{\"error\":\"{}\"}}", error)));
     }
 
     let config = &app_data.config.oauth;
