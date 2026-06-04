@@ -85,8 +85,12 @@ pub struct Pagination {
     pub q: Option<String>,
 }
 
-fn default_page() -> PaginationPage { PaginationPage(0) }
-fn default_limit() -> PaginationLimit { PaginationLimit(20) }
+fn default_page() -> PaginationPage {
+    PaginationPage(0)
+}
+fn default_limit() -> PaginationLimit {
+    PaginationLimit(20)
+}
 
 impl Pagination {
     pub fn calc_offset(&self) -> PaginationOffset {
