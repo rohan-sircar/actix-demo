@@ -388,6 +388,10 @@ pub struct TestAppOptions {
     pub session_config: SessionConfig,
     #[builder(default = "self.default_session_cleanup_worker_config()")]
     pub sessions_cleanup_worker_config: WorkerConfig,
+    #[builder(default = "None")]
+    pub smtp_host: Option<String>,
+    #[builder(default = "None")]
+    pub oauth_config: Option<OAuthConfig>,
 }
 
 impl Default for TestAppOptions {
@@ -447,12 +451,13 @@ pub async fn app_data(
     redis_connstr: &str,
     minio_connstr: &str,
     options: TestAppOptions,
-    smtp_host: Option<String>,
 ) -> anyhow::Result<web::Data<AppData>> {
     let start_time = SystemTime::now();
     let _ = Lazy::force(&TRACING).as_ref().unwrap();
 
     let _ = Lazy::force(&CREATE_BIN_FILES).as_ref().unwrap();
+
+    let smtp_host = options.smtp_host.clone();
 
     let config = AppConfig {
         hash_cost: 4,
@@ -485,12 +490,12 @@ pub async fn app_data(
                 tls_mode: TlsMode::None,
             }
         },
-        oauth: OAuthConfig {
+        oauth: options.oauth_config.unwrap_or(OAuthConfig {
             enabled: false,
             base_url: "http://localhost:7800".to_string(),
             github: actix_demo::config::OAuthProviderConfig::default(),
             google: actix_demo::config::OAuthProviderConfig::default(),
-        },
+        }),
     };
 
     let client = redis::Client::open(redis_connstr)
@@ -604,7 +609,8 @@ pub async fn app_data(
             client: Arc::new(s3_client),
         },
         mailer: {
-            let smtp = smtp_host
+            let smtp = options
+                .smtp_host
                 .clone()
                 .unwrap_or_else(|| "localhost:587".to_string());
             let (host, port) = smtp
@@ -636,7 +642,6 @@ pub async fn test_app(
     redis_connstr: &str,
     minio_connstr: &str,
     options: TestAppOptions,
-    smtp_host: Option<String>,
 ) -> anyhow::Result<
     impl Service<
         Request,
@@ -646,14 +651,7 @@ pub async fn test_app(
 > {
     let app = App::new()
         .configure(configure_app(
-            app_data(
-                pg_connstr,
-                redis_connstr,
-                minio_connstr,
-                options,
-                smtp_host,
-            )
-            .await?,
+            app_data(pg_connstr, redis_connstr, minio_connstr, options).await?,
         ))
         .wrap(TracingLogger::<DomainRootSpanBuilder>::new());
     let test_app = test::init_service(app).await;
@@ -665,11 +663,9 @@ pub async fn test_http_app(
     redis_connstr: &str,
     minio_connstr: &str,
     options: TestAppOptions,
-    smtp_host: Option<String>,
 ) -> anyhow::Result<(TestServer, web::Data<AppData>)> {
     let data =
-        app_data(pg_connstr, redis_connstr, minio_connstr, options, smtp_host)
-            .await?;
+        app_data(pg_connstr, redis_connstr, minio_connstr, options).await?;
     let data_clone = data.clone();
     let test_app = move || {
         App::new()
@@ -864,7 +860,6 @@ impl TestContext {
             &redis_connstr,
             &minio_connstr,
             options.unwrap_or_default(),
-            None,
         )
         .await
         .unwrap();
@@ -897,15 +892,26 @@ impl TestContext {
         let (redis_connstr, _redis) = test_with_redis().await.unwrap();
         let (minio_connstr, _minio) = test_with_minio().await.unwrap();
 
-        let (test_server, app_data) = test_http_app(
-            &pg_connstr,
-            &redis_connstr,
-            &minio_connstr,
-            options.unwrap_or_default(),
-            Some(smtp_host),
-        )
-        .await
-        .unwrap();
+        let options = {
+            let mut builder = TestAppOptionsBuilder::default();
+            if let Some(opts) = options {
+                builder
+                    .bin_file(opts.bin_file)
+                    .api_rate_limit(opts.api_rate_limit)
+                    .auth_rate_limit(opts.auth_rate_limit)
+                    .rate_limit_disabled(opts.rate_limit_disabled)
+                    .session_config(opts.session_config)
+                    .sessions_cleanup_worker_config(
+                        opts.sessions_cleanup_worker_config,
+                    );
+            }
+            builder.smtp_host(Some(smtp_host)).build().unwrap()
+        };
+
+        let (test_server, app_data) =
+            test_http_app(&pg_connstr, &redis_connstr, &minio_connstr, options)
+                .await
+                .unwrap();
 
         let addr = test_server.addr().to_string();
         let client = Client::new();

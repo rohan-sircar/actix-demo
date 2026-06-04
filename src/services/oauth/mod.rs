@@ -54,14 +54,14 @@ pub async fn validate_state(
         })?;
 
     match code_verifier {
-            Some(verifier) => {
-                let _: Result<usize, _> = redis.del(&key).await;
-                Ok(verifier)
-            }
-            None => Err(DomainError::new_bad_input_error(
-                "Session not found or expired".to_owned(),
-            )),
+        Some(verifier) => {
+            let _: Result<usize, _> = redis.del(&key).await;
+            Ok(verifier)
         }
+        None => Err(DomainError::new_bad_input_error(
+            "Session not found or expired".to_owned(),
+        )),
+    }
 }
 
 pub async fn get_github_user_info(

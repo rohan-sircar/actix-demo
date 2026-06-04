@@ -81,16 +81,18 @@ pub async fn github_callback(
     let prefix = &app_data.redis_prefix;
 
     // Validate state
-    let code_verifier =
-        oauth::validate_state(redis, prefix, state).await?;
+    let code_verifier = oauth::validate_state(redis, prefix, state).await?;
 
     // Exchange code for token
     let access_token = oauth::exchange_github_code(config, code).await?;
 
     // Get user info from GitHub
-    let github_user = oauth::get_github_user_info(&access_token, &config.base_url).await?;
+    let github_user =
+        oauth::get_github_user_info(&access_token, &config.base_url).await?;
     let email = github_user.email.ok_or_else(|| {
-        DomainError::new_bad_input_error("GitHub did not return an email".to_owned())
+        DomainError::new_bad_input_error(
+            "GitHub did not return an email".to_owned(),
+        )
     })?;
 
     // Find or create user
@@ -172,14 +174,14 @@ pub async fn google_callback(
     let prefix = &app_data.redis_prefix;
 
     // Validate state
-    let code_verifier =
-        oauth::validate_state(redis, prefix, state).await?;
+    let code_verifier = oauth::validate_state(redis, prefix, state).await?;
 
     // Exchange code for token
     let access_token = oauth::exchange_google_code(config, code).await?;
 
     // Get user info from Google
-    let google_user = oauth::get_google_user_info(&access_token, &config.base_url).await?;
+    let google_user =
+        oauth::get_google_user_info(&access_token, &config.base_url).await?;
     let email = google_user.email.clone();
 
     // Find or create user

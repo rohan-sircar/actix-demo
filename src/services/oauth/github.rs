@@ -31,11 +31,12 @@ pub fn build_authorize_url(
     } else {
         base_url
     };
-    let mut url = Url::parse(&format!("{auth_base}{GITHUB_AUTH_PATH}")).map_err(|err| {
-        DomainError::new_internal_error(format!(
-            "Failed to parse GitHub auth URL: {err}"
-        ))
-    })?;
+    let mut url = Url::parse(&format!("{auth_base}{GITHUB_AUTH_PATH}"))
+        .map_err(|err| {
+            DomainError::new_internal_error(format!(
+                "Failed to parse GitHub auth URL: {err}"
+            ))
+        })?;
 
     url.query_pairs_mut()
         .append_pair("client_id", &config.client_id)
@@ -64,7 +65,10 @@ pub async fn exchange_code_for_token(
     let response = client
         .post(&token_url)
         .header("Accept", "application/json")
-        .basic_auth(config.client_id.clone(), Some(config.client_secret.clone()))
+        .basic_auth(
+            config.client_id.clone(),
+            Some(config.client_secret.clone()),
+        )
         .form(&serde_json::json!({
             "code": code,
             "redirect_uri": redirect_uri,
@@ -96,7 +100,9 @@ pub async fn exchange_code_for_token(
     Ok(token_response)
 }
 
-fn parse_github_token_response(body: &str) -> Result<GitHubTokenResponse, DomainError> {
+fn parse_github_token_response(
+    body: &str,
+) -> Result<GitHubTokenResponse, DomainError> {
     let mut access_token = String::new();
     let mut scope = String::new();
     let mut token_type = String::new();
@@ -106,9 +112,18 @@ fn parse_github_token_response(body: &str) -> Result<GitHubTokenResponse, Domain
         let key = parts.next().unwrap_or("");
         let value = parts.next().unwrap_or("");
         match key {
-            "access_token" => access_token = urlencoding::decode(value).unwrap_or_default().to_string(),
-            "scope" => scope = urlencoding::decode(value).unwrap_or_default().to_string(),
-            "token_type" => token_type = urlencoding::decode(value).unwrap_or_default().to_string(),
+            "access_token" => {
+                access_token =
+                    urlencoding::decode(value).unwrap_or_default().to_string()
+            }
+            "scope" => {
+                scope =
+                    urlencoding::decode(value).unwrap_or_default().to_string()
+            }
+            "token_type" => {
+                token_type =
+                    urlencoding::decode(value).unwrap_or_default().to_string()
+            }
             _ => {}
         }
     }

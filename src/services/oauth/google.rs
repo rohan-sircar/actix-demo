@@ -27,16 +27,19 @@ pub fn build_authorize_url(
     state: &str,
     code_challenge: &str,
 ) -> Result<String, DomainError> {
-    let auth_base = if base_url.is_empty() || base_url.starts_with("https://accounts.google.com") {
+    let auth_base = if base_url.is_empty()
+        || base_url.starts_with("https://accounts.google.com")
+    {
         "https://accounts.google.com"
     } else {
         base_url
     };
-    let mut url = Url::parse(&format!("{auth_base}{GOOGLE_AUTH_PATH}")).map_err(|err| {
-        DomainError::new_internal_error(format!(
-            "Failed to parse Google auth URL: {err}"
-        ))
-    })?;
+    let mut url = Url::parse(&format!("{auth_base}{GOOGLE_AUTH_PATH}"))
+        .map_err(|err| {
+            DomainError::new_internal_error(format!(
+                "Failed to parse Google auth URL: {err}"
+            ))
+        })?;
 
     url.query_pairs_mut()
         .append_pair("client_id", &config.client_id)

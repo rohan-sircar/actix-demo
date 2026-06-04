@@ -9,11 +9,11 @@ mod tests {
     use wiremock::matchers::{method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
-    use super::super::oauth_helpers::{setup_disabled_oauth_app, setup_oauth_app};
-    use crate::common::{test_with_minio, test_with_postgres, test_with_redis};
+    use super::super::oauth_helpers::setup_oauth_app;
+    use crate::common::TestContext;
 
     #[actix_rt::test]
-   async fn test_github_login_redirects_with_state_and_challenge() {
+    async fn test_github_login_redirects_with_state_and_challenge() {
         let mock_server = MockServer::start().await;
 
         let ctx = setup_oauth_app(&mock_server).await;
@@ -22,7 +22,7 @@ mod tests {
             .client
             .get(&format!("http://{}/api/auth/oauth/github/login", ctx.addr))
             .send()
-           .await
+            .await
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::TEMPORARY_REDIRECT);
@@ -34,9 +34,18 @@ mod tests {
             .unwrap()
             .to_str()
             .unwrap();
-        assert!(location.contains("state="), "Redirect should contain state parameter");
-        assert!(location.contains("code_challenge="), "Redirect should contain code_challenge parameter");
-        assert!(location.contains("code_challenge_method=S256"), "Should use S256 challenge method");
+        assert!(
+            location.contains("state="),
+            "Redirect should contain state parameter"
+        );
+        assert!(
+            location.contains("code_challenge="),
+            "Redirect should contain code_challenge parameter"
+        );
+        assert!(
+            location.contains("code_challenge_method=S256"),
+            "Should use S256 challenge method"
+        );
 
         // Extract state from redirect URL and verify it's stored in Redis
         let state = location
@@ -46,14 +55,17 @@ mod tests {
             .split('&')
             .next()
             .unwrap();
-        let state_key = format!("test:oauth:state:{}", state);
+        let state_key = format!("app.oauth:state{}", state);
         let mut redis_conn = ctx.app_data.redis_conn_manager.clone();
         let code_verifier: Option<String> = redis::cmd("GET")
             .arg(&state_key)
             .query_async(&mut redis_conn)
             .await
             .unwrap();
-        assert!(code_verifier.is_some(), "State should be stored in Redis with code verifier");
+        assert!(
+            code_verifier.is_some(),
+            "State should be stored in Redis with code verifier"
+        );
     }
 
     #[actix_rt::test]
@@ -72,13 +84,15 @@ mod tests {
         // Mock user info
         Mock::given(method("GET"))
             .and(path("/user"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-                "id": 12345,
-                "login": "testuser",
-                "email": "testuser@example.com",
-                "name": "Test User",
-                "avatar_url": "https://example.com/avatar.png"
-            })))
+            .respond_with(ResponseTemplate::new(200).set_body_json(
+                serde_json::json!({
+                    "id": 12345,
+                    "login": "testuser",
+                    "email": "testuser@example.com",
+                    "name": "Test User",
+                    "avatar_url": "https://example.com/avatar.png"
+                }),
+            ))
             .mount(&mock_server)
             .await;
 
@@ -97,7 +111,7 @@ mod tests {
         let mut redis = ctx.app_data.redis_conn_manager.clone();
         let state = "test-state";
         let code_verifier = "test-verifier";
-        let key = format!("test:oauth:state:{}", state);
+        let key = format!("app.oauth:state{}", state);
         let _: () = redis.set_ex(&key, code_verifier, 300).await.unwrap();
 
         // Call callback
@@ -105,16 +119,12 @@ mod tests {
             "http://{}/api/auth/oauth/github/callback?code=test-auth-code&state={}",
             ctx.addr, state
         );
-        let response = ctx
-            .client
-            .get(&callback_url)
-            .send()
-            .await
-            .unwrap();
+        let response = ctx.client.get(&callback_url).send().await.unwrap();
 
         assert_eq!(response.status(), StatusCode::TEMPORARY_REDIRECT);
 
-        let cookies: Vec<_> = response.cookies().unwrap().iter().cloned().collect();
+        let cookies: Vec<_> =
+            response.cookies().unwrap().iter().cloned().collect();
         assert!(
             cookies.iter().any(|c| c.name() == "X-AUTH-TOKEN"),
             "Session cookie should be set"
@@ -137,7 +147,10 @@ mod tests {
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 
         let body: Value = response.json().await.unwrap();
-        assert!(body["cause"].as_str().unwrap().contains("Session not found or expired"));
+        assert!(body["cause"]
+            .as_str()
+            .unwrap()
+            .contains("Session not found or expired"));
     }
 
     #[actix_rt::test]
@@ -200,26 +213,28 @@ mod tests {
 
         Mock::given(method("POST"))
             .and(path("/oauth2/v4/token"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-                "access_token": "google_test_token",
-                "expires_in": 3600,
-                "token_type": "Bearer",
-                "scope": "openid email profile"
-            })))
+            .respond_with(ResponseTemplate::new(200).set_body_json(
+                serde_json::json!({
+                    "access_token": "google_test_token",
+                    "expires_in": 3600,
+                    "token_type": "Bearer",
+                    "scope": "openid email profile"
+                }),
+            ))
             .mount(&mock_server)
             .await;
 
         Mock::given(method("GET"))
             .and(path("/oauth2/v2/userinfo"))
-            .respond_with(
-                ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            .respond_with(ResponseTemplate::new(200).set_body_json(
+                serde_json::json!({
                     "sub": "google-12345",
                     "email": "googleuser@example.com",
                     "name": "Google User",
                     "email_verified": true,
                     "picture": "https://example.com/picture.png"
-                }))
-            )
+                }),
+            ))
             .mount(&mock_server)
             .await;
 
@@ -228,23 +243,19 @@ mod tests {
         let mut redis = ctx.app_data.redis_conn_manager.clone();
         let state = "google-test-state";
         let code_verifier = "google-code-verifier";
-        let key = format!("test:oauth:state:{}", state);
+        let key = format!("app.oauth:state{}", state);
         let _: () = redis.set_ex(&key, code_verifier, 300).await.unwrap();
 
         let callback_url = format!(
             "http://{}/api/auth/oauth/google/callback?code=google-auth-code&state={}",
             ctx.addr, state
         );
-        let response = ctx
-            .client
-            .get(&callback_url)
-            .send()
-            .await
-            .unwrap();
+        let response = ctx.client.get(&callback_url).send().await.unwrap();
 
         assert_eq!(response.status(), StatusCode::TEMPORARY_REDIRECT);
 
-        let cookies: Vec<_> = response.cookies().unwrap().iter().cloned().collect();
+        let cookies: Vec<_> =
+            response.cookies().unwrap().iter().cloned().collect();
         assert!(
             cookies.iter().any(|c| c.name() == "X-AUTH-TOKEN"),
             "Session cookie should be set"
@@ -253,9 +264,21 @@ mod tests {
         let pool = &ctx.app_data.pool;
         let mut conn = pool.get().unwrap();
         let user = users::table
-            .select((users::id, users::username, users::email, users::oauth_provider, users::oauth_uid))
+            .select((
+                users::id,
+                users::username,
+                users::email,
+                users::oauth_provider,
+                users::oauth_uid,
+            ))
             .order(users::id.desc())
-            .first::<(UserId, actix_demo::models::users::Username, Email, Option<OAuthProvider>, Option<String>)>(&mut conn)
+            .first::<(
+                UserId,
+                actix_demo::models::users::Username,
+                Email,
+                Option<OAuthProvider>,
+                Option<String>,
+            )>(&mut conn)
             .unwrap();
 
         assert_eq!(user.2.as_str(), "googleuser@example.com");
@@ -278,63 +301,65 @@ mod tests {
 
         Mock::given(method("GET"))
             .and(path("/user"))
-            .respond_with(
-                ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            .respond_with(ResponseTemplate::new(200).set_body_json(
+                serde_json::json!({
                     "id": 11111,
                     "login": "githubuser",
                     "email": "linked@example.com",
                     "name": "Linked User",
                     "avatar_url": "https://example.com/github.png"
-                }))
-            )
+                }),
+            ))
             .mount(&mock_server)
             .await;
 
         Mock::given(method("GET"))
             .and(path("/user/emails"))
-            .respond_with(
-                ResponseTemplate::new(200).set_body_json(serde_json::json!([
+            .respond_with(ResponseTemplate::new(200).set_body_json(
+                serde_json::json!([
                     {
                         "email": "linked@example.com",
                         "primary": true,
                         "verified": true,
                         "visibility": "public"
                     }
-                ]))
-            )
+                ]),
+            ))
             .mount(&mock_server)
             .await;
 
         // Google mocks
         Mock::given(method("POST"))
             .and(path("/oauth2/v4/token"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-                "access_token": "google_linked_token",
-                "expires_in": 3600,
-                "token_type": "Bearer",
-                "scope": "openid email profile"
-            })))
+            .respond_with(ResponseTemplate::new(200).set_body_json(
+                serde_json::json!({
+                    "access_token": "google_linked_token",
+                    "expires_in": 3600,
+                    "token_type": "Bearer",
+                    "scope": "openid email profile"
+                }),
+            ))
             .mount(&mock_server)
             .await;
 
         Mock::given(method("GET"))
             .and(path("/oauth2/v2/userinfo"))
-            .respond_with(
-                ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            .respond_with(ResponseTemplate::new(200).set_body_json(
+                serde_json::json!({
                     "sub": "google-99999",
                     "email": "linked@example.com",
                     "name": "Linked User Google",
                     "email_verified": true,
                     "picture": "https://example.com/google.png"
-                }))
-            )
+                }),
+            ))
             .mount(&mock_server)
             .await;
 
         let github_ctx = setup_oauth_app(&mock_server).await;
         let mut redis = github_ctx.app_data.redis_conn_manager.clone();
         let _: () = redis
-            .set_ex("test:oauth:state:github-state", "github-verifier", 300)
+            .set_ex("app.oauth:stategithub-state", "github-verifier", 300)
             .await
             .unwrap();
 
@@ -352,7 +377,7 @@ mod tests {
         // Set Google state in the same Redis instance
         let mut redis = github_ctx.app_data.redis_conn_manager.clone();
         let _: () = redis
-            .set_ex("test:oauth:state:google-state", "google-verifier", 300)
+            .set_ex("app.oauth:stategoogle-state", "google-verifier", 300)
             .await
             .unwrap();
 
@@ -371,21 +396,57 @@ mod tests {
         let pool = &github_ctx.app_data.pool;
         let mut conn = pool.get().unwrap();
 
-        let github_user: Option<(UserId, actix_demo::models::users::Username, Email, Option<OAuthProvider>, Option<String>)> = users::table
-            .select((users::id, users::username, users::email, users::oauth_provider, users::oauth_uid))
+        let github_user: Option<(
+            UserId,
+            actix_demo::models::users::Username,
+            Email,
+            Option<OAuthProvider>,
+            Option<String>,
+        )> = users::table
+            .select((
+                users::id,
+                users::username,
+                users::email,
+                users::oauth_provider,
+                users::oauth_uid,
+            ))
             .filter(users::email.eq("linked@example.com"))
             .order(users::id.desc())
-            .first::<(UserId, actix_demo::models::users::Username, Email, Option<OAuthProvider>, Option<String>)>(&mut conn)
+            .first::<(
+                UserId,
+                actix_demo::models::users::Username,
+                Email,
+                Option<OAuthProvider>,
+                Option<String>,
+            )>(&mut conn)
             .ok();
 
         assert!(github_user.is_some());
         let user_id = github_user.unwrap().0.as_uint();
 
-        let google_user: Option<(UserId, actix_demo::models::users::Username, Email, Option<OAuthProvider>, Option<String>)> = users::table
-            .select((users::id, users::username, users::email, users::oauth_provider, users::oauth_uid))
+        let google_user: Option<(
+            UserId,
+            actix_demo::models::users::Username,
+            Email,
+            Option<OAuthProvider>,
+            Option<String>,
+        )> = users::table
+            .select((
+                users::id,
+                users::username,
+                users::email,
+                users::oauth_provider,
+                users::oauth_uid,
+            ))
             .filter(users::oauth_provider.eq(OAuthProvider::Google))
             .filter(users::oauth_uid.eq("google-99999"))
-            .first::<(UserId, actix_demo::models::users::Username, Email, Option<OAuthProvider>, Option<String>)>(&mut conn)
+            .first::<(
+                UserId,
+                actix_demo::models::users::Username,
+                Email,
+                Option<OAuthProvider>,
+                Option<String>,
+            )>(&mut conn)
             .ok();
 
         assert!(google_user.is_some());
@@ -406,30 +467,30 @@ mod tests {
 
         Mock::given(method("GET"))
             .and(path("/user"))
-            .respond_with(
-                ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            .respond_with(ResponseTemplate::new(200).set_body_json(
+                serde_json::json!({
                     "id": 55555,
                     "login": "newgithubuser",
                     "email": "newuser@example.com",
                     "name": "New User",
                     "avatar_url": null
-                }))
-            )
+                }),
+            ))
             .mount(&mock_server)
             .await;
 
         Mock::given(method("GET"))
             .and(path("/user/emails"))
-            .respond_with(
-                ResponseTemplate::new(200).set_body_json(serde_json::json!([
+            .respond_with(ResponseTemplate::new(200).set_body_json(
+                serde_json::json!([
                     {
                         "email": "newuser@example.com",
                         "primary": true,
                         "verified": true,
                         "visibility": null
                     }
-                ]))
-            )
+                ]),
+            ))
             .mount(&mock_server)
             .await;
 
@@ -437,7 +498,7 @@ mod tests {
 
         let mut redis = ctx.app_data.redis_conn_manager.clone();
         let _: () = redis
-            .set_ex("test:oauth:state:new-user-state", "new-user-verifier", 300)
+            .set_ex("app.oauth:statenew-user-state", "new-user-verifier", 300)
             .await
             .unwrap();
 
@@ -456,9 +517,21 @@ mod tests {
         let pool = &ctx.app_data.pool;
         let mut conn = pool.get().unwrap();
         let user = users::table
-            .select((users::id, users::username, users::email, users::oauth_provider, users::oauth_uid))
+            .select((
+                users::id,
+                users::username,
+                users::email,
+                users::oauth_provider,
+                users::oauth_uid,
+            ))
             .filter(users::email.eq("newuser@example.com"))
-            .first::<(UserId, actix_demo::models::users::Username, Email, Option<OAuthProvider>, Option<String>)>(&mut conn)
+            .first::<(
+                UserId,
+                actix_demo::models::users::Username,
+                Email,
+                Option<OAuthProvider>,
+                Option<String>,
+            )>(&mut conn)
             .unwrap();
 
         assert_eq!(user.2.as_str(), "newuser@example.com");
@@ -470,11 +543,7 @@ mod tests {
     async fn test_github_login_oauth_disabled() {
         let _mock_server = MockServer::start().await;
 
-        let (pg_connstr, _pg) = test_with_postgres().await.unwrap();
-        let (redis_connstr, _redis) = test_with_redis().await.unwrap();
-        let (minio_connstr, _minio) = test_with_minio().await.unwrap();
-
-        let ctx = setup_disabled_oauth_app(&pg_connstr, &redis_connstr, &minio_connstr).await;
+        let ctx = TestContext::new(None).await;
 
         let response = ctx
             .test_server
@@ -490,11 +559,7 @@ mod tests {
     async fn test_google_login_oauth_disabled() {
         let _mock_server = MockServer::start().await;
 
-        let (pg_connstr, _pg) = test_with_postgres().await.unwrap();
-        let (redis_connstr, _redis) = test_with_redis().await.unwrap();
-        let (minio_connstr, _minio) = test_with_minio().await.unwrap();
-
-        let ctx = setup_disabled_oauth_app(&pg_connstr, &redis_connstr, &minio_connstr).await;
+        let ctx = TestContext::new(None).await;
 
         let response = ctx
             .test_server
@@ -520,21 +585,23 @@ mod tests {
 
         Mock::given(method("GET"))
             .and(path("/user"))
-            .respond_with(
-                ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            .respond_with(ResponseTemplate::new(200).set_body_json(
+                serde_json::json!({
                     "id": 99999,
                     "login": "noemailuser",
                     "email": null,
                     "name": "No Email User",
                     "avatar_url": null
-                }))
-            )
+                }),
+            ))
             .mount(&mock_server)
             .await;
 
         Mock::given(method("GET"))
             .and(path("/user/emails"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([])))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(serde_json::json!([])),
+            )
             .mount(&mock_server)
             .await;
 
@@ -542,7 +609,7 @@ mod tests {
 
         let mut redis = ctx.app_data.redis_conn_manager.clone();
         let _: () = redis
-            .set_ex("test:oauth:state:no-email-state", "no-email-verifier", 300)
+            .set_ex("app.oauth:stateno-email-state", "no-email-verifier", 300)
             .await
             .unwrap();
 
@@ -572,7 +639,10 @@ mod tests {
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 
         let body: Value = response.json().await.unwrap();
-        assert!(body["cause"].as_str().unwrap().contains("Session not found or expired"));
+        assert!(body["cause"]
+            .as_str()
+            .unwrap()
+            .contains("Session not found or expired"));
     }
 
     #[actix_rt::test]
