@@ -357,5 +357,31 @@ mod tests {
 
             assert_ne!(resp.status(), StatusCode::FORBIDDEN);
         }
+
+        /// Verifies that search with ?q= works without requiring page/limit params,
+        /// relying on defaults (page=0, limit=20).
+        #[actix_rt::test]
+        async fn should_allow_admin_on_search_without_pagination_params() {
+            let ctx = TestContext::new(None).await;
+
+            let admin_token = get_http_token(
+                &ctx.addr,
+                common::DEFAULT_USER,
+                common::DEFAULT_USER,
+                &ctx.client,
+            )
+            .await
+            .unwrap();
+
+            let resp = ctx
+                .test_server
+                .get("/api/admin/users?q=test")
+                .with_token(&admin_token)
+                .send()
+                .await
+                .unwrap();
+
+            assert_ne!(resp.status(), StatusCode::FORBIDDEN);
+        }
     }
 }
