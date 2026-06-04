@@ -219,10 +219,6 @@ pub fn configure_app(
                         web::scope("/users")
                             .route("", web::get().to(routes::users::get_users))
                             .route(
-                                "/search",
-                                web::get().to(routes::users::search_users),
-                            )
-                            .route(
                                 "/{user_id}",
                                 web::get().to(routes::users::get_user),
                             ),
@@ -306,10 +302,6 @@ pub fn configure_app(
                                 .route(
                                     "",
                                     web::get().to(routes::users::get_users),
-                                )
-                                .route(
-                                    "/search",
-                                    web::get().to(routes::users::search_users),
                                 )
                                 .route(
                                     "/{user_id}",

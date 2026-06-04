@@ -271,7 +271,7 @@ mod tests {
         }
 
         #[actix_rt::test]
-        async fn should_return_403_for_non_admin_on_search_users() {
+        async fn should_return_403_for_non_admin_on_get_users_with_search() {
             let ctx = TestContext::new(None).await;
 
             let _ = common::create_http_user(
@@ -293,7 +293,7 @@ mod tests {
 
             let resp = ctx
                 .test_server
-                .get("/api/admin/users/search?q=test&page=0&limit=10")
+                .get("/api/admin/users?q=test&page=0&limit=10")
                 .with_token(&token)
                 .send()
                 .await

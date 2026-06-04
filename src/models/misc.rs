@@ -79,6 +79,8 @@ impl TryFrom<u16> for PaginationPage {
 pub struct Pagination {
     pub page: PaginationPage,
     pub limit: PaginationLimit,
+    #[serde(default)]
+    pub q: Option<String>,
 }
 
 impl Pagination {
