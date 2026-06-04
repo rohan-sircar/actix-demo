@@ -15,8 +15,10 @@ use uuid::Uuid;
 
 #[derive(Deserialize, Debug)]
 pub struct OAuthCallbackQuery {
-    code: String,
-    state: String,
+    #[serde(default)]
+    code: Option<String>,
+    #[serde(default)]
+    state: Option<String>,
     #[serde(default)]
     error: Option<String>,
 }
@@ -60,6 +62,14 @@ pub async fn github_callback(
             .body(format!("{{\"error\":\"{}\"}}", error)));
     }
 
+    let state = query.state.as_deref().ok_or_else(|| {
+        DomainError::new_bad_input_error("Missing state parameter".to_owned())
+    })?;
+
+    let code = query.code.as_deref().ok_or_else(|| {
+        DomainError::new_bad_input_error("Missing code parameter".to_owned())
+    })?;
+
     let config = &app_data.config.oauth;
     if !config.enabled {
         return Err(DomainError::new_auth_error(
@@ -72,15 +82,15 @@ pub async fn github_callback(
 
     // Validate state
     let code_verifier =
-        oauth::validate_state(redis, prefix, &query.state).await?;
+        oauth::validate_state(redis, prefix, state).await?;
 
     // Exchange code for token
-    let access_token = oauth::exchange_github_code(config, &query.code).await?;
+    let access_token = oauth::exchange_github_code(config, code).await?;
 
     // Get user info from GitHub
-    let github_user = oauth::get_github_user_info(&access_token).await?;
+    let github_user = oauth::get_github_user_info(&access_token, &config.base_url).await?;
     let email = github_user.email.ok_or_else(|| {
-        DomainError::new_auth_error("GitHub did not return an email".to_owned())
+        DomainError::new_bad_input_error("GitHub did not return an email".to_owned())
     })?;
 
     // Find or create user
@@ -90,7 +100,7 @@ pub async fn github_callback(
         let mut conn = pool.get()?;
         find_or_create_oauth_user(
             &email,
-            &OAuthProvider::GitHub,
+            &OAuthProvider::Github,
             &github_user.id.to_string(),
             github_user.name.as_deref(),
             app_data_clone.config.hash_cost,
@@ -143,6 +153,14 @@ pub async fn google_callback(
             .body(format!("{{\"error\":\"{}\"}}", error)));
     }
 
+    let state = query.state.as_deref().ok_or_else(|| {
+        DomainError::new_bad_input_error("Missing state parameter".to_owned())
+    })?;
+
+    let code = query.code.as_deref().ok_or_else(|| {
+        DomainError::new_bad_input_error("Missing code parameter".to_owned())
+    })?;
+
     let config = &app_data.config.oauth;
     if !config.enabled {
         return Err(DomainError::new_auth_error(
@@ -155,13 +173,13 @@ pub async fn google_callback(
 
     // Validate state
     let code_verifier =
-        oauth::validate_state(redis, prefix, &query.state).await?;
+        oauth::validate_state(redis, prefix, state).await?;
 
     // Exchange code for token
-    let access_token = oauth::exchange_google_code(config, &query.code).await?;
+    let access_token = oauth::exchange_google_code(config, code).await?;
 
     // Get user info from Google
-    let google_user = oauth::get_google_user_info(&access_token).await?;
+    let google_user = oauth::get_google_user_info(&access_token, &config.base_url).await?;
     let email = google_user.email.clone();
 
     // Find or create user

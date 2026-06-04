@@ -102,6 +102,7 @@ testcontainers-modules = { version = "0.11.6", features = [
     "minio",
 ] }
 tokio-postgres = "0.7.7"
+wiremock = "0.6"
 
 [dependencies.build-info]
 version = "0.0.40"

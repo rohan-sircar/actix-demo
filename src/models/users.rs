@@ -15,14 +15,14 @@ use super::roles::RoleEnum;
 #[serde(rename_all = "snake_case")]
 #[ExistingTypePath = "crate::schema::sql_types::OAuthProviderType"]
 pub enum OAuthProvider {
-    GitHub,
+    Github,
     Google,
 }
 
 impl OAuthProvider {
     pub fn as_str(&self) -> &str {
         match self {
-            OAuthProvider::GitHub => "github",
+            OAuthProvider::Github => "github",
             OAuthProvider::Google => "google",
         }
     }
@@ -33,7 +33,7 @@ impl std::str::FromStr for OAuthProvider {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "github" => Ok(OAuthProvider::GitHub),
+            "github" => Ok(OAuthProvider::Github),
             "google" => Ok(OAuthProvider::Google),
             _ => Err(()),
         }

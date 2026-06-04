@@ -4,10 +4,9 @@ use crate::errors::DomainError;
 use serde::Serialize;
 use url::Url;
 
-const GOOGLE_AUTH_URL: &str = "https://accounts.google.com/o/oauth2/v2/auth";
-const GOOGLE_TOKEN_URL: &str = "https://oauth2.googleapis.com/token";
-const GOOGLE_USER_INFO_URL: &str =
-    "https://www.googleapis.com/oauth2/v2/userinfo";
+const GOOGLE_AUTH_PATH: &str = "/o/oauth2/v2/auth";
+const GOOGLE_TOKEN_PATH: &str = "/oauth2/v4/token";
+const GOOGLE_USER_INFO_PATH: &str = "/oauth2/v2/userinfo";
 
 #[derive(Serialize)]
 pub struct GoogleAuthUrlParams {
@@ -28,7 +27,12 @@ pub fn build_authorize_url(
     state: &str,
     code_challenge: &str,
 ) -> Result<String, DomainError> {
-    let mut url = Url::parse(GOOGLE_AUTH_URL).map_err(|err| {
+    let auth_base = if base_url.is_empty() || base_url.starts_with("https://accounts.google.com") {
+        "https://accounts.google.com"
+    } else {
+        base_url
+    };
+    let mut url = Url::parse(&format!("{auth_base}{GOOGLE_AUTH_PATH}")).map_err(|err| {
         DomainError::new_internal_error(format!(
             "Failed to parse Google auth URL: {err}"
         ))
@@ -58,9 +62,10 @@ pub async fn exchange_code_for_token(
 ) -> Result<GoogleTokenResponse, DomainError> {
     let client = reqwest::Client::new();
     let redirect_uri = format!("{base_url}/api/auth/oauth/google/callback");
+    let token_url = format!("{base_url}{GOOGLE_TOKEN_PATH}");
 
     let response = client
-        .post(GOOGLE_TOKEN_URL)
+        .post(&token_url)
         .header("Accept", "application/json")
         .form(&serde_json::json!({
             "client_id": config.client_id,
@@ -96,11 +101,13 @@ pub async fn exchange_code_for_token(
 
 pub async fn get_user_info(
     access_token: &str,
+    base_url: &str,
 ) -> Result<GoogleOAuthUser, DomainError> {
     let client = reqwest::Client::new();
+    let user_url = format!("{base_url}{GOOGLE_USER_INFO_PATH}");
 
     let user = client
-        .get(GOOGLE_USER_INFO_URL)
+        .get(&user_url)
         .header("Authorization", format!("Bearer {access_token}"))
         .header("Accept", "application/json")
         .send()

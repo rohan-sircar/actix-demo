@@ -54,21 +54,22 @@ pub async fn validate_state(
         })?;
 
     match code_verifier {
-        Some(verifier) => {
-            let _: Result<usize, _> = redis.del(&key).await;
-            Ok(verifier)
+            Some(verifier) => {
+                let _: Result<usize, _> = redis.del(&key).await;
+                Ok(verifier)
+            }
+            None => Err(DomainError::new_bad_input_error(
+                "Session not found or expired".to_owned(),
+            )),
         }
-        None => Err(DomainError::new_auth_error(
-            "Invalid or expired OAuth state".to_owned(),
-        )),
-    }
 }
 
 pub async fn get_github_user_info(
     access_token: &str,
+    base_url: &str,
 ) -> Result<GitHubOAuthUser, DomainError> {
-    let github_user = github::get_user_info(access_token).await?;
-    let emails = github::get_user_emails(access_token).await?;
+    let github_user = github::get_user_info(access_token, base_url).await?;
+    let emails = github::get_user_emails(access_token, base_url).await?;
 
     let primary_email = emails
         .iter()
@@ -76,7 +77,7 @@ pub async fn get_github_user_info(
         .map(|e| e.email.clone());
 
     if primary_email.is_none() {
-        return Err(DomainError::new_auth_error(
+        return Err(DomainError::new_bad_input_error(
             "GitHub did not return a verified email".to_owned(),
         ));
     }
@@ -138,6 +139,7 @@ pub async fn exchange_google_code(
 
 pub async fn get_google_user_info(
     access_token: &str,
+    base_url: &str,
 ) -> Result<GoogleOAuthUser, DomainError> {
-    google::get_user_info(access_token).await
+    google::get_user_info(access_token, base_url).await
 }
