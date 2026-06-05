@@ -49,7 +49,6 @@ mod tests {
                 &redis_connstr,
                 &minio_connstr,
                 options,
-                None,
             )
             .await
             .unwrap();

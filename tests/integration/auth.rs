@@ -1,4 +1,6 @@
 mod email_verification;
+mod oauth;
+mod oauth_helpers;
 mod rate_limit;
 mod registration_verification_login;
 mod session;

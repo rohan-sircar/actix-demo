@@ -26,6 +26,10 @@ pub mod sql_types {
     pub struct JobStatus;
 
     #[derive(diesel::query_builder::QueryId, diesel::sql_types::SqlType)]
+    #[diesel(postgres_type(name = "oauth_provider_type"))]
+    pub struct OAuthProviderType;
+
+    #[derive(diesel::query_builder::QueryId, diesel::sql_types::SqlType)]
     #[diesel(postgres_type(name = "pet_type"))]
     pub struct PetType;
 
@@ -194,6 +198,9 @@ diesel::table! {
 }
 
 diesel::table! {
+    use diesel::sql_types::*;
+    use super::sql_types::OAuthProviderType;
+
     users (id) {
         id -> Int4,
         username -> Varchar,
@@ -202,6 +209,9 @@ diesel::table! {
         deleted_at -> Nullable<Timestamp>,
         #[max_length = 255]
         email -> Varchar,
+        oauth_provider -> Nullable<OAuthProviderType>,
+        #[max_length = 128]
+        oauth_uid -> Nullable<Varchar>,
     }
 }
 

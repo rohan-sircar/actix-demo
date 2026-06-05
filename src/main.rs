@@ -255,6 +255,7 @@ async fn main() -> anyhow::Result<()> {
                 from_email: env_config.smtp_from_email.clone(),
                 tls_mode: env_config.smtp_tls_mode,
             },
+            oauth: env_config.oauth.clone(),
         },
         pool,
         credentials_repo,

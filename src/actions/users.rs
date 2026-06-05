@@ -4,8 +4,9 @@ use crate::errors::DomainError;
 use crate::models::misc::Pagination;
 use crate::models::roles::{NewUserRole, RoleEnum, RoleId};
 use crate::models::users::{
-    Email, NewUser, Password, UpdateUserProfile, User, UserAuthDetails,
-    UserAuthDetailsWithRoles, UserId, UserWithRoles, Username,
+    Email, NewUser, OAuthProvider, OAuthUserLookup, Password,
+    UpdateUserProfile, User, UserAuthDetails, UserAuthDetailsWithRoles, UserId,
+    UserWithRoles, Username,
 };
 use crate::types::DbConnection;
 use crate::utils::InstrumentedRedisCache;
@@ -136,7 +137,14 @@ pub fn get_user_auth_details(
 
     conn.transaction(|conn| {
         let mb_user = users::users
-            .select((users::id, users::username, users::password, users::email))
+            .select((
+                users::id,
+                users::username,
+                users::password,
+                users::email,
+                users::oauth_provider,
+                users::oauth_uid,
+            ))
             .filter(users::username.eq(user_name))
             .filter(users::deleted_at.is_null())
             .first::<UserAuthDetails>(conn)
@@ -568,4 +576,217 @@ pub async fn delete_user_avatar(
             }
         }
     }
+}
+
+/// Find a user by email for OAuth login.
+pub fn find_oauth_user_by_email(
+    email: &str,
+    conn: &mut DbConnection,
+) -> Result<Option<OAuthUserLookup>, DomainError> {
+    use crate::schema::users::dsl as users;
+
+    let mb_user = users::users
+        .select((
+            users::id,
+            users::username,
+            users::email,
+            users::password,
+            users::oauth_provider,
+            users::oauth_uid,
+        ))
+        .filter(users::email.eq(email))
+        .filter(users::deleted_at.is_null())
+        .first::<OAuthUserLookup>(conn)
+        .optional()?;
+
+    Ok(mb_user)
+}
+
+/// Find or create a user from OAuth data.
+/// Returns the user with roles, and whether it was a new registration.
+pub fn find_or_create_oauth_user(
+    email: &str,
+    provider: &OAuthProvider,
+    provider_uid: &str,
+    _display_name: Option<&str>,
+    _hash_cost: u32,
+    user_ids_cache: &InstrumentedRedisCache<String, Vec<UserId>>,
+    conn: &mut DbConnection,
+) -> Result<(UserWithRoles, bool), DomainError> {
+    use crate::schema::users::dsl as users;
+
+    conn.transaction(|conn| {
+        // Check if user already exists with this OAuth account
+        let existing_oauth = users::users
+            .select((
+                users::id,
+                users::username,
+                users::created_at,
+                users::deleted_at,
+            ))
+            .filter(users::oauth_provider.eq(Some(provider.clone())))
+            .filter(users::oauth_uid.eq(Some(provider_uid.to_string())))
+            .filter(users::deleted_at.is_null())
+            .first::<User>(conn)
+            .optional()?;
+
+        if let Some(user) = existing_oauth {
+            let roles = get_roles_for_user(&user.id, conn)?;
+            return Ok((
+                UserWithRoles {
+                    id: user.id,
+                    username: user.username,
+                    created_at: user.created_at,
+                    roles,
+                },
+                false,
+            ));
+        }
+
+        // Check if user exists with this email
+        let existing_email = users::users
+            .select((
+                users::id,
+                users::username,
+                users::created_at,
+                users::deleted_at,
+                users::oauth_provider,
+                users::oauth_uid,
+            ))
+            .filter(users::email.eq(email))
+            .filter(users::deleted_at.is_null())
+            .first::<(
+                UserId,
+                Username,
+                chrono::NaiveDateTime,
+                Option<chrono::NaiveDateTime>,
+                Option<OAuthProvider>,
+                Option<String>,
+            )>(conn)
+            .optional()?;
+
+        if let Some((
+            uid,
+            username,
+            created_at,
+            _,
+            existing_provider,
+            _existing_uid,
+        )) = existing_email
+        {
+            // User exists with email but different or no OAuth provider
+            if existing_provider.is_none()
+                || existing_provider.as_ref() != Some(provider)
+            {
+                // Link the OAuth account to existing user
+                diesel::update(users::users.filter(users::id.eq(&uid)))
+                    .set((
+                        users::oauth_provider.eq(Some(provider.clone())),
+                        users::oauth_uid.eq(Some(provider_uid.to_string())),
+                    ))
+                    .execute(conn)?;
+
+                let roles = get_roles_for_user(&uid, conn)?;
+                return Ok((
+                    UserWithRoles {
+                        id: uid,
+                        username,
+                        created_at,
+                        roles,
+                    },
+                    false,
+                ));
+            }
+        }
+
+        // Create new user
+        let username_base = email.split('@').next().unwrap_or("user");
+        let mut username = username_base.to_string();
+        let mut attempt = 0u32;
+
+        loop {
+            let username_check = users::users
+                .select(users::id)
+                .filter(users::username.eq(&username))
+                .first::<UserId>(conn)
+                .optional()?;
+
+            if username_check.is_none() {
+                break;
+            }
+
+            attempt += 1;
+            username = format!("{}_{}", username_base, attempt);
+        }
+
+        loop {
+            match diesel::insert_into(users::users)
+                .values((
+                    users::username.eq(&username),
+                    users::password.eq(""),
+                    users::email.eq(email),
+                    users::oauth_provider.eq(Some(provider.clone())),
+                    users::oauth_uid.eq(Some(provider_uid.to_string())),
+                ))
+                .execute(conn)
+            {
+                Ok(_) => break,
+                Err(diesel::result::Error::DatabaseError(
+                    diesel::result::DatabaseErrorKind::UniqueViolation,
+                    _,
+                )) => {
+                    attempt += 1;
+                    username = format!("{}_{}", username_base, attempt);
+                }
+                Err(e) => return Err(e.into()),
+            }
+        }
+
+        let user = users::users
+            .select((
+                users::id,
+                users::username,
+                users::created_at,
+                users::deleted_at,
+            ))
+            .filter(users::username.eq(&username))
+            .filter(users::deleted_at.is_null())
+            .first::<User>(conn)?;
+
+        // Assign default role
+        let role_id = {
+            use crate::schema::roles::dsl as roles;
+            roles::roles
+                .select(roles::id)
+                .filter(roles::role_name.eq(RoleEnum::RoleUser))
+                .first::<RoleId>(conn)?
+        };
+
+        {
+            use crate::schema::users_roles::dsl as users_roles;
+            diesel::insert_into(users_roles::users_roles)
+                .values(NewUserRole {
+                    user_id: user.id,
+                    role_id,
+                })
+                .execute(conn)?;
+        }
+
+        let roles = get_roles_for_user(&user.id, conn)?;
+
+        // Invalidate the cache since we've added a new user
+        if let Err(e) = user_ids_cache.remove(&"user_ids".to_owned()) {
+            tracing::error!(error = %e, "Failed to invalidate user IDs cache");
+        }
+
+        Ok((
+            UserWithRoles {
+                id: user.id,
+                username: user.username,
+                created_at: user.created_at,
+                roles,
+            },
+            true,
+        ))
+    })
 }

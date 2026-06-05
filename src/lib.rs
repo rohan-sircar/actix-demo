@@ -32,7 +32,7 @@ use actix_web::middleware::from_fn;
 use actix_web::web::{Data, ServiceConfig};
 use actix_web::{middleware, web, App, HttpServer};
 use actix_web_grants::GrantsMiddleware;
-use config::{MinioConfig, TlsMode};
+use config::{MinioConfig, OAuthConfig, TlsMode};
 use health::{HealthChecker, HealthcheckName};
 use jwt_simple::prelude::HS256Key;
 use metrics::Metrics;
@@ -80,6 +80,7 @@ pub struct AppConfig {
     pub smtp: SmtpConfig,
     pub email_token_ttl_verification_secs: u64,
     pub email_token_ttl_reset_secs: u64,
+    pub oauth: OAuthConfig,
 }
 
 pub struct AppData {
@@ -221,6 +222,35 @@ pub fn configure_app(
                             .route(
                                 "/{user_id}",
                                 web::get().to(routes::users::get_user),
+                            ),
+                    ),
+            )
+            // OAuth endpoints (unauthenticated)
+            .service(
+                web::scope("/api/auth/oauth")
+                    .wrap(api_rate_limiter(
+                        &app_data.config.rate_limit.api_public,
+                    ))
+                    .service(
+                        web::scope("/github")
+                            .route(
+                                "/login",
+                                web::get().to(routes::oauth::github_login),
+                            )
+                            .route(
+                                "/callback",
+                                web::get().to(routes::oauth::github_callback),
+                            ),
+                    )
+                    .service(
+                        web::scope("/google")
+                            .route(
+                                "/login",
+                                web::get().to(routes::oauth::google_login),
+                            )
+                            .route(
+                                "/callback",
+                                web::get().to(routes::oauth::google_callback),
                             ),
                     ),
             )

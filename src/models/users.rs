@@ -3,12 +3,55 @@ use serde::{Deserialize, Serialize};
 use crate::schema::users;
 use crate::utils::regex;
 use derive_more::{Display, Into};
+use diesel_derive_enum::DbEnum;
 use std::convert::TryFrom;
 use std::fmt;
 use std::{convert::TryInto, str::FromStr};
 use validators::prelude::*;
 
 use super::roles::RoleEnum;
+
+#[derive(DbEnum, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
+#[serde(rename_all = "snake_case")]
+#[ExistingTypePath = "crate::schema::sql_types::OAuthProviderType"]
+pub enum OAuthProvider {
+    Github,
+    Google,
+}
+
+impl OAuthProvider {
+    pub fn as_str(&self) -> &str {
+        match self {
+            OAuthProvider::Github => "github",
+            OAuthProvider::Google => "google",
+        }
+    }
+}
+
+impl std::str::FromStr for OAuthProvider {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "github" => Ok(OAuthProvider::Github),
+            "google" => Ok(OAuthProvider::Google),
+            _ => Err(()),
+        }
+    }
+}
+
+impl std::fmt::Display for OAuthProvider {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OAuthUserInfo {
+    pub email: String,
+    pub name: Option<String>,
+    pub avatar_url: Option<String>,
+}
 
 #[derive(Validator, Debug, Clone, DieselNewType, PartialEq, Eq)]
 #[validator(regex(regex(regex::EMAIL_REG)))]
@@ -91,7 +134,9 @@ impl TryFrom<u32> for UserId {
             .map(UserId)
     }
 }
-#[derive(Validator, Debug, Clone, DieselNewType, PartialEq, Eq)]
+#[derive(
+    Validator, Debug, Clone, DieselNewType, PartialEq, Eq, derive_more::Display,
+)]
 #[validator(regex(regex(regex::USERNAME_REG)))]
 pub struct Username(String);
 impl Username {
@@ -175,6 +220,18 @@ pub struct UserAuthDetails {
     #[serde(skip_serializing)]
     pub password: Password,
     pub email: Email,
+    pub oauth_provider: Option<OAuthProvider>,
+    pub oauth_uid: Option<String>,
+}
+
+#[derive(Debug, Clone, Queryable)]
+pub struct OAuthUserLookup {
+    pub id: UserId,
+    pub username: Username,
+    pub email: Email,
+    pub password: Password,
+    pub oauth_provider: Option<OAuthProvider>,
+    pub oauth_uid: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -184,6 +241,8 @@ pub struct UserAuthDetailsWithRoles {
     #[serde(skip_serializing)]
     pub password: Password,
     pub email: Email,
+    pub oauth_provider: Option<OAuthProvider>,
+    pub oauth_uid: Option<String>,
     pub roles: Vec<RoleEnum>,
 }
 
@@ -197,6 +256,8 @@ impl UserAuthDetailsWithRoles {
             username: user.username,
             password: user.password,
             email: user.email,
+            oauth_provider: user.oauth_provider,
+            oauth_uid: user.oauth_uid,
             roles,
         }
     }

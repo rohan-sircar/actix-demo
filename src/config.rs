@@ -11,6 +11,24 @@ pub enum TlsMode {
     Tls,
 }
 
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct OAuthConfig {
+    pub enabled: bool,
+    pub base_url: String,
+    #[serde(default)]
+    pub github: OAuthProviderConfig,
+    #[serde(default)]
+    pub google: OAuthProviderConfig,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct OAuthProviderConfig {
+    pub client_id: String,
+    pub client_secret: String,
+    #[serde(default)]
+    pub scopes: Vec<String>,
+}
+
 #[derive(Deserialize, Debug, Clone)]
 pub struct EnvConfig {
     // system
@@ -132,6 +150,9 @@ pub struct EnvConfig {
         default = "models::defaults::default_rate_limit_password_reset_window_secs"
     )]
     pub rate_limit_password_reset_window_secs: u64,
+    // OAuth configuration
+    #[serde(default = "models::defaults::default_oauth_config")]
+    pub oauth: OAuthConfig,
 }
 
 #[derive(Deserialize, Debug, Clone)]

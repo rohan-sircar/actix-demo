@@ -1,8 +1,3 @@
----
-name: rust-testcontainers
-description: When running Rust integration tests that use testcontainers (Docker-based services like PostgreSQL, Redis, MinIO), never truncate test output with tail/head — containers will be orphaned. Run tests module-by-module to reduce container launch pressure on the system.
----
-
 # Rust Testcontainers Test Running
 
 When running Rust integration tests that use testcontainers (Docker-based services like PostgreSQL, Redis, MinIO), follow these rules to avoid orphaned containers and ensure reliable test execution.
@@ -35,34 +30,12 @@ Testcontainers cleanup can take 10-60 seconds after the last test assertion pass
 # 1. Compile first (fast, no containers)
 cargo check --tests
 
-# 2. Run tests module-by-module to reduce container launch pressure
-#    (see guidance below)
+# 2. Run tests (full output, no truncation)
+cargo test --test integration 2>&1
 
 # 3. Lint (no containers involved)
 cargo make lint-check
 ```
-
-## Running Tests Module-by-Module
-
-**Prefer running tests by module over running all integration tests at once.** The test suite launches many Docker containers (PostgreSQL, Redis, MinIO, Mailpit) in parallel — running everything together can overwhelm the system.
-
-```bash
-# Run a specific test module
-cargo test --test integration auth::oauth 2>&1
-cargo test --test integration auth::session 2>&1
-cargo test --test integration auth::registration 2>&1
-cargo test --test integration actions::users 2>&1
-cargo test --test integration actions::sessions 2>&1
-cargo test --test integration misc 2>&1
-
-# Run a specific test function
-cargo test --test integration test_github_login_redirects 2>&1
-
-# Run all tests in a sub-module
-cargo test --test integration auth:: 2>&1
-```
-
-When asking the user to run tests, suggest the smallest relevant scope. Only run the full suite if specifically requested or if changes span multiple modules.
 
 ## If Orphaned Containers Accumulate
 
