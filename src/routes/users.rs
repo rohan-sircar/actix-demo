@@ -2,6 +2,7 @@ use actix_web::{web, HttpRequest, HttpResponse};
 use actix_web_grants::protect;
 use awc::cookie::{Cookie, SameSite};
 use time::OffsetDateTime;
+use utoipa::ToSchema;
 
 use crate::diesel::ExpressionMethods;
 use crate::diesel::RunQueryDsl;
@@ -11,13 +12,6 @@ use crate::models::users::{NewUser, UpdateUserProfile, UserId};
 use crate::services::email::tokens;
 use crate::{actions, utils};
 use crate::{errors::DomainError, AppData};
-
-/// Request body for avatar upload.
-#[derive(ToSchema)]
-pub struct UploadAvatarRequest {
-    /// Avatar image file (PNG, JPG, GIF, WebP).
-    pub file: Vec<u8>,
-}
 
 #[utoipa::path(
     get,
@@ -179,12 +173,18 @@ pub async fn add_user(
     Ok(HttpResponse::Created().json(user))
 }
 
+/// Request body for avatar upload.
+#[allow(dead_code)]
+#[derive(ToSchema)]
+pub struct UploadAvatarRequest {
+    /// Avatar image file (PNG, JPG, GIF, WebP).
+    pub file: Vec<u8>,
+}
 #[utoipa::path(
     put,
     path = "/api/avatars",
     tag = "users",
     request_body = UploadAvatarRequest,
-    content_type = "multipart/form-data",
     responses(
         (status = 200, description = "Avatar uploaded successfully", body = String),
         (status = 400, description = "Invalid file type or size", body = crate::models::misc::ErrorResponse<String>),
