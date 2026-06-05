@@ -402,6 +402,7 @@ pub fn configure_app(
             services::oauth::models::GoogleTokenResponse,
             routes::healthcheck::HealthCheckResponse,
             routes::healthcheck::ServiceStatus,
+            routes::users::UploadAvatarRequest,
         ),
     ),
     tags(

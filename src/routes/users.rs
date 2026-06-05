@@ -12,6 +12,13 @@ use crate::services::email::tokens;
 use crate::{actions, utils};
 use crate::{errors::DomainError, AppData};
 
+/// Request body for avatar upload.
+#[derive(ToSchema)]
+pub struct UploadAvatarRequest {
+    /// Avatar image file (PNG, JPG, GIF, WebP).
+    pub file: Vec<u8>,
+}
+
 #[utoipa::path(
     get,
     path = "/api/public/users/{user_id}",
@@ -176,6 +183,8 @@ pub async fn add_user(
     put,
     path = "/api/avatars",
     tag = "users",
+    request_body = UploadAvatarRequest,
+    content_type = "multipart/form-data",
     responses(
         (status = 200, description = "Avatar uploaded successfully", body = String),
         (status = 400, description = "Invalid file type or size", body = crate::models::misc::ErrorResponse<String>),
