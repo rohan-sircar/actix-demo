@@ -633,6 +633,7 @@ pub async fn app_data(
                 .unwrap(),
             )
         },
+        api_docs_path: "/api/docs".to_string(),
     });
     Ok(data)
 }

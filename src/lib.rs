@@ -102,6 +102,7 @@ pub struct AppData {
     pub health_checkers: Vec<(HealthcheckName, HealthChecker)>,
     pub minio: minior::Minio,
     pub mailer: Arc<dyn Mailer>,
+    pub api_docs_path: String,
 }
 
 pub fn configure_app(
@@ -343,7 +344,7 @@ pub fn configure_app(
                         ),
                     ),
             );
-        cfg.service(Redoc::with_url("/api/docs", ApiDoc::openapi()));
+        cfg.service(Redoc::with_url(app_data.api_docs_path.clone(), ApiDoc::openapi()));
     })
 }
 

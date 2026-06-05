@@ -149,3 +149,7 @@ pub fn default_oauth_config() -> crate::config::OAuthConfig {
         google: crate::config::OAuthProviderConfig::default(),
     }
 }
+
+pub fn default_api_docs_path() -> String {
+    "/api/docs".to_string()
+}
