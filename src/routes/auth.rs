@@ -120,7 +120,7 @@ pub async fn validate_token(
     request_body = UserLogin,
     responses(
         (status = 200, description = "Login successful - sets auth cookie"),
-        (status = 401, description = "Invalid credentials", body = crate::models::misc::ErrorResponse<String>),
+        (status = 401, description = "Invalid credentials", body = ErrorResponseString),
     ),
 )]
 #[tracing::instrument(level = "info", skip(app_data, login_request))]
@@ -204,7 +204,7 @@ pub async fn login(
     tag = "auth",
     responses(
         (status = 200, description = "List of active sessions", body = Vec<SessionInfo>),
-        (status = 401, description = "Missing or invalid auth token", body = crate::models::misc::ErrorResponse<String>),
+        (status = 401, description = "Missing or invalid auth token", body = ErrorResponseString),
     ),
 )]
 // New endpoint to list all active sessions for a user
@@ -228,7 +228,7 @@ pub async fn list_sessions(
     tag = "auth",
     responses(
         (status = 200, description = "Logout successful - clears auth cookie"),
-        (status = 401, description = "Missing or invalid auth token", body = crate::models::misc::ErrorResponse<String>),
+        (status = 401, description = "Missing or invalid auth token", body = ErrorResponseString),
     ),
 )]
 // New endpoint to revoke a specific session
@@ -271,8 +271,8 @@ pub async fn logout(
     ),
     responses(
         (status = 200, description = "Session revoked successfully"),
-        (status = 401, description = "Missing or invalid auth token", body = crate::models::misc::ErrorResponse<String>),
-        (status = 404, description = "Session not found", body = crate::models::misc::ErrorResponse<String>),
+        (status = 401, description = "Missing or invalid auth token", body = ErrorResponseString),
+        (status = 404, description = "Session not found", body = ErrorResponseString),
     ),
 )]
 // New endpoint to revoke a specific session
@@ -315,7 +315,7 @@ pub async fn revoke_session(
     tag = "auth",
     responses(
         (status = 200, description = "All other sessions revoked successfully"),
-        (status = 401, description = "Missing or invalid auth token", body = crate::models::misc::ErrorResponse<String>),
+        (status = 401, description = "Missing or invalid auth token", body = ErrorResponseString),
     ),
 )]
 // New endpoint to revoke all sessions except the current one

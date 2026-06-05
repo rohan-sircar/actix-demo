@@ -5,9 +5,7 @@ use utoipa::ToSchema;
 
 use super::users::UserId;
 
-#[derive(
-    Eq, PartialEq, Debug, Clone, Serialize, Deserialize, new, ToSchema,
-)]
+#[derive(Eq, PartialEq, Debug, Clone, Serialize, Deserialize, new)]
 pub struct ErrorResponse<T> {
     pub cause: T,
 }
@@ -16,6 +14,11 @@ impl<T: Serialize> ErrorResponse<T> {
     pub fn failure(response: T) -> ErrorResponse<T> {
         ErrorResponse::new(response)
     }
+}
+
+#[derive(ToSchema, Serialize, Deserialize)]
+pub struct ErrorResponseString {
+    pub cause: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]

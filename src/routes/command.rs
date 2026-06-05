@@ -35,8 +35,8 @@ pub struct RunCommandRequest {
     request_body = RunCommandRequest,
     responses(
         (status = 200, description = "Job created successfully", body = Job),
-        (status = 401, description = "Missing or invalid auth token", body = crate::models::misc::ErrorResponse<String>),
-        (status = 403, description = "Forbidden - admin only", body = crate::models::misc::ErrorResponse<String>),
+        (status = 401, description = "Missing or invalid auth token", body = ErrorResponseString),
+        (status = 403, description = "Forbidden - admin only", body = ErrorResponseString),
     ),
 )]
 /// Executes a long-running command as a background job
@@ -274,9 +274,9 @@ pub async fn handle_run_command(
     ),
     responses(
         (status = 200, description = "Job details", body = Job),
-        (status = 401, description = "Missing or invalid auth token", body = crate::models::misc::ErrorResponse<String>),
-        (status = 403, description = "Forbidden - admin only", body = crate::models::misc::ErrorResponse<String>),
-        (status = 404, description = "Job not found", body = crate::models::misc::ErrorResponse<String>),
+        (status = 401, description = "Missing or invalid auth token", body = ErrorResponseString),
+        (status = 403, description = "Forbidden - admin only", body = ErrorResponseString),
+        (status = 404, description = "Job not found", body = ErrorResponseString),
     ),
 )]
 /// Retrieves a job from the database by its UUID.
@@ -383,9 +383,9 @@ pub async fn handle_get_job_metrics(
     ),
     responses(
         (status = 200, description = "Abort command sent successfully"),
-        (status = 401, description = "Missing or invalid auth token", body = crate::models::misc::ErrorResponse<String>),
-        (status = 403, description = "Forbidden - not job owner", body = crate::models::misc::ErrorResponse<String>),
-        (status = 404, description = "Job not found", body = crate::models::misc::ErrorResponse<String>),
+        (status = 401, description = "Missing or invalid auth token", body = ErrorResponseString),
+        (status = 403, description = "Forbidden - not job owner", body = ErrorResponseString),
+        (status = 404, description = "Job not found", body = ErrorResponseString),
     ),
 )]
 /// Aborts a command by sending a message to the Redis channel associated with the job.

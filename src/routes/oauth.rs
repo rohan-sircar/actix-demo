@@ -29,7 +29,7 @@ pub struct OAuthCallbackQuery {
     tag = "oauth",
     responses(
         (status = 307, description = "Redirects to GitHub OAuth"),
-        (status = 401, description = "OAuth is not enabled", body = crate::models::misc::ErrorResponse<String>),
+        (status = 401, description = "OAuth is not enabled", body = ErrorResponseString),
     ),
 )]
 #[tracing::instrument(level = "info", skip(app_data))]
@@ -65,7 +65,7 @@ pub async fn github_login(
     tag = "oauth",
     responses(
         (status = 307, description = "Redirects to app root after successful login"),
-        (status = 400, description = "Invalid OAuth callback parameters", body = crate::models::misc::ErrorResponse<String>),
+        (status = 400, description = "Invalid OAuth callback parameters", body = ErrorResponseString),
     ),
 )]
 #[tracing::instrument(level = "info", skip(app_data, query))]
@@ -140,7 +140,7 @@ pub async fn github_callback(
     tag = "oauth",
     responses(
         (status = 307, description = "Redirects to Google OAuth"),
-        (status = 401, description = "OAuth is not enabled", body = crate::models::misc::ErrorResponse<String>),
+        (status = 401, description = "OAuth is not enabled", body = ErrorResponseString),
     ),
 )]
 #[tracing::instrument(level = "info", skip(app_data))]
@@ -176,7 +176,7 @@ pub async fn google_login(
     tag = "oauth",
     responses(
         (status = 307, description = "Redirects to app root after successful login"),
-        (status = 400, description = "Invalid OAuth callback parameters", body = crate::models::misc::ErrorResponse<String>),
+        (status = 400, description = "Invalid OAuth callback parameters", body = ErrorResponseString),
     ),
 )]
 #[tracing::instrument(level = "info", skip(app_data, query))]

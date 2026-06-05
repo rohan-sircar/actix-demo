@@ -22,7 +22,7 @@ use crate::{errors::DomainError, AppData};
     ),
     responses(
         (status = 200, description = "User found", body = User),
-        (status = 404, description = "User not found", body = crate::models::misc::ErrorResponse<String>),
+        (status = 404, description = "User not found", body = ErrorResponseString),
     ),
 )]
 /// Finds user by UID.
@@ -66,7 +66,7 @@ pub async fn get_user(
     ),
     responses(
         (status = 200, description = "List of users", body = Vec<User>),
-        (status = 401, description = "Missing or invalid auth token", body = crate::models::misc::ErrorResponse<String>),
+        (status = 401, description = "Missing or invalid auth token", body = ErrorResponseString),
     ),
 )]
 #[protect("RoleEnum::RoleAdmin", ty = RoleEnum)]
@@ -101,7 +101,7 @@ pub async fn get_users(
     request_body = NewUser,
     responses(
         (status = 201, description = "User created successfully", body = User),
-        (status = 400, description = "Bad input", body = crate::models::misc::ErrorResponse<String>),
+        (status = 400, description = "Bad input", body = ErrorResponseString),
     ),
 )]
 // TODO rename to register user
@@ -187,8 +187,8 @@ pub struct UploadAvatarRequest {
     request_body = UploadAvatarRequest,
     responses(
         (status = 200, description = "Avatar uploaded successfully", body = String),
-        (status = 400, description = "Invalid file type or size", body = crate::models::misc::ErrorResponse<String>),
-        (status = 401, description = "Missing or invalid auth token", body = crate::models::misc::ErrorResponse<String>),
+        (status = 400, description = "Invalid file type or size", body = ErrorResponseString),
+        (status = 401, description = "Missing or invalid auth token", body = ErrorResponseString),
     ),
 )]
 /// Upload user avatar
@@ -242,7 +242,7 @@ pub async fn upload_user_avatar(
     tag = "users",
     responses(
         (status = 204, description = "Avatar deleted successfully"),
-        (status = 401, description = "Missing or invalid auth token", body = crate::models::misc::ErrorResponse<String>),
+        (status = 401, description = "Missing or invalid auth token", body = ErrorResponseString),
     ),
 )]
 /// Delete user avatar
@@ -321,7 +321,7 @@ pub async fn get_user_avatar(
     tag = "users",
     responses(
         (status = 200, description = "User profile", body = User),
-        (status = 401, description = "Missing or invalid auth token", body = crate::models::misc::ErrorResponse<String>),
+        (status = 401, description = "Missing or invalid auth token", body = ErrorResponseString),
     ),
 )]
 /// Get the authenticated user's profile.
@@ -357,8 +357,8 @@ pub async fn get_my_profile(
     request_body = UpdateUserProfile,
     responses(
         (status = 200, description = "Profile updated successfully", body = User),
-        (status = 400, description = "Bad input", body = crate::models::misc::ErrorResponse<String>),
-        (status = 401, description = "Missing or invalid auth token", body = crate::models::misc::ErrorResponse<String>),
+        (status = 400, description = "Bad input", body = ErrorResponseString),
+        (status = 401, description = "Missing or invalid auth token", body = ErrorResponseString),
     ),
 )]
 /// Update the authenticated user's profile.
@@ -440,7 +440,7 @@ pub async fn update_my_profile(
     tag = "users",
     responses(
         (status = 200, description = "Account deleted successfully"),
-        (status = 401, description = "Missing or invalid auth token", body = crate::models::misc::ErrorResponse<String>),
+        (status = 401, description = "Missing or invalid auth token", body = ErrorResponseString),
     ),
 )]
 /// Delete the authenticated user's account (soft delete).
