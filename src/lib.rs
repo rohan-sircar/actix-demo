@@ -30,10 +30,12 @@ use std::time::SystemTime;
 
 use actix_web_prom::PrometheusMetrics;
 
+use actix_web::http::header;
 use actix_web::middleware::from_fn;
 use actix_web::web::{Data, ServiceConfig};
-use actix_web::{http::StatusCode, middleware, web, App, HttpServer, HttpResponse};
-use actix_web::http::header;
+use actix_web::{
+    http::StatusCode, middleware, web, App, HttpResponse, HttpServer,
+};
 use actix_web_grants::GrantsMiddleware;
 use config::{MinioConfig, OAuthConfig, TlsMode};
 use health::{HealthChecker, HealthcheckName};
@@ -145,18 +147,20 @@ pub fn configure_app(
         let swagger_path = app_data.swagger_path.clone();
         let swagger_path_for_swaggerui = format!("{}/{{_:.*}}", swagger_path);
         cfg.app_data(app_data.clone())
-            .service(
-                web::resource(&swagger_path)
-                    .route(web::get().to(move || {
-                        let redirect = format!("{}/", swagger_path);
-                        async move {
-                            HttpResponse::SeeOther()
-                                .status(StatusCode::SEE_OTHER)
-                                .insert_header((header::LOCATION, redirect.as_str()))
-                                .finish()
-                        }
-                    })),
-            )
+            .service(web::resource(&swagger_path).route(web::get().to(
+                move || {
+                    let redirect = format!("{}/", swagger_path);
+                    async move {
+                        HttpResponse::SeeOther()
+                            .status(StatusCode::SEE_OTHER)
+                            .insert_header((
+                                header::LOCATION,
+                                redirect.as_str(),
+                            ))
+                            .finish()
+                    }
+                },
+            )))
             .service(
                 SwaggerUi::new(swagger_path_for_swaggerui)
                     .url("/api-doc/openapi.json", ApiDoc::openapi()),

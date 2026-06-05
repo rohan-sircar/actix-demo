@@ -165,9 +165,38 @@ impl fmt::Debug for Password {
     }
 }
 
+impl fmt::Display for Password {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "**********")
+    }
+}
+
 impl Password {
     pub fn as_str(&self) -> &str {
         &self.0
+    }
+}
+
+pub mod password_serde {
+    use super::Password;
+    use serde::{Deserialize, Deserializer, Serializer};
+
+    pub fn serialize<S>(
+        password: &Password,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&password.to_string())
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Password, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        Ok(Password(s))
     }
 }
 
@@ -205,7 +234,7 @@ impl UserWithRoles {
 #[diesel(table_name = users)]
 pub struct NewUser {
     pub username: Username,
-    #[serde(skip_serializing)]
+    #[serde(with = "password_serde")]
     pub password: Password,
     pub email: Email,
 }
@@ -220,7 +249,7 @@ pub struct UpdateUserProfile {
 #[derive(Debug, Clone, Deserialize, Queryable, ToSchema)]
 pub struct UserLogin {
     pub username: Username,
-    #[serde(skip_serializing)]
+    #[serde(with = "password_serde")]
     pub password: Password,
     pub device_name: Option<String>,
 }
@@ -230,7 +259,6 @@ pub struct UserLogin {
 pub struct UserAuthDetails {
     pub id: UserId,
     pub username: Username,
-    #[serde(skip_serializing)]
     pub password: Password,
     pub email: Email,
     pub oauth_provider: Option<OAuthProvider>,
