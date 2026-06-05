@@ -1,10 +1,13 @@
 use crate::schema::jobs;
 use diesel_derive_enum::DbEnum;
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 use super::users::UserId;
 
-#[derive(Eq, PartialEq, Debug, Clone, Serialize, Deserialize, new)]
+#[derive(
+    Eq, PartialEq, Debug, Clone, Serialize, Deserialize, new, ToSchema,
+)]
 pub struct ErrorResponse<T> {
     pub cause: T,
 }
@@ -114,7 +117,9 @@ pub struct SearchQuery {
     // pub pagination: Pagination
 }
 
-#[derive(DbEnum, Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
+#[derive(
+    DbEnum, Debug, Deserialize, Serialize, Clone, PartialEq, Eq, ToSchema,
+)]
 #[allow(clippy::enum_variant_names)]
 #[serde(rename_all = "snake_case")]
 // #[DieselType = "Job_status"]
@@ -126,7 +131,9 @@ pub enum JobStatus {
     Failed,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, Queryable, Identifiable)]
+#[derive(
+    Debug, Clone, Deserialize, Serialize, Queryable, Identifiable, ToSchema,
+)]
 #[diesel(table_name = jobs)]
 pub struct Job {
     pub id: i32,
@@ -137,7 +144,7 @@ pub struct Job {
     pub created_at: chrono::NaiveDateTime,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, Insertable)]
+#[derive(Debug, Clone, Deserialize, Serialize, Insertable, ToSchema)]
 #[diesel(table_name = jobs)]
 pub struct NewJob {
     pub job_id: uuid::Uuid,
@@ -146,7 +153,7 @@ pub struct NewJob {
     pub status_message: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, Queryable)]
+#[derive(Debug, Clone, Deserialize, Serialize, Queryable, ToSchema)]
 pub struct JobCount {
     status: JobStatus,
     count: i64,

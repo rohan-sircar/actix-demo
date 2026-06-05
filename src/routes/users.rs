@@ -12,6 +12,18 @@ use crate::services::email::tokens;
 use crate::{actions, utils};
 use crate::{errors::DomainError, AppData};
 
+#[utoipa::path(
+    get,
+    path = "/api/public/users/{user_id}",
+    tag = "users",
+    params(
+        ("user_id" = UserId, Path, description = "User ID"),
+    ),
+    responses(
+        (status = 200, description = "User found", body = User),
+        (status = 404, description = "User not found", body = crate::models::misc::ErrorResponse<String>),
+    ),
+)]
 /// Finds user by UID.
 #[protect("RoleEnum::RoleAdmin", ty = RoleEnum)]
 #[tracing::instrument(level = "info", skip_all)]
@@ -42,6 +54,20 @@ pub async fn get_user(
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/admin/users",
+    tag = "users",
+    params(
+        ("page" = u16, Query, description = "Page number"),
+        ("limit" = u16, Query, description = "Items per page"),
+        ("q" = Option<String>, Query, description = "Search query"),
+    ),
+    responses(
+        (status = 200, description = "List of users", body = Vec<User>),
+        (status = 401, description = "Missing or invalid auth token", body = crate::models::misc::ErrorResponse<String>),
+    ),
+)]
 #[protect("RoleEnum::RoleAdmin", ty = RoleEnum)]
 #[tracing::instrument(level = "info", skip_all)]
 pub async fn get_users(
@@ -67,6 +93,16 @@ pub async fn get_users(
     Ok(HttpResponse::Ok().json(users))
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/registration",
+    tag = "users",
+    request_body = NewUser,
+    responses(
+        (status = 201, description = "User created successfully", body = User),
+        (status = 400, description = "Bad input", body = crate::models::misc::ErrorResponse<String>),
+    ),
+)]
 // TODO rename to register user
 /// Inserts a new user
 #[tracing::instrument(level = "info", skip(app_data))]
@@ -136,6 +172,16 @@ pub async fn add_user(
     Ok(HttpResponse::Created().json(user))
 }
 
+#[utoipa::path(
+    put,
+    path = "/api/avatars",
+    tag = "users",
+    responses(
+        (status = 200, description = "Avatar uploaded successfully", body = String),
+        (status = 400, description = "Invalid file type or size", body = crate::models::misc::ErrorResponse<String>),
+        (status = 401, description = "Missing or invalid auth token", body = crate::models::misc::ErrorResponse<String>),
+    ),
+)]
 /// Upload user avatar
 #[tracing::instrument(level = "info", skip_all)]
 pub async fn upload_user_avatar(
@@ -181,6 +227,15 @@ pub async fn upload_user_avatar(
     Ok(HttpResponse::Ok().json(object_key))
 }
 
+#[utoipa::path(
+    delete,
+    path = "/api/avatars",
+    tag = "users",
+    responses(
+        (status = 204, description = "Avatar deleted successfully"),
+        (status = 401, description = "Missing or invalid auth token", body = crate::models::misc::ErrorResponse<String>),
+    ),
+)]
 /// Delete user avatar
 #[tracing::instrument(level = "info", skip(app_data, req))]
 pub async fn delete_user_avatar(
@@ -204,6 +259,18 @@ pub async fn delete_user_avatar(
     Ok(HttpResponse::NoContent().finish())
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/public/avatars/{user_id}",
+    tag = "users",
+    params(
+        ("user_id" = UserId, Path, description = "User ID"),
+    ),
+    responses(
+        (status = 200, description = "Avatar image"),
+        (status = 404, description = "Avatar not found"),
+    ),
+)]
 /// Get user avatar
 #[tracing::instrument(level = "info", skip(app_data))]
 pub async fn get_user_avatar(
@@ -239,6 +306,15 @@ pub async fn get_user_avatar(
         .streaming(stream))
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/user/me",
+    tag = "users",
+    responses(
+        (status = 200, description = "User profile", body = User),
+        (status = 401, description = "Missing or invalid auth token", body = crate::models::misc::ErrorResponse<String>),
+    ),
+)]
 /// Get the authenticated user's profile.
 #[tracing::instrument(level = "info", skip(app_data))]
 pub async fn get_my_profile(
@@ -265,6 +341,17 @@ pub async fn get_my_profile(
     }
 }
 
+#[utoipa::path(
+    patch,
+    path = "/api/user",
+    tag = "users",
+    request_body = UpdateUserProfile,
+    responses(
+        (status = 200, description = "Profile updated successfully", body = User),
+        (status = 400, description = "Bad input", body = crate::models::misc::ErrorResponse<String>),
+        (status = 401, description = "Missing or invalid auth token", body = crate::models::misc::ErrorResponse<String>),
+    ),
+)]
 /// Update the authenticated user's profile.
 #[tracing::instrument(level = "info", skip(app_data))]
 pub async fn update_my_profile(
@@ -338,6 +425,15 @@ pub async fn update_my_profile(
     Ok(HttpResponse::Ok().json(user))
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/user/me/delete",
+    tag = "users",
+    responses(
+        (status = 200, description = "Account deleted successfully"),
+        (status = 401, description = "Missing or invalid auth token", body = crate::models::misc::ErrorResponse<String>),
+    ),
+)]
 /// Delete the authenticated user's account (soft delete).
 /// Clears all sessions and avatar. Orphans associated jobs.
 #[tracing::instrument(level = "info", skip(app_data, req))]

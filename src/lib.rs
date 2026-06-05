@@ -23,6 +23,8 @@ pub mod types;
 pub mod utils;
 pub mod workers;
 
+use utoipa::OpenApi;
+
 use std::sync::Arc;
 use std::time::SystemTime;
 
@@ -49,6 +51,7 @@ use tracing_actix_web::TracingLogger;
 use types::{DbPool, RedisPrefixFn};
 use utils::redis_credentials_repo::RedisCredentialsRepo;
 use utils::InstrumentedRedisCache;
+use utoipa_redoc::{Redoc, Servable};
 
 build_info::build_info!(pub fn get_build_info);
 
@@ -340,8 +343,76 @@ pub fn configure_app(
                         ),
                     ),
             );
+        cfg.service(Redoc::with_url("/api/docs", ApiDoc::openapi()));
     })
 }
+
+#[derive(OpenApi)]
+#[openapi(
+    paths(
+        routes::auth::login,
+        routes::auth::logout,
+        routes::auth::list_sessions,
+        routes::auth::revoke_session,
+        routes::auth::revoke_other_sessions,
+        routes::auth::verify_email,
+        routes::auth::request_password_reset,
+        routes::auth::complete_password_reset,
+        routes::users::get_user,
+        routes::users::get_users,
+        routes::users::add_user,
+        routes::users::upload_user_avatar,
+        routes::users::delete_user_avatar,
+        routes::users::get_user_avatar,
+        routes::users::get_my_profile,
+        routes::users::update_my_profile,
+        routes::users::delete_my_account,
+        routes::command::handle_run_command,
+        routes::command::handle_get_job,
+        routes::command::handle_get_job_metrics,
+        routes::command::handle_abort_job,
+        routes::oauth::github_login,
+        routes::oauth::github_callback,
+        routes::oauth::google_login,
+        routes::oauth::google_callback,
+        routes::healthcheck::healthcheck,
+        routes::misc::build_info_req,
+    ),
+    components(
+        schemas(
+            models::users::NewUser,
+            models::users::UserLogin,
+            models::users::UpdateUserProfile,
+            models::users::User,
+            models::users::UserWithRoles,
+            models::users::OAuthProvider,
+            models::misc::ErrorResponse<String>,
+            models::session::SessionInfo,
+            routes::auth::VerifyEmailRequest,
+            routes::auth::PasswordResetRequest,
+            routes::auth::PasswordResetCompleteRequest,
+            routes::command::RunCommandRequest,
+            models::misc::Job,
+            models::misc::NewJob,
+            models::misc::JobCount,
+            services::oauth::models::GitHubOAuthUser,
+            services::oauth::models::GitHubEmail,
+            services::oauth::models::GitHubTokenResponse,
+            services::oauth::models::GoogleOAuthUser,
+            services::oauth::models::GoogleTokenResponse,
+            routes::healthcheck::HealthCheckResponse,
+            routes::healthcheck::ServiceStatus,
+        ),
+    ),
+    tags(
+        (name = "auth", description = "Authentication endpoints"),
+        (name = "users", description = "User management endpoints"),
+        (name = "oauth", description = "OAuth 2.0 endpoints"),
+        (name = "command", description = "Background job execution"),
+        (name = "public", description = "Public endpoints"),
+    ),
+)]
+pub struct ApiDoc;
 
 pub async fn run(addr: String, app_data: Data<AppData>) -> anyhow::Result<()> {
     let bi = get_build_info();

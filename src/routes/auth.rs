@@ -20,9 +20,9 @@ use diesel::OptionalExtension;
 use diesel::QueryDsl;
 use diesel::RunQueryDsl;
 use jwt_simple::prelude::*;
-
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
+use utoipa::ToSchema;
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize)]
@@ -113,6 +113,16 @@ pub async fn validate_token(
     }
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/login",
+    tag = "auth",
+    request_body = UserLogin,
+    responses(
+        (status = 200, description = "Login successful - sets auth cookie"),
+        (status = 401, description = "Invalid credentials", body = crate::models::misc::ErrorResponse<String>),
+    ),
+)]
 #[tracing::instrument(level = "info", skip(app_data, login_request))]
 pub async fn login(
     login_request: web::Json<UserLogin>,
@@ -188,6 +198,15 @@ pub async fn login(
     Ok(HttpResponse::Ok().cookie(cookie).finish())
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/sessions",
+    tag = "auth",
+    responses(
+        (status = 200, description = "List of active sessions", body = Vec<SessionInfo>),
+        (status = 401, description = "Missing or invalid auth token", body = crate::models::misc::ErrorResponse<String>),
+    ),
+)]
 // New endpoint to list all active sessions for a user
 #[tracing::instrument(level = "info", skip(app_data, req))]
 pub async fn list_sessions(
@@ -203,6 +222,15 @@ pub async fn list_sessions(
     Ok(HttpResponse::Ok().json(sessions))
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/logout",
+    tag = "auth",
+    responses(
+        (status = 200, description = "Logout successful - clears auth cookie"),
+        (status = 401, description = "Missing or invalid auth token", body = crate::models::misc::ErrorResponse<String>),
+    ),
+)]
 // New endpoint to revoke a specific session
 #[tracing::instrument(level = "info", skip(app_data, req))]
 pub async fn logout(
@@ -234,6 +262,19 @@ pub async fn logout(
     Ok(HttpResponse::Ok().finish())
 }
 
+#[utoipa::path(
+    delete,
+    path = "/api/sessions/{session_id}",
+    tag = "auth",
+    params(
+        ("session_id" = String, Path, description = "Session ID to revoke"),
+    ),
+    responses(
+        (status = 200, description = "Session revoked successfully"),
+        (status = 401, description = "Missing or invalid auth token", body = crate::models::misc::ErrorResponse<String>),
+        (status = 404, description = "Session not found", body = crate::models::misc::ErrorResponse<String>),
+    ),
+)]
 // New endpoint to revoke a specific session
 #[tracing::instrument(level = "info", skip(app_data, session_id, req))]
 pub async fn revoke_session(
@@ -268,6 +309,15 @@ pub async fn revoke_session(
     Ok(HttpResponse::Ok().finish())
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/sessions/revoke-others",
+    tag = "auth",
+    responses(
+        (status = 200, description = "All other sessions revoked successfully"),
+        (status = 401, description = "Missing or invalid auth token", body = crate::models::misc::ErrorResponse<String>),
+    ),
+)]
 // New endpoint to revoke all sessions except the current one
 #[tracing::instrument(level = "info", skip(app_data, req))]
 pub async fn revoke_other_sessions(
@@ -300,22 +350,31 @@ pub async fn revoke_other_sessions(
     Ok(HttpResponse::Ok().finish())
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
 pub struct VerifyEmailRequest {
     pub token: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
 pub struct PasswordResetRequest {
     pub email: Email,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
 pub struct PasswordResetCompleteRequest {
     pub token: String,
     pub new_password: String,
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/email/verify",
+    tag = "auth",
+    request_body = VerifyEmailRequest,
+    responses(
+        (status = 200, description = "Email verification result"),
+    ),
+)]
 #[tracing::instrument(level = "info", skip(app_data, form))]
 pub async fn verify_email(
     app_data: web::Data<AppData>,
@@ -381,6 +440,15 @@ pub async fn verify_email(
     })))
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/password-reset/request",
+    tag = "auth",
+    request_body = PasswordResetRequest,
+    responses(
+        (status = 200, description = "Password reset email sent if email is registered"),
+    ),
+)]
 #[tracing::instrument(level = "info", skip(app_data, form))]
 pub async fn request_password_reset(
     app_data: web::Data<AppData>,
@@ -438,6 +506,15 @@ pub async fn request_password_reset(
     })))
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/password-reset/complete",
+    tag = "auth",
+    request_body = PasswordResetCompleteRequest,
+    responses(
+        (status = 200, description = "Password reset result"),
+    ),
+)]
 #[tracing::instrument(level = "info", skip(app_data, form))]
 pub async fn complete_password_reset(
     app_data: web::Data<AppData>,

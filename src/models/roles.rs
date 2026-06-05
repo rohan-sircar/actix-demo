@@ -5,10 +5,13 @@ use crate::schema::users_roles;
 use derive_more::{Display, Into};
 use diesel_derive_enum::DbEnum;
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 use super::users::UserId;
 
-#[derive(DbEnum, Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Hash)]
+#[derive(
+    DbEnum, Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, ToSchema,
+)]
 #[allow(clippy::enum_variant_names)]
 #[serde(rename_all = "snake_case")]
 #[ExistingTypePath = "crate::schema::sql_types::RoleName"]

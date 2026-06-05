@@ -7,6 +7,7 @@ use process_stream::{Process, ProcessExt, ProcessItem};
 use redis::AsyncCommands;
 use serde::{Deserialize, Serialize};
 use tracing::{info_span, Instrument};
+use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::{
@@ -22,11 +23,22 @@ use crate::{
     AppData,
 };
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct RunCommandRequest {
     pub args: Vec<String>,
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/cmd",
+    tag = "command",
+    request_body = RunCommandRequest,
+    responses(
+        (status = 200, description = "Job created successfully", body = Job),
+        (status = 401, description = "Missing or invalid auth token", body = crate::models::misc::ErrorResponse<String>),
+        (status = 403, description = "Forbidden - admin only", body = crate::models::misc::ErrorResponse<String>),
+    ),
+)]
 /// Executes a long-running command as a background job
 ///
 /// # Arguments
@@ -253,6 +265,20 @@ pub async fn handle_run_command(
     Ok(HttpResponse::Ok().json(job))
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/cmd/{job_id}",
+    tag = "command",
+    params(
+        ("job_id" = String, Path, description = "Job UUID"),
+    ),
+    responses(
+        (status = 200, description = "Job details", body = Job),
+        (status = 401, description = "Missing or invalid auth token", body = crate::models::misc::ErrorResponse<String>),
+        (status = 403, description = "Forbidden - admin only", body = crate::models::misc::ErrorResponse<String>),
+        (status = 404, description = "Job not found", body = crate::models::misc::ErrorResponse<String>),
+    ),
+)]
 /// Retrieves a job from the database by its UUID.
 ///
 /// # Arguments
@@ -307,6 +333,18 @@ pub struct MetricsQuery {
     since_time: Option<chrono::NaiveDateTime>,
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/public/metrics/cmd",
+    tag = "command",
+    params(
+        ("hours_since" = Option<i8>, Query, description = "Hours since to filter"),
+        ("since_time" = Option<chrono::NaiveDateTime>, Query, description = "Since time to filter"),
+    ),
+    responses(
+        (status = 200, description = "Job metrics", body = Vec<JobCount>),
+    ),
+)]
 /// Returns current job counts by status
 ///
 /// # Arguments
@@ -336,6 +374,20 @@ pub async fn handle_get_job_metrics(
     Ok(HttpResponse::Ok().json(metrics))
 }
 
+#[utoipa::path(
+    delete,
+    path = "/api/cmd/{job_id}",
+    tag = "command",
+    params(
+        ("job_id" = String, Path, description = "Job UUID to abort"),
+    ),
+    responses(
+        (status = 200, description = "Abort command sent successfully"),
+        (status = 401, description = "Missing or invalid auth token", body = crate::models::misc::ErrorResponse<String>),
+        (status = 403, description = "Forbidden - not job owner", body = crate::models::misc::ErrorResponse<String>),
+        (status = 404, description = "Job not found", body = crate::models::misc::ErrorResponse<String>),
+    ),
+)]
 /// Aborts a command by sending a message to the Redis channel associated with the job.
 ///
 /// # Arguments

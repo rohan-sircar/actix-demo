@@ -23,6 +23,15 @@ pub struct OAuthCallbackQuery {
     error: Option<String>,
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/auth/oauth/github/login",
+    tag = "oauth",
+    responses(
+        (status = 307, description = "Redirects to GitHub OAuth"),
+        (status = 401, description = "OAuth is not enabled", body = crate::models::misc::ErrorResponse<String>),
+    ),
+)]
 #[tracing::instrument(level = "info", skip(app_data))]
 pub async fn github_login(
     app_data: Data<AppData>,
@@ -50,6 +59,15 @@ pub async fn github_login(
         .finish())
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/auth/oauth/github/callback",
+    tag = "oauth",
+    responses(
+        (status = 307, description = "Redirects to app root after successful login"),
+        (status = 400, description = "Invalid OAuth callback parameters", body = crate::models::misc::ErrorResponse<String>),
+    ),
+)]
 #[tracing::instrument(level = "info", skip(app_data, query))]
 pub async fn github_callback(
     app_data: Data<AppData>,
@@ -116,6 +134,15 @@ pub async fn github_callback(
     issue_oauth_session(app_data, user, code_verifier).await
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/auth/oauth/google/login",
+    tag = "oauth",
+    responses(
+        (status = 307, description = "Redirects to Google OAuth"),
+        (status = 401, description = "OAuth is not enabled", body = crate::models::misc::ErrorResponse<String>),
+    ),
+)]
 #[tracing::instrument(level = "info", skip(app_data))]
 pub async fn google_login(
     app_data: Data<AppData>,
@@ -143,6 +170,15 @@ pub async fn google_login(
         .finish())
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/auth/oauth/google/callback",
+    tag = "oauth",
+    responses(
+        (status = 307, description = "Redirects to app root after successful login"),
+        (status = 400, description = "Invalid OAuth callback parameters", body = crate::models::misc::ErrorResponse<String>),
+    ),
+)]
 #[tracing::instrument(level = "info", skip(app_data, query))]
 pub async fn google_callback(
     app_data: Data<AppData>,

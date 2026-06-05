@@ -80,6 +80,8 @@ tracing-subscriber = { version = "0.3.16", features = [
 tracing-loki = "0.2.6"
 url = { version = "2.5.4" }
 urlencoding = "2.1"
+utoipa = { version = "4", features = ["actix_extras", "chrono", "uuid"] }
+utoipa-redoc = { version = "4", features = ["actix-web"] }
 uuid = { version = "1.13.1", features = ["v4", "serde"] }
 validators = { version = "0.25.3", features = ["serde", "derive"] }
 thiserror = "2.0.12"
