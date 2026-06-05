@@ -153,11 +153,11 @@ pub struct EnvConfig {
     // OAuth configuration
     #[serde(default = "models::defaults::default_oauth_config")]
     pub oauth: OAuthConfig,
-    // API documentation path
-    #[serde(
-        default = "models::defaults::default_api_docs_path",
-    )]
+    // API documentation paths
+    #[serde(default = "models::defaults::default_api_docs_path")]
     pub api_docs_path: String,
+    #[serde(default = "models::defaults::default_swagger_path")]
+    pub swagger_path: String,
 }
 
 #[derive(Deserialize, Debug, Clone)]

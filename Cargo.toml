@@ -82,6 +82,7 @@ url = { version = "2.5.4" }
 urlencoding = "2.1"
 utoipa = { version = "4", features = ["actix_extras", "chrono", "uuid"] }
 utoipa-redoc = { version = "4", features = ["actix-web"] }
+utoipa-swagger-ui = { version = "4", features = ["actix-web"] }
 uuid = { version = "1.13.1", features = ["v4", "serde"] }
 validators = { version = "0.25.3", features = ["serde", "derive"] }
 thiserror = "2.0.12"

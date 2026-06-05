@@ -32,7 +32,8 @@ use actix_web_prom::PrometheusMetrics;
 
 use actix_web::middleware::from_fn;
 use actix_web::web::{Data, ServiceConfig};
-use actix_web::{middleware, web, App, HttpServer};
+use actix_web::{http::StatusCode, middleware, web, App, HttpServer, HttpResponse};
+use actix_web::http::header;
 use actix_web_grants::GrantsMiddleware;
 use config::{MinioConfig, OAuthConfig, TlsMode};
 use health::{HealthChecker, HealthcheckName};
@@ -52,6 +53,7 @@ use types::{DbPool, RedisPrefixFn};
 use utils::redis_credentials_repo::RedisCredentialsRepo;
 use utils::InstrumentedRedisCache;
 use utoipa_redoc::{Redoc, Servable};
+use utoipa_swagger_ui::SwaggerUi;
 
 build_info::build_info!(pub fn get_build_info);
 
@@ -103,6 +105,7 @@ pub struct AppData {
     pub minio: minior::Minio,
     pub mailer: Arc<dyn Mailer>,
     pub api_docs_path: String,
+    pub swagger_path: String,
 }
 
 pub fn configure_app(
@@ -138,7 +141,27 @@ pub fn configure_app(
             )
         };
 
+        let api_docs_path = app_data.api_docs_path.clone();
+        let swagger_path = app_data.swagger_path.clone();
+        let swagger_path_for_swaggerui = format!("{}/{{_:.*}}", swagger_path);
         cfg.app_data(app_data.clone())
+            .service(
+                web::resource(&swagger_path)
+                    .route(web::get().to(move || {
+                        let redirect = format!("{}/", swagger_path);
+                        async move {
+                            HttpResponse::SeeOther()
+                                .status(StatusCode::SEE_OTHER)
+                                .insert_header((header::LOCATION, redirect.as_str()))
+                                .finish()
+                        }
+                    })),
+            )
+            .service(
+                SwaggerUi::new(swagger_path_for_swaggerui)
+                    .url("/api-doc/openapi.json", ApiDoc::openapi()),
+            )
+            .service(Redoc::with_url(api_docs_path, ApiDoc::openapi()))
             .service(
                 web::scope("/hc")
                     .wrap(in_memory_rate_limiter)
@@ -344,7 +367,6 @@ pub fn configure_app(
                         ),
                     ),
             );
-        cfg.service(Redoc::with_url(app_data.api_docs_path.clone(), ApiDoc::openapi()));
     })
 }
 
@@ -387,8 +409,7 @@ pub fn configure_app(
             models::users::User,
             models::users::UserWithRoles,
             models::users::OAuthProvider,
-            models::misc::ErrorResponse<String>,
-            models::session::SessionInfo,
+            models::misc::ErrorResponseString,
             routes::auth::VerifyEmailRequest,
             routes::auth::PasswordResetRequest,
             routes::auth::PasswordResetCompleteRequest,
@@ -404,6 +425,12 @@ pub fn configure_app(
             routes::healthcheck::HealthCheckResponse,
             routes::healthcheck::ServiceStatus,
             routes::users::UploadAvatarRequest,
+            models::misc::JobStatus,
+            models::session::SessionInfo,
+            models::users::Email,
+            models::users::UserId,
+            models::users::Username,
+            models::roles::RoleEnum,
         ),
     ),
     tags(
