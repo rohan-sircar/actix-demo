@@ -1,5 +1,6 @@
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 use uuid::Uuid;
 
 /// Configuration for session management
@@ -39,7 +40,7 @@ pub struct SessionRenewalPolicy {
     pub max_renewals: u32,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
 pub struct SessionInfo {
     pub session_id: Uuid,
     pub device_id: Uuid,

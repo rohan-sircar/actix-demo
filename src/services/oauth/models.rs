@@ -1,6 +1,7 @@
 use serde::Deserialize;
+use utoipa::ToSchema;
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, ToSchema)]
 pub struct GitHubOAuthUser {
     pub id: u64,
     pub login: String,
@@ -9,7 +10,7 @@ pub struct GitHubOAuthUser {
     pub avatar_url: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, ToSchema)]
 pub struct GitHubEmail {
     pub email: String,
     pub primary: bool,
@@ -17,14 +18,14 @@ pub struct GitHubEmail {
     pub visibility: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, ToSchema)]
 pub struct GitHubTokenResponse {
     pub access_token: String,
     pub scope: String,
     pub token_type: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, ToSchema)]
 pub struct GoogleOAuthUser {
     pub sub: String,
     pub email: String,
@@ -33,7 +34,7 @@ pub struct GoogleOAuthUser {
     pub email_verified: bool,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, ToSchema)]
 pub struct GoogleTokenResponse {
     pub access_token: String,
     pub expires_in: i64,

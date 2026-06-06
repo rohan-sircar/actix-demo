@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 use crate::schema::users;
 use crate::utils::regex;
@@ -11,7 +12,9 @@ use validators::prelude::*;
 
 use super::roles::RoleEnum;
 
-#[derive(DbEnum, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
+#[derive(
+    DbEnum, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash, ToSchema,
+)]
 #[serde(rename_all = "snake_case")]
 #[ExistingTypePath = "crate::schema::sql_types::OAuthProviderType"]
 pub enum OAuthProvider {
@@ -53,7 +56,7 @@ pub struct OAuthUserInfo {
     pub avatar_url: Option<String>,
 }
 
-#[derive(Validator, Debug, Clone, DieselNewType, PartialEq, Eq)]
+#[derive(Validator, Debug, Clone, DieselNewType, PartialEq, Eq, ToSchema)]
 #[validator(regex(regex(regex::EMAIL_REG)))]
 pub struct Email(String);
 
@@ -93,6 +96,7 @@ impl TryFrom<String> for Email {
     Serialize,
     DieselNewType,
     Copy,
+    ToSchema,
 )]
 #[serde(try_from = "u32", into = "u32")]
 pub struct UserId(i32);
@@ -135,7 +139,14 @@ impl TryFrom<u32> for UserId {
     }
 }
 #[derive(
-    Validator, Debug, Clone, DieselNewType, PartialEq, Eq, derive_more::Display,
+    Validator,
+    Debug,
+    Clone,
+    DieselNewType,
+    PartialEq,
+    Eq,
+    derive_more::Display,
+    ToSchema,
 )]
 #[validator(regex(regex(regex::USERNAME_REG)))]
 pub struct Username(String);
@@ -154,13 +165,44 @@ impl fmt::Debug for Password {
     }
 }
 
+impl fmt::Display for Password {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "**********")
+    }
+}
+
 impl Password {
     pub fn as_str(&self) -> &str {
         &self.0
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, Queryable, Identifiable)]
+pub mod password_serde {
+    use super::Password;
+    use serde::{Deserialize, Deserializer, Serializer};
+
+    pub fn serialize<S>(
+        password: &Password,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&password.to_string())
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Password, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        Ok(Password(s))
+    }
+}
+
+#[derive(
+    Debug, Clone, Deserialize, Serialize, Queryable, Identifiable, ToSchema,
+)]
 #[diesel(table_name = users)]
 pub struct User {
     pub id: UserId,
@@ -169,7 +211,7 @@ pub struct User {
     pub deleted_at: Option<chrono::NaiveDateTime>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 pub struct UserWithRoles {
     pub id: UserId,
     pub username: Username,
@@ -188,26 +230,26 @@ impl UserWithRoles {
     }
 }
 
-#[derive(Debug, Clone, Insertable, Deserialize)]
+#[derive(Debug, Clone, Insertable, Deserialize, ToSchema)]
 #[diesel(table_name = users)]
 pub struct NewUser {
     pub username: Username,
-    #[serde(skip_serializing)]
+    #[serde(with = "password_serde")]
     pub password: Password,
     pub email: Email,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Deserialize, ToSchema)]
 #[serde(default)]
 pub struct UpdateUserProfile {
     pub username: Option<Username>,
     pub email: Option<Email>,
 }
 
-#[derive(Debug, Clone, Deserialize, Queryable)]
+#[derive(Debug, Clone, Deserialize, Queryable, ToSchema)]
 pub struct UserLogin {
     pub username: Username,
-    #[serde(skip_serializing)]
+    #[serde(with = "password_serde")]
     pub password: Password,
     pub device_name: Option<String>,
 }
@@ -217,7 +259,6 @@ pub struct UserLogin {
 pub struct UserAuthDetails {
     pub id: UserId,
     pub username: Username,
-    #[serde(skip_serializing)]
     pub password: Password,
     pub email: Email,
     pub oauth_provider: Option<OAuthProvider>,

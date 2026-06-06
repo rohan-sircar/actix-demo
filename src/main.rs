@@ -270,6 +270,8 @@ async fn main() -> anyhow::Result<()> {
         health_checkers,
         minio,
         mailer,
+        api_docs_path: env_config.api_docs_path.clone(),
+        swagger_path: env_config.swagger_path,
     });
 
     let _app =

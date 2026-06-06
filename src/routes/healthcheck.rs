@@ -6,16 +6,17 @@ use std::{
 use crate::{get_build_info, AppData};
 use actix_web::{web::Data, HttpResponse, Responder};
 use serde::Serialize;
+use utoipa::ToSchema;
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, ToSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum ServiceStatus {
     Healthy,
     Unhealthy(String),
 }
 
-#[derive(Serialize)]
-struct HealthCheckResponse {
+#[derive(Serialize, ToSchema)]
+pub struct HealthCheckResponse {
     version: String,
     timestamp: String,
     uptime: u64,
@@ -23,6 +24,15 @@ struct HealthCheckResponse {
     services: HashMap<String, ServiceStatus>,
 }
 
+#[utoipa::path(
+    get,
+    path = "/hc",
+    tag = "public",
+    responses(
+        (status = 200, description = "Health check passed", body = HealthCheckResponse),
+        (status = 503, description = "One or more services unhealthy", body = HealthCheckResponse),
+    ),
+)]
 #[tracing::instrument(level = "info", skip_all)]
 pub async fn healthcheck(app_data: Data<AppData>) -> impl Responder {
     let uptime = SystemTime::now()
