@@ -4,9 +4,9 @@ use crate::errors::DomainError;
 use crate::models::misc::Pagination;
 use crate::models::roles::{NewUserRole, RoleEnum, RoleId};
 use crate::models::users::{
-    Email, NewUser, OAuthProvider, OAuthUserLookup, Password,
-    UpdateUserProfile, User, UserAuthDetails, UserAuthDetailsWithRoles, UserId,
-    UserWithRoles, Username,
+    Email, NewUser, OAuthProvider, OAuthUserLookup, Password, Profile,
+    PublicProfile, UpdateUserProfile, UpsertProfile, User, UserAuthDetails,
+    UserAuthDetailsWithRoles, UserId, UserWithRoles, Username,
 };
 use crate::types::DbConnection;
 use crate::utils::InstrumentedRedisCache;
@@ -789,4 +789,81 @@ pub fn find_or_create_oauth_user(
             true,
         ))
     })
+}
+
+pub fn get_profile(
+    user_id: &UserId,
+    conn: &mut DbConnection,
+) -> Result<Option<Profile>, DomainError> {
+    use crate::schema::profiles::dsl as profiles;
+
+    let profile = profiles::profiles
+        .filter(profiles::user_id.eq(user_id))
+        .first::<Profile>(conn)
+        .optional()?;
+
+    Ok(profile)
+}
+
+pub fn upsert_profile(
+    upsert: UpsertProfile,
+    conn: &mut DbConnection,
+) -> Result<Profile, DomainError> {
+    use crate::schema::profiles::dsl as profiles;
+
+    let user_id = upsert.user_id;
+    let bio = upsert.bio;
+    let display_name = upsert.display_name;
+    let location = upsert.location;
+    let website_url = upsert.website_url;
+    let social_github = upsert.social_github;
+    let social_twitter = upsert.social_twitter;
+
+    diesel::insert_into(profiles::profiles)
+        .values((
+            profiles::user_id.eq(&user_id),
+            profiles::bio.eq(bio.clone()),
+            profiles::display_name.eq(display_name.clone()),
+            profiles::location.eq(location.clone()),
+            profiles::website_url.eq(website_url.clone()),
+            profiles::social_github.eq(social_github.clone()),
+            profiles::social_twitter.eq(social_twitter.clone()),
+        ))
+        .on_conflict(profiles::user_id)
+        .do_update()
+        .set((
+            profiles::bio.eq(bio),
+            profiles::display_name.eq(display_name),
+            profiles::location.eq(location),
+            profiles::website_url.eq(website_url),
+            profiles::social_github.eq(social_github),
+            profiles::social_twitter.eq(social_twitter),
+        ))
+        .execute(conn)?;
+
+    let profile = profiles::profiles
+        .filter(profiles::user_id.eq(&user_id))
+        .first::<Profile>(conn)?;
+
+    Ok(profile)
+}
+
+pub fn get_public_profile(
+    user_id: &UserId,
+    conn: &mut DbConnection,
+) -> Result<PublicProfile, DomainError> {
+    use crate::schema::profiles::dsl as profiles;
+
+    let profile = profiles::profiles
+        .filter(profiles::user_id.eq(user_id))
+        .first::<Profile>(conn)
+        .optional()?;
+
+    match profile {
+        Some(p) => Ok(PublicProfile::from(&p)),
+        None => Err(DomainError::new_entity_does_not_exist_error(format!(
+            "Profile not found for user {}",
+            user_id
+        ))),
+    }
 }

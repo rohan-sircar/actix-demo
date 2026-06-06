@@ -8,7 +8,10 @@ use crate::diesel::ExpressionMethods;
 use crate::diesel::RunQueryDsl;
 use crate::models::misc::Pagination;
 use crate::models::roles::RoleEnum;
-use crate::models::users::{NewUser, UpdateUserProfile, UserId};
+use crate::models::users::{
+    NewUser, PublicProfile, UpdateProfile, UpdateUserProfile, UpsertProfile,
+    UserId,
+};
 use crate::services::email::tokens;
 use crate::{actions, utils};
 use crate::{errors::DomainError, AppData};
@@ -486,4 +489,116 @@ pub async fn delete_my_account(
         .finish();
 
     Ok(HttpResponse::Ok().cookie(cookie).finish())
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/public/profiles/{user_id}",
+    tag = "users",
+    params(
+        ("user_id" = UserId, Path, description = "User ID"),
+    ),
+    responses(
+        (status = 200, description = "Public profile found", body = PublicProfile),
+        (status = 404, description = "Profile not found", body = ErrorResponseString),
+    ),
+)]
+/// Get a user's public profile.
+#[tracing::instrument(level = "info", skip_all)]
+pub async fn get_public_profile(
+    app_data: web::Data<AppData>,
+    user_id: web::Path<UserId>,
+) -> Result<HttpResponse, DomainError> {
+    let user_id = user_id.into_inner();
+    let res = web::block(move || {
+        let pool = &app_data.pool;
+        let mut conn = pool.get()?;
+        actions::users::get_public_profile(&user_id, &mut conn)
+    })
+    .await??;
+
+    Ok(HttpResponse::Ok().json(res))
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/user/me/profile",
+    tag = "users",
+    responses(
+        (status = 200, description = "Profile retrieved", body = PublicProfile),
+        (status = 401, description = "Missing or invalid auth token", body = ErrorResponseString),
+    ),
+)]
+/// Get the authenticated user's profile.
+#[protect("RoleEnum::RoleUser", ty = RoleEnum)]
+#[tracing::instrument(level = "info", skip_all)]
+pub async fn get_user_profile(
+    req: HttpRequest,
+    app_data: web::Data<AppData>,
+) -> Result<HttpResponse, DomainError> {
+    let user_id = utils::extract_user_id_from_header(req.headers())?;
+
+    let res = web::block(move || {
+        let pool = &app_data.pool;
+        let mut conn = pool.get()?;
+        actions::users::get_profile(&user_id, &mut conn)
+    })
+    .await??;
+
+    match res {
+        Some(profile) => {
+            Ok(HttpResponse::Ok().json(PublicProfile::from(&profile)))
+        }
+        None => Ok(HttpResponse::Ok().json(PublicProfile {
+            user_id,
+            bio: None,
+            display_name: None,
+            location: None,
+            website_url: None,
+            social_github: None,
+            social_twitter: None,
+        })),
+    }
+}
+
+#[utoipa::path(
+    patch,
+    path = "/api/user/me/profile",
+    tag = "users",
+    request_body = UpdateProfile,
+    responses(
+        (status = 200, description = "Profile updated", body = PublicProfile),
+        (status = 400, description = "Bad input", body = ErrorResponseString),
+        (status = 401, description = "Missing or invalid auth token", body = ErrorResponseString),
+    ),
+)]
+/// Update the authenticated user's profile.
+#[protect("RoleEnum::RoleUser", ty = RoleEnum)]
+#[tracing::instrument(level = "info", skip_all)]
+pub async fn update_user_profile(
+    req: HttpRequest,
+    app_data: web::Data<AppData>,
+    form: web::Json<UpdateProfile>,
+) -> Result<HttpResponse, DomainError> {
+    let user_id = utils::extract_user_id_from_header(req.headers())?;
+    let updates = form.into_inner();
+
+    let upsert = UpsertProfile {
+        user_id,
+        bio: updates.bio,
+        display_name: updates.display_name,
+        location: updates.location,
+        website_url: updates.website_url,
+        social_github: updates.social_github,
+        social_twitter: updates.social_twitter,
+    };
+
+    let res = web::block(move || {
+        let pool = &app_data.pool;
+        let mut conn = pool.get()?;
+        actions::users::upsert_profile(upsert, &mut conn)
+    })
+    .await??;
+
+    Ok(HttpResponse::Ok().json(PublicProfile::from(&res)))
 }

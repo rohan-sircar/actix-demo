@@ -239,6 +239,10 @@ pub fn configure_app(
                     .route(
                         "/avatars/{user_id}",
                         web::get().to(routes::users::get_user_avatar),
+                    )
+                    .route(
+                        "/profiles/{user_id}",
+                        web::get().to(routes::users::get_public_profile),
                     ),
             )
             // public user endpoints (unauthenticated)
@@ -352,6 +356,15 @@ pub fn configure_app(
                                     .to(routes::users::update_my_profile),
                             )
                             .route(
+                                "/me/profile",
+                                web::get().to(routes::users::get_user_profile),
+                            )
+                            .route(
+                                "/me/profile",
+                                web::patch()
+                                    .to(routes::users::update_user_profile),
+                            )
+                            .route(
                                 "/me/delete",
                                 web::post()
                                     .to(routes::users::delete_my_account),
@@ -393,6 +406,9 @@ pub fn configure_app(
         routes::users::get_user_avatar,
         routes::users::get_my_profile,
         routes::users::update_my_profile,
+        routes::users::get_user_profile,
+        routes::users::update_user_profile,
+        routes::users::get_public_profile,
         routes::users::delete_my_account,
         routes::command::handle_run_command,
         routes::command::handle_get_job,
@@ -434,6 +450,10 @@ pub fn configure_app(
             models::users::Email,
             models::users::UserId,
             models::users::Username,
+            models::users::Profile,
+            models::users::PublicProfile,
+            models::users::UpdateProfile,
+            models::users::UpsertProfile,
             models::roles::RoleEnum,
         ),
     ),

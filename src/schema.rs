@@ -188,6 +188,26 @@ diesel::table! {
 }
 
 diesel::table! {
+    profiles (id) {
+        id -> Int4,
+        user_id -> Int4,
+        bio -> Nullable<Text>,
+        #[max_length = 100]
+        display_name -> Nullable<Varchar>,
+        #[max_length = 200]
+        location -> Nullable<Varchar>,
+        #[max_length = 500]
+        website_url -> Nullable<Varchar>,
+        #[max_length = 100]
+        social_github -> Nullable<Varchar>,
+        #[max_length = 100]
+        social_twitter -> Nullable<Varchar>,
+        created_at -> Timestamptz,
+        updated_at -> Timestamptz,
+    }
+}
+
+diesel::table! {
     use diesel::sql_types::*;
     use super::sql_types::RoleName;
 
@@ -227,6 +247,7 @@ diesel::joinable!(email_verification_tokens -> users (user_id));
 diesel::joinable!(jobs -> users (started_by));
 diesel::joinable!(password_reset_tokens -> users (user_id));
 diesel::joinable!(pet_basic_info -> users (user_id));
+diesel::joinable!(profiles -> users (user_id));
 diesel::joinable!(users_roles -> roles (role_id));
 diesel::joinable!(users_roles -> users (user_id));
 
@@ -240,6 +261,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     pet_location_owner,
     pet_personality_traits,
     pet_profile_images,
+    profiles,
     roles,
     users,
     users_roles,

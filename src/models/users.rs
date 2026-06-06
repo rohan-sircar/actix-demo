@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+use crate::schema::profiles;
 use crate::schema::users;
 use crate::utils::regex;
 use derive_more::{Display, Into};
@@ -303,6 +304,123 @@ impl UserAuthDetailsWithRoles {
         }
     }
 }
+#[derive(Debug, Clone, DieselNewType, PartialEq, Eq, ToSchema, Serialize)]
+pub struct Bio(String);
+
+impl Bio {
+    const MAX_CHARS: usize = 500;
+
+    pub fn new(value: String) -> Result<Self, String> {
+        if value.chars().count() > Self::MAX_CHARS {
+            Err(format!(
+                "Bio must be at most {} characters",
+                Self::MAX_CHARS
+            ))
+        } else {
+            Ok(Self(value))
+        }
+    }
+
+    pub fn inner(&self) -> &str {
+        &self.0
+    }
+}
+
+impl<'de> Deserialize<'de> for Bio {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        Self::new(s).map_err(serde::de::Error::custom)
+    }
+}
+
+#[derive(Validator, Debug, Clone, DieselNewType, PartialEq, Eq, ToSchema)]
+#[validator(line(char_length(max = 100)))]
+pub struct DisplayName(String);
+
+#[derive(Validator, Debug, Clone, DieselNewType, PartialEq, Eq, ToSchema)]
+#[validator(line(char_length(max = 200)))]
+pub struct Location(String);
+
+#[derive(Validator, Debug, Clone, DieselNewType, PartialEq, Eq, ToSchema)]
+#[validator(line(char_length(max = 500)))]
+pub struct WebsiteUrl(String);
+
+#[derive(Validator, Debug, Clone, DieselNewType, PartialEq, Eq, ToSchema)]
+#[validator(line(char_length(max = 100)))]
+pub struct SocialGithub(String);
+
+#[derive(Validator, Debug, Clone, DieselNewType, PartialEq, Eq, ToSchema)]
+#[validator(line(char_length(max = 100)))]
+pub struct SocialTwitter(String);
+
+#[derive(
+    Debug, Clone, Deserialize, Serialize, Queryable, Identifiable, ToSchema,
+)]
+#[diesel(table_name = profiles)]
+pub struct Profile {
+    pub id: i32,
+    pub user_id: UserId,
+    pub bio: Option<Bio>,
+    pub display_name: Option<DisplayName>,
+    pub location: Option<Location>,
+    pub website_url: Option<WebsiteUrl>,
+    pub social_github: Option<SocialGithub>,
+    pub social_twitter: Option<SocialTwitter>,
+    pub created_at: chrono::NaiveDateTime,
+    pub updated_at: chrono::NaiveDateTime,
+}
+
+#[derive(Debug, Clone, Insertable, Deserialize, ToSchema)]
+#[diesel(table_name = profiles)]
+pub struct UpsertProfile {
+    pub user_id: UserId,
+    pub bio: Option<Bio>,
+    pub display_name: Option<DisplayName>,
+    pub location: Option<Location>,
+    pub website_url: Option<WebsiteUrl>,
+    pub social_github: Option<SocialGithub>,
+    pub social_twitter: Option<SocialTwitter>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Deserialize, ToSchema)]
+#[serde(default)]
+pub struct UpdateProfile {
+    pub bio: Option<Bio>,
+    pub display_name: Option<DisplayName>,
+    pub location: Option<Location>,
+    pub website_url: Option<WebsiteUrl>,
+    pub social_github: Option<SocialGithub>,
+    pub social_twitter: Option<SocialTwitter>,
+}
+
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct PublicProfile {
+    pub user_id: UserId,
+    pub bio: Option<Bio>,
+    pub display_name: Option<DisplayName>,
+    pub location: Option<Location>,
+    pub website_url: Option<WebsiteUrl>,
+    pub social_github: Option<SocialGithub>,
+    pub social_twitter: Option<SocialTwitter>,
+}
+
+impl From<&Profile> for PublicProfile {
+    fn from(profile: &Profile) -> Self {
+        Self {
+            user_id: profile.user_id,
+            bio: profile.bio.clone(),
+            display_name: profile.display_name.clone(),
+            location: profile.location.clone(),
+            website_url: profile.website_url.clone(),
+            social_github: profile.social_github.clone(),
+            social_twitter: profile.social_twitter.clone(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
