@@ -847,23 +847,30 @@ pub fn update_profile(
 
     match get_profile(user_id, conn)? {
         Some(mut profile) => {
-            if let Some(bio) = updates.bio {
-                profile.bio = Some(bio);
+            let bio = updates.bio.clone();
+            let display_name = updates.display_name.clone();
+            let location = updates.location.clone();
+            let website_url = updates.website_url.clone();
+            let social_github = updates.social_github.clone();
+            let social_twitter = updates.social_twitter.clone();
+
+            if updates.should_update("bio") {
+                profile.bio = bio;
             }
-            if let Some(display_name) = updates.display_name {
-                profile.display_name = Some(display_name);
+            if updates.should_update("display_name") {
+                profile.display_name = display_name;
             }
-            if let Some(location) = updates.location {
-                profile.location = Some(location);
+            if updates.should_update("location") {
+                profile.location = location;
             }
-            if let Some(website_url) = updates.website_url {
-                profile.website_url = Some(website_url);
+            if updates.should_update("website_url") {
+                profile.website_url = website_url;
             }
-            if let Some(social_github) = updates.social_github {
-                profile.social_github = Some(social_github);
+            if updates.should_update("social_github") {
+                profile.social_github = social_github;
             }
-            if let Some(social_twitter) = updates.social_twitter {
-                profile.social_twitter = Some(social_twitter);
+            if updates.should_update("social_twitter") {
+                profile.social_twitter = social_twitter;
             }
 
             diesel::update(

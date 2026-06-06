@@ -373,9 +373,14 @@ pub struct Profile {
     pub updated_at: chrono::NaiveDateTime,
 }
 
+fn dummy_user_id() -> UserId {
+    UserId(0)
+}
+
 #[derive(Debug, Clone, Insertable, Deserialize, ToSchema)]
 #[diesel(table_name = profiles)]
 pub struct CreateProfile {
+    #[serde(skip, default = "dummy_user_id")]
     pub user_id: UserId,
     pub bio: Option<Bio>,
     pub display_name: Option<DisplayName>,
@@ -385,8 +390,7 @@ pub struct CreateProfile {
     pub social_twitter: Option<SocialTwitter>,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Deserialize, ToSchema)]
-#[serde(default)]
+#[derive(Debug, Clone, Serialize, PartialEq, ToSchema)]
 pub struct UpdateProfile {
     pub bio: Option<Bio>,
     pub display_name: Option<DisplayName>,
@@ -394,9 +398,98 @@ pub struct UpdateProfile {
     pub website_url: Option<WebsiteUrl>,
     pub social_github: Option<SocialGithub>,
     pub social_twitter: Option<SocialTwitter>,
+    #[serde(skip, default)]
+    pub _sent_fields: std::collections::HashSet<String>,
 }
 
-#[derive(Debug, Clone, Serialize, ToSchema)]
+impl<'de> Deserialize<'de> for UpdateProfile {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let value = serde_json::Value::deserialize(deserializer)?;
+
+        let mut bio = None;
+        let mut display_name = None;
+        let mut location = None;
+        let mut website_url = None;
+        let mut social_github = None;
+        let mut social_twitter = None;
+        let mut sent = std::collections::HashSet::new();
+
+        if let serde_json::Value::Object(map) = value {
+            for (key, val) in map {
+                sent.insert(key.clone());
+                match key.as_str() {
+                    "bio" => {
+                        if val.is_null() {
+                            bio = None;
+                        } else if let Some(s) = val.as_str() {
+                            bio = Some(
+                                Bio::new(s.to_string())
+                                    .map_err(serde::de::Error::custom)?,
+                            );
+                        }
+                    }
+                    "display_name" => {
+                        if val.is_null() {
+                            display_name = None;
+                        } else if let Some(s) = val.as_str() {
+                            display_name = Some(DisplayName(s.to_string()));
+                        }
+                    }
+                    "location" => {
+                        if val.is_null() {
+                            location = None;
+                        } else if let Some(s) = val.as_str() {
+                            location = Some(Location(s.to_string()));
+                        }
+                    }
+                    "website_url" => {
+                        if val.is_null() {
+                            website_url = None;
+                        } else if let Some(s) = val.as_str() {
+                            website_url = Some(WebsiteUrl(s.to_string()));
+                        }
+                    }
+                    "social_github" => {
+                        if val.is_null() {
+                            social_github = None;
+                        } else if let Some(s) = val.as_str() {
+                            social_github = Some(SocialGithub(s.to_string()));
+                        }
+                    }
+                    "social_twitter" => {
+                        if val.is_null() {
+                            social_twitter = None;
+                        } else if let Some(s) = val.as_str() {
+                            social_twitter = Some(SocialTwitter(s.to_string()));
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        Ok(UpdateProfile {
+            bio,
+            display_name,
+            location,
+            website_url,
+            social_github,
+            social_twitter,
+            _sent_fields: sent,
+        })
+    }
+}
+
+impl UpdateProfile {
+    pub fn should_update(&self, field: &str) -> bool {
+        self._sent_fields.contains(field)
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 pub struct PublicProfile {
     pub user_id: UserId,
     pub bio: Option<Bio>,
