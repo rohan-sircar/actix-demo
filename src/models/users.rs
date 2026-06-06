@@ -560,4 +560,238 @@ mod test {
         let ur = UserWithRoles::from_user(&user, &roles);
         assert_eq!(ur.id.0 as u32, 1);
     }
+
+    #[test]
+    fn bio_validation_accepts_valid_lengths() {
+        let short = serde_json::from_str::<Bio>(r#""Hi there""#);
+        assert!(short.is_ok());
+
+        let exact_500 =
+            serde_json::from_str::<Bio>(&format!(r#""{}""#, "a".repeat(500)));
+        assert!(exact_500.is_ok());
+
+        let multiline = serde_json::from_str::<Bio>(r#""line1\nline2\nline3""#);
+        assert!(multiline.is_ok());
+
+        let empty = serde_json::from_str::<Bio>(r#""""#);
+        assert!(empty.is_ok());
+    }
+
+    #[test]
+    fn bio_validation_rejects_overlong() {
+        let over_500 =
+            serde_json::from_str::<Bio>(&format!(r#""{}""#, "a".repeat(501)));
+        assert!(over_500.is_err());
+
+        let over_1000 =
+            serde_json::from_str::<Bio>(&format!(r#""{}""#, "a".repeat(1000)));
+        assert!(over_1000.is_err());
+    }
+
+    #[test]
+    fn bio_validation_handles_unicode() {
+        let unicode = serde_json::from_str::<Bio>(r#""Hello 世界 🌍""#);
+        assert!(unicode.is_ok());
+
+        let emoji_heavy =
+            serde_json::from_str::<Bio>(&format!(r#""{}""#, "🦀".repeat(501)));
+        assert!(emoji_heavy.is_err());
+    }
+
+    #[test]
+    fn display_name_validation_accepts_valid_lengths() {
+        let short = serde_json::from_str::<DisplayName>(r#""JD""#);
+        assert!(short.is_ok());
+
+        let exact_100 = serde_json::from_str::<DisplayName>(&format!(
+            r#""{}""#,
+            "a".repeat(100)
+        ));
+        assert!(exact_100.is_ok());
+    }
+
+    #[test]
+    fn display_name_validation_rejects_overlong() {
+        let over_100 = serde_json::from_str::<DisplayName>(&format!(
+            r#""{}""#,
+            "a".repeat(101)
+        ));
+        assert!(over_100.is_err());
+    }
+
+    #[test]
+    fn location_validation_accepts_valid_lengths() {
+        let short = serde_json::from_str::<Location>(r#""New York, USA""#);
+        assert!(short.is_ok());
+
+        let exact_200 = serde_json::from_str::<Location>(&format!(
+            r#""{}""#,
+            "a".repeat(200)
+        ));
+        assert!(exact_200.is_ok());
+    }
+
+    #[test]
+    fn location_validation_rejects_overlong() {
+        let over_200 = serde_json::from_str::<Location>(&format!(
+            r#""{}""#,
+            "a".repeat(201)
+        ));
+        assert!(over_200.is_err());
+    }
+
+    #[test]
+    fn website_url_validation_accepts_valid_lengths() {
+        let url =
+            serde_json::from_str::<WebsiteUrl>(r#""https://example.com""#);
+        assert!(url.is_ok());
+
+        let exact_500 = serde_json::from_str::<WebsiteUrl>(&format!(
+            r#""{}""#,
+            "a".repeat(500)
+        ));
+        assert!(exact_500.is_ok());
+    }
+
+    #[test]
+    fn website_url_validation_rejects_overlong() {
+        let over_500 = serde_json::from_str::<WebsiteUrl>(&format!(
+            r#""{}""#,
+            "a".repeat(501)
+        ));
+        assert!(over_500.is_err());
+    }
+
+    #[test]
+    fn social_github_validation_accepts_valid_lengths() {
+        let short = serde_json::from_str::<SocialGithub>(r#""octocat""#);
+        assert!(short.is_ok());
+
+        let exact_100 = serde_json::from_str::<SocialGithub>(&format!(
+            r#""{}""#,
+            "a".repeat(100)
+        ));
+        assert!(exact_100.is_ok());
+    }
+
+    #[test]
+    fn social_github_validation_rejects_overlong() {
+        let over_100 = serde_json::from_str::<SocialGithub>(&format!(
+            r#""{}""#,
+            "a".repeat(101)
+        ));
+        assert!(over_100.is_err());
+    }
+
+    #[test]
+    fn social_twitter_validation_accepts_valid_lengths() {
+        let short = serde_json::from_str::<SocialTwitter>(r#""rustlang""#);
+        assert!(short.is_ok());
+
+        let exact_100 = serde_json::from_str::<SocialTwitter>(&format!(
+            r#""{}""#,
+            "a".repeat(100)
+        ));
+        assert!(exact_100.is_ok());
+    }
+
+    #[test]
+    fn social_twitter_validation_rejects_overlong() {
+        let over_100 = serde_json::from_str::<SocialTwitter>(&format!(
+            r#""{}""#,
+            "a".repeat(101)
+        ));
+        assert!(over_100.is_err());
+    }
+
+    #[test]
+    fn create_profile_deserializes_valid_fields() {
+        let json = r#"{
+            "bio": "Rustacean",
+            "display_name": "The Rustacean",
+            "location": "Internet",
+            "website_url": "https://rust-lang.org",
+            "social_github": "rust-lang",
+            "social_twitter": "rustlang"
+        }"#;
+
+        let profile = serde_json::from_str::<CreateProfile>(json);
+        assert!(profile.is_ok());
+
+        let profile = profile.unwrap();
+        assert!(profile.bio.is_some());
+        assert!(profile.display_name.is_some());
+        assert!(profile.location.is_some());
+        assert!(profile.website_url.is_some());
+        assert!(profile.social_github.is_some());
+        assert!(profile.social_twitter.is_some());
+    }
+
+    #[test]
+    fn create_profile_rejects_invalid_bio() {
+        let json = format!(r#"{{"bio": "{}"}}"#, "a".repeat(501));
+        let profile = serde_json::from_str::<CreateProfile>(&json);
+        assert!(profile.is_err());
+    }
+
+    #[test]
+    fn create_profile_rejects_invalid_display_name() {
+        let json = format!(r#"{{"display_name": "{}"}}"#, "a".repeat(101));
+        let profile = serde_json::from_str::<CreateProfile>(&json);
+        assert!(profile.is_err());
+    }
+
+    #[test]
+    fn create_profile_accepts_partial_fields() {
+        let json = r#"{"bio": "Just a bio"}"#;
+        let profile = serde_json::from_str::<CreateProfile>(json);
+        assert!(profile.is_ok());
+
+        let profile = profile.unwrap();
+        assert!(profile.bio.is_some());
+        assert!(profile.display_name.is_none());
+        assert!(profile.location.is_none());
+    }
+
+    #[test]
+    fn create_profile_skips_user_id_from_json() {
+        let json = r#"{"bio": "Has user_id"}"#;
+        let profile = serde_json::from_str::<CreateProfile>(json);
+        assert!(profile.is_ok());
+
+        let profile = profile.unwrap();
+        assert_eq!(profile.user_id, dummy_user_id());
+    }
+
+    #[test]
+    fn update_profile_deserializer_tracks_sent_fields() {
+        let json = r#"{"bio": "new bio", "display_name": "New Name"}"#;
+        let update = serde_json::from_str::<UpdateProfile>(json);
+        assert!(update.is_ok());
+
+        let update = update.unwrap();
+        assert!(update.should_update("bio"));
+        assert!(update.should_update("display_name"));
+        assert!(!update.should_update("location"));
+        assert!(!update.should_update("website_url"));
+    }
+
+    #[test]
+    fn update_profile_deserializer_detects_null_sent() {
+        let json = r#"{"bio": null, "display_name": "New Name"}"#;
+        let update = serde_json::from_str::<UpdateProfile>(json);
+        assert!(update.is_ok());
+
+        let update = update.unwrap();
+        assert!(update.should_update("bio"));
+        assert!(update.bio.is_none());
+        assert!(update.should_update("display_name"));
+    }
+
+    #[test]
+    fn update_profile_rejects_invalid_values() {
+        let json = format!(r#"{{"bio": "{}"}}"#, "a".repeat(501));
+        let update = serde_json::from_str::<UpdateProfile>(&json);
+        assert!(update.is_err());
+    }
 }
