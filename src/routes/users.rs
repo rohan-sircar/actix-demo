@@ -328,7 +328,7 @@ pub async fn get_user_avatar(
     ),
 )]
 /// Get the authenticated user's profile.
-#[tracing::instrument(level = "info", skip(app_data))]
+#[tracing::instrument(level = "info", skip(app_data, req))]
 pub async fn get_my_profile(
     req: HttpRequest,
     app_data: web::Data<AppData>,
@@ -365,7 +365,7 @@ pub async fn get_my_profile(
     ),
 )]
 /// Update the authenticated user's profile.
-#[tracing::instrument(level = "info", skip(app_data))]
+#[tracing::instrument(level = "info", skip_all, fields(form))]
 pub async fn update_my_profile(
     req: HttpRequest,
     app_data: web::Data<AppData>,
@@ -448,7 +448,7 @@ pub async fn update_my_profile(
 )]
 /// Delete the authenticated user's account (soft delete).
 /// Clears all sessions and avatar. Orphans associated jobs.
-#[tracing::instrument(level = "info", skip(app_data, req))]
+#[tracing::instrument(level = "info", skip_all)]
 pub async fn delete_my_account(
     req: HttpRequest,
     app_data: web::Data<AppData>,
@@ -504,7 +504,7 @@ pub async fn delete_my_account(
     ),
 )]
 /// Get a user's public profile.
-#[tracing::instrument(level = "info", skip_all)]
+#[tracing::instrument(level = "info", skip_all, fields(user_id))]
 pub async fn get_public_profile(
     app_data: web::Data<AppData>,
     user_id: web::Path<UserId>,
@@ -574,7 +574,7 @@ pub async fn get_user_profile(
 )]
 /// Create the authenticated user's profile.
 #[protect("RoleEnum::RoleUser", ty = RoleEnum)]
-#[tracing::instrument(level = "info", skip_all)]
+#[tracing::instrument(level = "info", skip_all, fields(form))]
 pub async fn create_user_profile(
     req: HttpRequest,
     app_data: web::Data<AppData>,
@@ -606,7 +606,7 @@ pub async fn create_user_profile(
 )]
 /// Update the authenticated user's profile.
 #[protect("RoleEnum::RoleUser", ty = RoleEnum)]
-#[tracing::instrument(level = "info", skip_all)]
+#[tracing::instrument(level = "info", skip_all, fields(form))]
 pub async fn update_user_profile(
     req: HttpRequest,
     app_data: web::Data<AppData>,
