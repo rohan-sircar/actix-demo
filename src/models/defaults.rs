@@ -150,10 +150,6 @@ pub fn default_oauth_config() -> crate::config::OAuthConfig {
     }
 }
 
-pub fn default_api_docs_path() -> String {
-    "/docs".to_string()
-}
-
 pub fn default_swagger_path() -> String {
     "/swagger".to_string()
 }

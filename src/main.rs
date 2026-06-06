@@ -269,8 +269,7 @@ async fn main() -> anyhow::Result<()> {
         user_ids_cache,
         health_checkers,
         minio,
-        mailer,
-        api_docs_path: env_config.api_docs_path.clone(),
+    mailer,
         swagger_path: env_config.swagger_path,
     });
 

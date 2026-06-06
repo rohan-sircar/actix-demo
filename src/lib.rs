@@ -54,7 +54,6 @@ use tracing_actix_web::TracingLogger;
 use types::{DbPool, RedisPrefixFn};
 use utils::redis_credentials_repo::RedisCredentialsRepo;
 use utils::InstrumentedRedisCache;
-use utoipa_redoc::{Redoc, Servable};
 use utoipa_swagger_ui::SwaggerUi;
 
 build_info::build_info!(pub fn get_build_info);
@@ -106,7 +105,6 @@ pub struct AppData {
     pub health_checkers: Vec<(HealthcheckName, HealthChecker)>,
     pub minio: minior::Minio,
     pub mailer: Arc<dyn Mailer>,
-    pub api_docs_path: String,
     pub swagger_path: String,
 }
 
@@ -143,7 +141,6 @@ pub fn configure_app(
             )
         };
 
-        let api_docs_path = app_data.api_docs_path.clone();
         let swagger_path = app_data.swagger_path.clone();
         let swagger_path_for_swaggerui = format!("{}/{{_:.*}}", swagger_path);
         cfg.app_data(app_data.clone())
@@ -165,7 +162,6 @@ pub fn configure_app(
                 SwaggerUi::new(swagger_path_for_swaggerui)
                     .url("/api-doc/openapi.json", ApiDoc::openapi()),
             )
-            .service(Redoc::with_url(api_docs_path, ApiDoc::openapi()))
             .service(
                 web::scope("/hc")
                     .wrap(in_memory_rate_limiter)
