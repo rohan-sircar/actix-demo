@@ -370,8 +370,8 @@ pub fn configure_app(
                                     .to(routes::users::update_user_profile),
                             )
                             .route(
-                                "/delete",
-                                web::post()
+                                "",
+                                web::delete()
                                     .to(routes::users::delete_my_account),
                             ),
                     )

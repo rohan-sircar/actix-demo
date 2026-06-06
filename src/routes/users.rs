@@ -438,8 +438,8 @@ pub async fn update_my_profile(
 }
 
 #[utoipa::path(
-    post,
-    path = "/api/user/delete",
+    delete,
+    path = "/api/user",
     tag = "users",
     responses(
         (status = 200, description = "Account deleted successfully"),
