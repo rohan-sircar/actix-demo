@@ -173,7 +173,7 @@ mod tests {
 
                 let mut resp = ctx
                     .test_server
-                    .get("/api/user/me/profile")
+                    .get("/api/user/profile")
                     .with_token(&token)
                     .send()
                     .await
@@ -197,7 +197,7 @@ mod tests {
 
                 let mut resp = ctx
                     .test_server
-                    .post("/api/user/me/profile")
+                    .post("/api/user/profile")
                     .with_token(&token)
                     .append_header((CONTENT_TYPE, "application/json"))
                     .send_json(&serde_json::json!({
@@ -222,7 +222,7 @@ mod tests {
 
                 let mut get_resp = ctx
                     .test_server
-                    .get("/api/user/me/profile")
+                    .get("/api/user/profile")
                     .with_token(&token)
                     .send()
                     .await
@@ -241,7 +241,7 @@ mod tests {
                     register_and_login(&ctx, "partialupdate", "test123").await;
 
                 ctx.test_server
-                    .post("/api/user/me/profile")
+                    .post("/api/user/profile")
                     .with_token(&token)
                     .append_header((CONTENT_TYPE, "application/json"))
                     .send_json(&serde_json::json!({
@@ -257,7 +257,7 @@ mod tests {
 
                 let mut resp = ctx
                     .test_server
-                    .patch("/api/user/me/profile")
+                    .patch("/api/user/profile")
                     .with_token(&token)
                     .append_header((CONTENT_TYPE, "application/json"))
                     .send_json(&serde_json::json!({
@@ -283,7 +283,7 @@ mod tests {
                     register_and_login(&ctx, "clearfield", "test123").await;
 
                 ctx.test_server
-                    .post("/api/user/me/profile")
+                    .post("/api/user/profile")
                     .with_token(&token)
                     .append_header((CONTENT_TYPE, "application/json"))
                     .send_json(&serde_json::json!({
@@ -299,7 +299,7 @@ mod tests {
 
                 let mut resp = ctx
                     .test_server
-                    .patch("/api/user/me/profile")
+                    .patch("/api/user/profile")
                     .with_token(&token)
                     .append_header((CONTENT_TYPE, "application/json"))
                     .send_json(&serde_json::json!({
@@ -353,7 +353,7 @@ mod tests {
                     register_and_login(&ctx, "pubprofile", "test123").await;
 
                 ctx.test_server
-                    .post("/api/user/me/profile")
+                    .post("/api/user/profile")
                     .with_token(&token)
                     .append_header((CONTENT_TYPE, "application/json"))
                     .send_json(&serde_json::json!({
@@ -404,7 +404,7 @@ mod tests {
 
                 let resp = ctx
                     .test_server
-                    .get("/api/user/me/profile")
+                    .get("/api/user/profile")
                     .send()
                     .await
                     .unwrap();
@@ -418,7 +418,7 @@ mod tests {
 
                 let resp = ctx
                     .test_server
-                    .patch("/api/user/me/profile")
+                    .patch("/api/user/profile")
                     .append_header((CONTENT_TYPE, "application/json"))
                     .send_json(&serde_json::json!({
                         "bio": "test"
@@ -439,7 +439,7 @@ mod tests {
 
                 let mut resp = ctx
                     .test_server
-                    .post("/api/user/me/profile")
+                    .post("/api/user/profile")
                     .with_token(&token)
                     .append_header((CONTENT_TYPE, "application/json"))
                     .send_json(&serde_json::json!({

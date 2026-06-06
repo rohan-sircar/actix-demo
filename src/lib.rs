@@ -347,7 +347,7 @@ pub fn configure_app(
                     .service(
                         web::scope("/user")
                             .route(
-                                "/me",
+                                "",
                                 web::get().to(routes::users::get_my_profile),
                             )
                             .route(
@@ -356,21 +356,21 @@ pub fn configure_app(
                                     .to(routes::users::update_my_profile),
                             )
                             .route(
-                                "/me/profile",
+                                "/profile",
                                 web::get().to(routes::users::get_user_profile),
                             )
                             .route(
-                                "/me/profile",
+                                "/profile",
                                 web::post()
                                     .to(routes::users::create_user_profile),
                             )
                             .route(
-                                "/me/profile",
+                                "/profile",
                                 web::patch()
                                     .to(routes::users::update_user_profile),
                             )
                             .route(
-                                "/me/delete",
+                                "/delete",
                                 web::post()
                                     .to(routes::users::delete_my_account),
                             ),

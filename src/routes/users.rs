@@ -320,7 +320,7 @@ pub async fn get_user_avatar(
 
 #[utoipa::path(
     get,
-    path = "/api/user/me",
+    path = "/api/user",
     tag = "users",
     responses(
         (status = 200, description = "User profile", body = User),
@@ -439,7 +439,7 @@ pub async fn update_my_profile(
 
 #[utoipa::path(
     post,
-    path = "/api/user/me/delete",
+    path = "/api/user/delete",
     tag = "users",
     responses(
         (status = 200, description = "Account deleted successfully"),
@@ -522,7 +522,7 @@ pub async fn get_public_profile(
 
 #[utoipa::path(
     get,
-    path = "/api/user/me/profile",
+    path = "/api/user/profile",
     tag = "users",
     responses(
         (status = 200, description = "Profile retrieved", body = PublicProfile),
@@ -563,7 +563,7 @@ pub async fn get_user_profile(
 
 #[utoipa::path(
     post,
-    path = "/api/user/me/profile",
+    path = "/api/user/profile",
     tag = "users",
     request_body = CreateProfile,
     responses(
@@ -595,7 +595,7 @@ pub async fn create_user_profile(
 
 #[utoipa::path(
     patch,
-    path = "/api/user/me/profile",
+    path = "/api/user/profile",
     tag = "users",
     request_body = UpdateProfile,
     responses(
