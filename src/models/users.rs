@@ -17,7 +17,7 @@ use super::roles::RoleEnum;
     DbEnum, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash, ToSchema,
 )]
 #[serde(rename_all = "snake_case")]
-#[ExistingTypePath = "crate::schema::sql_types::OAuthProviderType"]
+#[ExistingTypePath = "crate::schema::sql_types::OauthProviderType"]
 pub enum OAuthProvider {
     Github,
     Google,
