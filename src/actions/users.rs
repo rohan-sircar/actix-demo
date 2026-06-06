@@ -4,9 +4,9 @@ use crate::errors::DomainError;
 use crate::models::misc::Pagination;
 use crate::models::roles::{NewUserRole, RoleEnum, RoleId};
 use crate::models::users::{
-    Email, NewUser, OAuthProvider, OAuthUserLookup, Password, Profile,
-    PublicProfile, UpdateUserProfile, UpsertProfile, User, UserAuthDetails,
-    UserAuthDetailsWithRoles, UserId, UserWithRoles, Username,
+    CreateProfile, Email, NewUser, OAuthProvider, OAuthUserLookup, Password,
+    Profile, PublicProfile, UpdateProfile, UpdateUserProfile, User,
+    UserAuthDetails, UserAuthDetailsWithRoles, UserId, UserWithRoles, Username,
 };
 use crate::types::DbConnection;
 use crate::utils::InstrumentedRedisCache;
@@ -805,23 +805,23 @@ pub fn get_profile(
     Ok(profile)
 }
 
-pub fn upsert_profile(
-    upsert: UpsertProfile,
+pub fn create_profile(
+    user_id: &UserId,
+    create: CreateProfile,
     conn: &mut DbConnection,
 ) -> Result<Profile, DomainError> {
     use crate::schema::profiles::dsl as profiles;
 
-    let user_id = upsert.user_id;
-    let bio = upsert.bio;
-    let display_name = upsert.display_name;
-    let location = upsert.location;
-    let website_url = upsert.website_url;
-    let social_github = upsert.social_github;
-    let social_twitter = upsert.social_twitter;
+    let bio = create.bio;
+    let display_name = create.display_name;
+    let location = create.location;
+    let website_url = create.website_url;
+    let social_github = create.social_github;
+    let social_twitter = create.social_twitter;
 
     diesel::insert_into(profiles::profiles)
         .values((
-            profiles::user_id.eq(&user_id),
+            profiles::user_id.eq(user_id),
             profiles::bio.eq(bio.clone()),
             profiles::display_name.eq(display_name.clone()),
             profiles::location.eq(location.clone()),
@@ -829,20 +829,67 @@ pub fn upsert_profile(
             profiles::social_github.eq(social_github.clone()),
             profiles::social_twitter.eq(social_twitter.clone()),
         ))
-        .on_conflict(profiles::user_id)
-        .do_update()
+        .execute(conn)?;
+
+    let profile = profiles::profiles
+        .filter(profiles::user_id.eq(user_id))
+        .first::<Profile>(conn)?;
+
+    Ok(profile)
+}
+
+pub fn update_profile(
+    user_id: &UserId,
+    updates: UpdateProfile,
+    conn: &mut DbConnection,
+) -> Result<Profile, DomainError> {
+    use crate::schema::profiles::dsl as profiles;
+
+    let mut profile = get_profile(user_id, conn)?.unwrap_or_else(|| Profile {
+        id: 0,
+        user_id: *user_id,
+        bio: None,
+        display_name: None,
+        location: None,
+        website_url: None,
+        social_github: None,
+        social_twitter: None,
+        created_at: chrono::Utc::now().naive_utc(),
+        updated_at: chrono::Utc::now().naive_utc(),
+    });
+
+    if let Some(bio) = updates.bio {
+        profile.bio = Some(bio);
+    }
+    if let Some(display_name) = updates.display_name {
+        profile.display_name = Some(display_name);
+    }
+    if let Some(location) = updates.location {
+        profile.location = Some(location);
+    }
+    if let Some(website_url) = updates.website_url {
+        profile.website_url = Some(website_url);
+    }
+    if let Some(social_github) = updates.social_github {
+        profile.social_github = Some(social_github);
+    }
+    if let Some(social_twitter) = updates.social_twitter {
+        profile.social_twitter = Some(social_twitter);
+    }
+
+    diesel::update(profiles::profiles.filter(profiles::user_id.eq(user_id)))
         .set((
-            profiles::bio.eq(bio),
-            profiles::display_name.eq(display_name),
-            profiles::location.eq(location),
-            profiles::website_url.eq(website_url),
-            profiles::social_github.eq(social_github),
-            profiles::social_twitter.eq(social_twitter),
+            profiles::bio.eq(profile.bio.clone()),
+            profiles::display_name.eq(profile.display_name.clone()),
+            profiles::location.eq(profile.location.clone()),
+            profiles::website_url.eq(profile.website_url.clone()),
+            profiles::social_github.eq(profile.social_github.clone()),
+            profiles::social_twitter.eq(profile.social_twitter.clone()),
         ))
         .execute(conn)?;
 
     let profile = profiles::profiles
-        .filter(profiles::user_id.eq(&user_id))
+        .filter(profiles::user_id.eq(user_id))
         .first::<Profile>(conn)?;
 
     Ok(profile)

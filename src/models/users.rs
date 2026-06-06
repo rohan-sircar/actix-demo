@@ -375,7 +375,7 @@ pub struct Profile {
 
 #[derive(Debug, Clone, Insertable, Deserialize, ToSchema)]
 #[diesel(table_name = profiles)]
-pub struct UpsertProfile {
+pub struct CreateProfile {
     pub user_id: UserId,
     pub bio: Option<Bio>,
     pub display_name: Option<DisplayName>,

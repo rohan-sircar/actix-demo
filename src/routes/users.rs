@@ -9,7 +9,7 @@ use crate::diesel::RunQueryDsl;
 use crate::models::misc::Pagination;
 use crate::models::roles::RoleEnum;
 use crate::models::users::{
-    NewUser, PublicProfile, UpdateProfile, UpdateUserProfile, UpsertProfile,
+    CreateProfile, NewUser, PublicProfile, UpdateProfile, UpdateUserProfile,
     UserId,
 };
 use crate::services::email::tokens;
@@ -562,6 +562,38 @@ pub async fn get_user_profile(
 }
 
 #[utoipa::path(
+    post,
+    path = "/api/user/me/profile",
+    tag = "users",
+    request_body = CreateProfile,
+    responses(
+        (status = 201, description = "Profile created", body = PublicProfile),
+        (status = 400, description = "Bad input", body = ErrorResponseString),
+        (status = 401, description = "Missing or invalid auth token", body = ErrorResponseString),
+    ),
+)]
+/// Create the authenticated user's profile.
+#[protect("RoleEnum::RoleUser", ty = RoleEnum)]
+#[tracing::instrument(level = "info", skip_all)]
+pub async fn create_user_profile(
+    req: HttpRequest,
+    app_data: web::Data<AppData>,
+    form: web::Json<CreateProfile>,
+) -> Result<HttpResponse, DomainError> {
+    let user_id = utils::extract_user_id_from_header(req.headers())?;
+    let create = form.into_inner();
+
+    let res = web::block(move || {
+        let pool = &app_data.pool;
+        let mut conn = pool.get()?;
+        actions::users::create_profile(&user_id, create, &mut conn)
+    })
+    .await??;
+
+    Ok(HttpResponse::Created().json(PublicProfile::from(&res)))
+}
+
+#[utoipa::path(
     patch,
     path = "/api/user/me/profile",
     tag = "users",
@@ -583,20 +615,10 @@ pub async fn update_user_profile(
     let user_id = utils::extract_user_id_from_header(req.headers())?;
     let updates = form.into_inner();
 
-    let upsert = UpsertProfile {
-        user_id,
-        bio: updates.bio,
-        display_name: updates.display_name,
-        location: updates.location,
-        website_url: updates.website_url,
-        social_github: updates.social_github,
-        social_twitter: updates.social_twitter,
-    };
-
     let res = web::block(move || {
         let pool = &app_data.pool;
         let mut conn = pool.get()?;
-        actions::users::upsert_profile(upsert, &mut conn)
+        actions::users::update_profile(&user_id, updates, &mut conn)
     })
     .await??;
 

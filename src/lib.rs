@@ -361,6 +361,11 @@ pub fn configure_app(
                             )
                             .route(
                                 "/me/profile",
+                                web::post()
+                                    .to(routes::users::create_user_profile),
+                            )
+                            .route(
+                                "/me/profile",
                                 web::patch()
                                     .to(routes::users::update_user_profile),
                             )
@@ -407,6 +412,7 @@ pub fn configure_app(
         routes::users::get_my_profile,
         routes::users::update_my_profile,
         routes::users::get_user_profile,
+        routes::users::create_user_profile,
         routes::users::update_user_profile,
         routes::users::get_public_profile,
         routes::users::delete_my_account,
@@ -453,7 +459,7 @@ pub fn configure_app(
             models::users::Profile,
             models::users::PublicProfile,
             models::users::UpdateProfile,
-            models::users::UpsertProfile,
+            models::users::CreateProfile,
             models::roles::RoleEnum,
         ),
     ),
