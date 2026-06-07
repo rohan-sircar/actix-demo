@@ -2,6 +2,7 @@
 mod auth;
 mod common;
 mod misc;
+mod pets;
 mod role_enforcement;
 mod users;
 mod ws;

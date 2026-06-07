@@ -186,4 +186,4 @@ pub struct PetTrait {
 - On PATCH, `traits` field replaces all existing traits for the pet (not additive)
 - Species filter is case-insensitive ILIKE or lowercase comparison
 - Trait search: JOIN pet_personality_traits + personality_traits, filter by trait name
-- No avatar upload in v1 — just store URL string if needed later
+- Pet image gallery is implemented in a separate round (`pet_images.md`)

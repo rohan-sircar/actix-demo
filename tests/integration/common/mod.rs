@@ -819,6 +819,20 @@ pub async fn create_http_user_with_email(
     Ok(())
 }
 
+pub async fn register_and_login(
+    ctx: &TestContext,
+    username: &str,
+    password: &str,
+) -> String {
+    create_http_user(&ctx.addr, username, password, &ctx.client)
+        .await
+        .unwrap();
+
+    get_http_token(&ctx.addr, username, password, &ctx.client)
+        .await
+        .unwrap()
+}
+
 pub fn assert_rate_limit_headers(headers: &HeaderMap) {
     // Check for the existence of rate limiting headers
     assert!(

@@ -3,5 +3,6 @@ pub mod command;
 pub mod healthcheck;
 pub mod misc;
 pub mod oauth;
+pub mod pets;
 pub mod users;
 pub mod ws;
