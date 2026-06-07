@@ -8,33 +8,31 @@ use crate::models::pets::{
 use crate::models::users::UserId;
 use crate::types::DbConnection;
 
-fn fetch_traits_for_pet(
-    pet: &Pet,
+fn fetch_all_traits_for_pets(
+    pet_ids: &[i32],
     conn: &mut DbConnection,
-) -> Result<Vec<PetTrait>, DomainError> {
+) -> Result<std::collections::HashMap<i32, Vec<PetTrait>>, DomainError> {
     use crate::schema::personality_traits::dsl as personality_traits;
     use crate::schema::pet_personality_traits::dsl as pet_personality_traits;
 
-    let trait_ids = pet_personality_traits::pet_personality_traits
-        .select(pet_personality_traits::trait_id)
-        .filter(pet_personality_traits::pet_id.eq(pet.id.as_int()))
-        .load::<i32>(conn)?;
+    let results = pet_personality_traits::pet_personality_traits
+        .inner_join(personality_traits::personality_traits)
+        .filter(pet_personality_traits::pet_id.eq_any(pet_ids))
+        .select((
+            pet_personality_traits::pet_id,
+            personality_traits::id,
+            personality_traits::name,
+        ))
+        .load::<(i32, TraitId, String)>(conn)?;
 
-    let mut traits = Vec::new();
-
-    for trait_id in trait_ids {
-        let trait_record = personality_traits::personality_traits
-            .select((personality_traits::id, personality_traits::name))
-            .filter(personality_traits::id.eq(trait_id))
-            .first::<(TraitId, String)>(conn)
-            .optional()?;
-
-        if let Some((id, name)) = trait_record {
-            traits.push(PetTrait { id, name });
-        }
+    let mut map = std::collections::HashMap::new();
+    for (pet_id, trait_id, name) in results {
+        map.entry(pet_id)
+            .or_insert_with(Vec::new)
+            .push(PetTrait { id: trait_id, name });
     }
 
-    Ok(traits)
+    Ok(map)
 }
 
 pub fn create_pet(
@@ -101,7 +99,8 @@ pub fn create_pet(
 
     let pet = pets::pets.filter(pets::id.eq(pet_id)).first::<Pet>(conn)?;
 
-    let traits = fetch_traits_for_pet(&pet, conn)?;
+    let traits = fetch_all_traits_for_pets(&[pet_id], conn)?;
+    let traits = traits.get(&pet_id).cloned().unwrap_or_default();
 
     Ok(PublicPet::from((&pet, traits)))
 }
@@ -121,7 +120,9 @@ pub fn get_pet(
 
     match pet {
         Some(pet) => {
-            let traits = fetch_traits_for_pet(&pet, conn)?;
+            let traits = fetch_all_traits_for_pets(&[pet.id.as_int()], conn)?;
+            let traits =
+                traits.get(&pet.id.as_int()).cloned().unwrap_or_default();
             Ok(Some(PublicPet::from((&pet, traits))))
         }
         None => Ok(None),
@@ -144,34 +145,45 @@ pub fn list_pets(
 
     let pets_list = query.load::<Pet>(conn)?;
 
-    let mut result = Vec::new();
+    if pets_list.is_empty() {
+        return Ok(Vec::new());
+    }
 
-    for pet in pets_list {
-        if let Some(ref trait_names) = trait_names {
-            if trait_names.is_empty() {
-                let traits = fetch_traits_for_pet(&pet, conn)?;
-                result.push(PublicPet::from((&pet, traits)));
-                continue;
-            }
+    let mut filtered_pets = pets_list;
 
+    if let Some(ref trait_names) = trait_names {
+        if !trait_names.is_empty() {
             use crate::schema::personality_traits::dsl as pt_dsl;
             use crate::schema::pet_personality_traits::dsl as ppt_dsl;
 
-            let matching_count = pt_dsl::personality_traits
-                .inner_join(ppt_dsl::pet_personality_traits)
-                .filter(ppt_dsl::pet_id.eq(pet.id.as_int()))
+            let matching_pet_ids = ppt_dsl::pet_personality_traits
+                .inner_join(pt_dsl::personality_traits)
                 .filter(pt_dsl::name.eq_any(trait_names))
-                .count()
-                .get_result::<i64>(conn)?;
+                .select(ppt_dsl::pet_id)
+                .distinct()
+                .load::<i32>(conn)?;
 
-            if matching_count > 0 {
-                let traits = fetch_traits_for_pet(&pet, conn)?;
-                result.push(PublicPet::from((&pet, traits)));
-            }
-        } else {
-            let traits = fetch_traits_for_pet(&pet, conn)?;
-            result.push(PublicPet::from((&pet, traits)));
+            let matching_set: std::collections::HashSet<i32> =
+                matching_pet_ids.into_iter().collect();
+            filtered_pets.retain(|pet| matching_set.contains(&pet.id.as_int()));
         }
+    }
+
+    if filtered_pets.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let pet_ids: Vec<i32> =
+        filtered_pets.iter().map(|p| p.id.as_int()).collect();
+    let traits_map = fetch_all_traits_for_pets(&pet_ids, conn)?;
+
+    let mut result = Vec::new();
+    for pet in filtered_pets {
+        let traits = traits_map
+            .get(&pet.id.as_int())
+            .cloned()
+            .unwrap_or_default();
+        result.push(PublicPet::from((&pet, traits)));
     }
 
     Ok(result)
@@ -302,7 +314,8 @@ pub fn update_pet(
     }
 
     let pet = pets::pets.filter(pets::id.eq(pet_id)).first::<Pet>(conn)?;
-    let traits = fetch_traits_for_pet(&pet, conn)?;
+    let traits = fetch_all_traits_for_pets(&[pet_id.as_int()], conn)?;
+    let traits = traits.get(&pet_id.as_int()).cloned().unwrap_or_default();
 
     Ok(PublicPet::from((&pet, traits)))
 }
@@ -369,7 +382,8 @@ pub fn get_public_pet(
         }
     };
 
-    let traits = fetch_traits_for_pet(&pet, conn)?;
+    let traits = fetch_all_traits_for_pets(&[pet_id.as_int()], conn)?;
+    let traits = traits.get(&pet_id.as_int()).cloned().unwrap_or_default();
 
     Ok(PublicPet::from((&pet, traits)))
 }
