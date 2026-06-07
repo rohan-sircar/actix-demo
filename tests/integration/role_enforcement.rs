@@ -218,10 +218,10 @@ mod tests {
             .await
             .unwrap();
 
-            // GET /api/user/me should succeed (200) for any authenticated user
+            // DELETE /api/user should succeed (200) for any authenticated user
             let resp = ctx
                 .test_server
-                .get("/api/user/me")
+                .get("/api/user")
                 .with_token(&token)
                 .send()
                 .await

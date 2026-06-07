@@ -133,5 +133,324 @@ mod tests {
                 "Entity does not exist - No user found with uid: 55"
             );
         }
+
+        mod profile_api {
+            use actix_demo::schema::users;
+            use actix_web::http::header::CONTENT_TYPE;
+            use diesel::prelude::*;
+
+            use super::*;
+
+            async fn register_and_login(
+                ctx: &TestContext,
+                username: &str,
+                password: &str,
+            ) -> String {
+                common::create_http_user(
+                    &ctx.addr,
+                    username,
+                    password,
+                    &ctx.client,
+                )
+                .await
+                .unwrap();
+
+                common::get_http_token(
+                    &ctx.addr,
+                    username,
+                    password,
+                    &ctx.client,
+                )
+                .await
+                .unwrap()
+            }
+
+            #[actix_rt::test]
+            async fn get_user_profile_returns_empty_when_none_exists() {
+                let ctx = TestContext::new(None).await;
+                let token =
+                    register_and_login(&ctx, "emptyprofile", "test123").await;
+
+                let mut resp = ctx
+                    .test_server
+                    .get("/api/user/profile")
+                    .with_token(&token)
+                    .send()
+                    .await
+                    .unwrap();
+
+                assert_eq!(resp.status(), StatusCode::OK);
+                let body: serde_json::Value = resp.json().await.unwrap();
+                assert!(body["bio"].is_null());
+                assert!(body["display_name"].is_null());
+                assert!(body["location"].is_null());
+                assert!(body["website_url"].is_null());
+                assert!(body["social_github"].is_null());
+                assert!(body["social_twitter"].is_null());
+            }
+
+            #[actix_rt::test]
+            async fn create_profile_success() {
+                let ctx = TestContext::new(None).await;
+                let token =
+                    register_and_login(&ctx, "newprofile", "test123").await;
+
+                let mut resp = ctx
+                    .test_server
+                    .post("/api/user/profile")
+                    .with_token(&token)
+                    .append_header((CONTENT_TYPE, "application/json"))
+                    .send_json(&serde_json::json!({
+                        "bio": "Hello world",
+                        "display_name": "Test User",
+                        "location": "NYC",
+                        "website_url": "https://example.com",
+                        "social_github": "githubuser",
+                        "social_twitter": "twitteruser"
+                    }))
+                    .await
+                    .unwrap();
+
+                assert_eq!(resp.status(), StatusCode::CREATED);
+                let body: serde_json::Value = resp.json().await.unwrap();
+                assert_eq!(body["bio"], "Hello world");
+                assert_eq!(body["display_name"], "Test User");
+                assert_eq!(body["location"], "NYC");
+                assert_eq!(body["website_url"], "https://example.com");
+                assert_eq!(body["social_github"], "githubuser");
+                assert_eq!(body["social_twitter"], "twitteruser");
+
+                let mut get_resp = ctx
+                    .test_server
+                    .get("/api/user/profile")
+                    .with_token(&token)
+                    .send()
+                    .await
+                    .unwrap();
+                assert_eq!(get_resp.status(), StatusCode::OK);
+                let persisted: serde_json::Value =
+                    get_resp.json().await.unwrap();
+                assert_eq!(persisted["bio"], "Hello world");
+                assert_eq!(persisted["display_name"], "Test User");
+            }
+
+            #[actix_rt::test]
+            async fn update_profile_partial_only_changes_sent_fields() {
+                let ctx = TestContext::new(None).await;
+                let token =
+                    register_and_login(&ctx, "partialupdate", "test123").await;
+
+                ctx.test_server
+                    .post("/api/user/profile")
+                    .with_token(&token)
+                    .append_header((CONTENT_TYPE, "application/json"))
+                    .send_json(&serde_json::json!({
+                        "bio": "old bio",
+                        "display_name": "Old Name",
+                        "location": "Old Location",
+                        "website_url": "https://old.com",
+                        "social_github": "oldgithub",
+                        "social_twitter": "oldtwitter"
+                    }))
+                    .await
+                    .unwrap();
+
+                let mut resp = ctx
+                    .test_server
+                    .patch("/api/user/profile")
+                    .with_token(&token)
+                    .append_header((CONTENT_TYPE, "application/json"))
+                    .send_json(&serde_json::json!({
+                        "bio": "new bio"
+                    }))
+                    .await
+                    .unwrap();
+
+                assert_eq!(resp.status(), StatusCode::OK);
+                let body: serde_json::Value = resp.json().await.unwrap();
+                assert_eq!(body["bio"], "new bio");
+                assert_eq!(body["display_name"], "Old Name");
+                assert_eq!(body["location"], "Old Location");
+                assert_eq!(body["website_url"], "https://old.com");
+                assert_eq!(body["social_github"], "oldgithub");
+                assert_eq!(body["social_twitter"], "oldtwitter");
+            }
+
+            #[actix_rt::test]
+            async fn update_profile_clears_field_with_null() {
+                let ctx = TestContext::new(None).await;
+                let token =
+                    register_and_login(&ctx, "clearfield", "test123").await;
+
+                ctx.test_server
+                    .post("/api/user/profile")
+                    .with_token(&token)
+                    .append_header((CONTENT_TYPE, "application/json"))
+                    .send_json(&serde_json::json!({
+                        "bio": "some bio",
+                        "display_name": "Some Name",
+                        "location": "Some Location",
+                        "website_url": "https://some.com",
+                        "social_github": "somegithub",
+                        "social_twitter": "sometwitter"
+                    }))
+                    .await
+                    .unwrap();
+
+                let mut resp = ctx
+                    .test_server
+                    .patch("/api/user/profile")
+                    .with_token(&token)
+                    .append_header((CONTENT_TYPE, "application/json"))
+                    .send_json(&serde_json::json!({
+                        "bio": null
+                    }))
+                    .await
+                    .unwrap();
+
+                assert_eq!(resp.status(), StatusCode::OK);
+                let body: serde_json::Value = resp.json().await.unwrap();
+                assert!(body["bio"].is_null());
+                assert_eq!(body["display_name"], "Some Name");
+                assert_eq!(body["location"], "Some Location");
+            }
+
+            #[actix_rt::test]
+            async fn get_public_profile_returns_404_when_missing() {
+                let ctx = TestContext::new(None).await;
+                let admin_token = common::get_http_token(
+                    &ctx.addr,
+                    common::DEFAULT_USER,
+                    common::DEFAULT_USER,
+                    &ctx.client,
+                )
+                .await
+                .unwrap();
+
+                let mut conn = ctx.app_data.pool.get().unwrap();
+
+                let uid: i32 = users::table
+                    .filter(users::username.eq("admin"))
+                    .select(users::id)
+                    .first(&mut conn)
+                    .unwrap();
+
+                let resp = ctx
+                    .test_server
+                    .get(format!("/api/public/profiles/{}", uid))
+                    .with_token(&admin_token)
+                    .send()
+                    .await
+                    .unwrap();
+
+                assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+            }
+
+            #[actix_rt::test]
+            async fn get_public_profile_returns_data_when_exists() {
+                let ctx = TestContext::new(None).await;
+                let token =
+                    register_and_login(&ctx, "pubprofile", "test123").await;
+
+                ctx.test_server
+                    .post("/api/user/profile")
+                    .with_token(&token)
+                    .append_header((CONTENT_TYPE, "application/json"))
+                    .send_json(&serde_json::json!({
+                        "bio": "public bio",
+                        "display_name": "Public Name",
+                        "location": null,
+                        "website_url": null,
+                        "social_github": null,
+                        "social_twitter": null
+                    }))
+                    .await
+                    .unwrap();
+
+                let mut conn = ctx.app_data.pool.get().unwrap();
+
+                let uid: i32 = users::table
+                    .filter(users::username.eq("pubprofile"))
+                    .select(users::id)
+                    .first(&mut conn)
+                    .unwrap();
+
+                let admin_token = common::get_http_token(
+                    &ctx.addr,
+                    common::DEFAULT_USER,
+                    common::DEFAULT_USER,
+                    &ctx.client,
+                )
+                .await
+                .unwrap();
+
+                let mut resp = ctx
+                    .test_server
+                    .get(format!("/api/public/profiles/{}", uid))
+                    .with_token(&admin_token)
+                    .send()
+                    .await
+                    .unwrap();
+
+                assert_eq!(resp.status(), StatusCode::OK);
+                let body: serde_json::Value = resp.json().await.unwrap();
+                assert_eq!(body["bio"], "public bio");
+                assert_eq!(body["display_name"], "Public Name");
+            }
+
+            #[actix_rt::test]
+            async fn unauthenticated_get_my_profile_returns_401() {
+                let ctx = TestContext::new(None).await;
+
+                let resp = ctx
+                    .test_server
+                    .get("/api/user/profile")
+                    .send()
+                    .await
+                    .unwrap();
+
+                assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+            }
+
+            #[actix_rt::test]
+            async fn unauthenticated_patch_my_profile_returns_401() {
+                let ctx = TestContext::new(None).await;
+
+                let resp = ctx
+                    .test_server
+                    .patch("/api/user/profile")
+                    .append_header((CONTENT_TYPE, "application/json"))
+                    .send_json(&serde_json::json!({
+                        "bio": "test"
+                    }))
+                    .await
+                    .unwrap();
+
+                assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+            }
+
+            #[actix_rt::test]
+            async fn validation_rejects_overlong_bio() {
+                let ctx = TestContext::new(None).await;
+                let token =
+                    register_and_login(&ctx, "longbio", "test123").await;
+
+                let long_bio = "a".repeat(501);
+
+                let mut resp = ctx
+                    .test_server
+                    .post("/api/user/profile")
+                    .with_token(&token)
+                    .append_header((CONTENT_TYPE, "application/json"))
+                    .send_json(&serde_json::json!({
+                        "bio": long_bio,
+                        "display_name": "Test"
+                    }))
+                    .await
+                    .unwrap();
+
+                assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+            }
+        }
     }
 }

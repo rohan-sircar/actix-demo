@@ -54,7 +54,6 @@ use tracing_actix_web::TracingLogger;
 use types::{DbPool, RedisPrefixFn};
 use utils::redis_credentials_repo::RedisCredentialsRepo;
 use utils::InstrumentedRedisCache;
-use utoipa_redoc::{Redoc, Servable};
 use utoipa_swagger_ui::SwaggerUi;
 
 build_info::build_info!(pub fn get_build_info);
@@ -106,7 +105,6 @@ pub struct AppData {
     pub health_checkers: Vec<(HealthcheckName, HealthChecker)>,
     pub minio: minior::Minio,
     pub mailer: Arc<dyn Mailer>,
-    pub api_docs_path: String,
     pub swagger_path: String,
 }
 
@@ -143,7 +141,6 @@ pub fn configure_app(
             )
         };
 
-        let api_docs_path = app_data.api_docs_path.clone();
         let swagger_path = app_data.swagger_path.clone();
         let swagger_path_for_swaggerui = format!("{}/{{_:.*}}", swagger_path);
         cfg.app_data(app_data.clone())
@@ -165,7 +162,6 @@ pub fn configure_app(
                 SwaggerUi::new(swagger_path_for_swaggerui)
                     .url("/api-doc/openapi.json", ApiDoc::openapi()),
             )
-            .service(Redoc::with_url(api_docs_path, ApiDoc::openapi()))
             .service(
                 web::scope("/hc")
                     .wrap(in_memory_rate_limiter)
@@ -239,6 +235,10 @@ pub fn configure_app(
                     .route(
                         "/avatars/{user_id}",
                         web::get().to(routes::users::get_user_avatar),
+                    )
+                    .route(
+                        "/profiles/{user_id}",
+                        web::get().to(routes::users::get_public_profile),
                     ),
             )
             // public user endpoints (unauthenticated)
@@ -343,7 +343,7 @@ pub fn configure_app(
                     .service(
                         web::scope("/user")
                             .route(
-                                "/me",
+                                "",
                                 web::get().to(routes::users::get_my_profile),
                             )
                             .route(
@@ -352,8 +352,22 @@ pub fn configure_app(
                                     .to(routes::users::update_my_profile),
                             )
                             .route(
-                                "/me/delete",
+                                "/profile",
+                                web::get().to(routes::users::get_user_profile),
+                            )
+                            .route(
+                                "/profile",
                                 web::post()
+                                    .to(routes::users::create_user_profile),
+                            )
+                            .route(
+                                "/profile",
+                                web::patch()
+                                    .to(routes::users::update_user_profile),
+                            )
+                            .route(
+                                "",
+                                web::delete()
                                     .to(routes::users::delete_my_account),
                             ),
                     )
@@ -393,6 +407,10 @@ pub fn configure_app(
         routes::users::get_user_avatar,
         routes::users::get_my_profile,
         routes::users::update_my_profile,
+        routes::users::get_user_profile,
+        routes::users::create_user_profile,
+        routes::users::update_user_profile,
+        routes::users::get_public_profile,
         routes::users::delete_my_account,
         routes::command::handle_run_command,
         routes::command::handle_get_job,
@@ -434,6 +452,10 @@ pub fn configure_app(
             models::users::Email,
             models::users::UserId,
             models::users::Username,
+            models::users::Profile,
+            models::users::PublicProfile,
+            models::users::UpdateProfile,
+            models::users::CreateProfile,
             models::roles::RoleEnum,
         ),
     ),

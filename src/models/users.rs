@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+use crate::schema::profiles;
 use crate::schema::users;
 use crate::utils::regex;
 use derive_more::{Display, Into};
@@ -16,7 +17,7 @@ use super::roles::RoleEnum;
     DbEnum, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash, ToSchema,
 )]
 #[serde(rename_all = "snake_case")]
-#[ExistingTypePath = "crate::schema::sql_types::OAuthProviderType"]
+#[ExistingTypePath = "crate::schema::sql_types::OauthProviderType"]
 pub enum OAuthProvider {
     Github,
     Google,
@@ -303,6 +304,216 @@ impl UserAuthDetailsWithRoles {
         }
     }
 }
+#[derive(Debug, Clone, DieselNewType, PartialEq, Eq, ToSchema, Serialize)]
+pub struct Bio(String);
+
+impl Bio {
+    const MAX_CHARS: usize = 500;
+
+    pub fn new(value: String) -> Result<Self, String> {
+        if value.chars().count() > Self::MAX_CHARS {
+            Err(format!(
+                "Bio must be at most {} characters",
+                Self::MAX_CHARS
+            ))
+        } else {
+            Ok(Self(value))
+        }
+    }
+
+    pub fn inner(&self) -> &str {
+        &self.0
+    }
+}
+
+impl<'de> Deserialize<'de> for Bio {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        Self::new(s).map_err(serde::de::Error::custom)
+    }
+}
+
+#[derive(Validator, Debug, Clone, DieselNewType, PartialEq, Eq, ToSchema)]
+#[validator(line(char_length(max = 100)))]
+pub struct DisplayName(String);
+
+#[derive(Validator, Debug, Clone, DieselNewType, PartialEq, Eq, ToSchema)]
+#[validator(line(char_length(max = 200)))]
+pub struct Location(String);
+
+#[derive(Validator, Debug, Clone, DieselNewType, PartialEq, Eq, ToSchema)]
+#[validator(line(char_length(max = 500)))]
+pub struct WebsiteUrl(String);
+
+#[derive(Validator, Debug, Clone, DieselNewType, PartialEq, Eq, ToSchema)]
+#[validator(line(char_length(max = 100)))]
+pub struct SocialGithub(String);
+
+#[derive(Validator, Debug, Clone, DieselNewType, PartialEq, Eq, ToSchema)]
+#[validator(line(char_length(max = 100)))]
+pub struct SocialTwitter(String);
+
+#[derive(
+    Debug, Clone, Deserialize, Serialize, Queryable, Identifiable, ToSchema,
+)]
+#[diesel(table_name = profiles)]
+pub struct Profile {
+    pub id: i32,
+    pub user_id: UserId,
+    pub bio: Option<Bio>,
+    pub display_name: Option<DisplayName>,
+    pub location: Option<Location>,
+    pub website_url: Option<WebsiteUrl>,
+    pub social_github: Option<SocialGithub>,
+    pub social_twitter: Option<SocialTwitter>,
+    pub created_at: chrono::NaiveDateTime,
+    pub updated_at: chrono::NaiveDateTime,
+}
+
+fn dummy_user_id() -> UserId {
+    UserId(0)
+}
+
+#[derive(Debug, Clone, Insertable, Deserialize, ToSchema)]
+#[diesel(table_name = profiles)]
+pub struct CreateProfile {
+    #[serde(skip, default = "dummy_user_id")]
+    pub user_id: UserId,
+    pub bio: Option<Bio>,
+    pub display_name: Option<DisplayName>,
+    pub location: Option<Location>,
+    pub website_url: Option<WebsiteUrl>,
+    pub social_github: Option<SocialGithub>,
+    pub social_twitter: Option<SocialTwitter>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, ToSchema)]
+pub struct UpdateProfile {
+    pub bio: Option<Bio>,
+    pub display_name: Option<DisplayName>,
+    pub location: Option<Location>,
+    pub website_url: Option<WebsiteUrl>,
+    pub social_github: Option<SocialGithub>,
+    pub social_twitter: Option<SocialTwitter>,
+    #[serde(skip, default)]
+    pub _sent_fields: std::collections::HashSet<String>,
+}
+
+impl<'de> Deserialize<'de> for UpdateProfile {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let value = serde_json::Value::deserialize(deserializer)?;
+
+        let mut bio = None;
+        let mut display_name = None;
+        let mut location = None;
+        let mut website_url = None;
+        let mut social_github = None;
+        let mut social_twitter = None;
+        let mut sent = std::collections::HashSet::new();
+
+        if let serde_json::Value::Object(map) = value {
+            for (key, val) in map {
+                sent.insert(key.clone());
+                match key.as_str() {
+                    "bio" => {
+                        if val.is_null() {
+                            bio = None;
+                        } else if let Some(s) = val.as_str() {
+                            bio = Some(
+                                Bio::new(s.to_string())
+                                    .map_err(serde::de::Error::custom)?,
+                            );
+                        }
+                    }
+                    "display_name" => {
+                        if val.is_null() {
+                            display_name = None;
+                        } else if let Some(s) = val.as_str() {
+                            display_name = Some(DisplayName(s.to_string()));
+                        }
+                    }
+                    "location" => {
+                        if val.is_null() {
+                            location = None;
+                        } else if let Some(s) = val.as_str() {
+                            location = Some(Location(s.to_string()));
+                        }
+                    }
+                    "website_url" => {
+                        if val.is_null() {
+                            website_url = None;
+                        } else if let Some(s) = val.as_str() {
+                            website_url = Some(WebsiteUrl(s.to_string()));
+                        }
+                    }
+                    "social_github" => {
+                        if val.is_null() {
+                            social_github = None;
+                        } else if let Some(s) = val.as_str() {
+                            social_github = Some(SocialGithub(s.to_string()));
+                        }
+                    }
+                    "social_twitter" => {
+                        if val.is_null() {
+                            social_twitter = None;
+                        } else if let Some(s) = val.as_str() {
+                            social_twitter = Some(SocialTwitter(s.to_string()));
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        Ok(UpdateProfile {
+            bio,
+            display_name,
+            location,
+            website_url,
+            social_github,
+            social_twitter,
+            _sent_fields: sent,
+        })
+    }
+}
+
+impl UpdateProfile {
+    pub fn should_update(&self, field: &str) -> bool {
+        self._sent_fields.contains(field)
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
+pub struct PublicProfile {
+    pub user_id: UserId,
+    pub bio: Option<Bio>,
+    pub display_name: Option<DisplayName>,
+    pub location: Option<Location>,
+    pub website_url: Option<WebsiteUrl>,
+    pub social_github: Option<SocialGithub>,
+    pub social_twitter: Option<SocialTwitter>,
+}
+
+impl From<&Profile> for PublicProfile {
+    fn from(profile: &Profile) -> Self {
+        Self {
+            user_id: profile.user_id,
+            bio: profile.bio.clone(),
+            display_name: profile.display_name.clone(),
+            location: profile.location.clone(),
+            website_url: profile.website_url.clone(),
+            social_github: profile.social_github.clone(),
+            social_twitter: profile.social_twitter.clone(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -348,5 +559,239 @@ mod test {
         let roles = vec![RoleEnum::RoleUser];
         let ur = UserWithRoles::from_user(&user, &roles);
         assert_eq!(ur.id.0 as u32, 1);
+    }
+
+    #[test]
+    fn bio_validation_accepts_valid_lengths() {
+        let short = serde_json::from_str::<Bio>(r#""Hi there""#);
+        assert!(short.is_ok());
+
+        let exact_500 =
+            serde_json::from_str::<Bio>(&format!(r#""{}""#, "a".repeat(500)));
+        assert!(exact_500.is_ok());
+
+        let multiline = serde_json::from_str::<Bio>(r#""line1\nline2\nline3""#);
+        assert!(multiline.is_ok());
+
+        let empty = serde_json::from_str::<Bio>(r#""""#);
+        assert!(empty.is_ok());
+    }
+
+    #[test]
+    fn bio_validation_rejects_overlong() {
+        let over_500 =
+            serde_json::from_str::<Bio>(&format!(r#""{}""#, "a".repeat(501)));
+        assert!(over_500.is_err());
+
+        let over_1000 =
+            serde_json::from_str::<Bio>(&format!(r#""{}""#, "a".repeat(1000)));
+        assert!(over_1000.is_err());
+    }
+
+    #[test]
+    fn bio_validation_handles_unicode() {
+        let unicode = serde_json::from_str::<Bio>(r#""Hello 世界 🌍""#);
+        assert!(unicode.is_ok());
+
+        let emoji_heavy =
+            serde_json::from_str::<Bio>(&format!(r#""{}""#, "🦀".repeat(501)));
+        assert!(emoji_heavy.is_err());
+    }
+
+    #[test]
+    fn display_name_validation_accepts_valid_lengths() {
+        let short = serde_json::from_str::<DisplayName>(r#""JD""#);
+        assert!(short.is_ok());
+
+        let exact_100 = serde_json::from_str::<DisplayName>(&format!(
+            r#""{}""#,
+            "a".repeat(100)
+        ));
+        assert!(exact_100.is_ok());
+    }
+
+    #[test]
+    fn display_name_validation_rejects_overlong() {
+        let over_100 = serde_json::from_str::<DisplayName>(&format!(
+            r#""{}""#,
+            "a".repeat(101)
+        ));
+        assert!(over_100.is_err());
+    }
+
+    #[test]
+    fn location_validation_accepts_valid_lengths() {
+        let short = serde_json::from_str::<Location>(r#""New York, USA""#);
+        assert!(short.is_ok());
+
+        let exact_200 = serde_json::from_str::<Location>(&format!(
+            r#""{}""#,
+            "a".repeat(200)
+        ));
+        assert!(exact_200.is_ok());
+    }
+
+    #[test]
+    fn location_validation_rejects_overlong() {
+        let over_200 = serde_json::from_str::<Location>(&format!(
+            r#""{}""#,
+            "a".repeat(201)
+        ));
+        assert!(over_200.is_err());
+    }
+
+    #[test]
+    fn website_url_validation_accepts_valid_lengths() {
+        let url =
+            serde_json::from_str::<WebsiteUrl>(r#""https://example.com""#);
+        assert!(url.is_ok());
+
+        let exact_500 = serde_json::from_str::<WebsiteUrl>(&format!(
+            r#""{}""#,
+            "a".repeat(500)
+        ));
+        assert!(exact_500.is_ok());
+    }
+
+    #[test]
+    fn website_url_validation_rejects_overlong() {
+        let over_500 = serde_json::from_str::<WebsiteUrl>(&format!(
+            r#""{}""#,
+            "a".repeat(501)
+        ));
+        assert!(over_500.is_err());
+    }
+
+    #[test]
+    fn social_github_validation_accepts_valid_lengths() {
+        let short = serde_json::from_str::<SocialGithub>(r#""octocat""#);
+        assert!(short.is_ok());
+
+        let exact_100 = serde_json::from_str::<SocialGithub>(&format!(
+            r#""{}""#,
+            "a".repeat(100)
+        ));
+        assert!(exact_100.is_ok());
+    }
+
+    #[test]
+    fn social_github_validation_rejects_overlong() {
+        let over_100 = serde_json::from_str::<SocialGithub>(&format!(
+            r#""{}""#,
+            "a".repeat(101)
+        ));
+        assert!(over_100.is_err());
+    }
+
+    #[test]
+    fn social_twitter_validation_accepts_valid_lengths() {
+        let short = serde_json::from_str::<SocialTwitter>(r#""rustlang""#);
+        assert!(short.is_ok());
+
+        let exact_100 = serde_json::from_str::<SocialTwitter>(&format!(
+            r#""{}""#,
+            "a".repeat(100)
+        ));
+        assert!(exact_100.is_ok());
+    }
+
+    #[test]
+    fn social_twitter_validation_rejects_overlong() {
+        let over_100 = serde_json::from_str::<SocialTwitter>(&format!(
+            r#""{}""#,
+            "a".repeat(101)
+        ));
+        assert!(over_100.is_err());
+    }
+
+    #[test]
+    fn create_profile_deserializes_valid_fields() {
+        let json = r#"{
+            "bio": "Rustacean",
+            "display_name": "The Rustacean",
+            "location": "Internet",
+            "website_url": "https://rust-lang.org",
+            "social_github": "rust-lang",
+            "social_twitter": "rustlang"
+        }"#;
+
+        let profile = serde_json::from_str::<CreateProfile>(json);
+        assert!(profile.is_ok());
+
+        let profile = profile.unwrap();
+        assert!(profile.bio.is_some());
+        assert!(profile.display_name.is_some());
+        assert!(profile.location.is_some());
+        assert!(profile.website_url.is_some());
+        assert!(profile.social_github.is_some());
+        assert!(profile.social_twitter.is_some());
+    }
+
+    #[test]
+    fn create_profile_rejects_invalid_bio() {
+        let json = format!(r#"{{"bio": "{}"}}"#, "a".repeat(501));
+        let profile = serde_json::from_str::<CreateProfile>(&json);
+        assert!(profile.is_err());
+    }
+
+    #[test]
+    fn create_profile_rejects_invalid_display_name() {
+        let json = format!(r#"{{"display_name": "{}"}}"#, "a".repeat(101));
+        let profile = serde_json::from_str::<CreateProfile>(&json);
+        assert!(profile.is_err());
+    }
+
+    #[test]
+    fn create_profile_accepts_partial_fields() {
+        let json = r#"{"bio": "Just a bio"}"#;
+        let profile = serde_json::from_str::<CreateProfile>(json);
+        assert!(profile.is_ok());
+
+        let profile = profile.unwrap();
+        assert!(profile.bio.is_some());
+        assert!(profile.display_name.is_none());
+        assert!(profile.location.is_none());
+    }
+
+    #[test]
+    fn create_profile_skips_user_id_from_json() {
+        let json = r#"{"bio": "Has user_id"}"#;
+        let profile = serde_json::from_str::<CreateProfile>(json);
+        assert!(profile.is_ok());
+
+        let profile = profile.unwrap();
+        assert_eq!(profile.user_id, dummy_user_id());
+    }
+
+    #[test]
+    fn update_profile_deserializer_tracks_sent_fields() {
+        let json = r#"{"bio": "new bio", "display_name": "New Name"}"#;
+        let update = serde_json::from_str::<UpdateProfile>(json);
+        assert!(update.is_ok());
+
+        let update = update.unwrap();
+        assert!(update.should_update("bio"));
+        assert!(update.should_update("display_name"));
+        assert!(!update.should_update("location"));
+        assert!(!update.should_update("website_url"));
+    }
+
+    #[test]
+    fn update_profile_deserializer_detects_null_sent() {
+        let json = r#"{"bio": null, "display_name": "New Name"}"#;
+        let update = serde_json::from_str::<UpdateProfile>(json);
+        assert!(update.is_ok());
+
+        let update = update.unwrap();
+        assert!(update.should_update("bio"));
+        assert!(update.bio.is_none());
+        assert!(update.should_update("display_name"));
+    }
+
+    #[test]
+    fn update_profile_rejects_invalid_values() {
+        let json = format!(r#"{{"bio": "{}"}}"#, "a".repeat(501));
+        let update = serde_json::from_str::<UpdateProfile>(&json);
+        assert!(update.is_err());
     }
 }

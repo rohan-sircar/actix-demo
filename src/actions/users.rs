@@ -4,9 +4,9 @@ use crate::errors::DomainError;
 use crate::models::misc::Pagination;
 use crate::models::roles::{NewUserRole, RoleEnum, RoleId};
 use crate::models::users::{
-    Email, NewUser, OAuthProvider, OAuthUserLookup, Password,
-    UpdateUserProfile, User, UserAuthDetails, UserAuthDetailsWithRoles, UserId,
-    UserWithRoles, Username,
+    CreateProfile, Email, NewUser, OAuthProvider, OAuthUserLookup, Password,
+    Profile, PublicProfile, UpdateProfile, UpdateUserProfile, User,
+    UserAuthDetails, UserAuthDetailsWithRoles, UserId, UserWithRoles, Username,
 };
 use crate::types::DbConnection;
 use crate::utils::InstrumentedRedisCache;
@@ -789,4 +789,154 @@ pub fn find_or_create_oauth_user(
             true,
         ))
     })
+}
+
+pub fn get_profile(
+    user_id: &UserId,
+    conn: &mut DbConnection,
+) -> Result<Option<Profile>, DomainError> {
+    use crate::schema::profiles::dsl as profiles;
+
+    let profile = profiles::profiles
+        .filter(profiles::user_id.eq(user_id))
+        .first::<Profile>(conn)
+        .optional()?;
+
+    Ok(profile)
+}
+
+pub fn create_profile(
+    user_id: &UserId,
+    create: CreateProfile,
+    conn: &mut DbConnection,
+) -> Result<Profile, DomainError> {
+    use crate::schema::profiles::dsl as profiles;
+
+    let bio = create.bio;
+    let display_name = create.display_name;
+    let location = create.location;
+    let website_url = create.website_url;
+    let social_github = create.social_github;
+    let social_twitter = create.social_twitter;
+
+    diesel::insert_into(profiles::profiles)
+        .values((
+            profiles::user_id.eq(user_id),
+            profiles::bio.eq(bio.clone()),
+            profiles::display_name.eq(display_name.clone()),
+            profiles::location.eq(location.clone()),
+            profiles::website_url.eq(website_url.clone()),
+            profiles::social_github.eq(social_github.clone()),
+            profiles::social_twitter.eq(social_twitter.clone()),
+        ))
+        .execute(conn)?;
+
+    let profile = profiles::profiles
+        .filter(profiles::user_id.eq(user_id))
+        .first::<Profile>(conn)?;
+
+    Ok(profile)
+}
+
+pub fn update_profile(
+    user_id: &UserId,
+    updates: UpdateProfile,
+    conn: &mut DbConnection,
+) -> Result<Profile, DomainError> {
+    use crate::schema::profiles::dsl as profiles;
+
+    match get_profile(user_id, conn)? {
+        Some(mut profile) => {
+            let bio = updates.bio.clone();
+            let display_name = updates.display_name.clone();
+            let location = updates.location.clone();
+            let website_url = updates.website_url.clone();
+            let social_github = updates.social_github.clone();
+            let social_twitter = updates.social_twitter.clone();
+
+            if updates.should_update("bio") {
+                profile.bio = bio;
+            }
+            if updates.should_update("display_name") {
+                profile.display_name = display_name;
+            }
+            if updates.should_update("location") {
+                profile.location = location;
+            }
+            if updates.should_update("website_url") {
+                profile.website_url = website_url;
+            }
+            if updates.should_update("social_github") {
+                profile.social_github = social_github;
+            }
+            if updates.should_update("social_twitter") {
+                profile.social_twitter = social_twitter;
+            }
+
+            diesel::update(
+                profiles::profiles.filter(profiles::user_id.eq(user_id)),
+            )
+            .set((
+                profiles::bio.eq(profile.bio.clone()),
+                profiles::display_name.eq(profile.display_name.clone()),
+                profiles::location.eq(profile.location.clone()),
+                profiles::website_url.eq(profile.website_url.clone()),
+                profiles::social_github.eq(profile.social_github.clone()),
+                profiles::social_twitter.eq(profile.social_twitter.clone()),
+            ))
+            .execute(conn)?;
+
+            let profile = profiles::profiles
+                .filter(profiles::user_id.eq(user_id))
+                .first::<Profile>(conn)?;
+
+            Ok(profile)
+        }
+        None => {
+            let bio = updates.bio;
+            let display_name = updates.display_name;
+            let location = updates.location;
+            let website_url = updates.website_url;
+            let social_github = updates.social_github;
+            let social_twitter = updates.social_twitter;
+
+            diesel::insert_into(profiles::profiles)
+                .values((
+                    profiles::user_id.eq(user_id),
+                    profiles::bio.eq(bio.clone()),
+                    profiles::display_name.eq(display_name.clone()),
+                    profiles::location.eq(location.clone()),
+                    profiles::website_url.eq(website_url.clone()),
+                    profiles::social_github.eq(social_github.clone()),
+                    profiles::social_twitter.eq(social_twitter.clone()),
+                ))
+                .execute(conn)?;
+
+            let profile = profiles::profiles
+                .filter(profiles::user_id.eq(user_id))
+                .first::<Profile>(conn)?;
+
+            Ok(profile)
+        }
+    }
+}
+
+pub fn get_public_profile(
+    user_id: &UserId,
+    conn: &mut DbConnection,
+) -> Result<PublicProfile, DomainError> {
+    use crate::schema::profiles::dsl as profiles;
+
+    let profile = profiles::profiles
+        .filter(profiles::user_id.eq(user_id))
+        .first::<Profile>(conn)
+        .optional()?;
+
+    match profile {
+        Some(p) => Ok(PublicProfile::from(&p)),
+        None => Err(DomainError::new_entity_does_not_exist_error(format!(
+            "Profile not found for user {}",
+            user_id
+        ))),
+    }
 }

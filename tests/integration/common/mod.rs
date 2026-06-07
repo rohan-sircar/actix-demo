@@ -628,12 +628,11 @@ pub async fn app_data(
                         from_email: "noreply@example.com".to_string(),
                         verification_link_template: "https://app.example.com/verify?token={token}&user={user_name}".to_string(),
                         password_reset_link_template: "https://app.example.com/reset?token={token}&user={user_name}".to_string(),
-                    },
-                )
+      },
+                    )
                 .unwrap(),
             )
         },
-        api_docs_path: "/api/docs".to_string(),
         swagger_path: "/api/swagger".to_string(),
     });
     Ok(data)

@@ -8,7 +8,10 @@ use crate::diesel::ExpressionMethods;
 use crate::diesel::RunQueryDsl;
 use crate::models::misc::Pagination;
 use crate::models::roles::RoleEnum;
-use crate::models::users::{NewUser, UpdateUserProfile, UserId};
+use crate::models::users::{
+    CreateProfile, NewUser, PublicProfile, UpdateProfile, UpdateUserProfile,
+    UserId,
+};
 use crate::services::email::tokens;
 use crate::{actions, utils};
 use crate::{errors::DomainError, AppData};
@@ -317,7 +320,7 @@ pub async fn get_user_avatar(
 
 #[utoipa::path(
     get,
-    path = "/api/user/me",
+    path = "/api/user",
     tag = "users",
     responses(
         (status = 200, description = "User profile", body = User),
@@ -325,7 +328,7 @@ pub async fn get_user_avatar(
     ),
 )]
 /// Get the authenticated user's profile.
-#[tracing::instrument(level = "info", skip(app_data))]
+#[tracing::instrument(level = "info", skip(app_data, req))]
 pub async fn get_my_profile(
     req: HttpRequest,
     app_data: web::Data<AppData>,
@@ -362,7 +365,7 @@ pub async fn get_my_profile(
     ),
 )]
 /// Update the authenticated user's profile.
-#[tracing::instrument(level = "info", skip(app_data))]
+#[tracing::instrument(level = "info", skip_all, fields(form))]
 pub async fn update_my_profile(
     req: HttpRequest,
     app_data: web::Data<AppData>,
@@ -435,8 +438,8 @@ pub async fn update_my_profile(
 }
 
 #[utoipa::path(
-    post,
-    path = "/api/user/me/delete",
+    delete,
+    path = "/api/user",
     tag = "users",
     responses(
         (status = 200, description = "Account deleted successfully"),
@@ -445,7 +448,7 @@ pub async fn update_my_profile(
 )]
 /// Delete the authenticated user's account (soft delete).
 /// Clears all sessions and avatar. Orphans associated jobs.
-#[tracing::instrument(level = "info", skip(app_data, req))]
+#[tracing::instrument(level = "info", skip_all)]
 pub async fn delete_my_account(
     req: HttpRequest,
     app_data: web::Data<AppData>,
@@ -486,4 +489,138 @@ pub async fn delete_my_account(
         .finish();
 
     Ok(HttpResponse::Ok().cookie(cookie).finish())
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/public/profiles/{user_id}",
+    tag = "users",
+    params(
+        ("user_id" = UserId, Path, description = "User ID"),
+    ),
+    responses(
+        (status = 200, description = "Public profile found", body = PublicProfile),
+        (status = 404, description = "Profile not found", body = ErrorResponseString),
+    ),
+)]
+/// Get a user's public profile.
+#[tracing::instrument(level = "info", skip_all, fields(user_id))]
+pub async fn get_public_profile(
+    app_data: web::Data<AppData>,
+    user_id: web::Path<UserId>,
+) -> Result<HttpResponse, DomainError> {
+    let user_id = user_id.into_inner();
+    let res = web::block(move || {
+        let pool = &app_data.pool;
+        let mut conn = pool.get()?;
+        actions::users::get_public_profile(&user_id, &mut conn)
+    })
+    .await??;
+
+    Ok(HttpResponse::Ok().json(res))
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/user/profile",
+    tag = "users",
+    responses(
+        (status = 200, description = "Profile retrieved", body = PublicProfile),
+        (status = 401, description = "Missing or invalid auth token", body = ErrorResponseString),
+    ),
+)]
+/// Get the authenticated user's profile.
+#[protect("RoleEnum::RoleUser", ty = RoleEnum)]
+#[tracing::instrument(level = "info", skip_all)]
+pub async fn get_user_profile(
+    req: HttpRequest,
+    app_data: web::Data<AppData>,
+) -> Result<HttpResponse, DomainError> {
+    let user_id = utils::extract_user_id_from_header(req.headers())?;
+
+    let res = web::block(move || {
+        let pool = &app_data.pool;
+        let mut conn = pool.get()?;
+        actions::users::get_profile(&user_id, &mut conn)
+    })
+    .await??;
+
+    match res {
+        Some(profile) => {
+            Ok(HttpResponse::Ok().json(PublicProfile::from(&profile)))
+        }
+        None => Ok(HttpResponse::Ok().json(PublicProfile {
+            user_id,
+            bio: None,
+            display_name: None,
+            location: None,
+            website_url: None,
+            social_github: None,
+            social_twitter: None,
+        })),
+    }
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/user/profile",
+    tag = "users",
+    request_body = CreateProfile,
+    responses(
+        (status = 201, description = "Profile created", body = PublicProfile),
+        (status = 400, description = "Bad input", body = ErrorResponseString),
+        (status = 401, description = "Missing or invalid auth token", body = ErrorResponseString),
+    ),
+)]
+/// Create the authenticated user's profile.
+#[protect("RoleEnum::RoleUser", ty = RoleEnum)]
+#[tracing::instrument(level = "info", skip_all, fields(form))]
+pub async fn create_user_profile(
+    req: HttpRequest,
+    app_data: web::Data<AppData>,
+    form: web::Json<CreateProfile>,
+) -> Result<HttpResponse, DomainError> {
+    let user_id = utils::extract_user_id_from_header(req.headers())?;
+    let create = form.into_inner();
+
+    let res = web::block(move || {
+        let pool = &app_data.pool;
+        let mut conn = pool.get()?;
+        actions::users::create_profile(&user_id, create, &mut conn)
+    })
+    .await??;
+
+    Ok(HttpResponse::Created().json(PublicProfile::from(&res)))
+}
+
+#[utoipa::path(
+    patch,
+    path = "/api/user/profile",
+    tag = "users",
+    request_body = UpdateProfile,
+    responses(
+        (status = 200, description = "Profile updated", body = PublicProfile),
+        (status = 400, description = "Bad input", body = ErrorResponseString),
+        (status = 401, description = "Missing or invalid auth token", body = ErrorResponseString),
+    ),
+)]
+/// Update the authenticated user's profile.
+#[protect("RoleEnum::RoleUser", ty = RoleEnum)]
+#[tracing::instrument(level = "info", skip_all, fields(form))]
+pub async fn update_user_profile(
+    req: HttpRequest,
+    app_data: web::Data<AppData>,
+    form: web::Json<UpdateProfile>,
+) -> Result<HttpResponse, DomainError> {
+    let user_id = utils::extract_user_id_from_header(req.headers())?;
+    let updates = form.into_inner();
+
+    let res = web::block(move || {
+        let pool = &app_data.pool;
+        let mut conn = pool.get()?;
+        actions::users::update_profile(&user_id, updates, &mut conn)
+    })
+    .await??;
+
+    Ok(HttpResponse::Ok().json(PublicProfile::from(&res)))
 }
