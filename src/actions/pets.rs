@@ -139,7 +139,7 @@ pub fn list_pets(
     let mut query = pets::pets.filter(pets::user_id.eq(user_id)).into_boxed();
 
     if let Some(s) = species {
-        query = query.filter(pets::species.ilike(format!("%{}%", s)));
+        query = query.filter(pets::species.ilike(s));
     }
 
     let pets_list = query.load::<Pet>(conn)?;

@@ -34,7 +34,7 @@ args = ["test", "--lib"]
 
 [tasks.it-test]
 command = "cargo"
-args = ["test", "--test", "integration"]
+args = ["test", "--test", "integration", "--", "${@}"]
 
 [tasks.flaky-test]
 command = "cargo"
