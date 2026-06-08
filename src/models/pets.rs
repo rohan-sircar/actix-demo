@@ -124,7 +124,7 @@ impl TryFrom<u32> for TraitId {
 
 /// Validator for pet name
 #[derive(Validator, Debug, Clone, DieselNewType, PartialEq, Eq, ToSchema)]
-#[validator(line(char_length(min = 1, max = 100)))]
+#[validator(line(char_length(min = 2, max = 100)))]
 pub struct PetName(String);
 
 impl PetName {
@@ -139,7 +139,7 @@ impl PetName {
 
 /// Validator for species
 #[derive(Validator, Debug, Clone, DieselNewType, PartialEq, Eq, ToSchema)]
-#[validator(line(char_length(min = 1, max = 50)))]
+#[validator(line(char_length(min = 3, max = 50)))]
 pub struct PetSpecies(String);
 
 impl PetSpecies {
@@ -154,7 +154,7 @@ impl PetSpecies {
 
 /// Validator for breed
 #[derive(Validator, Debug, Clone, DieselNewType, PartialEq, Eq, ToSchema)]
-#[validator(line(char_length(max = 200)))]
+#[validator(line(char_length(min=5, max = 200)))]
 pub struct PetBreed(String);
 
 impl PetBreed {
@@ -167,6 +167,7 @@ impl PetBreed {
     }
 }
 
+// TODO should be enum
 /// Validator for gender
 #[derive(Validator, Debug, Clone, DieselNewType, PartialEq, Eq, ToSchema)]
 #[validator(line(char_length(max = 10)))]
@@ -446,6 +447,7 @@ impl UpdatePet {
     }
 }
 
+// TODO just use newtypes here
 /// Public-facing pet view (without owner info)
 #[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct PublicPet {
