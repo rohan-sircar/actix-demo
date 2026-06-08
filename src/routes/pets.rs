@@ -47,7 +47,7 @@ pub async fn get_traits(
         (status = 404, description = "Pet not found", body = DomainError),
     ),
 )]
-#[tracing::instrument(level = "info", skip_all)]
+#[tracing::instrument(level = "info", skip_all, fields(pet_uuid))]
 pub async fn get_public_pet(
     app_data: web::Data<AppData>,
     pet_uuid: web::Path<crate::models::pets::PetUuid>,
@@ -148,7 +148,7 @@ pub async fn list_pets(
     ),
 )]
 #[protect("RoleEnum::RoleUser", ty = RoleEnum)]
-#[tracing::instrument(level = "info", skip_all)]
+#[tracing::instrument(level = "info", skip_all, fields(pet_uuid))]
 pub async fn get_pet(
     req: HttpRequest,
     app_data: web::Data<AppData>,
@@ -189,7 +189,7 @@ pub async fn get_pet(
     ),
 )]
 #[protect("RoleEnum::RoleUser", ty = RoleEnum)]
-#[tracing::instrument(level = "info", skip_all, fields(form))]
+#[tracing::instrument(level = "info", skip_all, fields(pet_uuid, form))]
 pub async fn update_pet(
     req: HttpRequest,
     app_data: web::Data<AppData>,
@@ -228,7 +228,7 @@ pub async fn update_pet(
     ),
 )]
 #[protect("RoleEnum::RoleUser", ty = RoleEnum)]
-#[tracing::instrument(level = "info", skip_all)]
+#[tracing::instrument(level = "info", skip_all, fields(pet_uuid))]
 pub async fn delete_pet(
     req: HttpRequest,
     app_data: web::Data<AppData>,
@@ -265,7 +265,7 @@ pub async fn delete_pet(
     ),
 )]
 #[protect("RoleEnum::RoleUser", ty = RoleEnum)]
-#[tracing::instrument(level = "info", skip_all)]
+#[tracing::instrument(level = "info", skip_all, fields(pet_uuid))]
 pub async fn upload_pet_image(
     req: HttpRequest,
     app_data: web::Data<AppData>,
@@ -365,7 +365,7 @@ pub async fn upload_pet_image(
     ),
 )]
 #[protect("RoleEnum::RoleUser", ty = RoleEnum)]
-#[tracing::instrument(level = "info", skip_all)]
+#[tracing::instrument(level = "info", skip_all, fields(pet_uuid))]
 pub async fn list_pet_images(
     req: HttpRequest,
     app_data: web::Data<AppData>,
@@ -399,7 +399,7 @@ pub async fn list_pet_images(
     ),
 )]
 #[protect("RoleEnum::RoleUser", ty = RoleEnum)]
-#[tracing::instrument(level = "info", skip_all)]
+#[tracing::instrument(level = "info", skip_all, fields(pet_uuid, image_uuid))]
 pub async fn delete_pet_image(
     req: HttpRequest,
     app_data: web::Data<AppData>,
@@ -442,7 +442,7 @@ pub async fn delete_pet_image(
     ),
 )]
 #[protect("RoleEnum::RoleUser", ty = RoleEnum)]
-#[tracing::instrument(level = "info", skip_all, fields(form))]
+#[tracing::instrument(level = "info", skip_all, fields(pet_uuid, image_uuid))]
 pub async fn set_primary_pet_image(
     req: HttpRequest,
     app_data: web::Data<AppData>,
@@ -487,7 +487,7 @@ pub async fn set_primary_pet_image(
         (status = 404, description = "Image not found", body = DomainError),
     ),
 )]
-#[tracing::instrument(level = "info", skip_all)]
+#[tracing::instrument(level = "info", skip_all, fields(image_uuid))]
 pub async fn get_public_pet_image(
     app_data: web::Data<AppData>,
     image_uuid: web::Path<uuid::Uuid>,
@@ -537,7 +537,7 @@ pub async fn get_public_pet_image(
         (status = 404, description = "Image not found", body = DomainError),
     ),
 )]
-#[tracing::instrument(level = "info", skip_all)]
+#[tracing::instrument(level = "info", skip_all, fields(image_uuid, variant))]
 pub async fn get_pet_image_variant(
     app_data: web::Data<AppData>,
     image_uuid: web::Path<uuid::Uuid>,

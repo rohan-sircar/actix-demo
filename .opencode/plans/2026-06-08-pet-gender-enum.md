@@ -53,7 +53,6 @@ gender -> Nullable<PetGender>,
 
 Delete the existing `PetGender` struct and its impl block:
 ```rust
-// TODO should be enum
 #[derive(Validator, Debug, Clone, DieselNewType, PartialEq, Eq, ToSchema)]
 #[validator(line(char_length(max = 10)))]
 pub struct PetGender(String);
