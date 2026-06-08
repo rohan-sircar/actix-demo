@@ -496,20 +496,19 @@ impl UpdatePet {
     }
 }
 
-// TODO just use newtypes here
 /// Public-facing pet view (without owner info)
 #[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct PublicPet {
     pub id: PetId,
     pub pet_uuid: PetUuid,
-    pub name: String,
-    pub species: String,
-    pub breed: Option<String>,
+    pub name: PetName,
+    pub species: PetSpecies,
+    pub breed: Option<PetBreed>,
     pub date_of_birth: Option<chrono::NaiveDate>,
-    pub gender: Option<String>,
+    pub gender: Option<PetGender>,
     pub weight: Option<f64>,
-    pub color_markings: Option<String>,
-    pub description: Option<String>,
+    pub color_markings: Option<PetColorMarkings>,
+    pub description: Option<PetDescription>,
     pub traits: Vec<PetTrait>,
 }
 
@@ -518,14 +517,14 @@ impl From<(&Pet, Vec<PetTrait>)> for PublicPet {
         PublicPet {
             id: pet.id,
             pet_uuid: pet.pet_uuid,
-            name: pet.name.0.clone(),
-            species: pet.species.0.clone(),
-            breed: pet.breed.as_ref().map(|b| b.0.clone()),
+            name: pet.name.clone(),
+            species: pet.species.clone(),
+            breed: pet.breed.clone(),
             date_of_birth: pet.date_of_birth,
-            gender: pet.gender.as_ref().map(|g| g.0.clone()),
+            gender: pet.gender.clone(),
             weight: pet.weight,
-            color_markings: pet.color_markings.as_ref().map(|c| c.0.clone()),
-            description: pet.description.as_ref().map(|d| d.0.clone()),
+            color_markings: pet.color_markings.clone(),
+            description: pet.description.clone(),
             traits,
         }
     }
@@ -688,9 +687,9 @@ mod test {
 
         let public = PublicPet::from((&pet, traits));
         assert_eq!(public.id, PetId(1));
-        assert_eq!(public.name, "Buddy");
-        assert_eq!(public.species, "dog");
-        assert_eq!(public.breed, Some("Labrador".to_string()));
+        assert_eq!(public.name.inner(), "Buddy");
+        assert_eq!(public.species.inner(), "dog");
+        assert_eq!(public.breed, Some(PetBreed("Labrador".to_string())));
         assert_eq!(public.traits.len(), 2);
     }
 
