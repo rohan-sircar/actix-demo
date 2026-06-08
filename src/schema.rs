@@ -69,10 +69,9 @@ diesel::table! {
 }
 
 diesel::table! {
-    use diesel::sql_types::*;
-
     pets (id) {
         id -> Int4,
+        pet_uuid -> Uuid,
         user_id -> Int4,
         #[max_length = 100]
         name -> Varchar,
@@ -83,7 +82,7 @@ diesel::table! {
         date_of_birth -> Nullable<Date>,
         #[max_length = 10]
         gender -> Nullable<Varchar>,
-        weight -> Nullable<Double>,
+        weight -> Nullable<Float8>,
         #[max_length = 200]
         color_markings -> Nullable<Varchar>,
         description -> Nullable<Text>,

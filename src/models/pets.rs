@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
+use uuid::Uuid;
 use validators::prelude::*;
 
 use crate::schema::pet_personality_traits;
@@ -63,6 +64,53 @@ impl TryFrom<u32> for PetId {
             .try_into()
             .map_err(|err| format!("error while converting pet_id: {}", err))
             .map(PetId)
+    }
+}
+
+/// Newtype for pet UUID (public-facing identifier)
+#[derive(
+    Debug,
+    Clone,
+    Eq,
+    Hash,
+    PartialEq,
+    Deserialize,
+    Display,
+    Into,
+    Serialize,
+    DieselNewType,
+    Copy,
+    ToSchema,
+)]
+#[serde(try_from = "String", into = "String")]
+pub struct PetUuid(Uuid);
+
+impl PetUuid {
+    pub fn as_uuid(&self) -> Uuid {
+        self.0
+    }
+}
+
+impl From<PetUuid> for String {
+    fn from(s: PetUuid) -> String {
+        s.0.to_string()
+    }
+}
+
+impl FromStr for PetUuid {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Uuid::parse_str(s)
+            .map(PetUuid)
+            .map_err(|e| format!("invalid UUID format: {}", e))
+    }
+}
+
+impl TryFrom<String> for PetUuid {
+    type Error = String;
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        value.parse::<PetUuid>()
     }
 }
 
@@ -154,7 +202,7 @@ impl PetSpecies {
 
 /// Validator for breed
 #[derive(Validator, Debug, Clone, DieselNewType, PartialEq, Eq, ToSchema)]
-#[validator(line(char_length(min=5, max = 200)))]
+#[validator(line(char_length(min = 5, max = 200)))]
 pub struct PetBreed(String);
 
 impl PetBreed {
@@ -271,6 +319,7 @@ pub struct PetTrait {
 #[diesel(table_name = pets)]
 pub struct Pet {
     pub id: PetId,
+    pub pet_uuid: PetUuid,
     pub user_id: crate::models::users::UserId,
     pub name: PetName,
     pub species: PetSpecies,
@@ -452,6 +501,7 @@ impl UpdatePet {
 #[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct PublicPet {
     pub id: PetId,
+    pub pet_uuid: PetUuid,
     pub name: String,
     pub species: String,
     pub breed: Option<String>,
@@ -467,6 +517,7 @@ impl From<(&Pet, Vec<PetTrait>)> for PublicPet {
     fn from((pet, traits): (&Pet, Vec<PetTrait>)) -> Self {
         PublicPet {
             id: pet.id,
+            pet_uuid: pet.pet_uuid,
             name: pet.name.0.clone(),
             species: pet.species.0.clone(),
             breed: pet.breed.as_ref().map(|b| b.0.clone()),
@@ -605,6 +656,10 @@ mod test {
     fn public_pet_converts_from_pet_and_traits() {
         let pet = Pet {
             id: PetId::try_from(1u32).unwrap(),
+            pet_uuid: PetUuid::try_from(
+                "550e8400-e29b-41d4-a716-446655440000".to_string(),
+            )
+            .unwrap(),
             user_id: crate::models::users::UserId::try_from(1u32).unwrap(),
             name: PetName("Buddy".to_string()),
             species: PetSpecies("dog".to_string()),
@@ -641,7 +696,7 @@ mod test {
 
     #[test]
     fn pet_name_validation_accepts_valid_lengths() {
-        let name = PetName::new("B".to_string());
+        let name = PetName::new("Bb".to_string());
         assert!(name.is_ok());
 
         let name = PetName::new("a".repeat(100));

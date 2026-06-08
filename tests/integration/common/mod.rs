@@ -36,7 +36,6 @@ use jwt_simple::prelude::HS256Key;
 use minior::aws_sdk_s3;
 use once_cell::sync::Lazy;
 use regex::Regex;
-use reqwest;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::fs;
@@ -194,6 +193,7 @@ impl MailpitClient {
     ) -> anyhow::Result<String> {
         let start = std::time::Instant::now();
         let poll_interval = Duration::from_millis(200);
+        let token_regex = Regex::new(r"token=([^&\s]+)").unwrap();
         loop {
             let resp = self
                 .http
@@ -219,8 +219,7 @@ impl MailpitClient {
                     let text = msg
                         .text
                         .context("verification email has no text body")?;
-                    return Regex::new(r"token=([^&\s]+)")
-                        .unwrap()
+                    return token_regex
                         .captures(&text)
                         .and_then(|c| c.get(1))
                         .map(|m| m.as_str().to_string())

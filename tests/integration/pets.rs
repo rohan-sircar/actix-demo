@@ -42,12 +42,12 @@ mod pet_profiles_api {
         assert_eq!(body["traits"][0]["name"], "playful");
         assert_eq!(body["traits"][1]["name"], "loyal");
 
-        let pet_id = body["id"].as_u64().unwrap() as u32;
+        let pet_uuid = body["pet_uuid"].as_str().unwrap().to_string();
 
         // Verify the pet was created in the database
         let get_resp = ctx
             .test_server
-            .get(format!("/api/user/pets/{}", pet_id))
+            .get(format!("/api/user/pets/{}", pet_uuid))
             .with_token(&token)
             .send()
             .await
@@ -144,15 +144,16 @@ mod pet_profiles_api {
             }))
             .await
             .unwrap();
-        let pet_id = create_resp.json::<serde_json::Value>().await.unwrap()
-            ["id"]
-            .as_u64()
-            .unwrap() as u32;
+        let pet_uuid = create_resp.json::<serde_json::Value>().await.unwrap()
+            ["pet_uuid"]
+            .as_str()
+            .unwrap()
+            .to_string();
 
         // Get the pet
         let mut resp = ctx
             .test_server
-            .get(format!("/api/user/pets/{}", pet_id))
+            .get(format!("/api/user/pets/{}", pet_uuid))
             .with_token(&token)
             .send()
             .await
@@ -171,7 +172,7 @@ mod pet_profiles_api {
 
         let resp = ctx
             .test_server
-            .get("/api/user/pets/9999")
+            .get("/api/user/pets/00000000-0000-0000-0000-000000000000")
             .with_token(&token)
             .send()
             .await
@@ -197,15 +198,16 @@ mod pet_profiles_api {
             }))
             .await
             .unwrap();
-        let pet_id = create_resp.json::<serde_json::Value>().await.unwrap()
-            ["id"]
-            .as_u64()
-            .unwrap() as u32;
+        let pet_uuid = create_resp.json::<serde_json::Value>().await.unwrap()
+            ["pet_uuid"]
+            .as_str()
+            .unwrap()
+            .to_string();
 
         // Owner B tries to get the pet
         let resp = ctx
             .test_server
-            .get(format!("/api/user/pets/{}", pet_id))
+            .get(format!("/api/user/pets/{}", pet_uuid))
             .with_token(&token2)
             .send()
             .await
@@ -313,15 +315,16 @@ mod pet_profiles_api {
             }))
             .await
             .unwrap();
-        let pet_id = create_resp.json::<serde_json::Value>().await.unwrap()
-            ["id"]
-            .as_u64()
-            .unwrap() as u32;
+        let pet_uuid = create_resp.json::<serde_json::Value>().await.unwrap()
+            ["pet_uuid"]
+            .as_str()
+            .unwrap()
+            .to_string();
 
         // Partial update - only change name and weight
         let mut resp = ctx
             .test_server
-            .patch(format!("/api/user/pets/{}", pet_id))
+            .patch(format!("/api/user/pets/{}", pet_uuid))
             .with_token(&token)
             .append_header((CONTENT_TYPE, "application/json"))
             .send_json(&serde_json::json!({
@@ -356,15 +359,16 @@ mod pet_profiles_api {
             }))
             .await
             .unwrap();
-        let pet_id = create_resp.json::<serde_json::Value>().await.unwrap()
-            ["id"]
-            .as_u64()
-            .unwrap() as u32;
+        let pet_uuid = create_resp.json::<serde_json::Value>().await.unwrap()
+            ["pet_uuid"]
+            .as_str()
+            .unwrap()
+            .to_string();
 
         // Clear the breed field
         let mut resp = ctx
             .test_server
-            .patch(format!("/api/user/pets/{}", pet_id))
+            .patch(format!("/api/user/pets/{}", pet_uuid))
             .with_token(&token)
             .append_header((CONTENT_TYPE, "application/json"))
             .send_json(&serde_json::json!({
@@ -396,15 +400,16 @@ mod pet_profiles_api {
             }))
             .await
             .unwrap();
-        let pet_id = create_resp.json::<serde_json::Value>().await.unwrap()
-            ["id"]
-            .as_u64()
-            .unwrap() as u32;
+        let pet_uuid = create_resp.json::<serde_json::Value>().await.unwrap()
+            ["pet_uuid"]
+            .as_str()
+            .unwrap()
+            .to_string();
 
         // Replace traits
         let mut resp = ctx
             .test_server
-            .patch(format!("/api/user/pets/{}", pet_id))
+            .patch(format!("/api/user/pets/{}", pet_uuid))
             .with_token(&token)
             .append_header((CONTENT_TYPE, "application/json"))
             .send_json(&serde_json::json!({
@@ -444,15 +449,16 @@ mod pet_profiles_api {
             }))
             .await
             .unwrap();
-        let pet_id = create_resp.json::<serde_json::Value>().await.unwrap()
-            ["id"]
-            .as_u64()
-            .unwrap() as u32;
+        let pet_uuid = create_resp.json::<serde_json::Value>().await.unwrap()
+            ["pet_uuid"]
+            .as_str()
+            .unwrap()
+            .to_string();
 
         // Delete the pet
         let resp = ctx
             .test_server
-            .delete(format!("/api/user/pets/{}", pet_id))
+            .delete(format!("/api/user/pets/{}", pet_uuid))
             .with_token(&token)
             .send()
             .await
@@ -462,7 +468,7 @@ mod pet_profiles_api {
         // Verify it's gone
         let resp = ctx
             .test_server
-            .get(format!("/api/user/pets/{}", pet_id))
+            .get(format!("/api/user/pets/{}", pet_uuid))
             .with_token(&token)
             .send()
             .await
@@ -488,15 +494,16 @@ mod pet_profiles_api {
             }))
             .await
             .unwrap();
-        let pet_id = create_resp.json::<serde_json::Value>().await.unwrap()
-            ["id"]
-            .as_u64()
-            .unwrap() as u32;
+        let pet_uuid = create_resp.json::<serde_json::Value>().await.unwrap()
+            ["pet_uuid"]
+            .as_str()
+            .unwrap()
+            .to_string();
 
         // Owner Y tries to delete the pet
         let resp = ctx
             .test_server
-            .delete(format!("/api/user/pets/{}", pet_id))
+            .delete(format!("/api/user/pets/{}", pet_uuid))
             .with_token(&token2)
             .send()
             .await
@@ -546,15 +553,16 @@ mod pet_profiles_api {
             }))
             .await
             .unwrap();
-        let pet_id = create_resp.json::<serde_json::Value>().await.unwrap()
-            ["id"]
-            .as_u64()
-            .unwrap() as u32;
+        let pet_uuid = create_resp.json::<serde_json::Value>().await.unwrap()
+            ["pet_uuid"]
+            .as_str()
+            .unwrap()
+            .to_string();
 
         // Get public view (no auth needed)
         let mut resp = ctx
             .test_server
-            .get(format!("/api/public/pets/{}", pet_id))
+            .get(format!("/api/public/pets/{}", pet_uuid))
             .send()
             .await
             .unwrap();
@@ -572,7 +580,7 @@ mod pet_profiles_api {
 
         let resp = ctx
             .test_server
-            .get("/api/public/pets/9999")
+            .get("/api/public/pets/00000000-0000-0000-0000-000000000000")
             .send()
             .await
             .unwrap();

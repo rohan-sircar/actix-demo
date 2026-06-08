@@ -414,7 +414,7 @@ mod tests {
 
                 let long_bio = "a".repeat(501);
 
-                let mut resp = ctx
+                let resp = ctx
                     .test_server
                     .post("/api/user/profile")
                     .with_token(&token)

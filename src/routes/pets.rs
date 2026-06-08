@@ -36,10 +36,10 @@ pub async fn get_traits(
 
 #[utoipa::path(
     get,
-    path = "/api/public/pets/{pet_id}",
+    path = "/api/public/pets/{pet_uuid}",
     tag = "pets",
     params(
-        ("pet_id" = crate::models::pets::PetId, Path, description = "Pet ID"),
+        ("pet_uuid" = crate::models::pets::PetUuid, Path, description = "Pet UUID"),
     ),
     responses(
         (status = 200, description = "Pet found", body = crate::models::pets::PublicPet),
@@ -49,14 +49,14 @@ pub async fn get_traits(
 #[tracing::instrument(level = "info", skip_all)]
 pub async fn get_public_pet(
     app_data: web::Data<AppData>,
-    pet_id: web::Path<crate::models::pets::PetId>,
+    pet_uuid: web::Path<crate::models::pets::PetUuid>,
 ) -> Result<HttpResponse, DomainError> {
-    let pet_id = pet_id.into_inner();
+    let pet_uuid = pet_uuid.into_inner();
 
     let pet = web::block(move || {
         let pool = &app_data.pool;
         let mut conn = pool.get()?;
-        crate::actions::pets::get_public_pet(&pet_id, &mut conn)
+        crate::actions::pets::get_public_pet(&pet_uuid, &mut conn)
     })
     .await??;
 
@@ -143,10 +143,10 @@ pub async fn list_pets(
 
 #[utoipa::path(
     get,
-    path = "/api/user/pets/{pet_id}",
+    path = "/api/user/pets/{pet_uuid}",
     tag = "pets",
     params(
-        ("pet_id" = crate::models::pets::PetId, Path, description = "Pet ID"),
+        ("pet_uuid" = crate::models::pets::PetUuid, Path, description = "Pet UUID"),
     ),
     responses(
         (status = 200, description = "Pet found", body = crate::models::pets::PublicPet),
@@ -159,15 +159,15 @@ pub async fn list_pets(
 pub async fn get_pet(
     req: HttpRequest,
     app_data: web::Data<AppData>,
-    pet_id: web::Path<crate::models::pets::PetId>,
+    pet_uuid: web::Path<crate::models::pets::PetUuid>,
 ) -> Result<HttpResponse, DomainError> {
     let user_id = crate::utils::extract_user_id_from_header(req.headers())?;
-    let pet_id = pet_id.into_inner();
+    let pet_uuid = pet_uuid.into_inner();
 
     let public_pet = web::block(move || {
         let pool = &app_data.pool;
         let mut conn = pool.get()?;
-        crate::actions::pets::get_pet(&pet_id, &user_id, &mut conn)
+        crate::actions::pets::get_pet(&pet_uuid, &user_id, &mut conn)
     })
     .await??;
 
@@ -176,7 +176,7 @@ pub async fn get_pet(
         None => {
             return Err(DomainError::new_entity_does_not_exist_error(format!(
                 "Pet {} not found or does not belong to user {}",
-                pet_id, user_id
+                pet_uuid, user_id
             )))
         }
     };
@@ -186,10 +186,10 @@ pub async fn get_pet(
 
 #[utoipa::path(
     patch,
-    path = "/api/user/pets/{pet_id}",
+    path = "/api/user/pets/{pet_uuid}",
     tag = "pets",
     params(
-        ("pet_id" = crate::models::pets::PetId, Path, description = "Pet ID"),
+        ("pet_uuid" = crate::models::pets::PetUuid, Path, description = "Pet UUID"),
     ),
     request_body = UpdatePet,
     responses(
@@ -204,17 +204,17 @@ pub async fn get_pet(
 pub async fn update_pet(
     req: HttpRequest,
     app_data: web::Data<AppData>,
-    pet_id: web::Path<crate::models::pets::PetId>,
+    pet_uuid: web::Path<crate::models::pets::PetUuid>,
     form: web::Json<UpdatePet>,
 ) -> Result<HttpResponse, DomainError> {
     let user_id = crate::utils::extract_user_id_from_header(req.headers())?;
-    let pet_id = pet_id.into_inner();
+    let pet_uuid = pet_uuid.into_inner();
 
     let public_pet = web::block(move || {
         let pool = &app_data.pool;
         let mut conn = pool.get()?;
         crate::actions::pets::update_pet(
-            &pet_id,
+            &pet_uuid,
             &user_id,
             form.into_inner(),
             &mut conn,
@@ -227,10 +227,10 @@ pub async fn update_pet(
 
 #[utoipa::path(
     delete,
-    path = "/api/user/pets/{pet_id}",
+    path = "/api/user/pets/{pet_uuid}",
     tag = "pets",
     params(
-        ("pet_id" = crate::models::pets::PetId, Path, description = "Pet ID"),
+        ("pet_uuid" = crate::models::pets::PetUuid, Path, description = "Pet UUID"),
     ),
     responses(
         (status = 200, description = "Pet deleted successfully"),
@@ -243,15 +243,15 @@ pub async fn update_pet(
 pub async fn delete_pet(
     req: HttpRequest,
     app_data: web::Data<AppData>,
-    pet_id: web::Path<crate::models::pets::PetId>,
+    pet_uuid: web::Path<crate::models::pets::PetUuid>,
 ) -> Result<HttpResponse, DomainError> {
     let user_id = crate::utils::extract_user_id_from_header(req.headers())?;
-    let pet_id = pet_id.into_inner();
+    let pet_uuid = pet_uuid.into_inner();
 
     web::block(move || {
         let pool = &app_data.pool;
         let mut conn = pool.get()?;
-        crate::actions::pets::delete_pet(&pet_id, &user_id, &mut conn)
+        crate::actions::pets::delete_pet(&pet_uuid, &user_id, &mut conn)
     })
     .await??;
 

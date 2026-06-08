@@ -1,5 +1,6 @@
 CREATE TABLE pets (
     id SERIAL PRIMARY KEY,
+    pet_uuid UUID NOT NULL UNIQUE DEFAULT gen_random_uuid(),
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     name VARCHAR(100) NOT NULL,
     species VARCHAR(50) NOT NULL,
@@ -12,6 +13,8 @@ CREATE TABLE pets (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+CREATE INDEX idx_pets_pet_uuid ON pets(pet_uuid);
 
 CREATE OR REPLACE FUNCTION update_pets_updated_at() RETURNS TRIGGER AS $$
 BEGIN

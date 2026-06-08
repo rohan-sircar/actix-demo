@@ -2,8 +2,8 @@ use diesel::prelude::*;
 
 use crate::errors::DomainError;
 use crate::models::pets::{
-    CreatePet, NewPetTrait, PersonalityTrait, Pet, PetId, PetTrait, PublicPet,
-    TraitId, UpdatePet,
+    CreatePet, NewPetTrait, PersonalityTrait, Pet, PetTrait, PetUuid,
+    PublicPet, TraitId, UpdatePet,
 };
 use crate::models::users::UserId;
 use crate::types::DbConnection;
@@ -42,12 +42,14 @@ pub fn create_pet(
 ) -> Result<PublicPet, DomainError> {
     use crate::schema::pets::dsl as pets;
 
+    let pet_uuid = uuid::Uuid::new_v4();
     let trait_names = create.traits.clone();
 
     let pet_id = conn
         .transaction::<_, DomainError, _>(|conn| {
             let new_pet_id = diesel::insert_into(pets::pets)
                 .values((
+                    pets::pet_uuid.eq(&pet_uuid),
                     pets::user_id.eq(user_id),
                     pets::name.eq(&create.name),
                     pets::species.eq(&create.species),
@@ -106,14 +108,14 @@ pub fn create_pet(
 }
 
 pub fn get_pet(
-    pet_id: &PetId,
+    pet_uuid: &PetUuid,
     user_id: &UserId,
     conn: &mut DbConnection,
 ) -> Result<Option<PublicPet>, DomainError> {
     use crate::schema::pets::dsl as pets;
 
     let pet = pets::pets
-        .filter(pets::id.eq(pet_id))
+        .filter(pets::pet_uuid.eq(pet_uuid))
         .filter(pets::user_id.eq(user_id))
         .first::<Pet>(conn)
         .optional()?;
@@ -190,7 +192,7 @@ pub fn list_pets(
 }
 
 pub fn update_pet(
-    pet_id: &PetId,
+    pet_uuid: &PetUuid,
     user_id: &UserId,
     updates: UpdatePet,
     conn: &mut DbConnection,
@@ -198,7 +200,7 @@ pub fn update_pet(
     use crate::schema::pets::dsl as pets;
 
     let pet = pets::pets
-        .filter(pets::id.eq(pet_id))
+        .filter(pets::pet_uuid.eq(pet_uuid))
         .filter(pets::user_id.eq(user_id))
         .first::<Pet>(conn)
         .optional()?;
@@ -208,7 +210,7 @@ pub fn update_pet(
         None => {
             return Err(DomainError::new_entity_does_not_exist_error(format!(
                 "Pet {} not found or does not belong to user {}",
-                pet_id, user_id
+                pet_uuid, user_id
             )))
         }
     };
@@ -256,7 +258,7 @@ pub fn update_pet(
         updated_description = description.flatten();
     }
 
-    diesel::update(pets::pets.filter(pets::id.eq(pet_id)))
+    diesel::update(pets::pets.filter(pets::pet_uuid.eq(pet_uuid)))
         .set((
             pets::name.eq(updated_name),
             pets::species.eq(updated_species),
@@ -274,7 +276,7 @@ pub fn update_pet(
 
         diesel::delete(
             pet_personality_traits::pet_personality_traits
-                .filter(pet_personality_traits::pet_id.eq(pet_id.as_int())),
+                .filter(pet_personality_traits::pet_id.eq(pet.id.as_int())),
         )
         .execute(conn)?;
 
@@ -292,7 +294,7 @@ pub fn update_pet(
 
                 if let Some(trait_id) = trait_id {
                     inserted_traits.push(NewPetTrait {
-                        pet_id: pet_id.as_int(),
+                        pet_id: pet.id.as_int(),
                         trait_id,
                     });
                 } else {
@@ -313,15 +315,17 @@ pub fn update_pet(
         }
     }
 
-    let pet = pets::pets.filter(pets::id.eq(pet_id)).first::<Pet>(conn)?;
-    let traits = fetch_all_traits_for_pets(&[pet_id.as_int()], conn)?;
-    let traits = traits.get(&pet_id.as_int()).cloned().unwrap_or_default();
+    let pet = pets::pets
+        .filter(pets::pet_uuid.eq(pet_uuid))
+        .first::<Pet>(conn)?;
+    let traits = fetch_all_traits_for_pets(&[pet.id.as_int()], conn)?;
+    let traits = traits.get(&pet.id.as_int()).cloned().unwrap_or_default();
 
     Ok(PublicPet::from((&pet, traits)))
 }
 
 pub fn delete_pet(
-    pet_id: &PetId,
+    pet_uuid: &PetUuid,
     user_id: &UserId,
     conn: &mut DbConnection,
 ) -> Result<(), DomainError> {
@@ -329,7 +333,7 @@ pub fn delete_pet(
 
     let deleted = diesel::delete(
         pets::pets
-            .filter(pets::id.eq(pet_id))
+            .filter(pets::pet_uuid.eq(pet_uuid))
             .filter(pets::user_id.eq(user_id)),
     )
     .execute(conn)?;
@@ -337,7 +341,7 @@ pub fn delete_pet(
     if deleted == 0 {
         return Err(DomainError::new_entity_does_not_exist_error(format!(
             "Pet {} not found or does not belong to user {}",
-            pet_id, user_id
+            pet_uuid, user_id
         )));
     }
 
@@ -362,13 +366,13 @@ pub fn list_traits(
 }
 
 pub fn get_public_pet(
-    pet_id: &PetId,
+    pet_uuid: &PetUuid,
     conn: &mut DbConnection,
 ) -> Result<PublicPet, DomainError> {
     use crate::schema::pets::dsl as pets;
 
     let pet = pets::pets
-        .filter(pets::id.eq(pet_id))
+        .filter(pets::pet_uuid.eq(pet_uuid))
         .first::<Pet>(conn)
         .optional()?;
 
@@ -377,13 +381,13 @@ pub fn get_public_pet(
         None => {
             return Err(DomainError::new_entity_does_not_exist_error(format!(
                 "Pet {} not found",
-                pet_id
+                pet_uuid
             )))
         }
     };
 
-    let traits = fetch_all_traits_for_pets(&[pet_id.as_int()], conn)?;
-    let traits = traits.get(&pet_id.as_int()).cloned().unwrap_or_default();
+    let traits = fetch_all_traits_for_pets(&[pet.id.as_int()], conn)?;
+    let traits = traits.get(&pet.id.as_int()).cloned().unwrap_or_default();
 
     Ok(PublicPet::from((&pet, traits)))
 }

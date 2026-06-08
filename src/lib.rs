@@ -245,7 +245,7 @@ pub fn configure_app(
                         web::get().to(routes::pets::get_traits),
                     )
                     .route(
-                        "/pets/{pet_id}",
+                        "/pets/{pet_uuid}",
                         web::get().to(routes::pets::get_public_pet),
                     ),
             )
@@ -390,16 +390,16 @@ pub fn configure_app(
                                         web::get().to(routes::pets::list_pets),
                                     )
                                     .route(
-                                        "/{pet_id}",
+                                        "/{pet_uuid}",
                                         web::get().to(routes::pets::get_pet),
                                     )
                                     .route(
-                                        "/{pet_id}",
+                                        "/{pet_uuid}",
                                         web::patch()
                                             .to(routes::pets::update_pet),
                                     )
                                     .route(
-                                        "/{pet_id}",
+                                        "/{pet_uuid}",
                                         web::delete()
                                             .to(routes::pets::delete_pet),
                                     ),
@@ -499,6 +499,7 @@ pub fn configure_app(
             models::users::CreateProfile,
             models::roles::RoleEnum,
             models::pets::PetId,
+            models::pets::PetUuid,
             models::pets::TraitId,
             models::pets::CreatePet,
             models::pets::UpdatePet,
