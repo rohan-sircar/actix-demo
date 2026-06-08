@@ -1,4 +1,5 @@
 // pub mod broadcast_demo;
+pub mod images;
 pub mod instrumented_redis_cache;
 pub mod redis_channel_reader;
 pub mod redis_credentials_repo;

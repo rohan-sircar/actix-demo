@@ -104,6 +104,8 @@ pub struct EnvConfig {
     pub minio_bucket_name: String,
     #[serde(default = "default_avatar_size_limit")]
     pub max_avatar_size_bytes: u64,
+    #[serde(default = "default_pet_image_size_limit")]
+    pub max_pet_image_size_bytes: u64,
     #[serde(default = "models::defaults::default_timezone")]
     pub timezone: chrono_tz::Tz,
     // SMTP configuration
@@ -166,8 +168,16 @@ pub struct MinioConfig {
     // Maximum avatar size in bytes
     #[serde(default = "default_avatar_size_limit")]
     pub max_avatar_size_bytes: u64,
+
+    // Maximum pet image size in bytes
+    #[serde(default = "default_pet_image_size_limit")]
+    pub max_pet_image_size_bytes: u64,
 }
 
 pub fn default_avatar_size_limit() -> u64 {
     2 * 1024 * 1024 // 2MB
+}
+
+pub fn default_pet_image_size_limit() -> u64 {
+    5 * 1024 * 1024 // 5MB
 }

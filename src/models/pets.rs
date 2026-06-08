@@ -531,10 +531,15 @@ pub struct PublicPet {
     pub color_markings: Option<PetColorMarkings>,
     pub description: Option<PetDescription>,
     pub traits: Vec<PetTrait>,
+    pub primary_image: Option<PublicPetImage>,
 }
 
-impl From<(&Pet, Vec<PetTrait>)> for PublicPet {
-    fn from((pet, traits): (&Pet, Vec<PetTrait>)) -> Self {
+impl PublicPet {
+    pub fn new(
+        pet: &Pet,
+        traits: Vec<PetTrait>,
+        primary_image: Option<&PetImage>,
+    ) -> Self {
         PublicPet {
             id: pet.id,
             pet_uuid: pet.pet_uuid,
@@ -547,8 +552,137 @@ impl From<(&Pet, Vec<PetTrait>)> for PublicPet {
             color_markings: pet.color_markings.clone(),
             description: pet.description.clone(),
             traits,
+            primary_image: primary_image.map(PublicPetImage::from),
         }
     }
+}
+
+/// Newtype for image ID (positive int values)
+#[derive(
+    Debug,
+    Clone,
+    Eq,
+    Hash,
+    PartialEq,
+    Deserialize,
+    Display,
+    Into,
+    Serialize,
+    DieselNewType,
+    Copy,
+    ToSchema,
+)]
+#[serde(try_from = "u32", into = "u32")]
+pub struct ImageId(i32);
+
+impl ImageId {
+    pub fn as_uint(&self) -> u32 {
+        self.0.try_into().unwrap()
+    }
+
+    pub fn as_int(&self) -> i32 {
+        self.0
+    }
+}
+
+impl From<ImageId> for u32 {
+    fn from(s: ImageId) -> u32 {
+        s.0.try_into().unwrap()
+    }
+}
+
+impl FromStr for ImageId {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if let Ok(num) = s.parse::<u32>() {
+            num.try_into()
+                .map_err(|err| {
+                    format!("negative values are not allowed: {}", err)
+                })
+                .map(ImageId)
+        } else {
+            Err("expected unsigned int, received string".to_owned())
+        }
+    }
+}
+
+impl TryFrom<u32> for ImageId {
+    type Error = String;
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
+        value
+            .try_into()
+            .map_err(|err| format!("error while converting image_id: {}", err))
+            .map(ImageId)
+    }
+}
+
+/// Image variant type for pet images
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub enum PetImageVariant {
+    Thumbnail,
+    Medium,
+    Original,
+}
+
+impl PetImageVariant {
+    pub fn file_extension(&self) -> &str {
+        match self {
+            PetImageVariant::Thumbnail => "webp",
+            PetImageVariant::Medium => "webp",
+            PetImageVariant::Original => "webp",
+        }
+    }
+
+    pub fn content_type(&self) -> &str {
+        "image/webp"
+    }
+}
+
+/// Queryable model for pet image
+#[derive(Debug, Clone, Queryable, Serialize, ToSchema)]
+#[diesel(table_name = pet_images)]
+pub struct PetImage {
+    pub id: ImageId,
+    pub uuid: Uuid,
+    pub pet_id: i32,
+    pub thumbnail_key: String,
+    pub medium_key: String,
+    pub original_key: String,
+    pub format: String,
+    pub is_primary: bool,
+    pub sort_order: i32,
+    pub created_at: chrono::NaiveDateTime,
+}
+
+/// Response model for pet image (public view)
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct PublicPetImage {
+    pub id: ImageId,
+    pub uuid: Uuid,
+    pub format: String,
+    pub is_primary: bool,
+    pub sort_order: i32,
+    pub created_at: chrono::NaiveDateTime,
+}
+
+impl From<&PetImage> for PublicPetImage {
+    fn from(image: &PetImage) -> Self {
+        PublicPetImage {
+            id: image.id,
+            uuid: image.uuid,
+            format: image.format.clone(),
+            is_primary: image.is_primary,
+            sort_order: image.sort_order,
+            created_at: image.created_at,
+        }
+    }
+}
+
+/// Request model for uploading pet images (utoipa schema only)
+#[derive(Debug, Clone, ToSchema)]
+pub struct UploadPetImageRequest {
+    pub file: Vec<u8>,
 }
 
 #[cfg(test)]
@@ -706,7 +840,7 @@ mod test {
             },
         ];
 
-        let public = PublicPet::from((&pet, traits));
+        let public = PublicPet::new(&pet, traits, None);
         assert_eq!(public.id, PetId(1));
         assert_eq!(public.name.inner(), "Buddy");
         assert_eq!(public.species.inner(), "dog");

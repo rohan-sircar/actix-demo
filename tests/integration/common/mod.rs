@@ -468,6 +468,8 @@ pub async fn app_data(
             bucket_name: "actix-demo".to_owned(),
             max_avatar_size_bytes:
                 actix_demo::config::default_avatar_size_limit(),
+            max_pet_image_size_bytes:
+                actix_demo::config::default_pet_image_size_limit(),
         },
         timezone: chrono_tz::Tz::UTC,
         email_token_ttl_verification_secs: 86400,

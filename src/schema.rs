@@ -66,6 +66,22 @@ diesel::table! {
 }
 
 diesel::table! {
+    pet_images (id) {
+        id -> Int4,
+        uuid -> Uuid,
+        pet_id -> Int4,
+        thumbnail_key -> Text,
+        medium_key -> Text,
+        original_key -> Text,
+        #[max_length = 10]
+        format -> Varchar,
+        is_primary -> Bool,
+        sort_order -> Int4,
+        created_at -> Timestamptz,
+    }
+}
+
+diesel::table! {
     pet_personality_traits (pet_id, trait_id) {
         pet_id -> Int4,
         trait_id -> Int4,
@@ -156,6 +172,7 @@ diesel::table! {
 diesel::joinable!(email_verification_tokens -> users (user_id));
 diesel::joinable!(jobs -> users (started_by));
 diesel::joinable!(password_reset_tokens -> users (user_id));
+diesel::joinable!(pet_images -> pets (pet_id));
 diesel::joinable!(pet_personality_traits -> personality_traits (trait_id));
 diesel::joinable!(pet_personality_traits -> pets (pet_id));
 diesel::joinable!(pets -> users (user_id));
@@ -168,6 +185,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     jobs,
     password_reset_tokens,
     personality_traits,
+    pet_images,
     pet_personality_traits,
     pets,
     profiles,
