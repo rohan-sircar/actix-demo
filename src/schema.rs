@@ -10,6 +10,10 @@ pub mod sql_types {
     pub struct OauthProviderType;
 
     #[derive(diesel::query_builder::QueryId, diesel::sql_types::SqlType)]
+    #[diesel(postgres_type(name = "pet_gender"))]
+    pub struct PetGender;
+
+    #[derive(diesel::query_builder::QueryId, diesel::sql_types::SqlType)]
     #[diesel(postgres_type(name = "role_name"))]
     pub struct RoleName;
 }
@@ -69,6 +73,9 @@ diesel::table! {
 }
 
 diesel::table! {
+    use diesel::sql_types::*;
+    use super::sql_types::PetGender;
+
     pets (id) {
         id -> Int4,
         pet_uuid -> Uuid,
@@ -80,8 +87,7 @@ diesel::table! {
         #[max_length = 200]
         breed -> Nullable<Varchar>,
         date_of_birth -> Nullable<Date>,
-        #[max_length = 10]
-        gender -> Nullable<Varchar>,
+        gender -> Nullable<PetGender>,
         weight -> Nullable<Float8>,
         #[max_length = 200]
         color_markings -> Nullable<Varchar>,

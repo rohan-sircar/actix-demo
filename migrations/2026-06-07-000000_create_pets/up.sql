@@ -1,3 +1,5 @@
+CREATE TYPE pet_gender AS ENUM ('male', 'female', 'unspecified');
+
 CREATE TABLE pets (
     id SERIAL PRIMARY KEY,
     pet_uuid UUID NOT NULL UNIQUE DEFAULT gen_random_uuid(),
@@ -6,7 +8,7 @@ CREATE TABLE pets (
     species VARCHAR(50) NOT NULL,
     breed VARCHAR(200),
     date_of_birth DATE,
-    gender VARCHAR(10),
+    gender pet_gender,
     weight DOUBLE PRECISION,
     color_markings VARCHAR(200),
     description TEXT,

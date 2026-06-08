@@ -5,6 +5,7 @@ use validators::prelude::*;
 
 use crate::schema::pet_personality_traits;
 use derive_more::{Display, Into};
+use diesel_derive_enum::DbEnum;
 use std::str::FromStr;
 
 /// Newtype for pet ID (positive int values)
@@ -215,19 +216,39 @@ impl PetBreed {
     }
 }
 
-// TODO should be enum
-/// Validator for gender
-#[derive(Validator, Debug, Clone, DieselNewType, PartialEq, Eq, ToSchema)]
-#[validator(line(char_length(max = 10)))]
-pub struct PetGender(String);
+/// Pet gender enum backed by PostgreSQL enum type
+#[derive(
+    DbEnum,
+    Debug,
+    Clone,
+    Deserialize,
+    Serialize,
+    PartialEq,
+    Eq,
+    ToSchema,
+    Display,
+)]
+#[serde(rename_all = "lowercase")]
+#[ExistingTypePath = "crate::schema::sql_types::PetGender"]
+pub enum PetGender {
+    Male,
+    Female,
+    Unspecified,
+}
 
-impl PetGender {
-    pub fn new(value: String) -> Result<Self, String> {
-        Self::parse_string(&value).map_err(|e| e.to_string())
-    }
+impl FromStr for PetGender {
+    type Err = String;
 
-    pub fn inner(&self) -> &str {
-        &self.0
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "male" => Ok(PetGender::Male),
+            "female" => Ok(PetGender::Female),
+            "unspecified" => Ok(PetGender::Unspecified),
+            _ => Err(format!(
+                "invalid gender '{}', expected one of: male, female, unspecified",
+                s
+            )),
+        }
     }
 }
 
@@ -421,9 +442,9 @@ impl<'de> Deserialize<'de> for UpdatePet {
                         if val.is_null() {
                             gender = Some(None);
                         } else if let Some(s) = val.as_str() {
+                            let parsed: Result<PetGender, _> = s.parse();
                             gender = Some(Some(
-                                PetGender::new(s.to_string())
-                                    .map_err(serde::de::Error::custom)?,
+                                parsed.map_err(serde::de::Error::custom)?,
                             ));
                         }
                     }
@@ -666,7 +687,7 @@ mod test {
             date_of_birth: Some(
                 chrono::NaiveDate::from_ymd_opt(2020, 1, 1).unwrap(),
             ),
-            gender: Some(PetGender("male".to_string())),
+            gender: Some(PetGender::Male),
             weight: Some(25.0),
             color_markings: Some(PetColorMarkings("Yellow".to_string())),
             description: Some(PetDescription("Friendly".to_string())),

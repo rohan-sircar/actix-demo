@@ -506,6 +506,7 @@ pub fn configure_app(
             models::pets::PublicPet,
             models::pets::PetTrait,
             models::pets::PersonalityTrait,
+            models::pets::PetGender,
         ),
     ),
     tags(
