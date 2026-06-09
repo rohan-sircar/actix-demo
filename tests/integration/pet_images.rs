@@ -228,7 +228,8 @@ mod pet_images_api {
         img.write_to(&mut std::io::Cursor::new(&mut buf), ImageFormat::Png)
             .unwrap();
 
-        let url = format!("http://{}/api/user/pets/{}/images", ctx.addr, pet_uuid);
+        let url =
+            format!("http://{}/api/user/pets/{}/images", ctx.addr, pet_uuid);
         let resp = ctx
             .client
             .post(&url)
@@ -239,7 +240,7 @@ mod pet_images_api {
 
         // Server may close connection early for oversized payloads (broken pipe)
         // or return PAYLOAD_TOO_LARGE
-        if let Ok(mut resp) = resp {
+        if let Ok(resp) = resp {
             assert_eq!(resp.status(), StatusCode::PAYLOAD_TOO_LARGE);
         }
     }
