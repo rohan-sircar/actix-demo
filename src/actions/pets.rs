@@ -434,7 +434,7 @@ pub fn upload_pet_image(
         ))
     })?;
 
-    let resized = resize_and_encode_webp(&image_bytes, 1920).map_err(|e| {
+    let resized = resize_and_encode_webp(&image_bytes).map_err(|e| {
         DomainError::new_bad_input_error(format!(
             "Image processing failed: {}",
             e
