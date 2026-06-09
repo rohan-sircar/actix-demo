@@ -283,19 +283,17 @@ mod pet_images_api {
         // List images
         let mut resp = ctx
             .test_server
-            .get(format!("/api/user/pets/{}", pet_uuid))
+            .get(format!("/api/user/pets/{}/images", pet_uuid))
             .with_token(&token)
             .send()
             .await
             .unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
-        let body: serde_json::Value = resp.json().await.unwrap();
-        let images = &body["images"];
-        assert_eq!(images.as_array().unwrap().len(), 2);
+        let images: Vec<serde_json::Value> = resp.json().await.unwrap();
+        assert_eq!(images.len(), 2);
         // Verify sort_order is correct
-        let imgs = images.as_array().unwrap();
-        assert_eq!(imgs[0]["sort_order"], 0);
-        assert_eq!(imgs[1]["sort_order"], 1);
+        assert_eq!(images[0]["sort_order"], 0);
+        assert_eq!(images[1]["sort_order"], 1);
     }
 
     #[actix_rt::test]
@@ -307,15 +305,14 @@ mod pet_images_api {
 
         let mut resp = ctx
             .test_server
-            .get(format!("/api/user/pets/{}", pet_uuid))
+            .get(format!("/api/user/pets/{}/images", pet_uuid))
             .with_token(&token)
             .send()
             .await
             .unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
-        let body: serde_json::Value = resp.json().await.unwrap();
-        let images = &body["images"];
-        assert!(images.as_array().unwrap().is_empty());
+        let images: Vec<serde_json::Value> = resp.json().await.unwrap();
+        assert!(images.is_empty());
     }
 
     #[actix_rt::test]
@@ -370,14 +367,13 @@ mod pet_images_api {
         // List images and verify toggle
         let mut resp = ctx
             .test_server
-            .get(format!("/api/user/pets/{}", pet_uuid))
+            .get(format!("/api/user/pets/{}/images", pet_uuid))
             .with_token(&token)
             .send()
             .await
             .unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
-        let body: serde_json::Value = resp.json().await.unwrap();
-        let images = body["images"].as_array().unwrap();
+        let images: Vec<serde_json::Value> = resp.json().await.unwrap();
         let img1 = images.iter().find(|i| i["uuid"] == image_uuid_1).unwrap();
         let img2 = images.iter().find(|i| i["uuid"] == image_uuid_2).unwrap();
         assert_eq!(img1["is_primary"], false);
@@ -438,13 +434,14 @@ mod pet_images_api {
         let image_uuid = body["uuid"].as_str().unwrap().to_string();
 
         // Delete the image
+        let url = format!(
+            "http://{}/api/user/pets/{}/images/{}",
+            ctx.addr, pet_uuid, image_uuid
+        );
         let resp = ctx
-            .test_server
-            .delete(format!(
-                "/api/user/pets/{}/images/{}",
-                pet_uuid, image_uuid
-            ))
-            .with_token(&token)
+            .client
+            .delete(&url)
+            .insert_header(("cookie", format!("X-AUTH-TOKEN={}", token)))
             .send()
             .await
             .unwrap();
@@ -453,15 +450,14 @@ mod pet_images_api {
         // Verify it's gone
         let mut resp = ctx
             .test_server
-            .get(format!("/api/user/pets/{}", pet_uuid))
+            .get(format!("/api/user/pets/{}/images", pet_uuid))
             .with_token(&token)
             .send()
             .await
             .unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
-        let body: serde_json::Value = resp.json().await.unwrap();
-        let images = &body["images"];
-        assert!(images.as_array().unwrap().is_empty());
+        let images: Vec<serde_json::Value> = resp.json().await.unwrap();
+        assert!(images.is_empty());
 
         // Second delete returns 404
         let resp = ctx
@@ -485,7 +481,7 @@ mod pet_images_api {
 
         let pet_uuid = create_pet(&ctx, &token_a, "Buddy", "dog").await;
 
-        let image_bytes = make_test_image(800, 600, [255, 0, 0]);
+      let image_bytes = make_test_image(800, 600, [255, 0, 0]);
         let (_, body) = send_upload_request(
             &ctx.client,
             &ctx.addr,

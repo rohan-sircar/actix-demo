@@ -590,7 +590,11 @@ pub async fn app_data(
         .force_path_style(true) // apply bucketname as path param instead of pre-domain
         .behavior_version(aws_sdk_s3::config::BehaviorVersion::latest())
         .build();
-    let s3_client = aws_sdk_s3::Client::from_conf(s3_config);
+    let s3_client = aws_sdk_s3::Client::from_conf(s3_config.clone());
+
+    // Create MinIO bucket if it doesn't exist
+    let bucket_name = "actix-demo";
+    let _ = s3_client.create_bucket().bucket(bucket_name).send().await;
 
     let data = Data::new(AppData {
         start_time,
