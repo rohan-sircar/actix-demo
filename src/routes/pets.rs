@@ -13,6 +13,18 @@ pub(crate) struct ListPetsQuery {
     traits: Option<String>,
 }
 
+#[derive(Deserialize)]
+pub(crate) struct PetImagePath {
+    pet_uuid: crate::models::pets::PetUuid,
+    image_uuid: uuid::Uuid,
+}
+
+#[derive(Deserialize)]
+pub(crate) struct PublicImageVariantPath {
+    image_uuid: uuid::Uuid,
+    variant: String,
+}
+
 #[utoipa::path(
     get,
     path = "/api/public/pets/traits",
@@ -403,12 +415,13 @@ pub async fn list_pet_images(
 pub async fn delete_pet_image(
     req: HttpRequest,
     app_data: web::Data<AppData>,
-    pet_uuid: web::Path<crate::models::pets::PetUuid>,
-    image_uuid: web::Path<uuid::Uuid>,
+    path: web::Path<PetImagePath>,
 ) -> Result<HttpResponse, DomainError> {
     let user_id = crate::utils::extract_user_id_from_header(req.headers())?;
-    let pet_uuid = pet_uuid.into_inner();
-    let image_uuid = image_uuid.into_inner();
+    let PetImagePath {
+        pet_uuid,
+        image_uuid,
+    } = path.into_inner();
 
     web::block(move || {
         let pool = &app_data.pool;
@@ -446,13 +459,14 @@ pub async fn delete_pet_image(
 pub async fn set_primary_pet_image(
     req: HttpRequest,
     app_data: web::Data<AppData>,
-    pet_uuid: web::Path<crate::models::pets::PetUuid>,
-    image_uuid: web::Path<uuid::Uuid>,
+    path: web::Path<PetImagePath>,
     body: web::Json<serde_json::Value>,
 ) -> Result<HttpResponse, DomainError> {
     let user_id = crate::utils::extract_user_id_from_header(req.headers())?;
-    let pet_uuid = pet_uuid.into_inner();
-    let image_uuid = image_uuid.into_inner();
+    let PetImagePath {
+        pet_uuid,
+        image_uuid,
+    } = path.into_inner();
 
     if body.get("is_primary").and_then(|v| v.as_bool()) != Some(true) {
         return Err(DomainError::new_bad_input_error(
@@ -540,11 +554,12 @@ pub async fn get_public_pet_image(
 #[tracing::instrument(level = "info", skip_all, fields(image_uuid, variant))]
 pub async fn get_pet_image_variant(
     app_data: web::Data<AppData>,
-    image_uuid: web::Path<uuid::Uuid>,
-    variant: web::Path<String>,
+    path: web::Path<PublicImageVariantPath>,
 ) -> Result<HttpResponse, DomainError> {
-    let image_uuid = image_uuid.into_inner();
-    let variant = variant.into_inner();
+    let PublicImageVariantPath {
+        image_uuid,
+        variant,
+    } = path.into_inner();
     let app_data_clone = app_data.clone();
 
     let (object_key, content_type) = match variant.as_str() {
