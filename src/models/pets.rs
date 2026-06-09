@@ -282,6 +282,21 @@ impl PetDescription {
     }
 }
 
+/// Validator for pet weight in kilograms (0 < weight <= 500)
+#[derive(Validator, Debug, Clone, Copy, DieselNewType, PartialEq, ToSchema)]
+#[validator(number(nan(Disallow), range(Inside(min = 0.0, max = 500.0))))]
+pub struct PetWeight(f64);
+
+impl PetWeight {
+    pub fn new(value: f64) -> Result<Self, String> {
+        Self::parse_f64(value).map_err(|e| e.to_string())
+    }
+
+    pub fn inner(&self) -> f64 {
+        self.0
+    }
+}
+
 /// Request model for creating a pet
 #[derive(Debug, Clone, Deserialize, ToSchema)]
 pub struct CreatePet {
@@ -290,25 +305,12 @@ pub struct CreatePet {
     pub breed: Option<PetBreed>,
     pub date_of_birth: Option<chrono::NaiveDate>,
     pub gender: Option<PetGender>,
-    #[serde(default, deserialize_with = "deserialize_weight")]
-    pub weight: Option<f64>,
+    #[serde(default)]
+    pub weight: Option<PetWeight>,
     pub color_markings: Option<PetColorMarkings>,
     pub description: Option<PetDescription>,
     #[serde(default)]
     pub traits: Vec<String>,
-}
-
-fn deserialize_weight<'de, D>(deserializer: D) -> Result<Option<f64>, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    let opt = Option::<f64>::deserialize(deserializer)?;
-    if let Some(w) = opt {
-        if w < 0.0 {
-            return Err(serde::de::Error::custom("Weight cannot be negative"));
-        }
-    }
-    Ok(opt)
 }
 
 /// Diesel insertable model for pet_personality_traits junction
@@ -347,7 +349,7 @@ pub struct Pet {
     pub breed: Option<PetBreed>,
     pub date_of_birth: Option<chrono::NaiveDate>,
     pub gender: Option<PetGender>,
-    pub weight: Option<f64>,
+    pub weight: Option<PetWeight>,
     pub color_markings: Option<PetColorMarkings>,
     pub description: Option<PetDescription>,
     pub created_at: chrono::NaiveDateTime,
@@ -362,7 +364,7 @@ pub struct UpdatePet {
     pub breed: Option<Option<PetBreed>>,
     pub date_of_birth: Option<Option<chrono::NaiveDate>>,
     pub gender: Option<Option<PetGender>>,
-    pub weight: Option<Option<f64>>,
+    pub weight: Option<Option<PetWeight>>,
     pub color_markings: Option<Option<PetColorMarkings>>,
     pub description: Option<Option<PetDescription>>,
     pub traits: Option<Vec<String>>,
@@ -452,12 +454,10 @@ impl<'de> Deserialize<'de> for UpdatePet {
                         if val.is_null() {
                             weight = Some(None);
                         } else if let Some(w) = val.as_f64() {
-                            if w < 0.0 {
-                                return Err(serde::de::Error::custom(
-                                    "Weight cannot be negative",
-                                ));
-                            }
-                            weight = Some(Some(w));
+                            weight = Some(Some(
+                                PetWeight::parse_f64(w)
+                                    .map_err(serde::de::Error::custom)?,
+                            ));
                         }
                     }
                     "color_markings" => {
@@ -527,7 +527,7 @@ pub struct PublicPet {
     pub breed: Option<PetBreed>,
     pub date_of_birth: Option<chrono::NaiveDate>,
     pub gender: Option<PetGender>,
-    pub weight: Option<f64>,
+    pub weight: Option<PetWeight>,
     pub color_markings: Option<PetColorMarkings>,
     pub description: Option<PetDescription>,
     pub traits: Vec<PetTrait>,
@@ -712,7 +712,7 @@ mod test {
         assert!(pet.breed.is_some());
         assert!(pet.date_of_birth.is_some());
         assert!(pet.gender.is_some());
-        assert_eq!(pet.weight, Some(30.5));
+        assert_eq!(pet.weight, Some(PetWeight(30.5)));
         assert_eq!(pet.traits, vec!["playful", "loyal"]);
     }
 
@@ -822,7 +822,7 @@ mod test {
                 chrono::NaiveDate::from_ymd_opt(2020, 1, 1).unwrap(),
             ),
             gender: Some(PetGender::Male),
-            weight: Some(25.0),
+            weight: Some(PetWeight(25.0)),
             color_markings: Some(PetColorMarkings("Yellow".to_string())),
             description: Some(PetDescription("Friendly".to_string())),
             created_at: chrono::NaiveDateTime::default(),
