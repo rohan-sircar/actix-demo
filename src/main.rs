@@ -242,6 +242,7 @@ async fn main() -> anyhow::Result<()> {
             minio: MinioConfig {
                 bucket_name: env_config.minio_bucket_name,
                 max_avatar_size_bytes: env_config.max_avatar_size_bytes,
+                max_pet_image_size_bytes: env_config.max_pet_image_size_bytes,
             },
             timezone: env_config.timezone,
             email_token_ttl_verification_secs: env_config

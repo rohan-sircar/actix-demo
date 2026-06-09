@@ -12,6 +12,14 @@ mod tests {
     use super::super::oauth_helpers::setup_oauth_app;
     use crate::common::TestContext;
 
+    type UserRow = (
+        UserId,
+        actix_demo::models::users::Username,
+        Email,
+        Option<OAuthProvider>,
+        Option<String>,
+    );
+
     #[actix_rt::test]
     async fn test_github_login_redirects_with_state_and_challenge() {
         let mock_server = MockServer::start().await;
@@ -396,13 +404,7 @@ mod tests {
         let pool = &github_ctx.app_data.pool;
         let mut conn = pool.get().unwrap();
 
-        let github_user: Option<(
-            UserId,
-            actix_demo::models::users::Username,
-            Email,
-            Option<OAuthProvider>,
-            Option<String>,
-        )> = users::table
+        let github_user: Option<UserRow> = users::table
             .select((
                 users::id,
                 users::username,
@@ -412,25 +414,13 @@ mod tests {
             ))
             .filter(users::email.eq("linked@example.com"))
             .order(users::id.desc())
-            .first::<(
-                UserId,
-                actix_demo::models::users::Username,
-                Email,
-                Option<OAuthProvider>,
-                Option<String>,
-            )>(&mut conn)
+            .first::<UserRow>(&mut conn)
             .ok();
 
         assert!(github_user.is_some());
         let user_id = github_user.unwrap().0.as_uint();
 
-        let google_user: Option<(
-            UserId,
-            actix_demo::models::users::Username,
-            Email,
-            Option<OAuthProvider>,
-            Option<String>,
-        )> = users::table
+        let google_user: Option<UserRow> = users::table
             .select((
                 users::id,
                 users::username,
@@ -440,13 +430,7 @@ mod tests {
             ))
             .filter(users::oauth_provider.eq(OAuthProvider::Google))
             .filter(users::oauth_uid.eq("google-99999"))
-            .first::<(
-                UserId,
-                actix_demo::models::users::Username,
-                Email,
-                Option<OAuthProvider>,
-                Option<String>,
-            )>(&mut conn)
+            .first::<UserRow>(&mut conn)
             .ok();
 
         assert!(google_user.is_some());

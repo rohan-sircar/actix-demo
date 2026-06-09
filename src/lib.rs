@@ -239,6 +239,22 @@ pub fn configure_app(
                     .route(
                         "/profiles/{user_id}",
                         web::get().to(routes::users::get_public_profile),
+                    )
+                    .route(
+                        "/pets/traits",
+                        web::get().to(routes::pets::get_traits),
+                    )
+                    .route(
+                        "/pets/{pet_uuid}",
+                        web::get().to(routes::pets::get_public_pet),
+                    )
+                    .route(
+                        "/pets/images/{image_uuid}",
+                        web::get().to(routes::pets::get_public_pet_image),
+                    )
+                    .route(
+                        "/pets/images/{image_uuid}/{variant}",
+                        web::get().to(routes::pets::get_pet_image_variant),
                     ),
             )
             // public user endpoints (unauthenticated)
@@ -369,6 +385,53 @@ pub fn configure_app(
                                 "",
                                 web::delete()
                                     .to(routes::users::delete_my_account),
+                            )
+                            .service(
+                                web::scope("/pets")
+                                    .route(
+                                        "",
+                                        web::post()
+                                            .to(routes::pets::create_pet),
+                                    )
+                                    .route(
+                                        "",
+                                        web::get().to(routes::pets::list_pets),
+                                    )
+                                    .route(
+                                        "/{pet_uuid}",
+                                        web::get().to(routes::pets::get_pet),
+                                    )
+                                    .route(
+                                        "/{pet_uuid}",
+                                        web::patch()
+                                            .to(routes::pets::update_pet),
+                                    )
+                                    .route(
+                                        "/{pet_uuid}",
+                                        web::delete()
+                                            .to(routes::pets::delete_pet),
+                                    )
+                                    .route(
+                                        "/{pet_uuid}/images",
+                                        web::post()
+                                            .to(routes::pets::upload_pet_image),
+                                    )
+                                    .route(
+                                        "/{pet_uuid}/images",
+                                        web::get()
+                                            .to(routes::pets::list_pet_images),
+                                    )
+                                    .route(
+                                        "/{pet_uuid}/images/{image_uuid}",
+                                        web::delete()
+                                            .to(routes::pets::delete_pet_image),
+                                    )
+                                    .route(
+                                        "/{pet_uuid}/images/{image_uuid}",
+                                        web::patch().to(
+                                            routes::pets::set_primary_pet_image,
+                                        ),
+                                    ),
                             ),
                     )
                     .service(
@@ -412,6 +475,19 @@ pub fn configure_app(
         routes::users::update_user_profile,
         routes::users::get_public_profile,
         routes::users::delete_my_account,
+        routes::pets::get_traits,
+        routes::pets::get_public_pet,
+        routes::pets::create_pet,
+        routes::pets::list_pets,
+        routes::pets::get_pet,
+        routes::pets::update_pet,
+        routes::pets::delete_pet,
+        routes::pets::upload_pet_image,
+        routes::pets::list_pet_images,
+        routes::pets::delete_pet_image,
+        routes::pets::set_primary_pet_image,
+        routes::pets::get_public_pet_image,
+        routes::pets::get_pet_image_variant,
         routes::command::handle_run_command,
         routes::command::handle_get_job,
         routes::command::handle_get_job_metrics,
@@ -457,11 +533,26 @@ pub fn configure_app(
             models::users::UpdateProfile,
             models::users::CreateProfile,
             models::roles::RoleEnum,
+            models::pets::PetId,
+            models::pets::PetUuid,
+            models::pets::TraitId,
+            models::pets::CreatePet,
+            models::pets::UpdatePet,
+            models::pets::PublicPet,
+            models::pets::PetTrait,
+            models::pets::PersonalityTrait,
+            models::pets::PetGender,
+            models::pets::ImageId,
+            models::pets::PetImage,
+            models::pets::PublicPetImage,
+            models::pets::PetImageVariant,
+            models::pets::UploadPetImageRequest,
         ),
     ),
     tags(
         (name = "auth", description = "Authentication endpoints"),
         (name = "users", description = "User management endpoints"),
+        (name = "pets", description = "Pet profiles endpoints"),
         (name = "oauth", description = "OAuth 2.0 endpoints"),
         (name = "command", description = "Background job execution"),
         (name = "public", description = "Public endpoints"),

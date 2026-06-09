@@ -1,5 +1,6 @@
 pub mod defaults;
 pub mod misc;
+pub mod pets;
 pub mod rate_limit;
 pub mod roles;
 pub mod session;

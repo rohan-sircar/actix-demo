@@ -140,30 +140,7 @@ mod tests {
             use diesel::prelude::*;
 
             use super::*;
-
-            async fn register_and_login(
-                ctx: &TestContext,
-                username: &str,
-                password: &str,
-            ) -> String {
-                common::create_http_user(
-                    &ctx.addr,
-                    username,
-                    password,
-                    &ctx.client,
-                )
-                .await
-                .unwrap();
-
-                common::get_http_token(
-                    &ctx.addr,
-                    username,
-                    password,
-                    &ctx.client,
-                )
-                .await
-                .unwrap()
-            }
+            use crate::common::register_and_login;
 
             #[actix_rt::test]
             async fn get_user_profile_returns_empty_when_none_exists() {
@@ -437,7 +414,7 @@ mod tests {
 
                 let long_bio = "a".repeat(501);
 
-                let mut resp = ctx
+                let resp = ctx
                     .test_server
                     .post("/api/user/profile")
                     .with_token(&token)

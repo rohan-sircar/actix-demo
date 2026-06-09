@@ -19,7 +19,7 @@ args = ["fmt", "--all", "--", "--check"]
 [tasks.clippy-check]
 install_crate = "clippy"
 command = "cargo"
-args = ["clippy", "--all", "--", "-D", "warnings"]
+args = ["clippy", "--all", "--tests", "--", "-D", "warnings"]
 
 [tasks.lint-check]
 dependencies = ["format-check", "clippy-check"]
@@ -34,7 +34,7 @@ args = ["test", "--lib"]
 
 [tasks.it-test]
 command = "cargo"
-args = ["test", "--test", "integration"]
+args = ["test", "--test", "integration", "--", "${@}"]
 
 [tasks.flaky-test]
 command = "cargo"

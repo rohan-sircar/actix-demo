@@ -36,7 +36,6 @@ use jwt_simple::prelude::HS256Key;
 use minior::aws_sdk_s3;
 use once_cell::sync::Lazy;
 use regex::Regex;
-use reqwest;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::fs;
@@ -194,6 +193,7 @@ impl MailpitClient {
     ) -> anyhow::Result<String> {
         let start = std::time::Instant::now();
         let poll_interval = Duration::from_millis(200);
+        let token_regex = Regex::new(r"token=([^&\s]+)").unwrap();
         loop {
             let resp = self
                 .http
@@ -219,8 +219,7 @@ impl MailpitClient {
                     let text = msg
                         .text
                         .context("verification email has no text body")?;
-                    return Regex::new(r"token=([^&\s]+)")
-                        .unwrap()
+                    return token_regex
                         .captures(&text)
                         .and_then(|c| c.get(1))
                         .map(|m| m.as_str().to_string())
@@ -469,6 +468,8 @@ pub async fn app_data(
             bucket_name: "actix-demo".to_owned(),
             max_avatar_size_bytes:
                 actix_demo::config::default_avatar_size_limit(),
+            max_pet_image_size_bytes:
+                actix_demo::config::default_pet_image_size_limit(),
         },
         timezone: chrono_tz::Tz::UTC,
         email_token_ttl_verification_secs: 86400,
@@ -589,7 +590,11 @@ pub async fn app_data(
         .force_path_style(true) // apply bucketname as path param instead of pre-domain
         .behavior_version(aws_sdk_s3::config::BehaviorVersion::latest())
         .build();
-    let s3_client = aws_sdk_s3::Client::from_conf(s3_config);
+    let s3_client = aws_sdk_s3::Client::from_conf(s3_config.clone());
+
+    // Create MinIO bucket if it doesn't exist
+    let bucket_name = "actix-demo";
+    let _ = s3_client.create_bucket().bucket(bucket_name).send().await;
 
     let data = Data::new(AppData {
         start_time,
@@ -817,6 +822,20 @@ pub async fn create_http_user_with_email(
     }
 
     Ok(())
+}
+
+pub async fn register_and_login(
+    ctx: &TestContext,
+    username: &str,
+    password: &str,
+) -> String {
+    create_http_user(&ctx.addr, username, password, &ctx.client)
+        .await
+        .unwrap();
+
+    get_http_token(&ctx.addr, username, password, &ctx.client)
+        .await
+        .unwrap()
 }
 
 pub fn assert_rate_limit_headers(headers: &HeaderMap) {
