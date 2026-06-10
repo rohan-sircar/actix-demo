@@ -31,7 +31,7 @@ use crate::{errors::DomainError, AppData};
 )]
 /// Finds user by UUID.
 #[protect("RoleEnum::RoleAdmin", ty = RoleEnum)]
-#[tracing::instrument(level = "info", skip_all)]
+#[tracing::instrument(level = "info", skip_all, fields(user_id))]
 pub async fn get_user(
     app_data: web::Data<AppData>,
     user_id: web::Path<String>,
@@ -76,7 +76,7 @@ pub async fn get_user(
     ),
 )]
 #[protect("RoleEnum::RoleAdmin", ty = RoleEnum)]
-#[tracing::instrument(level = "info", skip_all)]
+#[tracing::instrument(level = "info", skip_all, fields(pagination))]
 pub async fn get_users(
     app_data: web::Data<AppData>,
     pagination: web::Query<Pagination>,
@@ -198,7 +198,7 @@ pub struct UploadAvatarRequest {
     ),
 )]
 /// Upload user avatar
-#[tracing::instrument(level = "info", skip_all)]
+#[tracing::instrument(level = "info", skip_all, fields(user_uuid))]
 pub async fn upload_user_avatar(
     app_data: web::Data<AppData>,
     req: HttpRequest,
@@ -453,7 +453,7 @@ pub async fn update_my_profile(
 )]
 /// Delete the authenticated user's account (soft delete).
 /// Clears all sessions and avatar. Orphans associated jobs.
-#[tracing::instrument(level = "info", skip_all)]
+#[tracing::instrument(level = "info", skip_all, fields(user_uuid))]
 pub async fn delete_my_account(
     req: HttpRequest,
     app_data: web::Data<AppData>,
@@ -538,7 +538,7 @@ pub async fn get_public_profile(
 )]
 /// Get the authenticated user's profile.
 #[protect("RoleEnum::RoleUser", ty = RoleEnum)]
-#[tracing::instrument(level = "info", skip_all)]
+#[tracing::instrument(level = "info", skip_all, fields(user_uuid))]
 pub async fn get_user_profile(
     req: HttpRequest,
     app_data: web::Data<AppData>,

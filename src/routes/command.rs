@@ -303,7 +303,7 @@ pub async fn handle_run_command(
 /// # Errors
 ///
 /// * `DomainError` - If the provided job ID is not a valid UUID, or if the job does not exist.
-#[tracing::instrument(level = "info", skip(app_data))]
+#[tracing::instrument(level = "info", skip(app_data), fields(job_id))]
 #[protect("RoleEnum::RoleAdmin", ty = RoleEnum)]
 pub async fn handle_get_job(
     app_data: web::Data<AppData>,
@@ -364,7 +364,7 @@ pub struct MetricsQuery {
 /// # Returns
 ///
 /// * `Result<HttpResponse, DomainError>` - HTTP response with job counts by status
-#[tracing::instrument(level = "info", skip(app_data))]
+#[tracing::instrument(level = "info", skip(app_data), fields(query))]
 pub async fn handle_get_job_metrics(
     app_data: web::Data<AppData>,
     query: web::Query<MetricsQuery>,
@@ -412,7 +412,7 @@ pub async fn handle_get_job_metrics(
 /// # Errors
 ///
 /// * `DomainError` - If there is an error publishing to the Redis channel.
-#[tracing::instrument(level = "info", skip(app_data))]
+#[tracing::instrument(level = "info", skip(app_data), fields(job_id))]
 #[protect("RoleEnum::RoleAdmin", ty = RoleEnum)]
 pub async fn handle_abort_job(
     req: HttpRequest,
