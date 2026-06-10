@@ -17,7 +17,7 @@ actix-ws = "0.4"
 anyhow = "1.0.66"
 awc = "3.5.1"
 aws-config = { version = "1.1.7", features = ["behavior-version-latest"] }
-backoff = { version = "0.4", features = ["tokio"] }
+backon = "1"
 bcrypt = "0.19"
 cached = { version = "1", features = [
     "redis_store",
@@ -119,4 +119,4 @@ version = "2.1.2"
 
 [build-dependencies]
 build-info-build = { version = "0.0.40" }
-backoff = { version = "0.4", features = ["tokio"] }
+backon = "1"
