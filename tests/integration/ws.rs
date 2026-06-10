@@ -1,10 +1,8 @@
 use futures::prelude::*;
-use std::str::FromStr;
 
 use crate::common;
 
 use actix_codec::Framed;
-use actix_demo::models::users::UserUuid;
 use actix_demo::models::ws::{WsClientEvent, WsServerEvent};
 use actix_demo::utils;
 use actix_http::header;
@@ -95,14 +93,15 @@ mod tests {
                 .await
                 .unwrap();
 
+        let claims =
+            utils::get_claims(&common::TEST_JWT_KEY.clone(), &token).unwrap();
+        let sender_uuid = claims.custom.user_uuid;
+
         let (_resp, mut ws) =
             connect_ws(&ctx.addr, &token, &ctx.client).await.unwrap();
 
         ws.send(ws_msg(&WsClientEvent::SendMessage {
-            receiver: UserUuid::from_str(
-                "550e8400-e29b-41d4-a716-446655440000",
-            )
-            .unwrap(),
+            receiver: sender_uuid,
             message: "hello".to_owned(),
         }))
         .await
@@ -116,10 +115,7 @@ mod tests {
             message,
         } = msg
         {
-            assert_eq!(
-                sender.to_string(),
-                "550e8400-e29b-41d4-a716-446655440000"
-            );
+            assert_eq!(sender, sender_uuid);
             assert_eq!(&message, "hello");
         } else {
             panic!("error wrong message type");
