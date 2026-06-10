@@ -116,7 +116,7 @@ pub async fn validate_token(
 
 #[utoipa::path(
     post,
-    path = "/api/login",
+    path = "/api/v1/login",
     tag = "auth",
     request_body = UserLogin,
     responses(
@@ -206,7 +206,7 @@ pub async fn login(
 
 #[utoipa::path(
     get,
-    path = "/api/sessions",
+    path = "/api/v1/sessions",
     tag = "auth",
     responses(
         (status = 200, description = "List of active sessions", body = Vec<SessionInfo>),
@@ -230,7 +230,7 @@ pub async fn list_sessions(
 
 #[utoipa::path(
     post,
-    path = "/api/logout",
+    path = "/api/v1/logout",
     tag = "auth",
     responses(
         (status = 200, description = "Logout successful - clears auth cookie"),
@@ -270,7 +270,7 @@ pub async fn logout(
 
 #[utoipa::path(
     delete,
-    path = "/api/sessions/{session_id}",
+    path = "/api/v1/sessions/{session_id}",
     tag = "auth",
     params(
         ("session_id" = String, Path, description = "Session ID to revoke"),
@@ -319,7 +319,7 @@ pub async fn revoke_session(
 
 #[utoipa::path(
     post,
-    path = "/api/sessions/revoke-others",
+    path = "/api/v1/sessions/revoke-others",
     tag = "auth",
     responses(
         (status = 200, description = "All other sessions revoked successfully"),
@@ -376,7 +376,7 @@ pub struct PasswordResetCompleteRequest {
 
 #[utoipa::path(
     post,
-    path = "/api/email/verify",
+    path = "/api/v1/email/verify",
     tag = "auth",
     request_body = VerifyEmailRequest,
     responses(
@@ -450,7 +450,7 @@ pub async fn verify_email(
 
 #[utoipa::path(
     post,
-    path = "/api/password-reset/request",
+    path = "/api/v1/password-reset/request",
     tag = "auth",
     request_body = PasswordResetRequest,
     responses(
@@ -516,7 +516,7 @@ pub async fn request_password_reset(
 
 #[utoipa::path(
     post,
-    path = "/api/password-reset/complete",
+    path = "/api/v1/password-reset/complete",
     tag = "auth",
     request_body = PasswordResetCompleteRequest,
     responses(

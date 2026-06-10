@@ -12,7 +12,7 @@ mod tests {
 
             let mut resp = ctx
                 .test_server
-                .post("/api/email/verify")
+                .post("/api/v1/email/verify")
                 .append_header(("content-type", "application/json"))
                 .send_json(&serde_json::json!({
                     "token": "nonexistent_token_12345"
@@ -35,7 +35,7 @@ mod tests {
 
             let mut resp = ctx
                 .test_server
-                .post("/api/email/verify")
+                .post("/api/v1/email/verify")
                 .append_header(("content-type", "application/json"))
                 .send_json(&serde_json::json!({
                     "token": "some_random_token"
@@ -77,7 +77,7 @@ mod tests {
 
             let mut resp = ctx
                 .test_server
-                .post("/api/password-reset/request")
+                .post("/api/v1/password-reset/request")
                 .append_header(("content-type", "application/json"))
                 .send_json(&serde_json::json!({
                     "email": "reset_user@test.local"
@@ -100,7 +100,7 @@ mod tests {
 
             let mut resp = ctx
                 .test_server
-                .post("/api/password-reset/request")
+                .post("/api/v1/password-reset/request")
                 .append_header(("content-type", "application/json"))
                 .send_json(&serde_json::json!({
                     "email": "nonexistent@test.local"
@@ -120,7 +120,7 @@ mod tests {
             // Send a reset request first to ensure the token table has entries
             let _ = ctx
                 .test_server
-                .post("/api/password-reset/request")
+                .post("/api/v1/password-reset/request")
                 .append_header(("content-type", "application/json"))
                 .send_json(&serde_json::json!({
                     "email": "admin@example.com"
@@ -131,7 +131,7 @@ mod tests {
             // Test with invalid token - should return success (prevents email enumeration)
             let mut resp = ctx
                 .test_server
-                .post("/api/password-reset/complete")
+                .post("/api/v1/password-reset/complete")
                 .append_header(("content-type", "application/json"))
                 .send_json(&serde_json::json!({
                     "token": "nonexistent_reset_token",
@@ -182,7 +182,7 @@ mod tests {
             // Call the endpoint — should hit the expired path, not the "not found" path
             let resp = ctx
                 .test_server
-                .post("/api/password-reset/complete")
+                .post("/api/v1/password-reset/complete")
                 .append_header(("content-type", "application/json"))
                 .send_json(&serde_json::json!({
                     "token": token,

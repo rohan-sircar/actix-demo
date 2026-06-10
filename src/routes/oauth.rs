@@ -25,7 +25,7 @@ pub struct OAuthCallbackQuery {
 
 #[utoipa::path(
     get,
-    path = "/api/auth/oauth/github/login",
+    path = "/api/v1/auth/oauth/github/login",
     tag = "oauth",
     responses(
         (status = 307, description = "Redirects to GitHub OAuth"),
@@ -61,7 +61,7 @@ pub async fn github_login(
 
 #[utoipa::path(
     get,
-    path = "/api/auth/oauth/github/callback",
+    path = "/api/v1/auth/oauth/github/callback",
     tag = "oauth",
     responses(
         (status = 307, description = "Redirects to app root after successful login"),
@@ -136,7 +136,7 @@ pub async fn github_callback(
 
 #[utoipa::path(
     get,
-    path = "/api/auth/oauth/google/login",
+    path = "/api/v1/auth/oauth/google/login",
     tag = "oauth",
     responses(
         (status = 307, description = "Redirects to Google OAuth"),
@@ -172,7 +172,7 @@ pub async fn google_login(
 
 #[utoipa::path(
     get,
-    path = "/api/auth/oauth/google/callback",
+    path = "/api/v1/auth/oauth/google/callback",
     tag = "oauth",
     responses(
         (status = 307, description = "Redirects to app root after successful login"),

@@ -152,7 +152,7 @@ mod tests {
 
         let mut resp = ctx
             .test_server
-            .post("/api/cmd")
+            .post("/api/v1/cmd")
             .append_header((header::CONTENT_TYPE, "application/json"))
             .with_token(&token)
             .send_body(r#"{"args":["arg1", "arg2"]}"#)
@@ -211,7 +211,7 @@ mod tests {
 
         let mut resp = ctx
             .test_server
-            .get(format!("/api/cmd/{job_id}"))
+            .get(format!("/api/v1/cmd/{job_id}"))
             .append_header((header::CONTENT_TYPE, "application/json"))
             .with_token(&token)
             .send()
@@ -256,7 +256,7 @@ mod tests {
 
         let mut resp = ctx
             .test_server
-            .post("/api/cmd")
+            .post("/api/v1/cmd")
             .append_header((header::CONTENT_TYPE, "application/json"))
             .with_token(&token)
             .send_body(r#"{"args":[]}"#)
@@ -277,7 +277,7 @@ mod tests {
 
         let resp = ctx
             .test_server
-            .delete(format!("/api/cmd/{job_id}"))
+            .delete(format!("/api/v1/cmd/{job_id}"))
             .with_token(&token)
             .send()
             .await
@@ -289,7 +289,7 @@ mod tests {
 
         let mut resp = ctx
             .test_server
-            .get(format!("/api/cmd/{job_id}"))
+            .get(format!("/api/v1/cmd/{job_id}"))
             .with_token(&token)
             .send()
             .await

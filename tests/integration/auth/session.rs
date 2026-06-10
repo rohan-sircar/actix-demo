@@ -31,7 +31,7 @@ mod tests {
         ) -> (StatusCode, Option<String>) {
             let resp = ctx
                 .test_server
-                .post("/api/login")
+                .post("/api/v1/login")
                 .append_header((header::CONTENT_TYPE, "application/json"))
                 .send_json(&serde_json::json!({
                     "username": common::DEFAULT_USER,

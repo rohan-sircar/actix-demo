@@ -28,7 +28,10 @@ mod tests {
 
         let response = ctx
             .client
-            .get(&format!("http://{}/api/auth/oauth/github/login", ctx.addr))
+            .get(&format!(
+                "http://{}/api/v1/auth/oauth/github/login",
+                ctx.addr
+            ))
             .send()
             .await
             .unwrap();
@@ -124,7 +127,7 @@ mod tests {
 
         // Call callback
         let callback_url = format!(
-            "http://{}/api/auth/oauth/github/callback?code=test-auth-code&state={}",
+            "http://{}/api/v1/auth/oauth/github/callback?code=test-auth-code&state={}",
             ctx.addr, state
         );
         let response = ctx.client.get(&callback_url).send().await.unwrap();
@@ -147,7 +150,7 @@ mod tests {
 
         let mut response = ctx
             .test_server
-            .get("/api/auth/oauth/github/callback?code=test-code&state=invalid-state-xyz")
+            .get("/api/v1/auth/oauth/github/callback?code=test-code&state=invalid-state-xyz")
             .send()
             .await
             .unwrap();
@@ -169,7 +172,7 @@ mod tests {
 
         let mut response = ctx
             .test_server
-            .get("/api/auth/oauth/github/callback?error=access_denied&error_description=User+cancelled+authorization")
+            .get("/api/v1/auth/oauth/github/callback?error=access_denied&error_description=User+cancelled+authorization")
             .send()
             .await
             .unwrap();
@@ -194,7 +197,10 @@ mod tests {
 
         let response = ctx
             .client
-            .get(&format!("http://{}/api/auth/oauth/google/login", ctx.addr))
+            .get(&format!(
+                "http://{}/api/v1/auth/oauth/google/login",
+                ctx.addr
+            ))
             .send()
             .await
             .unwrap();
@@ -255,7 +261,7 @@ mod tests {
         let _: () = redis.set_ex(&key, code_verifier, 300).await.unwrap();
 
         let callback_url = format!(
-            "http://{}/api/auth/oauth/google/callback?code=google-auth-code&state={}",
+            "http://{}/api/v1/auth/oauth/google/callback?code=google-auth-code&state={}",
             ctx.addr, state
         );
         let response = ctx.client.get(&callback_url).send().await.unwrap();
@@ -374,7 +380,7 @@ mod tests {
         let github_response = github_ctx
             .client
             .get(&format!(
-                "http://{}/api/auth/oauth/github/callback?code=gh-code&state=github-state",
+                "http://{}/api/v1/auth/oauth/github/callback?code=gh-code&state=github-state",
                 github_ctx.addr
             ))
             .send()
@@ -393,7 +399,7 @@ mod tests {
         let google_response = github_ctx
             .client
             .get(&format!(
-                "http://{}/api/auth/oauth/google/callback?code=google-code&state=google-state",
+                "http://{}/api/v1/auth/oauth/google/callback?code=google-code&state=google-state",
                 github_ctx.addr
             ))
             .send()
@@ -489,7 +495,7 @@ mod tests {
         let response = ctx
             .client
             .get(&format!(
-                "http://{}/api/auth/oauth/github/callback?code=new-code&state=new-user-state",
+                "http://{}/api/v1/auth/oauth/github/callback?code=new-code&state=new-user-state",
                 ctx.addr
             ))
             .send()
@@ -531,7 +537,7 @@ mod tests {
 
         let response = ctx
             .test_server
-            .get("/api/auth/oauth/github/login")
+            .get("/api/v1/auth/oauth/github/login")
             .send()
             .await
             .unwrap();
@@ -547,7 +553,7 @@ mod tests {
 
         let response = ctx
             .test_server
-            .get("/api/auth/oauth/google/login")
+            .get("/api/v1/auth/oauth/google/login")
             .send()
             .await
             .unwrap();
@@ -599,7 +605,7 @@ mod tests {
 
         let response = ctx
             .test_server
-            .get("/api/auth/oauth/github/callback?code=no-email-code&state=no-email-state")
+            .get("/api/v1/auth/oauth/github/callback?code=no-email-code&state=no-email-state")
             .send()
             .await
             .unwrap();
@@ -615,7 +621,7 @@ mod tests {
 
         let mut response = ctx
             .test_server
-            .get("/api/auth/oauth/google/callback?code=google-code&state=invalid-google-state")
+            .get("/api/v1/auth/oauth/google/callback?code=google-code&state=invalid-google-state")
             .send()
             .await
             .unwrap();
@@ -637,7 +643,7 @@ mod tests {
 
         let mut response = ctx
             .test_server
-            .get("/api/auth/oauth/google/callback?error=access_denied&error_description=User+cancelled")
+            .get("/api/v1/auth/oauth/google/callback?error=access_denied&error_description=User+cancelled")
             .send()
             .await
             .unwrap();

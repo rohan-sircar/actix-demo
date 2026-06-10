@@ -11,7 +11,7 @@ mod tests {
         use super::*;
 
         /// Verifies that non-admin users (RoleUser) get 403 on admin-only routes.
-        /// Registration via /api/registration assigns RoleUser by default
+        /// Registration via /api/v1/registration assigns RoleUser by default
         /// (insert_new_regular_user → insert_new_user with RoleEnum::RoleUser).
         #[actix_rt::test]
         async fn should_return_403_for_non_admin_on_post_cmd() {
@@ -36,10 +36,10 @@ mod tests {
             .await
             .unwrap();
 
-            // Try to POST /api/cmd (admin-only)
+            // Try to POST /api/v1/cmd (admin-only)
             let resp = ctx
                 .test_server
-                .post("/api/cmd")
+                .post("/api/v1/cmd")
                 .with_token(&token)
                 .append_header((header::CONTENT_TYPE, "application/json"))
                 .send_json(&serde_json::json!({"args": ["test"]}))
@@ -74,11 +74,11 @@ mod tests {
             .await
             .unwrap();
 
-            // Try to GET /api/cmd/{job_id} (admin-only)
+            // Try to GET /api/v1/cmd/{job_id} (admin-only)
             let fake_job_id = Uuid::new_v4().to_string();
             let resp = ctx
                 .test_server
-                .get(format!("/api/cmd/{}", fake_job_id))
+                .get(format!("/api/v1/cmd/{}", fake_job_id))
                 .with_token(&token)
                 .send()
                 .await
@@ -112,11 +112,11 @@ mod tests {
             .await
             .unwrap();
 
-            // Try to DELETE /api/cmd/{job_id} (admin-only)
+            // Try to DELETE /api/v1/cmd/{job_id} (admin-only)
             let fake_job_id = Uuid::new_v4().to_string();
             let resp = ctx
                 .test_server
-                .delete(format!("/api/cmd/{}", fake_job_id))
+                .delete(format!("/api/v1/cmd/{}", fake_job_id))
                 .with_token(&token)
                 .send()
                 .await
@@ -146,10 +146,10 @@ mod tests {
             .await
             .unwrap();
 
-            // POST /api/cmd should NOT return 403 for admin
+            // POST /api/v1/cmd should NOT return 403 for admin
             let resp = ctx
                 .test_server
-                .post("/api/cmd")
+                .post("/api/v1/cmd")
                 .with_token(&admin_token)
                 .append_header((header::CONTENT_TYPE, "application/json"))
                 .send_json(&serde_json::json!({"args": ["test"]}))
@@ -158,11 +158,11 @@ mod tests {
 
             assert_ne!(resp.status(), StatusCode::FORBIDDEN);
 
-            // GET /api/cmd/{job_id} should NOT return 403 for admin
+            // GET /api/v1/cmd/{job_id} should NOT return 403 for admin
             let fake_job_id = Uuid::new_v4().to_string();
             let resp = ctx
                 .test_server
-                .get(format!("/api/cmd/{}", fake_job_id))
+                .get(format!("/api/v1/cmd/{}", fake_job_id))
                 .with_token(&admin_token)
                 .send()
                 .await
@@ -170,10 +170,10 @@ mod tests {
 
             assert_ne!(resp.status(), StatusCode::FORBIDDEN);
 
-            // DELETE /api/cmd/{job_id} should NOT return 403 for admin
+            // DELETE /api/v1/cmd/{job_id} should NOT return 403 for admin
             let resp = ctx
                 .test_server
-                .delete(format!("/api/cmd/{}", fake_job_id))
+                .delete(format!("/api/v1/cmd/{}", fake_job_id))
                 .with_token(&admin_token)
                 .send()
                 .await
@@ -218,10 +218,10 @@ mod tests {
             .await
             .unwrap();
 
-            // DELETE /api/user should succeed (200) for any authenticated user
+            // DELETE /api/v1/user should succeed (200) for any authenticated user
             let resp = ctx
                 .test_server
-                .get("/api/user")
+                .get("/api/v1/user")
                 .with_token(&token)
                 .send()
                 .await
@@ -261,7 +261,7 @@ mod tests {
 
             let resp = ctx
                 .test_server
-                .get("/api/admin/users?page=0&limit=10")
+                .get("/api/v1/admin/users?page=0&limit=10")
                 .with_token(&token)
                 .send()
                 .await
@@ -293,7 +293,7 @@ mod tests {
 
             let resp = ctx
                 .test_server
-                .get("/api/admin/users?q=test&page=0&limit=10")
+                .get("/api/v1/admin/users?q=test&page=0&limit=10")
                 .with_token(&token)
                 .send()
                 .await
@@ -325,7 +325,7 @@ mod tests {
 
             let resp = ctx
                 .test_server
-                .get("/api/admin/users/55")
+                .get("/api/v1/admin/users/55")
                 .with_token(&token)
                 .send()
                 .await
@@ -349,7 +349,7 @@ mod tests {
 
             let resp = ctx
                 .test_server
-                .get("/api/admin/users")
+                .get("/api/v1/admin/users")
                 .with_token(&admin_token)
                 .send()
                 .await
@@ -375,7 +375,7 @@ mod tests {
 
             let resp = ctx
                 .test_server
-                .get("/api/admin/users?q=test")
+                .get("/api/v1/admin/users?q=test")
                 .with_token(&admin_token)
                 .send()
                 .await
