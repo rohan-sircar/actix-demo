@@ -11,14 +11,11 @@ mod tests {
     use crate::common::WithToken;
 
     use super::*;
-    use actix_demo::{
-        models::{rate_limit::RateLimitPolicy, users::UserId},
-        workers,
-    };
+    use actix_demo::{models::rate_limit::RateLimitPolicy, workers};
     use actix_http::{header, StatusCode};
     use tokio::{task::JoinHandle, time::sleep};
 
-    use std::{str::FromStr, time::Duration};
+    use std::time::Duration;
 
     #[actix_rt::test]
     async fn should_rate_limit_failed_login_attempts() {
@@ -197,7 +194,6 @@ mod tests {
             workers::start_sessions_cleanup_worker(
                 config,
                 ctx.app_data.credentials_repo.clone(),
-                ctx.app_data.user_ids_cache.clone(),
                 ctx.app_data.pool.clone(),
             )
             .await
@@ -214,11 +210,22 @@ mod tests {
         .unwrap();
 
         // Verify session exists
-        let user_id = UserId::from_str("1").unwrap();
+        let token = common::get_http_token(
+            &ctx.addr,
+            common::DEFAULT_USER,
+            common::DEFAULT_USER,
+            &ctx.client,
+        )
+        .await
+        .unwrap();
+        let jwt_key = common::TEST_JWT_KEY.clone();
+        let claims = common::utils::get_claims(&jwt_key, &token).unwrap();
+        let real_user_uuid = claims.custom.user_uuid;
+
         let sessions = ctx
             .app_data
             .credentials_repo
-            .load_all_sessions(&user_id)
+            .load_all_sessions(&real_user_uuid)
             .await
             .unwrap();
         assert!(
@@ -233,7 +240,7 @@ mod tests {
         let sessions = ctx
             .app_data
             .credentials_repo
-            .load_all_sessions(&user_id)
+            .load_all_sessions(&real_user_uuid)
             .await
             .unwrap();
         assert!(sessions.is_empty(), "Expected no sessions after cleanup");

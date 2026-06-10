@@ -22,7 +22,7 @@ use redis::aio::ConnectionManager;
 use serde::Serialize;
 
 use crate::errors::DomainError;
-use crate::models::users::UserId;
+use crate::models::users::UserUuid;
 use crate::routes::auth::VerifiedAuthDetails;
 use crate::AppData;
 
@@ -183,13 +183,13 @@ pub fn extract_header_value(
         .map(|s| s.to_string())
 }
 
-pub fn extract_user_id_from_header(
+pub fn extract_user_uuid_from_header(
     headers: &HeaderMap,
-) -> Result<UserId, DomainError> {
+) -> Result<UserUuid, DomainError> {
     extract_header_value(headers, "x-auth-user").and_then(|str| {
-        UserId::from_str(&str).map_err(|err| {
+        UserUuid::from_str(&str).map_err(|err| {
             DomainError::new_bad_input_error(format!(
-                "Invalid UserId format in x-auth-user header: {err}"
+                "Invalid UserUuid format in x-auth-user header: {err}"
             ))
         })
     })

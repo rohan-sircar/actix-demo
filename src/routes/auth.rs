@@ -2,7 +2,7 @@ use crate::actions::users::get_user_auth_details;
 use crate::errors::DomainError;
 use crate::models::roles::RoleEnum;
 use crate::models::session::{SessionInfo, SessionStatus};
-use crate::models::users::{Email, UserId, UserLogin, Username};
+use crate::models::users::{Email, UserLogin, UserUuid, Username};
 use crate::services::email::tokens;
 use crate::utils::redis_credentials_repo::RedisCredentialsRepo;
 use crate::{diesel, utils, AppData};
@@ -27,7 +27,7 @@ use uuid::Uuid;
 
 #[derive(Serialize, Deserialize)]
 pub struct VerifiedAuthDetails {
-    pub user_id: UserId,
+    pub user_uuid: UserUuid,
     pub session_id: Uuid,
     pub username: Username,
     pub roles: Vec<RoleEnum>,
@@ -49,10 +49,10 @@ pub async fn extract(
     let claims = utils::get_claims(&app_data.jwt_key, token)?;
     let roles: HashSet<RoleEnum> = claims.custom.roles.into_iter().collect();
 
-    let user_id = claims.custom.user_id.to_string();
+    let user_uuid = claims.custom.user_uuid.to_string();
     req.headers_mut().insert(
         HeaderName::from_static("x-auth-user"),
-        HeaderValue::from_str(&user_id).unwrap(),
+        HeaderValue::from_str(&user_uuid).unwrap(),
     );
 
     // Also add device ID to headers
@@ -72,15 +72,16 @@ pub async fn validate_token(
     token: String,
 ) -> Result<SessionInfo, DomainError> {
     let claims = utils::get_claims(jwt_key, &token)?;
-    let user_id = claims.custom.user_id;
+    let user_uuid = claims.custom.user_uuid;
     let session_id = claims.custom.session_id;
 
     // Clean up expired tokens first
-    // let _ = credentials_repo.cleanup_expired_tokens(&user_id).await?;
+    // let _ = credentials_repo.cleanup_expired_tokens(&user_uuid).await?;
 
     // Check if this specific token exists in the user's sessions
-    let mb_session_info =
-        credentials_repo.load_session(&user_id, &session_id).await?;
+    let mb_session_info = credentials_repo
+        .load_session(&user_uuid, &session_id)
+        .await?;
 
     let _ = tracing::debug!("Retrieved session info {mb_session_info:?}");
 
@@ -88,12 +89,12 @@ pub async fn validate_token(
         Some(session_info) => {
             // Check if the expiry key exists
             let status = credentials_repo
-                .is_token_expired(&user_id, &session_id)
+                .is_token_expired(&user_uuid, &session_id)
                 .await?;
             if status == SessionStatus::Expired {
                 // Token has expired
                 let _ = credentials_repo
-                    .delete_session(&user_id, &session_id)
+                    .delete_session(&user_uuid, &session_id)
                     .await?;
                 return Err(DomainError::new_auth_error(
                     "Token has expired".to_owned(),
@@ -102,13 +103,13 @@ pub async fn validate_token(
 
             // Update last used time and refresh TTL
             let session_info = credentials_repo
-                .update_session_last_used(&session_id, session_info, &user_id)
+                .update_session_last_used(&session_id, session_info, &user_uuid)
                 .await?;
             Ok(session_info)
         }
         None => Err(DomainError::new_auth_error(format!(
-            "Session does not exist for user id - {}",
-            &user_id
+            "Session does not exist for user - {}",
+            &user_uuid
         ))),
     }
 }
@@ -157,7 +158,7 @@ pub async fn login(
     let device_id = Uuid::new_v4();
 
     let auth_data = VerifiedAuthDetails {
-        user_id: user.id,
+        user_uuid: user.user_uuid,
         session_id,
         username: user.username,
         roles: user.roles,
@@ -185,7 +186,12 @@ pub async fn login(
 
     // create session
     let _ = credentials_repo
-        .create_session(&user.id, &session_id, &session_info, ttl_seconds)
+        .create_session(
+            &user.user_uuid,
+            &session_id,
+            &session_info,
+            ttl_seconds,
+        )
         .await?;
 
     let cookie = Cookie::build("X-AUTH-TOKEN", &token)
@@ -213,11 +219,11 @@ pub async fn list_sessions(
     req: HttpRequest,
     app_data: web::Data<AppData>,
 ) -> Result<HttpResponse, DomainError> {
-    let user_id = utils::extract_user_id_from_header(req.headers())?;
+    let user_uuid = utils::extract_user_uuid_from_header(req.headers())?;
 
     let credentials_repo = &app_data.credentials_repo;
 
-    let sessions = credentials_repo.load_all_sessions(&user_id).await?;
+    let sessions = credentials_repo.load_all_sessions(&user_uuid).await?;
 
     Ok(HttpResponse::Ok().json(sessions))
 }
@@ -245,18 +251,18 @@ pub async fn logout(
     let credentials_repo = &app_data.credentials_repo;
     let jwt_key = &app_data.jwt_key;
     let claims = utils::get_claims(jwt_key, token)?;
-    let user_id = claims.custom.user_id;
+    let user_uuid = claims.custom.user_uuid;
     let session_id = claims.custom.session_id;
     // Check if the session exists
     let _session = credentials_repo
-        .load_session(&user_id, &session_id)
+        .load_session(&user_uuid, &session_id)
         .await?
         .ok_or_else(|| {
             DomainError::new_auth_error("Session not found".to_owned())
         })?;
     // Delete the session
     let _ = credentials_repo
-        .delete_session(&user_id, &session_id)
+        .delete_session(&user_uuid, &session_id)
         .await?;
 
     Ok(HttpResponse::Ok().finish())
@@ -282,7 +288,7 @@ pub async fn revoke_session(
     session_id: web::Path<String>,
     app_data: web::Data<AppData>,
 ) -> Result<HttpResponse, DomainError> {
-    let user_id = utils::extract_user_id_from_header(req.headers())?;
+    let user_uuid = utils::extract_user_uuid_from_header(req.headers())?;
 
     let credentials_repo = &app_data.credentials_repo;
 
@@ -294,7 +300,9 @@ pub async fn revoke_session(
     })?;
 
     // Check if the session exists
-    let session = credentials_repo.load_session(&user_id, &session_id).await?;
+    let session = credentials_repo
+        .load_session(&user_uuid, &session_id)
+        .await?;
     if session.is_none() {
         return Err(DomainError::new_auth_error(
             "Session not found".to_owned(),
@@ -303,7 +311,7 @@ pub async fn revoke_session(
 
     // Delete the session
     let _ = credentials_repo
-        .delete_session(&user_id, &session_id)
+        .delete_session(&user_uuid, &session_id)
         .await?;
 
     Ok(HttpResponse::Ok().finish())
@@ -324,7 +332,7 @@ pub async fn revoke_other_sessions(
     req: HttpRequest,
     app_data: web::Data<AppData>,
 ) -> Result<HttpResponse, DomainError> {
-    let user_id = utils::extract_user_id_from_header(req.headers())?;
+    let user_uuid = utils::extract_user_uuid_from_header(req.headers())?;
     // Extract token from cookie
     let cookie = req.cookie("X-AUTH-TOKEN").ok_or_else(|| {
         DomainError::new_auth_error("Missing auth token".to_owned())
@@ -336,13 +344,13 @@ pub async fn revoke_other_sessions(
     let current_session_id = claims.custom.session_id;
 
     // Get all sessions
-    let sessions = credentials_repo.load_all_sessions(&user_id).await?;
+    let sessions = credentials_repo.load_all_sessions(&user_uuid).await?;
 
     // Delete all sessions except the current one
     for (session_id, _) in sessions {
         if session_id != current_session_id {
             credentials_repo
-                .delete_session(&user_id, &session_id)
+                .delete_session(&user_uuid, &session_id)
                 .await?;
         }
     }

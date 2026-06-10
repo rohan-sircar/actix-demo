@@ -643,6 +643,7 @@ pub async fn app_data(
     Ok(data)
 }
 
+#[allow(dead_code)]
 pub async fn test_app(
     pg_connstr: &str,
     redis_connstr: &str,
@@ -681,6 +682,7 @@ pub async fn test_http_app(
     Ok((actix_test::start(test_app), data))
 }
 
+#[allow(dead_code)]
 pub async fn get_token(
     username: &str,
     password: &str,
@@ -704,6 +706,7 @@ pub async fn get_token(
     utils::extract_auth_token(http_resp.headers()).unwrap()
 }
 
+#[allow(dead_code)]
 pub async fn get_default_token(
     test_app: &impl Service<
         Request,

@@ -19,7 +19,7 @@ use crate::{
         ws::MyProcessItem,
     },
     types::Task,
-    utils::{self, extract_user_id_from_header},
+    utils::{self, extract_user_uuid_from_header},
     AppData,
 };
 
@@ -77,10 +77,10 @@ pub async fn handle_run_command(
     let abort_chan_name = redis_prefix(&format!("job.{job_id}.abort"));
     let payload = payload.into_inner();
     let args = payload.args;
-    // Extract and validate user ID from auth header
-    let user_id = extract_user_id_from_header(req.headers())?;
+    // Extract and validate user UUID from auth header
+    let user_uuid = extract_user_uuid_from_header(req.headers())?;
 
-    tracing::debug!("Authenticated user ID: {}", user_id);
+    tracing::debug!("Authenticated user UUID: {}", user_uuid);
 
     // Create new job record in database
     let pool = app_data.pool.clone();
@@ -88,6 +88,16 @@ pub async fn handle_run_command(
     tracing::debug!("Creating new job record in database");
     let job = web::block(move || {
         let mut conn = pool2.get()?;
+        let user_id = crate::actions::users::resolve_user_id_by_uuid(
+            &user_uuid, &mut conn,
+        )
+        .ok()
+        .flatten()
+        .ok_or_else(|| {
+            DomainError::new_entity_does_not_exist_error(
+                "User not found".to_string(),
+            )
+        })?;
         let nj = NewJob {
             job_id,
             started_by: user_id,
@@ -293,7 +303,7 @@ pub async fn handle_run_command(
 /// # Errors
 ///
 /// * `DomainError` - If the provided job ID is not a valid UUID, or if the job does not exist.
-#[tracing::instrument(level = "info", skip(app_data))]
+#[tracing::instrument(level = "info", skip(app_data), fields(job_id))]
 #[protect("RoleEnum::RoleAdmin", ty = RoleEnum)]
 pub async fn handle_get_job(
     app_data: web::Data<AppData>,
@@ -354,7 +364,7 @@ pub struct MetricsQuery {
 /// # Returns
 ///
 /// * `Result<HttpResponse, DomainError>` - HTTP response with job counts by status
-#[tracing::instrument(level = "info", skip(app_data))]
+#[tracing::instrument(level = "info", skip(app_data), fields(query))]
 pub async fn handle_get_job_metrics(
     app_data: web::Data<AppData>,
     query: web::Query<MetricsQuery>,
@@ -402,15 +412,15 @@ pub async fn handle_get_job_metrics(
 /// # Errors
 ///
 /// * `DomainError` - If there is an error publishing to the Redis channel.
-#[tracing::instrument(level = "info", skip(app_data))]
+#[tracing::instrument(level = "info", skip(app_data), fields(job_id))]
 #[protect("RoleEnum::RoleAdmin", ty = RoleEnum)]
 pub async fn handle_abort_job(
     req: HttpRequest,
     app_data: web::Data<AppData>,
     job_id: web::Path<String>,
 ) -> Result<HttpResponse, DomainError> {
-    // Extract and validate user ID from auth header
-    let user_id = utils::extract_user_id_from_header(req.headers())?;
+    // Extract and validate user UUID from auth header
+    let user_uuid = utils::extract_user_uuid_from_header(req.headers())?;
 
     // Get a Redis connection from the app_data.
     let mut conn = app_data.redis_conn_manager.clone();
@@ -422,7 +432,19 @@ pub async fn handle_abort_job(
 
     let job = fetch_job_by_uuid(job_id, app_data.as_ref()).await?;
 
-    if user_id != job.started_by {
+    let pool = app_data.pool.clone();
+    let current_user_id = web::block(move || {
+        let mut conn = pool.get()?;
+        crate::actions::users::resolve_user_id_by_uuid(&user_uuid, &mut conn)
+    })
+    .await??
+    .ok_or_else(|| {
+        DomainError::new_entity_does_not_exist_error(
+            "User not found".to_string(),
+        )
+    })?;
+
+    if current_user_id != job.started_by {
         return Err(DomainError::new_auth_error(
             "Forbidden: Tried to abort job of a different user".to_owned(),
         ));

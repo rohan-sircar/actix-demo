@@ -1,4 +1,4 @@
-use crate::models::users::UserId;
+use crate::models::users::UserUuid;
 
 use serde::{Deserialize, Serialize};
 
@@ -14,7 +14,7 @@ pub enum MyProcessItem {
 #[serde(tag = "kind")]
 pub enum WsClientEvent {
     SendMessage {
-        receiver: UserId,
+        receiver: UserUuid,
         message: String,
     },
     #[serde(rename_all = "camelCase")]
@@ -29,7 +29,7 @@ pub enum WsClientEvent {
 #[derive(Clone, Serialize, Deserialize, Debug)]
 
 pub struct SentMessage {
-    pub sender: UserId,
+    pub sender: UserUuid,
     pub message: String,
 }
 
@@ -38,7 +38,7 @@ pub struct SentMessage {
 pub enum WsServerEvent {
     SentMessage {
         id: String,
-        sender: UserId,
+        sender: UserUuid,
         message: String,
     },
     CommandMessage {

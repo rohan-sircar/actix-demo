@@ -5,7 +5,7 @@ use tracing_futures::Instrument;
 
 use crate::{
     errors::DomainError,
-    models::{users::UserId, ws::WsClientEvent},
+    models::{users::UserUuid, ws::WsClientEvent},
     AppData,
 };
 
@@ -17,7 +17,7 @@ use crate::utils::ws;
 /// * `ws_msg` - The WebSocket message received from client
 /// * `session` - Active WebSocket session
 /// * `conn` - Redis connection manager for pub/sub operations
-/// * `user_id` - ID of the authenticated user
+/// * `user_uuid` - UUID of the authenticated user
 /// * `app_data` - Shared application data
 ///
 /// # Returns
@@ -32,7 +32,7 @@ pub async fn process_client_msg(
     ws_msg: WsClientEvent,
     session: Session,
     conn: &mut ConnectionManager,
-    user_id: UserId,
+    user_uuid: UserUuid,
     app_data: Arc<AppData>,
 ) -> Result<(), DomainError> {
     let redis_prefix = &app_data.redis_prefix;
@@ -41,13 +41,13 @@ pub async fn process_client_msg(
         WsClientEvent::SendMessage { receiver, message } => {
             tracing::info!(
                 "Handling message from user {} to {}",
-                user_id,
+                user_uuid,
                 receiver
             );
             ws::handle_send_message(
                 session,
                 conn,
-                user_id,
+                user_uuid,
                 receiver,
                 message,
                 redis_prefix,
@@ -59,7 +59,7 @@ pub async fn process_client_msg(
             Ok(())
         }
         WsClientEvent::SubscribeJob { job_id } => {
-            tracing::info!("User {} subscribing to job {}", user_id, job_id);
+            tracing::info!("User {} subscribing to job {}", user_uuid, job_id);
             actix_rt::spawn(
                 async move {
                     let res =

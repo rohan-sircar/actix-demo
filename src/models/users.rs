@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
+use uuid::Uuid;
 
 use crate::schema::profiles;
 use crate::schema::users;
@@ -139,6 +140,53 @@ impl TryFrom<u32> for UserId {
             .map(UserId)
     }
 }
+
+/// Newtype for user UUID (public-facing identifier)
+#[derive(
+    Debug,
+    Clone,
+    Eq,
+    Hash,
+    PartialEq,
+    Deserialize,
+    Display,
+    Into,
+    Serialize,
+    DieselNewType,
+    Copy,
+    ToSchema,
+)]
+#[serde(try_from = "String", into = "String")]
+pub struct UserUuid(Uuid);
+
+impl UserUuid {
+    pub fn as_uuid(&self) -> Uuid {
+        self.0
+    }
+}
+
+impl From<UserUuid> for String {
+    fn from(s: UserUuid) -> String {
+        s.0.to_string()
+    }
+}
+
+impl FromStr for UserUuid {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Uuid::parse_str(s)
+            .map(UserUuid)
+            .map_err(|e| format!("invalid UUID format: {e}"))
+    }
+}
+
+impl TryFrom<String> for UserUuid {
+    type Error = String;
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        value.parse::<UserUuid>()
+    }
+}
 #[derive(
     Validator,
     Debug,
@@ -210,6 +258,7 @@ pub struct User {
     pub username: Username,
     pub created_at: chrono::NaiveDateTime,
     pub deleted_at: Option<chrono::NaiveDateTime>,
+    pub user_uuid: UserUuid,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
@@ -217,6 +266,7 @@ pub struct UserWithRoles {
     pub id: UserId,
     pub username: Username,
     pub created_at: chrono::NaiveDateTime,
+    pub user_uuid: UserUuid,
     pub roles: Vec<RoleEnum>,
 }
 
@@ -226,6 +276,7 @@ impl UserWithRoles {
             id: user.id,
             username: user.username.clone(),
             created_at: user.created_at,
+            user_uuid: user.user_uuid,
             roles: roles.to_vec(),
         }
     }
@@ -264,6 +315,7 @@ pub struct UserAuthDetails {
     pub email: Email,
     pub oauth_provider: Option<OAuthProvider>,
     pub oauth_uid: Option<String>,
+    pub user_uuid: UserUuid,
 }
 
 #[derive(Debug, Clone, Queryable)]
@@ -274,6 +326,7 @@ pub struct OAuthUserLookup {
     pub password: Password,
     pub oauth_provider: Option<OAuthProvider>,
     pub oauth_uid: Option<String>,
+    pub user_uuid: UserUuid,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -285,6 +338,7 @@ pub struct UserAuthDetailsWithRoles {
     pub email: Email,
     pub oauth_provider: Option<OAuthProvider>,
     pub oauth_uid: Option<String>,
+    pub user_uuid: UserUuid,
     pub roles: Vec<RoleEnum>,
 }
 
@@ -300,6 +354,7 @@ impl UserAuthDetailsWithRoles {
             email: user.email,
             oauth_provider: user.oauth_provider,
             oauth_uid: user.oauth_uid,
+            user_uuid: user.user_uuid,
             roles,
         }
     }
@@ -371,6 +426,7 @@ pub struct Profile {
     pub social_twitter: Option<SocialTwitter>,
     pub created_at: chrono::NaiveDateTime,
     pub updated_at: chrono::NaiveDateTime,
+    pub user_uuid: UserUuid,
 }
 
 fn dummy_user_id() -> UserId {
@@ -491,7 +547,7 @@ impl UpdateProfile {
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 pub struct PublicProfile {
-    pub user_id: UserId,
+    pub user_uuid: UserUuid,
     pub bio: Option<Bio>,
     pub display_name: Option<DisplayName>,
     pub location: Option<Location>,
@@ -503,7 +559,7 @@ pub struct PublicProfile {
 impl From<&Profile> for PublicProfile {
     fn from(profile: &Profile) -> Self {
         Self {
-            user_id: profile.user_id,
+            user_uuid: profile.user_uuid,
             bio: profile.bio.clone(),
             display_name: profile.display_name.clone(),
             location: profile.location.clone(),
@@ -521,32 +577,32 @@ mod test {
     fn user_model_refinement_test() {
         //yes I had been watching a lot of star wars lately
         let mb_user = serde_json::from_str::<User>(
-            r#"{"id":1,"username":"chewbacca","password":"aeqfq3fq", "role":"role_user", "created_at":"2021-05-12T12:37:56"}"#,
+            r#"{"id":1,"username":"chewbacca","user_uuid":"00000000-0000-0000-0000-000000000001","created_at":"2021-05-12T12:37:56"}"#,
         );
         // println!("{:?}", mb_user);
         assert!(mb_user.is_ok());
         let mb_user = serde_json::from_str::<User>(
-            r#"{"id":1,"username":"chew-bacca","password":"aeqfq3fq","role":"role_user","created_at":"2021-05-12T12:37:56"}"#,
+            r#"{"id":1,"username":"chew-bacca","user_uuid":"00000000-0000-0000-0000-000000000001","created_at":"2021-05-12T12:37:56"}"#,
         );
         assert!(mb_user.is_ok());
         let mb_user = serde_json::from_str::<User>(
-            r#"{"id":1,"username":"chew.bacca","password":"aeqfq3fq","role":"role_user","created_at":"2021-05-12T12:37:56"}"#,
+            r#"{"id":1,"username":"chew.bacca","user_uuid":"00000000-0000-0000-0000-000000000001","created_at":"2021-05-12T12:37:56"}"#,
         );
         assert!(mb_user.is_ok());
         let mb_user = serde_json::from_str::<User>(
-            r#"{"id":-1,"username":"chewbacca","password":"aeqfq3fq","role":"role_user","created_at":"2021-05-12T12:37:56"}"#,
+            r#"{"id":-1,"username":"chewbacca","user_uuid":"00000000-0000-0000-0000-000000000001","created_at":"2021-05-12T12:37:56"}"#,
         );
         assert!(mb_user.is_err());
         let mb_user = serde_json::from_str::<User>(
-            r#"{"id":1,"username":"ch","password":"aeqfq3fq","role":"role_user","created_at":"2021-05-12T12:37:56"}"#,
+            r#"{"id":1,"username":"ch","user_uuid":"00000000-0000-0000-0000-000000000001","created_at":"2021-05-12T12:37:56"}"#,
         );
         assert!(mb_user.is_err());
         let mb_user = serde_json::from_str::<User>(
-            r#"{"id":1,"username":"chaegw;eaef","password":"aeqfq3fq","role":"role_user","created_at":"2021-05-12T12:37:56"}"#,
+            r#"{"id":1,"username":"chaegw;eaef","user_uuid":"00000000-0000-0000-0000-000000000001","created_at":"2021-05-12T12:37:56"}"#,
         );
         assert!(mb_user.is_err());
         let mb_user = serde_json::from_str::<User>(
-            r#"{"id":1,"username":"chaegw eaef","password":"aeqfq3fq","role":"role_user","created_at":"2021-05-12T12:37:56"}"#,
+            r#"{"id":1,"username":"chaegw eaef","user_uuid":"00000000-0000-0000-0000-000000000001","created_at":"2021-05-12T12:37:56"}"#,
         );
         assert!(mb_user.is_err());
     }
@@ -554,7 +610,7 @@ mod test {
     #[test]
     fn user_model_conversion_test() {
         let user = serde_json::from_str::<User>(
-            r#"{"id":1,"username":"chewbacca","password":"aeqfq3fq", "role":"role_user", "created_at":"2021-05-12T12:37:56"}"#,
+            r#"{"id":1,"username":"chewbacca","user_uuid":"00000000-0000-0000-0000-000000000001","created_at":"2021-05-12T12:37:56"}"#,
         ).unwrap();
         let roles = vec![RoleEnum::RoleUser];
         let ur = UserWithRoles::from_user(&user, &roles);

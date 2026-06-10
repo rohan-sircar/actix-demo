@@ -5,6 +5,7 @@ mod tests {
     use super::*;
     use actix_demo::models::misc::ErrorResponse;
     use actix_web::http::StatusCode;
+    use std::str::FromStr;
 
     mod get_users_api {
 
@@ -117,9 +118,15 @@ mod tests {
             .await
             .unwrap();
 
+            let non_existent_uuid =
+                actix_demo::models::users::UserUuid::from_str(
+                    "00000000-0000-0000-0000-000000000055",
+                )
+                .unwrap();
+
             let mut resp = ctx
                 .test_server
-                .get("/api/admin/users/55")
+                .get(format!("/api/admin/users/{}", non_existent_uuid))
                 .with_token(&token)
                 .send()
                 .await
@@ -130,7 +137,7 @@ mod tests {
             let _ = tracing::debug!("{:?}", body);
             assert_eq!(
                 &body.cause,
-                "Entity does not exist - No user found with uid: 55"
+                "Entity does not exist - No user found with uuid: 00000000-0000-0000-0000-000000000055"
             );
         }
 
@@ -306,15 +313,16 @@ mod tests {
 
                 let mut conn = ctx.app_data.pool.get().unwrap();
 
-                let uid: i32 = users::table
-                    .filter(users::username.eq("admin"))
-                    .select(users::id)
-                    .first(&mut conn)
-                    .unwrap();
+                let user_uuid: actix_demo::models::users::UserUuid =
+                    users::table
+                        .filter(users::username.eq("admin"))
+                        .select(users::user_uuid)
+                        .first(&mut conn)
+                        .unwrap();
 
                 let resp = ctx
                     .test_server
-                    .get(format!("/api/public/profiles/{}", uid))
+                    .get(format!("/api/public/profiles/{}", user_uuid))
                     .with_token(&admin_token)
                     .send()
                     .await
@@ -346,11 +354,12 @@ mod tests {
 
                 let mut conn = ctx.app_data.pool.get().unwrap();
 
-                let uid: i32 = users::table
-                    .filter(users::username.eq("pubprofile"))
-                    .select(users::id)
-                    .first(&mut conn)
-                    .unwrap();
+                let user_uuid: actix_demo::models::users::UserUuid =
+                    users::table
+                        .filter(users::username.eq("pubprofile"))
+                        .select(users::user_uuid)
+                        .first(&mut conn)
+                        .unwrap();
 
                 let admin_token = common::get_http_token(
                     &ctx.addr,
@@ -363,7 +372,7 @@ mod tests {
 
                 let mut resp = ctx
                     .test_server
-                    .get(format!("/api/public/profiles/{}", uid))
+                    .get(format!("/api/public/profiles/{}", user_uuid))
                     .with_token(&admin_token)
                     .send()
                     .await

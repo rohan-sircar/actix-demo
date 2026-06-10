@@ -1,6 +1,7 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 use actix_web_grants::protect;
 use awc::cookie::{Cookie, SameSite};
+use std::str::FromStr;
 use time::OffsetDateTime;
 use utoipa::ToSchema;
 
@@ -10,7 +11,7 @@ use crate::models::misc::Pagination;
 use crate::models::roles::RoleEnum;
 use crate::models::users::{
     CreateProfile, NewUser, PublicProfile, UpdateProfile, UpdateUserProfile,
-    UserId,
+    UserUuid,
 };
 use crate::services::email::tokens;
 use crate::{actions, utils};
@@ -21,27 +22,29 @@ use crate::{errors::DomainError, AppData};
     path = "/api/public/users/{user_id}",
     tag = "users",
     params(
-        ("user_id" = UserId, Path, description = "User ID"),
+        ("user_id" = String, Path, description = "User UUID"),
     ),
     responses(
         (status = 200, description = "User found", body = User),
         (status = 404, description = "User not found", body = ErrorResponseString),
     ),
 )]
-/// Finds user by UID.
+/// Finds user by UUID.
 #[protect("RoleEnum::RoleAdmin", ty = RoleEnum)]
-#[tracing::instrument(level = "info", skip_all)]
+#[tracing::instrument(level = "info", skip_all, fields(user_id))]
 pub async fn get_user(
     app_data: web::Data<AppData>,
-    user_id: web::Path<UserId>,
+    user_id: web::Path<String>,
 ) -> Result<HttpResponse, DomainError> {
-    let user_id = user_id.into_inner();
-    let _ = tracing::info!("Getting user with id {user_id}");
+    let uuid = UserUuid::from_str(&user_id.into_inner()).map_err(|err| {
+        DomainError::new_bad_input_error(format!("Invalid UserUuid: {err}"))
+    })?;
+    let _ = tracing::info!("Getting user with uuid {uuid}");
     // use web::block to offload blocking Diesel code without blocking server thread
     let res = web::block(move || {
         let pool = &app_data.pool;
         let mut conn = pool.get()?;
-        actions::users::find_user_by_uid(&user_id, &mut conn)
+        actions::users::find_user_by_uuid(&uuid, &mut conn)
     })
     .await??;
     let _ = tracing::debug!("{:?}", res);
@@ -51,8 +54,8 @@ pub async fn get_user(
     } else {
         let _ = tracing::warn!("Could not find user");
         let err = DomainError::new_entity_does_not_exist_error(format!(
-            "No user found with uid: {}",
-            user_id
+            "No user found with uuid: {}",
+            uuid
         ));
         Err(err)
     }
@@ -73,7 +76,7 @@ pub async fn get_user(
     ),
 )]
 #[protect("RoleEnum::RoleAdmin", ty = RoleEnum)]
-#[tracing::instrument(level = "info", skip_all)]
+#[tracing::instrument(level = "info", skip_all, fields(pagination))]
 pub async fn get_users(
     app_data: web::Data<AppData>,
     pagination: web::Query<Pagination>,
@@ -195,14 +198,14 @@ pub struct UploadAvatarRequest {
     ),
 )]
 /// Upload user avatar
-#[tracing::instrument(level = "info", skip_all)]
+#[tracing::instrument(level = "info", skip_all, fields(user_uuid))]
 pub async fn upload_user_avatar(
     app_data: web::Data<AppData>,
     req: HttpRequest,
     payload: web::Payload,
 ) -> Result<HttpResponse, DomainError> {
-    // Get user ID from header
-    let user_id = utils::extract_user_id_from_header(req.headers())?;
+    // Get user UUID from header
+    let user_uuid = utils::extract_user_uuid_from_header(req.headers())?;
 
     // Get and validate content type
     let content_type =
@@ -218,7 +221,7 @@ pub async fn upload_user_avatar(
     )
     .await?;
 
-    let object_key = format!("avatars/{user_id}");
+    let object_key = format!("avatars/{user_uuid}");
     // Upload to MinIO
     let _ = app_data
         .minio
@@ -254,13 +257,13 @@ pub async fn delete_user_avatar(
     app_data: web::Data<AppData>,
     req: HttpRequest,
 ) -> Result<HttpResponse, DomainError> {
-    let user_id = utils::extract_user_id_from_header(req.headers())?;
+    let user_uuid = utils::extract_user_uuid_from_header(req.headers())?;
 
     let bucket = app_data.config.minio.bucket_name.clone();
     let minio_client = app_data.minio.client.clone();
 
     actions::users::delete_user_avatar(
-        &user_id,
+        &user_uuid,
         &minior::Minio {
             client: minio_client,
         },
@@ -276,7 +279,7 @@ pub async fn delete_user_avatar(
     path = "/api/public/avatars/{user_id}",
     tag = "users",
     params(
-        ("user_id" = UserId, Path, description = "User ID"),
+        ("user_id" = String, Path, description = "User UUID"),
     ),
     responses(
         (status = 200, description = "Avatar image"),
@@ -287,10 +290,12 @@ pub async fn delete_user_avatar(
 #[tracing::instrument(level = "info", skip(app_data))]
 pub async fn get_user_avatar(
     app_data: web::Data<AppData>,
-    user_id: web::Path<UserId>,
+    user_id: web::Path<String>,
 ) -> Result<HttpResponse, DomainError> {
-    let user_id = user_id.into_inner();
-    let _ = tracing::info!("Getting avatar for user {user_id}");
+    let uuid = UserUuid::from_str(&user_id.into_inner()).map_err(|err| {
+        DomainError::new_bad_input_error(format!("Invalid UserUuid: {err}"))
+    })?;
+    let _ = tracing::info!("Getting avatar for user {uuid}");
 
     // Get the object from MinIO
     let object = app_data
@@ -298,7 +303,7 @@ pub async fn get_user_avatar(
         .client
         .get_object()
         .bucket(&app_data.config.minio.bucket_name)
-        .key(format!("avatars/{user_id}"))
+        .key(format!("avatars/{uuid}"))
         .send()
         .await
         .map_err(|err| DomainError::new_internal_error(format!("{err:?}")))?;
@@ -333,12 +338,12 @@ pub async fn get_my_profile(
     req: HttpRequest,
     app_data: web::Data<AppData>,
 ) -> Result<HttpResponse, DomainError> {
-    let user_id = utils::extract_user_id_from_header(req.headers())?;
+    let user_uuid = utils::extract_user_uuid_from_header(req.headers())?;
 
     let res = web::block(move || {
         let pool = &app_data.pool;
         let mut conn = pool.get()?;
-        actions::users::find_active_user_by_uid(&user_id, &mut conn)
+        actions::users::find_active_user_by_uuid(&user_uuid, &mut conn)
     })
     .await??;
 
@@ -371,7 +376,7 @@ pub async fn update_my_profile(
     app_data: web::Data<AppData>,
     form: web::Json<UpdateUserProfile>,
 ) -> Result<HttpResponse, DomainError> {
-    let user_id = utils::extract_user_id_from_header(req.headers())?;
+    let user_uuid = utils::extract_user_uuid_from_header(req.headers())?;
     let has_email = form.0.email.is_some();
 
     if *form == UpdateUserProfile::default() {
@@ -387,7 +392,7 @@ pub async fn update_my_profile(
     let user = web::block(move || {
         let pool = &app_data.pool;
         let mut conn = pool.get()?;
-        actions::users::update_user_profile(&user_id, form.0, &mut conn)
+        actions::users::update_user_profile(&user_uuid, form.0, &mut conn)
     })
     .await??;
 
@@ -448,26 +453,26 @@ pub async fn update_my_profile(
 )]
 /// Delete the authenticated user's account (soft delete).
 /// Clears all sessions and avatar. Orphans associated jobs.
-#[tracing::instrument(level = "info", skip_all)]
+#[tracing::instrument(level = "info", skip_all, fields(user_uuid))]
 pub async fn delete_my_account(
     req: HttpRequest,
     app_data: web::Data<AppData>,
 ) -> Result<HttpResponse, DomainError> {
-    let user_id = utils::extract_user_id_from_header(req.headers())?;
+    let user_uuid = utils::extract_user_uuid_from_header(req.headers())?;
 
     let pool = app_data.pool.clone();
     web::block(move || {
         let mut conn = pool.get()?;
-        actions::users::soft_delete_user(&user_id, &mut conn)
+        actions::users::soft_delete_user(&user_uuid, &mut conn)
     })
     .await??;
 
     if let Err(e) = app_data
         .credentials_repo
-        .delete_all_sessions(&user_id)
+        .delete_all_sessions(&user_uuid)
         .await
     {
-        tracing::error!(error = %e, user_id = %user_id, "Failed to delete sessions during account deletion");
+        tracing::error!(error = %e, user_uuid = %user_uuid, "Failed to delete sessions during account deletion");
     }
 
     let bucket = app_data.config.minio.bucket_name.clone();
@@ -475,9 +480,9 @@ pub async fn delete_my_account(
         client: app_data.minio.client.clone(),
     };
     if let Err(e) =
-        actions::users::delete_user_avatar(&user_id, &minio, &bucket).await
+        actions::users::delete_user_avatar(&user_uuid, &minio, &bucket).await
     {
-        tracing::error!(error = %e, user_id = %user_id, "Failed to delete avatar during account deletion");
+        tracing::error!(error = %e, user_uuid = %user_uuid, "Failed to delete avatar during account deletion");
     }
 
     let cookie = Cookie::build("X-AUTH-TOKEN", "")
@@ -496,7 +501,7 @@ pub async fn delete_my_account(
     path = "/api/public/profiles/{user_id}",
     tag = "users",
     params(
-        ("user_id" = UserId, Path, description = "User ID"),
+        ("user_id" = String, Path, description = "User UUID"),
     ),
     responses(
         (status = 200, description = "Public profile found", body = PublicProfile),
@@ -504,16 +509,18 @@ pub async fn delete_my_account(
     ),
 )]
 /// Get a user's public profile.
-#[tracing::instrument(level = "info", skip_all, fields(user_id))]
+#[tracing::instrument(level = "info", skip_all, fields(user_uuid))]
 pub async fn get_public_profile(
     app_data: web::Data<AppData>,
-    user_id: web::Path<UserId>,
+    user_id: web::Path<String>,
 ) -> Result<HttpResponse, DomainError> {
-    let user_id = user_id.into_inner();
+    let uuid = UserUuid::from_str(&user_id.into_inner()).map_err(|err| {
+        DomainError::new_bad_input_error(format!("Invalid UserUuid: {err}"))
+    })?;
     let res = web::block(move || {
         let pool = &app_data.pool;
         let mut conn = pool.get()?;
-        actions::users::get_public_profile(&user_id, &mut conn)
+        actions::users::get_public_profile(&uuid, &mut conn)
     })
     .await??;
 
@@ -531,17 +538,17 @@ pub async fn get_public_profile(
 )]
 /// Get the authenticated user's profile.
 #[protect("RoleEnum::RoleUser", ty = RoleEnum)]
-#[tracing::instrument(level = "info", skip_all)]
+#[tracing::instrument(level = "info", skip_all, fields(user_uuid))]
 pub async fn get_user_profile(
     req: HttpRequest,
     app_data: web::Data<AppData>,
 ) -> Result<HttpResponse, DomainError> {
-    let user_id = utils::extract_user_id_from_header(req.headers())?;
+    let user_uuid = utils::extract_user_uuid_from_header(req.headers())?;
 
     let res = web::block(move || {
         let pool = &app_data.pool;
         let mut conn = pool.get()?;
-        actions::users::get_profile(&user_id, &mut conn)
+        actions::users::get_profile(&user_uuid, &mut conn)
     })
     .await??;
 
@@ -550,7 +557,7 @@ pub async fn get_user_profile(
             Ok(HttpResponse::Ok().json(PublicProfile::from(&profile)))
         }
         None => Ok(HttpResponse::Ok().json(PublicProfile {
-            user_id,
+            user_uuid,
             bio: None,
             display_name: None,
             location: None,
@@ -580,13 +587,13 @@ pub async fn create_user_profile(
     app_data: web::Data<AppData>,
     form: web::Json<CreateProfile>,
 ) -> Result<HttpResponse, DomainError> {
-    let user_id = utils::extract_user_id_from_header(req.headers())?;
+    let user_uuid = utils::extract_user_uuid_from_header(req.headers())?;
     let create = form.into_inner();
 
     let res = web::block(move || {
         let pool = &app_data.pool;
         let mut conn = pool.get()?;
-        actions::users::create_profile(&user_id, create, &mut conn)
+        actions::users::create_profile(&user_uuid, create, &mut conn)
     })
     .await??;
 
@@ -612,13 +619,13 @@ pub async fn update_user_profile(
     app_data: web::Data<AppData>,
     form: web::Json<UpdateProfile>,
 ) -> Result<HttpResponse, DomainError> {
-    let user_id = utils::extract_user_id_from_header(req.headers())?;
+    let user_uuid = utils::extract_user_uuid_from_header(req.headers())?;
     let updates = form.into_inner();
 
     let res = web::block(move || {
         let pool = &app_data.pool;
         let mut conn = pool.get()?;
-        actions::users::update_profile(&user_id, updates, &mut conn)
+        actions::users::update_profile(&user_uuid, updates, &mut conn)
     })
     .await??;
 

@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 use crate::errors::DomainError;
 use crate::models::session::{SessionInfo, SessionStatus};
-use crate::models::users::UserId;
+use crate::models::users::UserUuid;
 
 #[derive(new, Clone)]
 pub struct RedisCredentialsRepo {
@@ -18,26 +18,26 @@ pub struct RedisCredentialsRepo {
 }
 
 impl RedisCredentialsRepo {
-    pub fn get_key(&self, user_id: &UserId) -> String {
-        format!("{}.{user_id}", self.base_key)
+    pub fn get_key(&self, user_uuid: &UserUuid) -> String {
+        format!("{}.{user_uuid}", self.base_key)
     }
 
     // We'll use a separate key for tracking token expiration
     pub fn get_expiry_key(
         &self,
-        user_id: &UserId,
+        user_uuid: &UserUuid,
         session_id: &Uuid,
     ) -> String {
-        format!("{}.expiry.{user_id}.{session_id}", self.base_key)
+        format!("{}.expiry.{user_uuid}.{session_id}", self.base_key)
     }
 
     // Method to check if a token is expired
     pub async fn is_token_expired(
         &self,
-        user_id: &UserId,
+        user_uuid: &UserUuid,
         session_id: &Uuid,
     ) -> Result<SessionStatus, DomainError> {
-        let expiry_key = self.get_expiry_key(user_id, session_id);
+        let expiry_key = self.get_expiry_key(user_uuid, session_id);
         let exists: bool =
             self.redis.clone().exists(expiry_key).await.map_err(|err| {
                 DomainError::new_internal_error(format!(
@@ -50,12 +50,12 @@ impl RedisCredentialsRepo {
     // Load a specific session by token
     pub async fn load_session(
         &self,
-        user_id: &UserId,
+        user_uuid: &UserUuid,
         session_id: &Uuid,
     ) -> Result<Option<SessionInfo>, DomainError> {
-        let session_key = self.get_key(user_id);
+        let session_key = self.get_key(user_uuid);
         let session_id_str = session_id.to_string();
-        let expiry_key = self.get_expiry_key(user_id, session_id);
+        let expiry_key = self.get_expiry_key(user_uuid, session_id);
 
         let mut pipe = redis::pipe();
         pipe.hget(&session_key, &session_id_str).ttl(&expiry_key);
@@ -88,9 +88,9 @@ impl RedisCredentialsRepo {
     // Load all sessions for a user
     pub async fn load_all_sessions(
         &self,
-        user_id: &UserId,
+        user_uuid: &UserUuid,
     ) -> Result<HashMap<Uuid, SessionInfo>, DomainError> {
-        let key = self.get_key(user_id);
+        let key = self.get_key(user_uuid);
         let sessions: HashMap<String, String> =
             self.redis.clone().hgetall(key).await.map_err(|err| {
                 DomainError::new_internal_error(format!(
@@ -111,7 +111,7 @@ impl RedisCredentialsRepo {
                     ))
                 })?;
             let session_id = Uuid::parse_str(&session_id).unwrap();
-            let expiry_key = self.get_expiry_key(user_id, &session_id);
+            let expiry_key = self.get_expiry_key(user_uuid, &session_id);
             expiry_keys.push(expiry_key.clone());
             pipe.ttl(&expiry_key);
             result.insert(session_id, session_info);
@@ -137,7 +137,7 @@ impl RedisCredentialsRepo {
         }
         // Update active sessions metric for this user
         self.active_sessions
-            .with_label_values(&[&user_id.to_string()])
+            .with_label_values(&[&user_uuid.to_string()])
             .set(result.len() as f64);
 
         Ok(result)
@@ -146,14 +146,14 @@ impl RedisCredentialsRepo {
     // Create a new session for a user. Will error if session already exists or max sessions exceeded.
     pub async fn create_session(
         &self,
-        user_id: &UserId,
+        user_uuid: &UserUuid,
         session_id: &Uuid,
         session_info: &SessionInfo,
         ttl_seconds: u64,
     ) -> Result<(), DomainError> {
-        let key = self.get_key(user_id);
+        let key = self.get_key(user_uuid);
         let session_id_str = session_id.to_string();
-        let expiry_key = self.get_expiry_key(user_id, session_id);
+        let expiry_key = self.get_expiry_key(user_uuid, session_id);
 
         // Create pipeline to check session existence and get count
         let mut pipe = redis::pipe();
@@ -212,7 +212,7 @@ impl RedisCredentialsRepo {
 
         // Update active sessions metric for this user
         self.active_sessions
-            .with_label_values(&[&user_id.to_string()])
+            .with_label_values(&[&user_uuid.to_string()])
             .set(count as f64);
 
         Ok(())
@@ -221,13 +221,13 @@ impl RedisCredentialsRepo {
     // Update an existing session. Will error if session does not exist.
     pub async fn update_session(
         &self,
-        user_id: &UserId,
+        user_uuid: &UserUuid,
         session_id: &Uuid,
         session_info: &SessionInfo,
     ) -> Result<(), DomainError> {
-        let key = self.get_key(user_id);
+        let key = self.get_key(user_uuid);
         let session_id_str = session_id.to_string();
-        let expiry_key = self.get_expiry_key(user_id, session_id);
+        let expiry_key = self.get_expiry_key(user_uuid, session_id);
 
         // Check if session exists
         let exists: bool = self
@@ -311,13 +311,13 @@ impl RedisCredentialsRepo {
     // Update last used time for a session
     pub async fn update_session_last_used_ws(
         &self,
-        user_id: &UserId,
+        user_uuid: &UserUuid,
         session_id: &Uuid,
     ) -> Result<(), DomainError> {
-        let mb_session_info = self.load_session(user_id, session_id).await?;
+        let mb_session_info = self.load_session(user_uuid, session_id).await?;
 
         if let Some(session_info) = mb_session_info {
-            self.update_session_last_used(session_id, session_info, user_id)
+            self.update_session_last_used(session_id, session_info, user_uuid)
                 .await?;
         }
 
@@ -329,12 +329,12 @@ impl RedisCredentialsRepo {
         &self,
         session_id: &Uuid,
         mut session_info: SessionInfo,
-        user_id: &UserId,
+        user_uuid: &UserUuid,
     ) -> Result<SessionInfo, DomainError> {
         session_info.last_used_at = chrono::Utc::now().naive_utc();
 
         // Update the session info and refresh the expiry
-        self.update_session(user_id, session_id, &session_info)
+        self.update_session(user_uuid, session_id, &session_info)
             .await?;
 
         Ok(session_info)
@@ -343,10 +343,10 @@ impl RedisCredentialsRepo {
     // Delete a specific session
     pub async fn delete_session(
         &self,
-        user_id: &UserId,
+        user_uuid: &UserUuid,
         session_id: &Uuid,
     ) -> Result<(), DomainError> {
-        let key = self.get_key(user_id);
+        let key = self.get_key(user_uuid);
         let session_id_str = session_id.to_string();
 
         let mut pipe = redis::pipe();
@@ -363,7 +363,7 @@ impl RedisCredentialsRepo {
 
         // Update active sessions metric for this user
         self.active_sessions
-            .with_label_values(&[&user_id.to_string()])
+            .with_label_values(&[&user_uuid.to_string()])
             .set(count as f64);
 
         Ok(())
@@ -372,9 +372,9 @@ impl RedisCredentialsRepo {
     // Delete all sessions for a user
     pub async fn delete_all_sessions(
         &self,
-        user_id: &UserId,
+        user_uuid: &UserUuid,
     ) -> Result<(), DomainError> {
-        let key = self.get_key(user_id);
+        let key = self.get_key(user_uuid);
 
         let mut pipe = redis::pipe();
         pipe.atomic().del(&key).hlen(&key);
@@ -390,7 +390,7 @@ impl RedisCredentialsRepo {
 
         // Update active sessions metric for this user
         self.active_sessions
-            .with_label_values(&[&user_id.to_string()])
+            .with_label_values(&[&user_uuid.to_string()])
             .set(count as f64);
 
         Ok(())
@@ -399,9 +399,9 @@ impl RedisCredentialsRepo {
     // Add a cleanup method to be called periodically or during token validation
     pub async fn cleanup_expired_session_ids(
         &self,
-        user_id: &UserId,
+        user_uuid: &UserUuid,
     ) -> Result<(), DomainError> {
-        let key = self.get_key(user_id);
+        let key = self.get_key(user_uuid);
 
         // Get all session_ids for this user
         let session_ids: Vec<String> =
@@ -418,7 +418,7 @@ impl RedisCredentialsRepo {
         for session_id_str in session_ids {
             let session_id = Uuid::parse_str(&session_id_str)
                 .expect("Expected valid session_id");
-            let expiry_key = self.get_expiry_key(user_id, &session_id);
+            let expiry_key = self.get_expiry_key(user_uuid, &session_id);
             let exists: bool =
                 self.redis.clone().exists(expiry_key).await.map_err(|err| {
                     DomainError::new_internal_error(format!(
@@ -447,7 +447,7 @@ impl RedisCredentialsRepo {
 
             // Update active sessions metric for this user
             self.active_sessions
-                .with_label_values(&[&user_id.to_string()])
+                .with_label_values(&[&user_uuid.to_string()])
                 .set(count as f64);
 
             let _ = tracing::info!("Removed {expired_count} expired sessions, {count} active sessions remaining");

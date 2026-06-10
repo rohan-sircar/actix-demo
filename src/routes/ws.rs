@@ -22,7 +22,7 @@ use super::auth::validate_token;
 #[tracing::instrument(
     level = "info",
     skip_all,
-    fields(auth_user_id, device_id)
+    fields(auth_user_uuid, device_id)
 )]
 pub async fn ws(
     req: HttpRequest,
@@ -46,38 +46,40 @@ pub async fn ws(
 
     let _ = tracing::debug!("Validating JWT claims");
     let claims = utils::get_claims(&app_data.jwt_key, &token)?;
-    let user_id = claims.custom.user_id;
+    let user_uuid = claims.custom.user_uuid;
     let device_id = claims.custom.device_id.clone();
     let session_id = claims.custom.session_id;
 
-    let _ = tracing::debug!("Successfully validated claims for user {user_id} on device {device_id}");
+    let _ = tracing::debug!("Successfully validated claims for user {user_uuid} on device {device_id}");
 
-    let _ = tracing::Span::current().record("auth_user_id", user_id.as_uint());
+    let _ = tracing::Span::current()
+        .record("auth_user_uuid", user_uuid.to_string());
     let _ = tracing::Span::current().record("device_id", &device_id);
 
     // Load session info to get device name for logging
-    let session_info =
-        credentials_repo.load_session(&user_id, &session_id).await?;
+    let session_info = credentials_repo
+        .load_session(&user_uuid, &session_id)
+        .await?;
     if let Some(info) = session_info {
         if let Some(device_name) = &info.device_name {
             let _ = tracing::info!(
-                "Initiating websocket connection for user {user_id} on device {device_id} ({device_name})"
+                "Initiating websocket connection for user {user_uuid} on device {device_id} ({device_name})"
             );
         } else {
             let _ = tracing::info!(
-                "Initiating websocket connection for user {user_id} on device {device_id}"
+                "Initiating websocket connection for user {user_uuid} on device {device_id}"
             );
         }
     } else {
         let _ = tracing::info!(
-            "Initiating websocket connection for user {user_id} on device {device_id}"
+            "Initiating websocket connection for user {user_uuid} on device {device_id}"
         );
     }
 
     let (response, session, msg_stream) = actix_ws::handle(&req, body)?;
 
     let _ = tracing::info!(
-        "Websocket connection established for user {user_id} on device {device_id}"
+        "Websocket connection established for user {user_uuid} on device {device_id}"
     );
 
     let session2 = session.clone();
@@ -88,20 +90,20 @@ pub async fn ws(
     let app_data2 = app_data.clone().into_inner();
     let handles = Rc::new(RefCell::new(Vec::new()));
 
-    let _ = tracing::info!("Starting message receiver for user {user_id}");
+    let _ = tracing::info!("Starting message receiver for user {user_uuid}");
     let msg_receiver = Rc::new(actix_rt::spawn(
         async move {
             let _ = tracing::debug!("Entering message receive loop");
             let res =
-                utils::ws::msg_receive_loop(user_id, cm, session2, app_data2)
+                utils::ws::msg_receive_loop(user_uuid, cm, session2, app_data2)
                     .await;
             let _ = match res {
                 Ok(_) => {
-                    let _ = tracing::info!("Message receive loop ended successfully for user {user_id}");
+                    let _ = tracing::info!("Message receive loop ended successfully for user {user_uuid}");
                 }
                 Err(err) => {
                     let _ = tracing::error!(
-                        "Message receive loop ended with error for user {user_id}: {err:?}"
+                        "Message receive loop ended with error for user {user_uuid}: {err:?}"
                     );
                 }
             };
@@ -115,7 +117,7 @@ pub async fn ws(
     let session2 = session.clone();
     let mut pub_cm =
         utils::get_new_redis_conn(app_data.clone().into_inner()).await?;
-    let _ = tracing::info!("Connected to Redis PubSub for user {}", user_id);
+    let _ = tracing::info!("Connected to Redis PubSub for user {}", user_uuid);
 
     // Store device_id for use in the heartbeat
     let device_id_clone = device_id.clone();
@@ -127,12 +129,12 @@ pub async fn ws(
     // 2. Handles graceful shutdown on errors
     let ws_loop = Rc::new(actix_rt::spawn(
         async move {
-            tracing::info!("Starting websocket loop for user {} on device {}", user_id, device_id_clone);
+            tracing::info!("Starting websocket loop for user {} on device {}", user_uuid, device_id_clone);
             let res = utils::ws::ws_loop(
                 session2.clone(),
                 msg_stream,
                 &mut pub_cm,
-                user_id,
+                user_uuid,
                 app_data.into_inner().clone(),
             )
             .await;
@@ -140,22 +142,22 @@ pub async fn ws(
                 Ok(_) => {
                     let _ = tracing::info!(
                         "Websocket connection ended successfully for user {} on device {}",
-                        user_id,
+                        user_uuid,
                         device_id_clone
                     );
                 }
                 Err(err) => {
                     let _ = tracing::error!(
                         "Websocket connection ended with error for user {} on device {}: {err:?}",
-                        user_id,
+                        user_uuid,
                         device_id_clone
                     );
                 }
             };
 
-            let _ = tracing::debug!("Closing WebSocket session for user {} on device {}", user_id, device_id_clone);
+            let _ = tracing::debug!("Closing WebSocket session for user {} on device {}", user_uuid, device_id_clone);
             let _ = session2.close(None).await;
-            let _ = tracing::debug!("Aborting message receiver for user {} on device {}", user_id, device_id_clone);
+            let _ = tracing::debug!("Aborting message receiver for user {} on device {}", user_uuid, device_id_clone);
             let _ = msg_receiver.abort();
         }
         .instrument(tracing::info_span!("ws_loop", device_id = device_id.clone())),
@@ -176,26 +178,26 @@ pub async fn ws(
     // 4. Refreshes the session TTL
     let _hb = actix_rt::spawn(
         async move {
-            let _ = tracing::debug!("Starting heartbeat for user {} on device {}", user_id, device_id_clone);
+            let _ = tracing::debug!("Starting heartbeat for user {} on device {}", user_uuid, device_id_clone);
             loop {
                 sleep(Duration::from_secs(30)).await;
                 // Refresh session TTL on each heartbeat
-                let refresh_result = credentials_repo_clone.update_session_last_used_ws(&user_id, &session_id).await;
+                let refresh_result = credentials_repo_clone.update_session_last_used_ws(&user_uuid, &session_id).await;
                 if let Err(err) = refresh_result {
                     let _ = tracing::warn!("Failed to refresh session for user {} on device {}: {:?}",
-                        user_id, device_id_clone, err
+                        user_uuid, device_id_clone, err
                     );
                 }
                 if session2.ping(b"").await.is_err() {
                     let _ = tracing::warn!(
                         "Heartbeat failed for user {} on device {}, cleaning up resources",
-                        user_id, device_id_clone);for h in handles.borrow().iter() {
+                        user_uuid, device_id_clone);for h in handles.borrow().iter() {
                         h.abort();
                     }
                     break;
                 }
             }
-            let _ = tracing::debug!("Heartbeat stopped for user {} on device {}", user_id, device_id_clone);
+            let _ = tracing::debug!("Heartbeat stopped for user {} on device {}", user_uuid, device_id_clone);
         }
         .instrument(tracing::info_span!("ws_hb", device_id = device_id.clone())),
     );

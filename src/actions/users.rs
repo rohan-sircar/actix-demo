@@ -6,13 +6,40 @@ use crate::models::roles::{NewUserRole, RoleEnum, RoleId};
 use crate::models::users::{
     CreateProfile, Email, NewUser, OAuthProvider, OAuthUserLookup, Password,
     Profile, PublicProfile, UpdateProfile, UpdateUserProfile, User,
-    UserAuthDetails, UserAuthDetailsWithRoles, UserId, UserWithRoles, Username,
+    UserAuthDetails, UserAuthDetailsWithRoles, UserId, UserUuid, UserWithRoles,
+    Username,
 };
 use crate::types::DbConnection;
 use crate::utils::InstrumentedRedisCache;
 use bcrypt::hash;
 use do_notation::m;
 use validators::prelude::*;
+
+/// Resolves a UserUuid to a UserId (integer ID).
+pub fn resolve_user_id_by_uuid(
+    uuid: &UserUuid,
+    conn: &mut DbConnection,
+) -> Result<Option<UserId>, DomainError> {
+    use crate::schema::users::dsl as users;
+    let user_id = users::users
+        .select(users::id)
+        .filter(users::user_uuid.eq(uuid))
+        .first::<UserId>(conn)
+        .optional()?;
+    Ok(user_id)
+}
+
+/// Resolves a UserUuid to a UserId, returning an entity not found error if not found.
+pub fn get_user_id_by_uuid(
+    uuid: &UserUuid,
+    conn: &mut DbConnection,
+) -> Result<UserId, DomainError> {
+    resolve_user_id_by_uuid(uuid, conn)?.ok_or_else(|| {
+        DomainError::new_entity_does_not_exist_error(
+            "User not found".to_string(),
+        )
+    })
+}
 
 pub fn get_roles_for_user(
     uid: &UserId,
@@ -40,8 +67,8 @@ pub fn get_roles_for_users(
         .collect::<Result<Vec<UserWithRoles>, DomainError>>()
 }
 
-pub fn find_user_by_uid(
-    uid: &UserId,
+pub fn find_user_by_uuid(
+    uuid: &UserUuid,
     conn: &mut DbConnection,
 ) -> Result<Option<UserWithRoles>, DomainError> {
     use crate::schema::users::dsl as users;
@@ -53,20 +80,26 @@ pub fn find_user_by_uid(
                 users::username,
                 users::created_at,
                 users::deleted_at,
+                users::user_uuid,
             ))
-            .filter(users::id.eq(uid))
+            .filter(users::user_uuid.eq(uuid))
             .first::<User>(conn)
             .optional()?;
 
-        let roles = get_roles_for_user(uid, conn)?;
+        let roles = mb_user
+            .as_ref()
+            .map(|u| get_roles_for_user(&u.id, conn))
+            .transpose()?;
 
-        Ok(mb_user.map(|user| UserWithRoles::from_user(&user, &roles)))
+        Ok(mb_user.map(|user| {
+            UserWithRoles::from_user(&user, &roles.unwrap_or_default())
+        }))
     })
 }
 
-/// Like `find_user_by_uid` but excludes soft-deleted users.
-pub fn find_active_user_by_uid(
-    uid: &UserId,
+/// Like `find_user_by_uuid` but excludes soft-deleted users.
+pub fn find_active_user_by_uuid(
+    uuid: &UserUuid,
     conn: &mut DbConnection,
 ) -> Result<Option<UserWithRoles>, DomainError> {
     use crate::schema::users::dsl as users;
@@ -78,15 +111,21 @@ pub fn find_active_user_by_uid(
                 users::username,
                 users::created_at,
                 users::deleted_at,
+                users::user_uuid,
             ))
-            .filter(users::id.eq(uid))
+            .filter(users::user_uuid.eq(uuid))
             .filter(users::deleted_at.is_null())
             .first::<User>(conn)
             .optional()?;
 
-        let roles = get_roles_for_user(uid, conn)?;
+        let roles = mb_user
+            .as_ref()
+            .map(|u| get_roles_for_user(&u.id, conn))
+            .transpose()?;
 
-        Ok(mb_user.map(|user| UserWithRoles::from_user(&user, &roles)))
+        Ok(mb_user.map(|user| {
+            UserWithRoles::from_user(&user, &roles.unwrap_or_default())
+        }))
     })
 }
 
@@ -103,6 +142,7 @@ pub fn find_user_by_name(
                 users::username,
                 users::created_at,
                 users::deleted_at,
+                users::user_uuid,
             ))
             .filter(users::username.eq(user_name))
             .filter(users::deleted_at.is_null())
@@ -121,6 +161,7 @@ pub fn find_user_by_name(
                 id: user.id,
                 username: user.username,
                 created_at: user.created_at,
+                user_uuid: user.user_uuid,
                 roles,
             })
         };
@@ -144,6 +185,7 @@ pub fn get_user_auth_details(
                 users::email,
                 users::oauth_provider,
                 users::oauth_uid,
+                users::user_uuid,
             ))
             .filter(users::username.eq(user_name))
             .filter(users::deleted_at.is_null())
@@ -178,6 +220,7 @@ pub fn get_all_users(
                 users::username,
                 users::created_at,
                 users::deleted_at,
+                users::user_uuid,
             ))
             .filter(users::deleted_at.is_null())
             .order_by(users::created_at)
@@ -218,6 +261,20 @@ pub fn get_all_user_ids(
     }
 }
 
+pub fn get_all_user_uuids(
+    conn: &mut DbConnection,
+) -> Result<Vec<UserUuid>, DomainError> {
+    use crate::schema::users::dsl as users;
+
+    let user_uuids = users::users
+        .select(users::user_uuid)
+        .filter(users::deleted_at.is_null())
+        .order_by(users::created_at)
+        .load::<UserUuid>(conn)?;
+
+    Ok(user_uuids)
+}
+
 pub fn search_users(
     query: &str,
     pagination: &Pagination,
@@ -232,6 +289,7 @@ pub fn search_users(
                 users::username,
                 users::created_at,
                 users::deleted_at,
+                users::user_uuid,
             ))
             .filter(users::deleted_at.is_null())
             .filter(users::username.like(format!("%{}%", query)))
@@ -256,6 +314,7 @@ pub fn find_user_by_email(
             users::username,
             users::created_at,
             users::deleted_at,
+            users::user_uuid,
         ))
         .filter(users::email.eq(email))
         .filter(users::deleted_at.is_null())
@@ -274,6 +333,7 @@ pub fn find_user_by_email(
             id: user.id,
             username: user.username,
             created_at: user.created_at,
+            user_uuid: user.user_uuid,
             roles,
         })
     };
@@ -343,6 +403,7 @@ pub fn insert_new_user(
                 users::username,
                 users::created_at,
                 users::deleted_at,
+                users::user_uuid,
             ))
             .filter(users::username.eq(nu.username))
             .filter(users::deleted_at.is_null())
@@ -361,6 +422,7 @@ pub fn insert_new_user(
             id: user.id,
             username: user.username,
             created_at: user.created_at,
+            user_uuid: user.user_uuid,
             roles,
         };
 
@@ -384,29 +446,29 @@ pub fn insert_new_regular_user(
 
 /// Update the authenticated user's profile fields.
 pub fn update_user_profile(
-    user_id: &UserId,
+    uuid: &UserUuid,
     updates: UpdateUserProfile,
     conn: &mut DbConnection,
 ) -> Result<UserWithRoles, DomainError> {
     use crate::schema::users::dsl as users;
 
     conn.transaction(|conn| {
-        let existing = users::users
+        let existing_id = users::users
             .select((users::id, users::deleted_at))
-            .filter(users::id.eq(user_id))
+            .filter(users::user_uuid.eq(uuid))
             .first::<(UserId, Option<chrono::NaiveDateTime>)>(conn)
             .optional()?;
 
-        let existing = match existing {
+        let existing_id = match existing_id {
             None => {
                 return Err(DomainError::new_entity_does_not_exist_error(
-                    format!("User not found: {}", user_id),
+                    format!("User not found: {}", uuid),
                 ))
             }
             Some((_, Some(_))) => {
                 return Err(DomainError::new_account_deleted_error(format!(
                     "User {} is deleted",
-                    user_id
+                    uuid
                 )))
             }
             Some((id, None)) => id,
@@ -419,7 +481,7 @@ pub fn update_user_profile(
                 .select(users::id)
                 .filter(users::username.eq(username))
                 .filter(users::deleted_at.is_null())
-                .filter(users::id.ne(user_id))
+                .filter(users::id.ne(existing_id))
                 .first::<UserId>(conn)
                 .optional()?;
 
@@ -430,7 +492,7 @@ pub fn update_user_profile(
                 )));
             }
 
-            match diesel::update(users::users.filter(users::id.eq(existing)))
+            match diesel::update(users::users.filter(users::id.eq(existing_id)))
                 .set(users::username.eq(username))
                 .execute(conn)
             {
@@ -455,7 +517,7 @@ pub fn update_user_profile(
                 .select(users::id)
                 .filter(users::email.eq(email))
                 .filter(users::deleted_at.is_null())
-                .filter(users::id.ne(user_id))
+                .filter(users::id.ne(existing_id))
                 .first::<UserId>(conn)
                 .optional()?;
 
@@ -466,7 +528,7 @@ pub fn update_user_profile(
                 )));
             }
 
-            match diesel::update(users::users.filter(users::id.eq(existing)))
+            match diesel::update(users::users.filter(users::id.eq(existing_id)))
                 .set(users::email.eq(email))
                 .execute(conn)
             {
@@ -489,11 +551,12 @@ pub fn update_user_profile(
                 users::username,
                 users::created_at,
                 users::deleted_at,
+                users::user_uuid,
             ))
-            .filter(users::id.eq(user_id))
+            .filter(users::id.eq(existing_id))
             .first::<User>(conn)?;
 
-        let roles = get_roles_for_user(user_id, conn)?;
+        let roles = get_roles_for_user(&existing_id, conn)?;
 
         Ok(UserWithRoles::from_user(&user, &roles))
     })
@@ -502,24 +565,24 @@ pub fn update_user_profile(
 /// Soft-delete a user by setting deleted_at timestamp.
 /// Returns an error if the user is already deleted or doesn't exist.
 pub fn soft_delete_user(
-    user_id: &UserId,
+    uuid: &UserUuid,
     conn: &mut DbConnection,
 ) -> Result<(), DomainError> {
     use crate::schema::users::dsl as users;
 
     let existing = users::users
         .select((users::id, users::deleted_at))
-        .filter(users::id.eq(user_id))
+        .filter(users::user_uuid.eq(uuid))
         .first::<(UserId, Option<chrono::NaiveDateTime>)>(conn)
         .optional()?;
 
     match existing {
         None => Err(DomainError::new_entity_does_not_exist_error(format!(
             "User not found: {}",
-            user_id
+            uuid
         ))),
         Some((_, Some(_))) => Err(DomainError::new_account_deleted_error(
-            format!("User {} is already deleted", user_id),
+            format!("User {} is already deleted", uuid),
         )),
         Some((id, None)) => {
             conn.transaction::<_, DomainError, _>(|conn| {
@@ -536,7 +599,7 @@ pub fn soft_delete_user(
                 Ok(())
             })?;
 
-            tracing::info!(user_id = %user_id, "User soft-deleted");
+            tracing::info!(user_uuid = %uuid, "User soft-deleted");
             Ok(())
         }
     }
@@ -545,11 +608,11 @@ pub fn soft_delete_user(
 /// Delete a user's avatar from MinIO.
 /// Non-fatal: returns Ok even if the avatar doesn't exist.
 pub async fn delete_user_avatar(
-    user_id: &UserId,
+    uuid: &UserUuid,
     minio: &minior::Minio,
     bucket_name: &str,
 ) -> Result<(), DomainError> {
-    let object_key = format!("avatars/{}", user_id);
+    let object_key = format!("avatars/{}", uuid);
 
     match minio
         .client
@@ -560,13 +623,13 @@ pub async fn delete_user_avatar(
         .await
     {
         Ok(_) => {
-            tracing::info!(user_id = %user_id, object_key = %object_key, "Avatar deleted from MinIO");
+            tracing::info!(user_uuid = %uuid, object_key = %object_key, "Avatar deleted from MinIO");
             Ok(())
         }
         Err(e) => {
             let err_str = format!("{:?}", e);
             if err_str.contains("404") || err_str.contains("NoSuchKey") {
-                tracing::warn!(user_id = %user_id, object_key = %object_key, "Avatar not found, skipping deletion");
+                tracing::warn!(user_uuid = %uuid, object_key = %object_key, "Avatar not found, skipping deletion");
                 Ok(())
             } else {
                 Err(DomainError::new_internal_error(format!(
@@ -593,6 +656,7 @@ pub fn find_oauth_user_by_email(
             users::password,
             users::oauth_provider,
             users::oauth_uid,
+            users::user_uuid,
         ))
         .filter(users::email.eq(email))
         .filter(users::deleted_at.is_null())
@@ -623,6 +687,7 @@ pub fn find_or_create_oauth_user(
                 users::username,
                 users::created_at,
                 users::deleted_at,
+                users::user_uuid,
             ))
             .filter(users::oauth_provider.eq(Some(provider.clone())))
             .filter(users::oauth_uid.eq(Some(provider_uid.to_string())))
@@ -637,6 +702,7 @@ pub fn find_or_create_oauth_user(
                     id: user.id,
                     username: user.username,
                     created_at: user.created_at,
+                    user_uuid: user.user_uuid,
                     roles,
                 },
                 false,
@@ -652,6 +718,7 @@ pub fn find_or_create_oauth_user(
                 users::deleted_at,
                 users::oauth_provider,
                 users::oauth_uid,
+                users::user_uuid,
             ))
             .filter(users::email.eq(email))
             .filter(users::deleted_at.is_null())
@@ -662,6 +729,7 @@ pub fn find_or_create_oauth_user(
                 Option<chrono::NaiveDateTime>,
                 Option<OAuthProvider>,
                 Option<String>,
+                UserUuid,
             )>(conn)
             .optional()?;
 
@@ -672,6 +740,7 @@ pub fn find_or_create_oauth_user(
             _,
             existing_provider,
             _existing_uid,
+            user_uuid,
         )) = existing_email
         {
             // User exists with email but different or no OAuth provider
@@ -692,6 +761,7 @@ pub fn find_or_create_oauth_user(
                         id: uid,
                         username,
                         created_at,
+                        user_uuid,
                         roles,
                     },
                     false,
@@ -748,6 +818,7 @@ pub fn find_or_create_oauth_user(
                 users::username,
                 users::created_at,
                 users::deleted_at,
+                users::user_uuid,
             ))
             .filter(users::username.eq(&username))
             .filter(users::deleted_at.is_null())
@@ -784,6 +855,7 @@ pub fn find_or_create_oauth_user(
                 id: user.id,
                 username: user.username,
                 created_at: user.created_at,
+                user_uuid: user.user_uuid,
                 roles,
             },
             true,
@@ -792,13 +864,28 @@ pub fn find_or_create_oauth_user(
 }
 
 pub fn get_profile(
-    user_id: &UserId,
+    uuid: &UserUuid,
     conn: &mut DbConnection,
 ) -> Result<Option<Profile>, DomainError> {
     use crate::schema::profiles::dsl as profiles;
+    use crate::schema::users::dsl as users;
 
     let profile = profiles::profiles
-        .filter(profiles::user_id.eq(user_id))
+        .inner_join(users::users.on(users::id.eq(profiles::user_id)))
+        .filter(users::user_uuid.eq(uuid))
+        .select((
+            profiles::id,
+            profiles::user_id,
+            profiles::bio,
+            profiles::display_name,
+            profiles::location,
+            profiles::website_url,
+            profiles::social_github,
+            profiles::social_twitter,
+            profiles::created_at,
+            profiles::updated_at,
+            users::user_uuid,
+        ))
         .first::<Profile>(conn)
         .optional()?;
 
@@ -806,11 +893,22 @@ pub fn get_profile(
 }
 
 pub fn create_profile(
-    user_id: &UserId,
+    uuid: &UserUuid,
     create: CreateProfile,
     conn: &mut DbConnection,
 ) -> Result<Profile, DomainError> {
     use crate::schema::profiles::dsl as profiles;
+    use crate::schema::users::dsl as users;
+
+    let user_id = users::users
+        .select(users::id)
+        .filter(users::user_uuid.eq(uuid))
+        .first::<UserId>(conn)
+        .map_err(|_| {
+            DomainError::new_entity_does_not_exist_error(
+                "User not found".to_string(),
+            )
+        })?;
 
     let bio = create.bio;
     let display_name = create.display_name;
@@ -832,21 +930,46 @@ pub fn create_profile(
         .execute(conn)?;
 
     let profile = profiles::profiles
-        .filter(profiles::user_id.eq(user_id))
+        .inner_join(users::users.on(users::id.eq(profiles::user_id)))
+        .filter(users::user_uuid.eq(uuid))
+        .select((
+            profiles::id,
+            profiles::user_id,
+            profiles::bio,
+            profiles::display_name,
+            profiles::location,
+            profiles::website_url,
+            profiles::social_github,
+            profiles::social_twitter,
+            profiles::created_at,
+            profiles::updated_at,
+            users::user_uuid,
+        ))
         .first::<Profile>(conn)?;
 
     Ok(profile)
 }
 
 pub fn update_profile(
-    user_id: &UserId,
+    uuid: &UserUuid,
     updates: UpdateProfile,
     conn: &mut DbConnection,
 ) -> Result<Profile, DomainError> {
     use crate::schema::profiles::dsl as profiles;
+    use crate::schema::users::dsl as users;
 
-    match get_profile(user_id, conn)? {
-        Some(mut profile) => {
+    let user_id = users::users
+        .select(users::id)
+        .filter(users::user_uuid.eq(uuid))
+        .first::<UserId>(conn)
+        .map_err(|_| {
+            DomainError::new_entity_does_not_exist_error(
+                "User not found".to_string(),
+            )
+        })?;
+
+    let profile = match get_profile(uuid, conn)? {
+        Some(mut p) => {
             let bio = updates.bio.clone();
             let display_name = updates.display_name.clone();
             let location = updates.location.clone();
@@ -855,42 +978,38 @@ pub fn update_profile(
             let social_twitter = updates.social_twitter.clone();
 
             if updates.should_update("bio") {
-                profile.bio = bio;
+                p.bio = bio;
             }
             if updates.should_update("display_name") {
-                profile.display_name = display_name;
+                p.display_name = display_name;
             }
             if updates.should_update("location") {
-                profile.location = location;
+                p.location = location;
             }
             if updates.should_update("website_url") {
-                profile.website_url = website_url;
+                p.website_url = website_url;
             }
             if updates.should_update("social_github") {
-                profile.social_github = social_github;
+                p.social_github = social_github;
             }
             if updates.should_update("social_twitter") {
-                profile.social_twitter = social_twitter;
+                p.social_twitter = social_twitter;
             }
 
             diesel::update(
                 profiles::profiles.filter(profiles::user_id.eq(user_id)),
             )
             .set((
-                profiles::bio.eq(profile.bio.clone()),
-                profiles::display_name.eq(profile.display_name.clone()),
-                profiles::location.eq(profile.location.clone()),
-                profiles::website_url.eq(profile.website_url.clone()),
-                profiles::social_github.eq(profile.social_github.clone()),
-                profiles::social_twitter.eq(profile.social_twitter.clone()),
+                profiles::bio.eq(p.bio.clone()),
+                profiles::display_name.eq(p.display_name.clone()),
+                profiles::location.eq(p.location.clone()),
+                profiles::website_url.eq(p.website_url.clone()),
+                profiles::social_github.eq(p.social_github.clone()),
+                profiles::social_twitter.eq(p.social_twitter.clone()),
             ))
             .execute(conn)?;
 
-            let profile = profiles::profiles
-                .filter(profiles::user_id.eq(user_id))
-                .first::<Profile>(conn)?;
-
-            Ok(profile)
+            p
         }
         None => {
             let bio = updates.bio;
@@ -912,23 +1031,52 @@ pub fn update_profile(
                 ))
                 .execute(conn)?;
 
-            let profile = profiles::profiles
-                .filter(profiles::user_id.eq(user_id))
-                .first::<Profile>(conn)?;
-
-            Ok(profile)
+            profiles::profiles
+                .inner_join(users::users.on(users::id.eq(profiles::user_id)))
+                .filter(users::user_uuid.eq(uuid))
+                .select((
+                    profiles::id,
+                    profiles::user_id,
+                    profiles::bio,
+                    profiles::display_name,
+                    profiles::location,
+                    profiles::website_url,
+                    profiles::social_github,
+                    profiles::social_twitter,
+                    profiles::created_at,
+                    profiles::updated_at,
+                    users::user_uuid,
+                ))
+                .first::<Profile>(conn)?
         }
-    }
+    };
+
+    Ok(profile)
 }
 
 pub fn get_public_profile(
-    user_id: &UserId,
+    uuid: &UserUuid,
     conn: &mut DbConnection,
 ) -> Result<PublicProfile, DomainError> {
     use crate::schema::profiles::dsl as profiles;
+    use crate::schema::users::dsl as users;
 
     let profile = profiles::profiles
-        .filter(profiles::user_id.eq(user_id))
+        .inner_join(users::users.on(users::id.eq(profiles::user_id)))
+        .filter(users::user_uuid.eq(uuid))
+        .select((
+            profiles::id,
+            profiles::user_id,
+            profiles::bio,
+            profiles::display_name,
+            profiles::location,
+            profiles::website_url,
+            profiles::social_github,
+            profiles::social_twitter,
+            profiles::created_at,
+            profiles::updated_at,
+            users::user_uuid,
+        ))
         .first::<Profile>(conn)
         .optional()?;
 
@@ -936,7 +1084,7 @@ pub fn get_public_profile(
         Some(p) => Ok(PublicProfile::from(&p)),
         None => Err(DomainError::new_entity_does_not_exist_error(format!(
             "Profile not found for user {}",
-            user_id
+            uuid
         ))),
     }
 }

@@ -162,7 +162,6 @@ async fn main() -> anyhow::Result<()> {
         workers::start_sessions_cleanup_worker(
             config,
             credentials_repo_clone,
-            user_ids_cache.clone(),
             pool_clone,
         )
         .await

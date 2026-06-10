@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    errors::DomainError, models::users::UserId, models::ws::WsClientEvent,
+    errors::DomainError, models::users::UserUuid, models::ws::WsClientEvent,
     models::ws::WsServerEvent, utils, AppData,
 };
 
@@ -14,22 +14,22 @@ use redis::aio::ConnectionManager;
 /// Guard for tracking WebSocket connections
 struct WsConnectionGuard<'a> {
     metrics: &'a prometheus::GaugeVec,
-    user_id: String,
+    user_uuid: String,
 }
 
 impl<'a> WsConnectionGuard<'a> {
-    fn new(metrics: &'a prometheus::GaugeVec, user_id: UserId) -> Self {
-        let _ = metrics.with_label_values(&[&user_id.to_string()]).inc();
+    fn new(metrics: &'a prometheus::GaugeVec, user_uuid: UserUuid) -> Self {
+        let _ = metrics.with_label_values(&[&user_uuid.to_string()]).inc();
         Self {
             metrics,
-            user_id: user_id.to_string(),
+            user_uuid: user_uuid.to_string(),
         }
     }
 }
 
 impl Drop for WsConnectionGuard<'_> {
     fn drop(&mut self) {
-        let _ = self.metrics.with_label_values(&[&self.user_id]).dec();
+        let _ = self.metrics.with_label_values(&[&self.user_uuid]).dec();
     }
 }
 
@@ -51,14 +51,14 @@ pub async fn ws_loop(
     mut session: Session,
     mut msg_stream: MessageStream,
     conn: &mut ConnectionManager,
-    user_id: UserId,
+    user_uuid: UserUuid,
     app_data: Arc<AppData>,
 ) -> Result<(), DomainError> {
     let _guard = WsConnectionGuard::new(
         &app_data.metrics.active_ws_connections,
-        user_id,
+        user_uuid,
     );
-    tracing::info!("Starting WebSocket loop for user {}", user_id);
+    tracing::info!("Starting WebSocket loop for user {}", user_uuid);
 
     while let Some(item) = msg_stream.next().await {
         match item {
@@ -70,7 +70,7 @@ pub async fn ws_loop(
                 }
             }
             Ok(Message::Text(s)) => {
-                tracing::info!("Received text message from user {}", user_id);
+                tracing::info!("Received text message from user {}", user_uuid);
                 tracing::debug!("Message content: {}", s);
 
                 let res = match serde_json::from_str::<WsClientEvent>(&s) {
@@ -83,7 +83,7 @@ pub async fn ws_loop(
                             ws_msg,
                             session.clone(),
                             conn,
-                            user_id,
+                            user_uuid,
                             app_data.clone(),
                         )
                         .await?)
@@ -123,6 +123,6 @@ pub async fn ws_loop(
         }
     }
 
-    tracing::info!("WebSocket loop ended for user {}", user_id);
+    tracing::info!("WebSocket loop ended for user {}", user_uuid);
     Ok(())
 }
