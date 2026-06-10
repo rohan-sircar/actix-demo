@@ -4,7 +4,7 @@ use crate::get_build_info;
 
 #[utoipa::path(
     get,
-    path = "/api/public/build-info",
+    path = "/api/v1/public/build-info",
     tag = "public",
     responses(
         (status = 200, description = "Build information"),

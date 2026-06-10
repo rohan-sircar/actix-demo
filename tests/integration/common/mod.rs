@@ -638,7 +638,7 @@ pub async fn app_data(
                 .unwrap(),
             )
         },
-        swagger_path: "/api/swagger".to_string(),
+        swagger_path: "/api/v1/swagger".to_string(),
     });
     Ok(data)
 }
@@ -697,7 +697,7 @@ pub async fn get_token(
         .set_payload(format!(
             r#"{{"username":"{username}","password":"{password}"}}"#
         ))
-        .uri("/api/login")
+        .uri("/api/v1/login")
         .to_request();
     let resp: ServiceResponse<_> = test_app.call(req).await.unwrap();
     // Get the underlying HttpResponse
@@ -775,7 +775,7 @@ pub async fn get_http_token(
     client: &Client,
 ) -> anyhow::Result<String> {
     let resp = client
-        .post(format!("http://{addr}/api/login"))
+        .post(format!("http://{addr}/api/v1/login"))
         .insert_header((header::CONTENT_TYPE, "application/json"))
         .send_body(format!(
             r#"{{"username":"{username}","password":"{password}"}}"#
@@ -804,7 +804,7 @@ pub async fn create_http_user_with_email(
     client: &Client,
 ) -> anyhow::Result<()> {
     let mut resp = client
-        .post(format!("http://{addr}/api/registration"))
+        .post(format!("http://{addr}/api/v1/registration"))
         .insert_header(("content-type", "application/json"))
         .send_json(&serde_json::json!({
             "username": username,
@@ -981,7 +981,7 @@ impl TestContext {
     ) -> HashMap<Uuid, SessionInfo> {
         let mut resp = self
             .test_server
-            .get("/api/sessions")
+            .get("/api/v1/sessions")
             .with_token(token)
             .send()
             .await
@@ -994,7 +994,7 @@ impl TestContext {
     pub async fn delete_session(&self, session_id: Uuid, token: &str) {
         let resp = self
             .test_server
-            .delete(format!("/api/sessions/{}", session_id))
+            .delete(format!("/api/v1/sessions/{}", session_id))
             .with_token(token)
             .send()
             .await
@@ -1011,7 +1011,7 @@ impl TestContext {
     ) -> Vec<User> {
         let mut resp = self
             .test_server
-            .get(format!("/api/admin/users?page={page}&limit={limit}"))
+            .get(format!("/api/v1/admin/users?page={page}&limit={limit}"))
             .with_token(token)
             .send()
             .await

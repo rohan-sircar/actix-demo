@@ -45,7 +45,7 @@ pub fn build_authorize_url(
         .append_pair("client_id", &config.client_id)
         .append_pair(
             "redirect_uri",
-            &format!("{base_url}/api/auth/oauth/google/callback"),
+            &format!("{base_url}/api/v1/auth/oauth/google/callback"),
         )
         .append_pair("scope", "openid email profile")
         .append_pair("response_type", "code")
@@ -64,7 +64,7 @@ pub async fn exchange_code_for_token(
     base_url: &str,
 ) -> Result<GoogleTokenResponse, DomainError> {
     let client = reqwest::Client::new();
-    let redirect_uri = format!("{base_url}/api/auth/oauth/google/callback");
+    let redirect_uri = format!("{base_url}/api/v1/auth/oauth/google/callback");
     let token_url = format!("{base_url}{GOOGLE_TOKEN_PATH}");
 
     let response = client

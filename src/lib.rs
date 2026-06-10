@@ -168,33 +168,33 @@ pub fn configure_app(
                     .route("", web::get().to(routes::healthcheck::healthcheck)),
             )
             .service(
-                web::resource("/api/login")
+                web::resource("/api/v1/login")
                     .wrap(login_limiter.clone())
                     .route(web::post().to(routes::auth::login)),
             )
             .service(
-                web::resource("/api/logout")
+                web::resource("/api/v1/logout")
                     .wrap(api_rate_limiter(
                         &app_data.config.rate_limit.api_public,
                     ))
                     .route(web::post().to(routes::auth::logout)),
             )
             .service(
-                web::resource("/api/registration")
+                web::resource("/api/v1/registration")
                     .wrap(api_rate_limiter(
                         &app_data.config.rate_limit.api_public,
                     ))
                     .route(web::post().to(routes::users::add_user)),
             )
             .service(
-                web::resource("/api/email/verify")
+                web::resource("/api/v1/email/verify")
                     .wrap(api_rate_limiter(
                         &app_data.config.rate_limit.api_public,
                     ))
                     .route(web::post().to(routes::auth::verify_email)),
             )
             .service(
-                web::resource("/api/password-reset/request")
+                web::resource("/api/v1/password-reset/request")
                     .wrap(api_rate_limiter(
                         &app_data.config.rate_limit.api_public,
                     ))
@@ -203,7 +203,7 @@ pub fn configure_app(
                     ),
             )
             .service(
-                web::resource("/api/password-reset/complete")
+                web::resource("/api/v1/password-reset/complete")
                     .wrap(api_rate_limiter(
                         &app_data.config.rate_limit.api_public,
                     ))
@@ -220,7 +220,7 @@ pub fn configure_app(
             )
             // public api
             .service(
-                web::scope("/api/public")
+                web::scope("/api/v1/public")
                     .wrap(api_rate_limiter(
                         &app_data.config.rate_limit.api_public,
                     ))
@@ -259,7 +259,7 @@ pub fn configure_app(
             )
             // public user endpoints (unauthenticated)
             .service(
-                web::scope("/api/public")
+                web::scope("/api/v1/public")
                     .wrap(api_rate_limiter(
                         &app_data.config.rate_limit.api_public,
                     ))
@@ -274,7 +274,7 @@ pub fn configure_app(
             )
             // OAuth endpoints (unauthenticated)
             .service(
-                web::scope("/api/auth/oauth")
+                web::scope("/api/v1/auth/oauth")
                     .wrap(api_rate_limiter(
                         &app_data.config.rate_limit.api_public,
                     ))
@@ -303,7 +303,7 @@ pub fn configure_app(
             )
             // authenticated api
             .service(
-                web::scope("/api")
+                web::scope("/api/v1")
                     .wrap(api_rate_limiter(&app_data.config.rate_limit.api))
                     .wrap(GrantsMiddleware::with_extractor(
                         routes::auth::extract,

@@ -137,7 +137,7 @@ mod tests {
     ) -> (StatusCode, header::HeaderMap) {
         let resp = ctx
             .test_server
-            .post("/api/login")
+            .post("/api/v1/login")
             .append_header((header::CONTENT_TYPE, "application/json"))
             .send_json(&serde_json::json!({
                 "username": username,
@@ -155,7 +155,7 @@ mod tests {
     async fn get_sessions(ctx: &TestContext, token: &str) -> StatusCode {
         let resp = ctx
             .test_server
-            .get("/api/sessions")
+            .get("/api/v1/sessions")
             .with_token(token)
             .send()
             .await
