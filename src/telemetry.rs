@@ -19,7 +19,7 @@ impl RootSpanBuilder for DomainRootSpanBuilder {
         let claims = utils::extract_auth_token(req.headers())
             .and_then(|token| utils::get_claims(jwt_key, &token));
 
-        let auth_user_id = claims.map(|c| c.custom.user_id.as_uint()).ok();
+        let auth_user_id = claims.map(|c| c.custom.user_uuid.to_string()).ok();
         tracing_actix_web::root_span!(req, auth_user_id,)
     }
 

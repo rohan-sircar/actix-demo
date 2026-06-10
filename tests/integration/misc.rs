@@ -12,10 +12,8 @@ mod tests {
     use actix_demo::models::misc::{Job, JobStatus};
     use actix_demo::utils;
     use actix_http::header;
+    use actix_http::StatusCode;
     use actix_rt::time::sleep;
-    use actix_web::dev::Service as _;
-    use actix_web::http::StatusCode;
-    use actix_web::test;
 
     #[actix_rt::test]
     async fn get_build_info_should_succeed() {
@@ -36,52 +34,58 @@ mod tests {
     #[actix_rt::test]
     async fn failed_job_test() {
         let res: anyhow::Result<()> = async {
-            let (pg_connstr, _pg) = common::test_with_postgres().await?;
-            let (redis_connstr, _redis) = common::test_with_redis().await?;
-            let (minio_connstr, _minio) = common::test_with_minio().await?;
             let file = failing_bin_file();
             let options = TestAppOptionsBuilder::default()
                 .bin_file(file)
                 .build()
                 .unwrap();
-            let test_app = common::test_app(
-                &pg_connstr,
-                &redis_connstr,
-                &minio_connstr,
-                options,
+            let ctx = common::TestContext::new(Some(options)).await;
+            let token = common::get_http_token(
+                &ctx.addr,
+                common::DEFAULT_USER,
+                common::DEFAULT_USER,
+                &ctx.client,
             )
             .await
             .unwrap();
-            let token = common::get_default_token(&test_app).await;
             let jwt_key = common::TEST_JWT_KEY.clone();
 
             let claims = utils::get_claims(&jwt_key, &token)?;
-            let user_id = claims.custom.user_id;
-            let req = test::TestRequest::post()
+            let user_uuid = claims.custom.user_uuid;
+            let current_user_id = {
+                let mut conn = ctx.app_data.pool.get().unwrap();
+                actix_demo::actions::users::resolve_user_id_by_uuid(
+                    &user_uuid, &mut conn,
+                )
+                .unwrap()
+                .unwrap()
+            };
+            let mut resp = ctx
+                .test_server
+                .post("/api/cmd")
                 .append_header((header::CONTENT_TYPE, "application/json"))
-                .uri("/api/cmd")
                 .with_token(&token)
-                .set_payload(r#"{"args":[]}"#.as_bytes())
-                .to_request();
-            let resp = test_app.call(req).await.unwrap();
-            assert_eq!(resp.status(), StatusCode::OK);
-            let job_resp: Job = test::read_body_json(resp).await;
+                .send_body(r#"{"args":[]}"#)
+                .await
+                .unwrap();
+            let job_resp = resp.json::<Job>().await.unwrap();
+            assert_eq!(job_resp.started_by, current_user_id);
+            assert_eq!(job_resp.status, JobStatus::Pending);
 
             let job_id = job_resp.job_id.to_string();
-            assert_eq!(job_resp.started_by, user_id);
-            assert_eq!(job_resp.status, JobStatus::Pending);
 
             sleep(Duration::from_millis(500)).await;
 
-            let req = test::TestRequest::get()
-                .uri(&format!("/api/cmd/{job_id}"))
+            let mut resp = ctx
+                .test_server
+                .get(format!("/api/cmd/{job_id}"))
                 .with_token(&token)
-                .to_request();
-            let resp = test_app.call(req).await.unwrap();
-            assert_eq!(resp.status(), StatusCode::OK);
-            let job_resp: Job = test::read_body_json(resp).await;
+                .send()
+                .await
+                .unwrap();
+            let job_resp = resp.json::<Job>().await.unwrap();
 
-            assert_eq!(job_resp.started_by, user_id);
+            assert_eq!(job_resp.started_by, current_user_id);
             assert_eq!(job_resp.status, JobStatus::Failed);
             Ok(())
         }

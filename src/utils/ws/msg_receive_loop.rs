@@ -2,7 +2,7 @@ use std::{sync::Arc, time::Duration};
 
 use crate::{
     errors::DomainError,
-    models::users::UserId,
+    models::users::UserUuid,
     models::ws::{SentMessage, WsServerEvent},
     utils::{self, RedisChannelReader, RedisReply, RedisReplyKind},
     AppData,
@@ -13,7 +13,7 @@ use actix_ws::Session;
 use redis::{aio::ConnectionManager, streams::StreamReadOptions};
 
 pub async fn msg_receive_loop(
-    user_id: UserId,
+    user_uuid: UserUuid,
     cm: ConnectionManager,
     mut session: Session,
     app_data: Arc<AppData>,
@@ -25,7 +25,7 @@ pub async fn msg_receive_loop(
     let redis_prefix = app_data.redis_prefix.as_ref();
 
     let mut messages_reader = RedisChannelReader::<SentMessage>::new(
-        redis_prefix(&format!("messages.{user_id}")),
+        redis_prefix(&format!("messages.{user_uuid}")),
         cm,
         None,
         opts,

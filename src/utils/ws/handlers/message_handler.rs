@@ -3,7 +3,7 @@ use redis::{aio::ConnectionManager, AsyncCommands};
 
 use crate::{
     errors::DomainError,
-    models::{users::UserId, ws::SentMessage},
+    models::{users::UserUuid, ws::SentMessage},
     types::RedisPrefixFn,
     utils,
 };
@@ -11,8 +11,8 @@ use crate::{
 pub async fn handle_send_message(
     _session: Session,
     conn: &mut ConnectionManager,
-    user_id: UserId,
-    receiver: UserId,
+    user_uuid: UserUuid,
+    receiver: UserUuid,
     message: String,
     redis_prefix: &RedisPrefixFn,
 ) -> Result<(), DomainError> {
@@ -24,7 +24,7 @@ pub async fn handle_send_message(
             &[(
                 "message",
                 utils::jstr(&SentMessage {
-                    sender: user_id,
+                    sender: user_uuid,
                     message,
                 }),
             )],

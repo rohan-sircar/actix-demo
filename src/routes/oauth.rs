@@ -253,7 +253,7 @@ async fn issue_oauth_session(
     let device_id = Uuid::new_v4();
 
     let auth_data = VerifiedAuthDetails {
-        user_id: user.id,
+        user_uuid: user.user_uuid,
         session_id,
         username: user.username.clone(),
         roles: user.roles.clone(),
@@ -280,7 +280,12 @@ async fn issue_oauth_session(
     };
 
     credentials_repo
-        .create_session(&user.id, &session_id, &session_info, ttl_seconds)
+        .create_session(
+            &user.user_uuid,
+            &session_id,
+            &session_info,
+            ttl_seconds,
+        )
         .await?;
 
     let cookie = Cookie::build("X-AUTH-TOKEN", &token)

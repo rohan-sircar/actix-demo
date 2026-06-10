@@ -4,7 +4,7 @@ use std::str::FromStr;
 use crate::common;
 
 use actix_codec::Framed;
-use actix_demo::models::users::UserId;
+use actix_demo::models::users::UserUuid;
 use actix_demo::models::ws::{WsClientEvent, WsServerEvent};
 use actix_demo::utils;
 use actix_http::header;
@@ -99,7 +99,10 @@ mod tests {
             connect_ws(&ctx.addr, &token, &ctx.client).await.unwrap();
 
         ws.send(ws_msg(&WsClientEvent::SendMessage {
-            receiver: UserId::from_str("1").unwrap(),
+            receiver: UserUuid::from_str(
+                "550e8400-e29b-41d4-a716-446655440000",
+            )
+            .unwrap(),
             message: "hello".to_owned(),
         }))
         .await
@@ -113,7 +116,10 @@ mod tests {
             message,
         } = msg
         {
-            assert_eq!(sender.as_uint(), 1);
+            assert_eq!(
+                sender.to_string(),
+                "550e8400-e29b-41d4-a716-446655440000"
+            );
             assert_eq!(&message, "hello");
         } else {
             panic!("error wrong message type");
@@ -133,7 +139,15 @@ mod tests {
         let jwt_key = common::TEST_JWT_KEY.clone();
 
         let claims = utils::get_claims(&jwt_key, &token).unwrap();
-        let user_id = claims.custom.user_id;
+        let user_uuid = claims.custom.user_uuid;
+        let current_user_id = {
+            let mut conn = ctx.app_data.pool.get().unwrap();
+            actix_demo::actions::users::resolve_user_id_by_uuid(
+                &user_uuid, &mut conn,
+            )
+            .unwrap()
+            .unwrap()
+        };
 
         let _ = tracing::info!("Connecting to WebSocket...");
         let (_resp, mut ws) =
@@ -150,7 +164,7 @@ mod tests {
             .unwrap();
         let job_resp = resp.json::<Job>().await.unwrap();
         let job_id = job_resp.job_id;
-        assert_eq!(job_resp.started_by, user_id);
+        assert_eq!(job_resp.started_by, current_user_id);
         assert_eq!(job_resp.status, JobStatus::Pending);
 
         let _ = tracing::info!(
@@ -208,7 +222,7 @@ mod tests {
             .await
             .unwrap();
         let job_resp = resp.json::<Job>().await.unwrap();
-        assert_eq!(job_resp.started_by, user_id);
+        assert_eq!(job_resp.started_by, current_user_id);
         assert_eq!(job_resp.status, JobStatus::Completed);
 
         let _ = tracing::info!("Verified that job status was set to completed");
@@ -232,7 +246,15 @@ mod tests {
         let jwt_key = common::TEST_JWT_KEY.clone();
 
         let claims = utils::get_claims(&jwt_key, &token).unwrap();
-        let user_id = claims.custom.user_id;
+        let user_uuid = claims.custom.user_uuid;
+        let current_user_id = {
+            let mut conn = ctx.app_data.pool.get().unwrap();
+            actix_demo::actions::users::resolve_user_id_by_uuid(
+                &user_uuid, &mut conn,
+            )
+            .unwrap()
+            .unwrap()
+        };
         let (_resp, mut ws) =
             connect_ws(&ctx.addr, &token, &ctx.client).await.unwrap();
 
@@ -246,7 +268,7 @@ mod tests {
             .unwrap();
         let job_resp = resp.json::<Job>().await.unwrap();
         let job_id = job_resp.job_id;
-        assert_eq!(job_resp.started_by, user_id);
+        assert_eq!(job_resp.started_by, current_user_id);
         assert_eq!(job_resp.status, JobStatus::Pending);
 
         ws.send(ws_msg(&WsClientEvent::SubscribeJob { job_id }))
@@ -277,7 +299,7 @@ mod tests {
             .await
             .unwrap();
         let job_resp = resp.json::<Job>().await.unwrap();
-        assert_eq!(job_resp.started_by, user_id);
+        assert_eq!(job_resp.started_by, current_user_id);
         assert_eq!(job_resp.status, JobStatus::Aborted);
     }
 

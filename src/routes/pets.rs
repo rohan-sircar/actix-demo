@@ -94,11 +94,13 @@ pub async fn create_pet(
     app_data: web::Data<AppData>,
     form: web::Json<CreatePet>,
 ) -> Result<HttpResponse, DomainError> {
-    let user_id = crate::utils::extract_user_id_from_header(req.headers())?;
+    let user_uuid = crate::utils::extract_user_uuid_from_header(req.headers())?;
 
     let public_pet = web::block(move || {
         let pool = &app_data.pool;
         let mut conn = pool.get()?;
+        let user_id =
+            crate::actions::users::get_user_id_by_uuid(&user_uuid, &mut conn)?;
         crate::actions::pets::create_pet(&user_id, form.into_inner(), &mut conn)
     })
     .await??;
@@ -126,11 +128,13 @@ pub async fn list_pets(
     app_data: web::Data<AppData>,
     query: web::Query<ListPetsQuery>,
 ) -> Result<HttpResponse, DomainError> {
-    let user_id = crate::utils::extract_user_id_from_header(req.headers())?;
+    let user_uuid = crate::utils::extract_user_uuid_from_header(req.headers())?;
 
     let pets = web::block(move || {
         let pool = &app_data.pool;
         let mut conn = pool.get()?;
+        let user_id =
+            crate::actions::users::get_user_id_by_uuid(&user_uuid, &mut conn)?;
         crate::actions::pets::list_pets(
             &user_id,
             query.species.as_deref(),
@@ -166,12 +170,14 @@ pub async fn get_pet(
     app_data: web::Data<AppData>,
     pet_uuid: web::Path<crate::models::pets::PetUuid>,
 ) -> Result<HttpResponse, DomainError> {
-    let user_id = crate::utils::extract_user_id_from_header(req.headers())?;
+    let user_uuid = crate::utils::extract_user_uuid_from_header(req.headers())?;
     let pet_uuid = pet_uuid.into_inner();
 
     let public_pet = web::block(move || {
         let pool = &app_data.pool;
         let mut conn = pool.get()?;
+        let user_id =
+            crate::actions::users::get_user_id_by_uuid(&user_uuid, &mut conn)?;
         crate::actions::pets::get_pet(&pet_uuid, &user_id, &mut conn)
     })
     .await??;
@@ -208,12 +214,14 @@ pub async fn update_pet(
     pet_uuid: web::Path<crate::models::pets::PetUuid>,
     form: web::Json<UpdatePet>,
 ) -> Result<HttpResponse, DomainError> {
-    let user_id = crate::utils::extract_user_id_from_header(req.headers())?;
+    let user_uuid = crate::utils::extract_user_uuid_from_header(req.headers())?;
     let pet_uuid = pet_uuid.into_inner();
 
     let public_pet = web::block(move || {
         let pool = &app_data.pool;
         let mut conn = pool.get()?;
+        let user_id =
+            crate::actions::users::get_user_id_by_uuid(&user_uuid, &mut conn)?;
         crate::actions::pets::update_pet(
             &pet_uuid,
             &user_id,
@@ -246,12 +254,14 @@ pub async fn delete_pet(
     app_data: web::Data<AppData>,
     pet_uuid: web::Path<crate::models::pets::PetUuid>,
 ) -> Result<HttpResponse, DomainError> {
-    let user_id = crate::utils::extract_user_id_from_header(req.headers())?;
+    let user_uuid = crate::utils::extract_user_uuid_from_header(req.headers())?;
     let pet_uuid = pet_uuid.into_inner();
 
     web::block(move || {
         let pool = &app_data.pool;
         let mut conn = pool.get()?;
+        let user_id =
+            crate::actions::users::get_user_id_by_uuid(&user_uuid, &mut conn)?;
         crate::actions::pets::delete_pet(&pet_uuid, &user_id, &mut conn)
     })
     .await??;
@@ -284,7 +294,7 @@ pub async fn upload_pet_image(
     pet_uuid: web::Path<crate::models::pets::PetUuid>,
     payload: web::Payload,
 ) -> Result<HttpResponse, DomainError> {
-    let user_id = crate::utils::extract_user_id_from_header(req.headers())?;
+    let user_uuid = crate::utils::extract_user_uuid_from_header(req.headers())?;
     let content_type =
         crate::utils::extract_header_value(req.headers(), "content-type")?;
     let pet_uuid = pet_uuid.into_inner();
@@ -301,6 +311,9 @@ pub async fn upload_pet_image(
     let bucket_name_for_action = bucket_name.clone();
 
     let (public_image, thumbnail, medium, original) = web::block(move || {
+        let mut conn = app_data.pool.get()?;
+        let user_id =
+            crate::actions::users::get_user_id_by_uuid(&user_uuid, &mut conn)?;
         crate::actions::pets::upload_pet_image(
             &pet_uuid,
             &user_id,
@@ -383,12 +396,14 @@ pub async fn list_pet_images(
     app_data: web::Data<AppData>,
     pet_uuid: web::Path<crate::models::pets::PetUuid>,
 ) -> Result<HttpResponse, DomainError> {
-    let user_id = crate::utils::extract_user_id_from_header(req.headers())?;
+    let user_uuid = crate::utils::extract_user_uuid_from_header(req.headers())?;
     let pet_uuid = pet_uuid.into_inner();
 
     let images = web::block(move || {
         let pool = &app_data.pool;
         let mut conn = pool.get()?;
+        let user_id =
+            crate::actions::users::get_user_id_by_uuid(&user_uuid, &mut conn)?;
         crate::actions::pets::list_pet_images(&pet_uuid, &user_id, &mut conn)
     })
     .await??;
@@ -417,7 +432,7 @@ pub async fn delete_pet_image(
     app_data: web::Data<AppData>,
     path: web::Path<PetImagePath>,
 ) -> Result<HttpResponse, DomainError> {
-    let user_id = crate::utils::extract_user_id_from_header(req.headers())?;
+    let user_uuid = crate::utils::extract_user_uuid_from_header(req.headers())?;
     let PetImagePath {
         pet_uuid,
         image_uuid,
@@ -426,6 +441,8 @@ pub async fn delete_pet_image(
     web::block(move || {
         let pool = &app_data.pool;
         let mut conn = pool.get()?;
+        let user_id =
+            crate::actions::users::get_user_id_by_uuid(&user_uuid, &mut conn)?;
         crate::actions::pets::delete_pet_image(
             &pet_uuid,
             &image_uuid,
@@ -462,7 +479,7 @@ pub async fn set_primary_pet_image(
     path: web::Path<PetImagePath>,
     body: web::Json<serde_json::Value>,
 ) -> Result<HttpResponse, DomainError> {
-    let user_id = crate::utils::extract_user_id_from_header(req.headers())?;
+    let user_uuid = crate::utils::extract_user_uuid_from_header(req.headers())?;
     let PetImagePath {
         pet_uuid,
         image_uuid,
@@ -477,6 +494,8 @@ pub async fn set_primary_pet_image(
     let public_image = web::block(move || {
         let pool = &app_data.pool;
         let mut conn = pool.get()?;
+        let user_id =
+            crate::actions::users::get_user_id_by_uuid(&user_uuid, &mut conn)?;
         crate::actions::pets::set_primary_image(
             &pet_uuid,
             &image_uuid,

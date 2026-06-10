@@ -158,6 +158,7 @@ diesel::table! {
         oauth_provider -> Nullable<OauthProviderType>,
         #[max_length = 128]
         oauth_uid -> Nullable<Varchar>,
+        user_uuid -> Uuid,
     }
 }
 
