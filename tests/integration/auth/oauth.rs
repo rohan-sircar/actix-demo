@@ -28,7 +28,10 @@ mod tests {
 
         let response = ctx
             .client
-            .get(&format!("http://{}/api/v1/auth/oauth/github/login", ctx.addr))
+            .get(&format!(
+                "http://{}/api/v1/auth/oauth/github/login",
+                ctx.addr
+            ))
             .send()
             .await
             .unwrap();
@@ -194,7 +197,10 @@ mod tests {
 
         let response = ctx
             .client
-            .get(&format!("http://{}/api/v1/auth/oauth/google/login", ctx.addr))
+            .get(&format!(
+                "http://{}/api/v1/auth/oauth/google/login",
+                ctx.addr
+            ))
             .send()
             .await
             .unwrap();

@@ -418,7 +418,10 @@ mod pet_images_api {
 
         let resp = ctx
             .test_server
-            .patch(format!("/api/v1/user/pets/{}/images/{}", pet_uuid, image_uuid))
+            .patch(format!(
+                "/api/v1/user/pets/{}/images/{}",
+                pet_uuid, image_uuid
+            ))
             .with_token(&token)
             .append_header((
                 actix_web::http::header::CONTENT_TYPE,
@@ -575,7 +578,10 @@ mod pet_images_api {
 
         let mut resp = ctx
             .test_server
-            .get(format!("/api/v1/public/pets/images/{}/thumbnail", image_uuid))
+            .get(format!(
+                "/api/v1/public/pets/images/{}/thumbnail",
+                image_uuid
+            ))
             .send()
             .await
             .unwrap();
