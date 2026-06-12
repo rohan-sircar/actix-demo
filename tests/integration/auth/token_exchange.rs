@@ -1,4 +1,4 @@
-mod token_exchange {
+mod tests {
     use crate::common::{self, WithToken};
     use actix_demo::models::session::SessionInfo;
     use actix_http::{header, StatusCode};
@@ -54,7 +54,7 @@ mod token_exchange {
     async fn exchange_rejects_wrong_password() {
         let ctx = common::TestContext::new(None).await;
 
-        let mut resp = ctx
+        let resp = ctx
             .test_server
             .post("/api/v1/auth/exchange")
             .append_header((header::CONTENT_TYPE, "application/json"))
@@ -76,7 +76,7 @@ mod token_exchange {
     async fn exchange_rejects_nonexistent_user() {
         let ctx = common::TestContext::new(None).await;
 
-        let mut resp = ctx
+        let resp = ctx
             .test_server
             .post("/api/v1/auth/exchange")
             .append_header((header::CONTENT_TYPE, "application/json"))
@@ -114,7 +114,7 @@ mod token_exchange {
         let token = body.get("token").unwrap().as_str().unwrap();
 
         // Use Bearer token for protected endpoint
-        let mut resp = ctx
+        let resp = ctx
             .test_server
             .get("/api/v1/sessions")
             .with_bearer(token)
@@ -149,7 +149,7 @@ mod token_exchange {
         let token = body.get("token").unwrap().as_str().unwrap();
 
         // Use Bearer token for user profile endpoint
-        let mut resp = ctx
+        let resp = ctx
             .test_server
             .get("/api/v1/user")
             .with_bearer(token)
@@ -168,7 +168,7 @@ mod token_exchange {
     async fn missing_auth_header_returns_401() {
         let ctx = common::TestContext::new(None).await;
 
-        let mut resp = ctx
+        let resp = ctx
             .test_server
             .get("/api/v1/sessions")
             .send()
@@ -204,7 +204,7 @@ mod token_exchange {
         let token = body.get("token").unwrap().as_str().unwrap();
 
         // Check session has the device name via session headers
-        let mut resp = ctx
+        let mut sessions_resp = ctx
             .test_server
             .get("/api/v1/sessions")
             .with_bearer(token)
@@ -212,16 +212,16 @@ mod token_exchange {
             .await
             .unwrap();
 
-        assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(sessions_resp.status(), StatusCode::OK);
 
         let sessions: std::collections::HashMap<uuid::Uuid, SessionInfo> =
-            resp.json().await.unwrap();
+            sessions_resp.json().await.unwrap();
         assert!(!sessions.is_empty());
 
         // Find the session with the device name (there may be a previous session from TestContext init)
-        let found = sessions.values().any(|s| {
-            s.device_name.as_deref() == Some("Test Mobile Device")
-        });
+        let found = sessions
+            .values()
+            .any(|s| s.device_name.as_deref() == Some("Test Mobile Device"));
         assert!(
             found,
             "Expected a session with device_name 'Test Mobile Device'"
@@ -248,7 +248,7 @@ mod token_exchange {
         let token = body.get("token").unwrap().as_str().unwrap();
 
         // Logout with Bearer token
-        let mut resp = ctx
+        let resp = ctx
             .test_server
             .post("/api/v1/logout")
             .with_bearer(token)
@@ -263,7 +263,7 @@ mod token_exchange {
         );
 
         // Verify token no longer works
-        let mut resp = ctx
+        let resp = ctx
             .test_server
             .get("/api/v1/sessions")
             .with_bearer(token)
@@ -303,7 +303,7 @@ mod token_exchange {
         }
 
         // Use first token to revoke others with Bearer
-        let mut resp = ctx
+        let resp = ctx
             .test_server
             .post("/api/v1/sessions/revoke-others")
             .with_bearer(&tokens[0])
@@ -318,7 +318,7 @@ mod token_exchange {
         );
 
         // Verify first token still works
-        let mut resp = ctx
+        let resp = ctx
             .test_server
             .get("/api/v1/sessions")
             .with_bearer(&tokens[0])
@@ -330,7 +330,7 @@ mod token_exchange {
 
         // Verify other tokens no longer work
         for token in &tokens[1..] {
-            let mut resp = ctx
+            let resp = ctx
                 .test_server
                 .get("/api/v1/sessions")
                 .with_bearer(token)
@@ -346,7 +346,7 @@ mod token_exchange {
         }
     }
 
-   #[actix_rt::test]
+    #[actix_rt::test]
     async fn exchange_and_cookie_auth_both_create_sessions() {
         let ctx = common::TestContext::new(None).await;
 
@@ -376,7 +376,7 @@ mod token_exchange {
         .unwrap();
 
         // Both tokens should work
-        let mut resp = ctx
+        let resp = ctx
             .test_server
             .get("/api/v1/sessions")
             .with_bearer(exchange_token)
@@ -385,7 +385,7 @@ mod token_exchange {
             .unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
 
-        let mut resp = ctx
+        let resp = ctx
             .test_server
             .get("/api/v1/sessions")
             .with_token(&cookie_token)
