@@ -754,17 +754,26 @@ pub async fn test_with_minio() -> anyhow::Result<(String, ContainerAsync<MinIO>)
 
 pub trait WithToken {
     fn with_token(self, token: &str) -> Self;
+    fn with_bearer(self, token: &str) -> Self;
 }
 
 impl WithToken for TestRequest {
     fn with_token(self, token: &str) -> Self {
         self.cookie(Cookie::new("X-AUTH-TOKEN", token))
     }
+
+    fn with_bearer(self, token: &str) -> Self {
+        self.insert_header(("Authorization", format!("Bearer {token}")))
+    }
 }
 
 impl WithToken for ClientRequest {
     fn with_token(self, token: &str) -> Self {
         self.cookie(Cookie::new("X-AUTH-TOKEN", token))
+    }
+
+    fn with_bearer(self, token: &str) -> Self {
+        self.insert_header(("Authorization", format!("Bearer {token}")))
     }
 }
 

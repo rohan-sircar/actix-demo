@@ -26,15 +26,23 @@ impl FromRequest for CookieAuth {
     type Future = Ready<Result<Self, Self::Error>>;
 
     fn from_request(req: &HttpRequest, _: &mut Payload) -> Self::Future {
-        // Extract auth_token cookie
-        let cookie = req.cookie("X-AUTH-TOKEN");
-        match cookie {
-            Some(cookie) => ready(Ok(CookieAuth {
-                token: cookie.value().to_string(),
-            })),
-            None => ready(Err(ErrorUnauthorized("Missing auth cookie"))),
+        match extract_token(req) {
+            Ok(token) => ready(Ok(CookieAuth { token })),
+            Err(e) => ready(Err(e)),
         }
     }
+}
+
+fn extract_token(req: &HttpRequest) -> Result<String, Error> {
+    if let Some(cookie) = req.cookie("X-AUTH-TOKEN") {
+        return Ok(cookie.value().to_string());
+    }
+    req.headers()
+        .get("Authorization")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| s.strip_prefix("Bearer "))
+        .map(|s| s.to_string())
+        .ok_or_else(|| ErrorUnauthorized("Missing auth token"))
 }
 
 trait HeaderMapExt {
@@ -78,12 +86,7 @@ pub async fn cookie_auth(
         .cloned()
         .expect("AppData not initialized");
 
-    // Extract cookie
-    let cookie = req.cookie("X-AUTH-TOKEN");
-    let token = match cookie {
-        Some(cookie) => Ok(cookie.value().to_string()),
-        None => Err(ErrorUnauthorized("Missing auth cookie")),
-    }?;
+    let token = extract_token(req.request())?;
 
     // Validate token using existing logic
     let credentials_repo = &app_data.credentials_repo;
@@ -141,6 +144,14 @@ pub async fn cookie_auth(
 }
 
 pub fn extract_auth_token(headers: &HeaderMap) -> Result<String, DomainError> {
+    if let Some(auth_header) = headers.get("Authorization") {
+        if let Ok(auth_str) = auth_header.to_str() {
+            if let Some(token) = auth_str.strip_prefix("Bearer ") {
+                return Ok(token.to_string());
+            }
+        }
+    }
+
     // Retrieve all set-cookie header values
     let cookie_headers = headers
         .get_all(header::SET_COOKIE)

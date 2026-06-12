@@ -173,6 +173,11 @@ pub fn configure_app(
                     .route(web::post().to(routes::auth::login)),
             )
             .service(
+                web::resource("/api/v1/auth/exchange")
+                    .wrap(login_limiter.clone())
+                    .route(web::post().to(routes::auth::exchange)),
+            )
+            .service(
                 web::resource("/api/v1/logout")
                     .wrap(api_rate_limiter(
                         &app_data.config.rate_limit.api_public,
@@ -287,6 +292,10 @@ pub fn configure_app(
                             .route(
                                 "/callback",
                                 web::get().to(routes::oauth::github_callback),
+                            )
+                            .route(
+                                "/exchange",
+                                web::post().to(routes::oauth::github_exchange),
                             ),
                     )
                     .service(
@@ -298,6 +307,10 @@ pub fn configure_app(
                             .route(
                                 "/callback",
                                 web::get().to(routes::oauth::google_callback),
+                            )
+                            .route(
+                                "/exchange",
+                                web::post().to(routes::oauth::google_exchange),
                             ),
                     ),
             )
@@ -494,8 +507,11 @@ pub fn configure_app(
         routes::command::handle_abort_job,
         routes::oauth::github_login,
         routes::oauth::github_callback,
+        routes::oauth::github_exchange,
         routes::oauth::google_login,
         routes::oauth::google_callback,
+        routes::oauth::google_exchange,
+        routes::auth::exchange,
         routes::healthcheck::healthcheck,
         routes::misc::build_info_req,
     ),
@@ -511,6 +527,9 @@ pub fn configure_app(
             routes::auth::VerifyEmailRequest,
             routes::auth::PasswordResetRequest,
             routes::auth::PasswordResetCompleteRequest,
+            routes::auth::AuthResponse,
+            routes::auth::AuthUser,
+            routes::oauth::OAuthExchangeRequest,
             routes::command::RunCommandRequest,
             models::misc::Job,
             models::misc::NewJob,

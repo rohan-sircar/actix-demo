@@ -4,6 +4,7 @@ mod oauth_helpers;
 mod rate_limit;
 mod registration_verification_login;
 mod session;
+mod token_exchange;
 use crate::common::{self, TestAppOptionsBuilder, TestContext};
 
 #[cfg(test)]
