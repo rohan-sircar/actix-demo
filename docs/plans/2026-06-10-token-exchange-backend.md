@@ -36,7 +36,31 @@ Same change — try cookie, fall back to `Authorization: Bearer`.
 
 This is a single pattern applied in 3 places. ~5 lines of code each.
 
-### 2. `src/routes/auth.rs` — New exchange endpoints
+### 2. `src/routes/auth.rs` — Bearer fallback in `extract()` and session endpoints
+
+**`extract()` function (line 38):**
+Critical — this function is used by `GrantsMiddleware::with_extractor` on all authenticated routes. Without updating it, Bearer-authenticated requests will pass `cookie_auth` middleware but fail at grants extraction, breaking all protected endpoints for mobile clients.
+
+Current:
+```rust
+let cookie = req
+    .cookie("X-AUTH-TOKEN")
+    .ok_or_else(|| ErrorUnauthorized("Missing auth cookie"))?;
+let token = cookie.value();
+```
+
+Change to the same cookie-first, Bearer-fallback pattern.
+
+**`logout()` endpoint (line 247):**
+Current:
+```rust
+let cookie = req.cookie("X-AUTH-TOKEN").ok_or_else(|| ...)?;
+```
+
+Change to the same extraction pattern (try cookie, fall back to Bearer).
+
+**`revoke_other_sessions()` endpoint (line 337):**
+Also reads `req.cookie("X-AUTH-TOKEN")` directly. Apply the same Bearer fallback pattern so mobile clients can revoke other sessions.
 
 **`POST /api/v1/auth/exchange`** — Password-based token exchange
 
@@ -72,35 +96,30 @@ Then `login()` calls `create_session()` + sets cookie, `exchange()` calls `creat
 
 **`POST /api/v1/auth/oauth/github/exchange`** and **`POST /api/v1/auth/oauth/google/exchange`**
 
-Extract the shared logic from `github_callback()` / `google_callback()` into a private helper:
+The shared session logic is already extracted into `issue_oauth_session()` (line 244), which both `github_callback()` and `google_callback()` already call. No extraction needed.
 
-```rust
-async fn issue_session(
-    user: UserWithRoles,
-    app_data: &AppData,
-) -> Result<(String, serde_json::Value), DomainError> { ... }
-```
+The exchange endpoints will:
+1. Accept `{ code }` in JSON body
+2. Call the provider's token exchange and user info endpoints directly (same as callbacks do)
+3. Find or create the user
+4. Call `issue_oauth_session()` to get the JWT + session
+5. Return `{ token, user }` in JSON instead of redirecting with cookie
 
-The callback endpoints call `issue_session()` + redirect with cookie.
-The exchange endpoints call `issue_session()` + return `{ token, user }` in JSON.
+To avoid duplicating the provider interaction logic (state validation, code exchange, user info fetch), split `issue_oauth_session()` into two parts:
+- A session-creation helper that takes `UserWithRoles` and returns `(token, session_info)` — used by both callbacks and exchange endpoints
+- The callback functions continue to handle state/code flow → call the helper → redirect with cookie
+- The exchange functions handle code flow (without state validation) → call the helper → return JSON
 
-### 4. `src/routes/auth.rs` — Logout endpoint
-
-Current logout reads the cookie directly (line 247):
-```rust
-let cookie = req.cookie("X-AUTH-TOKEN").ok_or_else(|| ...)?;
-```
-
-Change to use the same extraction pattern as the middleware (try cookie, fall back to Bearer).
-
-### 5. `src/lib.rs` — Route registration
+### 4. `src/lib.rs` — Route registration
 
 Add new routes:
 ```rust
 web::resource("/api/v1/auth/exchange")
+    .wrap(login_limiter.clone())
     .route(web::post().to(routes::auth::exchange)),
 
 web::scope("/api/v1/auth/oauth")
+    .wrap(api_rate_limiter(&app_data.config.rate_limit.api_public))
     .route(
         "/github/exchange",
         web::post().to(routes::oauth::github_exchange),
@@ -108,12 +127,16 @@ web::scope("/api/v1/auth/oauth")
     .route(
         "/google/exchange",
         web::post().to(routes::oauth::google_exchange),
-    )
+    ),
 ```
+
+Note: `/api/v1/auth/exchange` uses `login_limiter` (same rate limit as login) since it is functionally equivalent. The OAuth exchange endpoints use the public API rate limiter.
+
+Register new endpoints in `ApiDoc` struct with `#[utoipa::path]` attributes for OpenAPI documentation.
 
 ## Shared Helper Functions
 
-### `create_session()` — Extracted from login()
+### `create_session()` — Unified session creation
 
 Takes: `UserWithRoles`, `device_name: Option<String>`, `&AppData`
 Returns: `(jwt_token: String, session_info: SessionInfo)`
@@ -125,22 +148,17 @@ Does:
 4. Create session in Redis
 5. Return token + session info
 
-### `issue_session()` — Extracted from OAuth callbacks
-
-Takes: `UserWithRoles`, `&AppData`
-Returns: `(jwt_token: String, session_info: SessionInfo)`
-
-Same as `create_session()` but for OAuth users (device_name is None).
+This single helper covers both password login (`login()` + `exchange()`) and OAuth flows (`issue_oauth_session()` passes `device_name: None`). Consolidates the two proposed helpers (`create_session` and `issue_session`) into one, since they differ only by `device_name`.
 
 ## Summary of Changes
 
 | File | Change | Lines |
 |------|--------|-------|
 | `src/utils/cookie_auth.rs` | Add Bearer header fallback in 3 places | ~15 |
-| `src/routes/auth.rs` | Extract `create_session()`, add `exchange()` endpoint, update `logout()` | ~120 |
-| `src/routes/oauth.rs` | Extract `issue_session()`, add `github_exchange()` + `google_exchange()`, update callbacks to use helper | ~100 |
-| `src/lib.rs` | Register new routes | ~10 |
-| **Total** | | **~245 lines** |
+| `src/routes/auth.rs` | Update `extract()`, `logout()`, `revoke_other_sessions()`; extract `create_session()`, add `exchange()` endpoint | ~140 |
+| `src/routes/oauth.rs` | Split `issue_oauth_session()` into session helper + response builder; add `github_exchange()` + `google_exchange()` | ~110 |
+| `src/lib.rs` | Register new routes with rate limiters; add to OpenAPI doc | ~15 |
+| **Total** | | **~280 lines** |
 
 ## Testing
 
@@ -148,10 +166,14 @@ Same as `create_session()` but for OAuth users (device_name is None).
 2. Use returned token: `curl http://localhost:7800/api/v1/user -H "Authorization: Bearer <token>"` → returns user data
 3. OAuth exchange: `curl -X POST http://localhost:7800/api/v1/auth/oauth/github/exchange -H "Content-Type: application/json" -d '{"code":"xxx"}'` → returns `{ token, user }`
 4. Verify cookie auth still works: login with browser → cookie is set → subsequent requests work
+5. Verify `revoke_other_sessions` works with Bearer: `curl -X POST http://localhost:7800/api/v1/sessions/revoke-others -H "Authorization: Bearer <token>"`
+6. Verify logout works with Bearer: `curl -X POST http://localhost:7800/api/v1/logout -H "Authorization: Bearer <token>"`
 
 ## Notes
 
 - Cookie auth is the **default** — cookie is checked first, Bearer is the fallback. This means existing browser clients are unaffected.
-- The `logout()` endpoint needs the Bearer fallback because the mobile app can't read the HttpOnly cookie to clear it.
+- The `logout()` and `revoke_other_sessions()` endpoints need the Bearer fallback because the mobile app can't read the HttpOnly cookie to clear it.
+- The `extract()` function update is critical — without it, `GrantsMiddleware` will reject all Bearer-authenticated requests on protected routes.
 - OAuth exchange endpoints don't need state validation (the code is already validated by GitHub/Google when the mobile app receives it via custom scheme callback).
 - Consider adding a `device_name` field to the exchange request body (defaults to "Mobile" if not provided).
+- The `/api/v1/auth/exchange` endpoint uses the login rate limiter to prevent brute-force attacks.
