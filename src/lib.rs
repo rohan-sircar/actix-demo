@@ -28,6 +28,7 @@ use utoipa::OpenApi;
 use std::sync::Arc;
 use std::time::SystemTime;
 
+use actix_cors::Cors;
 use actix_web_prom::PrometheusMetrics;
 
 use actix_web::http::header;
@@ -87,6 +88,7 @@ pub struct AppConfig {
     pub email_token_ttl_verification_secs: u64,
     pub email_token_ttl_reset_secs: u64,
     pub oauth: OAuthConfig,
+    pub cors_origins: String,
 }
 
 pub struct AppData {
@@ -596,8 +598,29 @@ pub async fn run(addr: String, app_data: Data<AppData>) -> anyhow::Result<()> {
              \/     \/              \/              \/    \/      \/
          "#
     );
+    let cors_origins = app_data.config.cors_origins.clone();
     let app = move || {
+        let cors = if cors_origins == "*" {
+            Cors::default()
+                .allow_any_origin()
+                .allow_any_method()
+                .allow_any_header()
+                .max_age(3600)
+        } else {
+            let mut cors_mw = Cors::default()
+                .allow_any_method()
+                .allow_any_header()
+                .max_age(3600);
+            for origin in cors_origins.split(',') {
+                let origin = origin.trim();
+                if !origin.is_empty() {
+                    cors_mw = cors_mw.allowed_origin(origin);
+                }
+            }
+            cors_mw
+        };
         App::new()
+            .wrap(cors)
             .wrap(app_data.prometheus.clone())
             .configure(configure_app(app_data.clone()))
             .wrap(TracingLogger::<DomainRootSpanBuilder>::new())

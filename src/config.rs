@@ -158,6 +158,9 @@ pub struct EnvConfig {
     // API documentation path
     #[serde(default = "models::defaults::default_swagger_path")]
     pub swagger_path: String,
+    // CORS allowed origins (comma-separated)
+    #[serde(default = "models::defaults::default_cors_origins")]
+    pub cors_origins: String,
 }
 
 #[derive(Deserialize, Debug, Clone)]
