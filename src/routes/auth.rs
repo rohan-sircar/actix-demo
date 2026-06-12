@@ -34,19 +34,81 @@ pub struct VerifiedAuthDetails {
     pub device_id: String,
 }
 
+fn extract_token_from_request(
+    req: &HttpRequest,
+) -> Result<String, DomainError> {
+    if let Some(cookie) = req.cookie("X-AUTH-TOKEN") {
+        return Ok(cookie.value().to_string());
+    }
+    req.headers()
+        .get("Authorization")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| s.strip_prefix("Bearer "))
+        .map(|s| s.to_string())
+        .ok_or_else(|| {
+            DomainError::new_auth_error("Missing auth token".to_owned())
+        })
+}
+
+async fn create_session(
+    user: crate::models::users::UserAuthDetailsWithRoles,
+    device_name: Option<String>,
+    app_data: &AppData,
+) -> Result<(String, SessionInfo), DomainError> {
+    let credentials_repo = &app_data.credentials_repo;
+    let jwt_key = &app_data.jwt_key;
+
+    let session_id = Uuid::new_v4();
+    let device_id = Uuid::new_v4();
+
+    let auth_data = VerifiedAuthDetails {
+        user_uuid: user.user_uuid,
+        session_id,
+        username: user.username,
+        roles: user.roles,
+        device_id: device_id.to_string(),
+    };
+
+    let claims = Claims::with_custom_claims(auth_data, Duration::from_days(30));
+    let token = jwt_key
+        .authenticate(claims)
+        .map_err(|err| DomainError::anyhow_auth("Failed to create JWT", err))?;
+
+    let now = Utc::now().naive_utc();
+    let ttl_seconds = app_data.config.session.expiration_secs;
+
+    let session_info = SessionInfo {
+        session_id,
+        device_id,
+        device_name,
+        created_at: now,
+        last_used_at: now,
+        token: token.clone(),
+        ttl_remaining: Some(ttl_seconds as i64),
+    };
+
+    credentials_repo
+        .create_session(
+            &user.user_uuid,
+            &session_id,
+            &session_info,
+            ttl_seconds,
+        )
+        .await?;
+
+    Ok((token, session_info))
+}
+
 #[tracing::instrument(level = "info", skip(req))]
 pub async fn extract(
     req: &mut ServiceRequest,
 ) -> Result<HashSet<RoleEnum>, Error> {
     let app_data = req.app_data::<Data<AppData>>().cloned().unwrap();
 
-    // Extract token from cookie
-    let cookie = req
-        .cookie("X-AUTH-TOKEN")
-        .ok_or_else(|| ErrorUnauthorized("Missing auth cookie"))?;
-    let token = cookie.value();
+    let token = extract_token_from_request(req.request())
+        .map_err(|e| ErrorUnauthorized(e.to_string()))?;
 
-    let claims = utils::get_claims(&app_data.jwt_key, token)?;
+    let claims = utils::get_claims(&app_data.jwt_key, &token)?;
     let roles: HashSet<RoleEnum> = claims.custom.roles.into_iter().collect();
 
     let user_uuid = claims.custom.user_uuid.to_string();
@@ -129,7 +191,6 @@ pub async fn login(
     login_request: web::Json<UserLogin>,
     app_data: web::Data<AppData>,
 ) -> Result<HttpResponse, DomainError> {
-    let credentials_repo = &app_data.credentials_repo;
     let pool = app_data.pool.clone();
 
     let login_request = login_request.into_inner();
@@ -144,8 +205,9 @@ pub async fn login(
         message: "User does not exist".to_owned(),
     })?;
 
+    let password = user.password.clone();
     let valid = web::block(move || {
-        verify(login_request.password.as_str(), user.password.as_str())
+        verify(login_request.password.as_str(), password.as_str())
     })
     .await??;
 
@@ -153,46 +215,8 @@ pub async fn login(
         return Err(DomainError::new_auth_error("Wrong password".to_owned()));
     };
 
-    let session_id = Uuid::new_v4();
-    // Generate a unique device ID if not provided
-    let device_id = Uuid::new_v4();
-
-    let auth_data = VerifiedAuthDetails {
-        user_uuid: user.user_uuid,
-        session_id,
-        username: user.username,
-        roles: user.roles,
-        device_id: device_id.to_string(),
-    };
-
-    let claims = Claims::with_custom_claims(auth_data, Duration::from_days(30));
-    let token = app_data.jwt_key.authenticate(claims).map_err(|err| {
-        DomainError::anyhow_auth("Failed to deserialize token", err)
-    })?;
-
-    // Create session info
-    let now = Utc::now().naive_utc();
-
-    let ttl_seconds = app_data.config.session.expiration_secs;
-    let session_info = SessionInfo {
-        session_id,
-        device_id,
-        device_name: login_request.device_name,
-        created_at: now,
-        last_used_at: now,
-        token: token.clone(),
-        ttl_remaining: Some(ttl_seconds as i64),
-    };
-
-    // create session
-    let _ = credentials_repo
-        .create_session(
-            &user.user_uuid,
-            &session_id,
-            &session_info,
-            ttl_seconds,
-        )
-        .await?;
+    let (token, _session_info) =
+        create_session(user, login_request.device_name, &app_data).await?;
 
     let cookie = Cookie::build("X-AUTH-TOKEN", &token)
         .http_only(true)
@@ -202,6 +226,76 @@ pub async fn login(
         .finish();
 
     Ok(HttpResponse::Ok().cookie(cookie).finish())
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct AuthResponse {
+    pub token: String,
+    pub user: AuthUser,
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct AuthUser {
+    pub id: i32,
+    pub username: String,
+    pub email: String,
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/v1/auth/exchange",
+    tag = "auth",
+    request_body = UserLogin,
+    responses(
+        (status = 200, description = "Exchange successful - returns token and user", body = AuthResponse),
+        (status = 401, description = "Invalid credentials", body = ErrorResponseString),
+    ),
+)]
+#[tracing::instrument(level = "info", skip(app_data, login_request))]
+pub async fn exchange(
+    login_request: web::Json<UserLogin>,
+    app_data: web::Data<AppData>,
+) -> Result<HttpResponse, DomainError> {
+    let pool = app_data.pool.clone();
+
+    let login_request = login_request.into_inner();
+
+    let mb_user = web::block(move || {
+        let mut conn = pool.get()?;
+        get_user_auth_details(&login_request.username, &mut conn)
+    })
+    .await??;
+
+    let user = mb_user.ok_or_else(|| DomainError::AuthError {
+        message: "User does not exist".to_owned(),
+    })?;
+
+    let password = user.password.clone();
+    let email = user.email.clone();
+    let username = user.username.clone();
+    let user_id = user.id;
+    let valid = web::block(move || {
+        verify(login_request.password.as_str(), password.as_str())
+    })
+    .await??;
+
+    if !valid {
+        return Err(DomainError::new_auth_error("Wrong password".to_owned()));
+    };
+
+    let (token, _session_info) =
+        create_session(user, login_request.device_name, &app_data).await?;
+
+    let auth_user = AuthUser {
+        id: user_id.as_uint() as i32,
+        username: username.as_str().to_string(),
+        email: email.as_str().to_string(),
+    };
+
+    Ok(HttpResponse::Ok().json(AuthResponse {
+        token,
+        user: auth_user,
+    }))
 }
 
 #[utoipa::path(
@@ -243,14 +337,10 @@ pub async fn logout(
     req: HttpRequest,
     app_data: web::Data<AppData>,
 ) -> Result<HttpResponse, DomainError> {
-    // Extract token from cookie
-    let cookie = req.cookie("X-AUTH-TOKEN").ok_or_else(|| {
-        DomainError::new_auth_error("Missing auth token".to_owned())
-    })?;
-    let token = cookie.value();
+    let token = extract_token_from_request(&req)?;
     let credentials_repo = &app_data.credentials_repo;
     let jwt_key = &app_data.jwt_key;
-    let claims = utils::get_claims(jwt_key, token)?;
+    let claims = utils::get_claims(jwt_key, &token)?;
     let user_uuid = claims.custom.user_uuid;
     let session_id = claims.custom.session_id;
     // Check if the session exists
@@ -333,14 +423,10 @@ pub async fn revoke_other_sessions(
     app_data: web::Data<AppData>,
 ) -> Result<HttpResponse, DomainError> {
     let user_uuid = utils::extract_user_uuid_from_header(req.headers())?;
-    // Extract token from cookie
-    let cookie = req.cookie("X-AUTH-TOKEN").ok_or_else(|| {
-        DomainError::new_auth_error("Missing auth token".to_owned())
-    })?;
-    let current_token = cookie.value();
+    let current_token = extract_token_from_request(&req)?;
     let credentials_repo = &app_data.credentials_repo;
     let jwt_key = &app_data.jwt_key;
-    let claims = utils::get_claims(jwt_key, current_token)?;
+    let claims = utils::get_claims(jwt_key, &current_token)?;
     let current_session_id = claims.custom.session_id;
 
     // Get all sessions
