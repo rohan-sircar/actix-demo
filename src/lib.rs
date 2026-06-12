@@ -599,6 +599,7 @@ pub async fn run(addr: String, app_data: Data<AppData>) -> anyhow::Result<()> {
          "#
     );
     let cors_origins = app_data.config.cors_origins.clone();
+    tracing::info!(cors_origins = %cors_origins, "CORS config loaded");
     let app = move || {
         let cors = if cors_origins == "*" {
             Cors::default()
@@ -610,6 +611,7 @@ pub async fn run(addr: String, app_data: Data<AppData>) -> anyhow::Result<()> {
             let mut cors_mw = Cors::default()
                 .allow_any_method()
                 .allow_any_header()
+                .supports_credentials()
                 .max_age(3600);
             for origin in cors_origins.split(',') {
                 let origin = origin.trim();
