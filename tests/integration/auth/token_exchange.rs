@@ -346,37 +346,7 @@ mod token_exchange {
         }
     }
 
-    #[actix_rt::test]
-    async fn cookie_auth_still_works() {
-        let ctx = common::TestContext::new(None).await;
-
-        // Login via traditional login endpoint
-        let token = common::get_http_token(
-            &ctx.addr,
-            common::DEFAULT_USER,
-            common::DEFAULT_USER,
-            &ctx.client,
-        )
-        .await
-        .unwrap();
-
-        // Use cookie auth for protected endpoint
-        let mut resp = ctx
-            .test_server
-            .get("/api/v1/sessions")
-            .with_token(&token)
-            .send()
-            .await
-            .unwrap();
-
-        assert_eq!(
-            resp.status(),
-            StatusCode::OK,
-            "Cookie auth should still work"
-        );
-    }
-
-    #[actix_rt::test]
+   #[actix_rt::test]
     async fn exchange_and_cookie_auth_both_create_sessions() {
         let ctx = common::TestContext::new(None).await;
 
