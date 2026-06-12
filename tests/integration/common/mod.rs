@@ -754,17 +754,26 @@ pub async fn test_with_minio() -> anyhow::Result<(String, ContainerAsync<MinIO>)
 
 pub trait WithToken {
     fn with_token(self, token: &str) -> Self;
+    fn with_bearer(self, token: &str) -> Self;
 }
 
 impl WithToken for TestRequest {
     fn with_token(self, token: &str) -> Self {
         self.cookie(Cookie::new("X-AUTH-TOKEN", token))
     }
+
+    fn with_bearer(self, token: &str) -> Self {
+        self.insert_header(("Authorization", format!("Bearer {token}")))
+    }
 }
 
 impl WithToken for ClientRequest {
     fn with_token(self, token: &str) -> Self {
         self.cookie(Cookie::new("X-AUTH-TOKEN", token))
+    }
+
+    fn with_bearer(self, token: &str) -> Self {
+        self.insert_header(("Authorization", format!("Bearer {token}")))
     }
 }
 
@@ -839,6 +848,29 @@ pub async fn register_and_login(
     get_http_token(&ctx.addr, username, password, &ctx.client)
         .await
         .unwrap()
+}
+
+pub async fn exchange_token(
+    addr: &str,
+    username: &str,
+    password: &str,
+    client: &Client,
+) -> anyhow::Result<serde_json::Value> {
+    let mut resp = client
+        .post(format!("http://{addr}/api/v1/auth/exchange"))
+        .insert_header((header::CONTENT_TYPE, "application/json"))
+        .send_body(format!(
+            r#"{{"username":"{username}","password":"{password}"}}"#
+        ))
+        .await
+        .map_err(|err| anyhow::anyhow!("{err}"))?;
+
+    let body = resp
+        .json::<serde_json::Value>()
+        .await
+        .map_err(|err| anyhow::anyhow!("{err}"))?;
+
+    Ok(body)
 }
 
 pub fn assert_rate_limit_headers(headers: &HeaderMap) {
