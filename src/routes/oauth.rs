@@ -24,6 +24,12 @@ pub struct OAuthCallbackQuery {
     error: Option<String>,
 }
 
+#[derive(Deserialize, Debug)]
+pub struct OAuthLoginQuery {
+    #[serde(default)]
+    redirect: Option<String>,
+}
+
 #[utoipa::path(
     get,
     path = "/api/v1/auth/oauth/github/login",
@@ -36,6 +42,7 @@ pub struct OAuthCallbackQuery {
 #[tracing::instrument(level = "info", skip(app_data))]
 pub async fn github_login(
     app_data: Data<AppData>,
+    query: web::Query<OAuthLoginQuery>,
 ) -> Result<HttpResponse, DomainError> {
     if !app_data.config.oauth.enabled {
         return Err(DomainError::new_auth_error(
@@ -43,11 +50,25 @@ pub async fn github_login(
         ));
     }
 
-    let redis = app_data.redis_conn_manager.clone();
+    let mut redis = app_data.redis_conn_manager.clone();
     let prefix = &app_data.redis_prefix;
 
     let (state, code_challenge) =
-        oauth::generate_state_and_challenge(redis, prefix).await?;
+        oauth::generate_state_and_challenge(redis.clone(), prefix).await?;
+
+    // Store redirect URL with state
+    if let Some(redirect) = &query.redirect {
+        use redis::AsyncCommands;
+        let key = format!("{}{}", prefix(&"oauth:redirect"), state);
+        redis
+            .set_ex::<_, _, ()>(&key, redirect, 300)
+            .await
+            .map_err(|err| {
+                DomainError::new_internal_error(format!(
+                    "Failed to store OAuth redirect: {err}"
+                ))
+            })?;
+    }
 
     let authorize_url = oauth::build_github_authorize_url(
         &app_data.config.oauth,
@@ -96,14 +117,28 @@ pub async fn github_callback(
         ));
     }
 
-    let redis = app_data.redis_conn_manager.clone();
+    let mut redis = app_data.redis_conn_manager.clone();
     let prefix = &app_data.redis_prefix;
 
-    // Validate state
-    let _code_verifier = oauth::validate_state(redis, prefix, state).await?;
+    // Retrieve stored redirect URL
+    let redirect_url: Option<String> = {
+        use redis::AsyncCommands;
+        let key = format!("{}{}", prefix(&"oauth:redirect"), state);
+        redis.get(&key).await.ok().flatten()
+    };
+    {
+        use redis::AsyncCommands;
+        let _: Result<usize, _> = redis
+            .del(format!("{}{}", prefix(&"oauth:redirect"), state))
+            .await;
+    }
+
+    // Validate state and retrieve code verifier
+    let code_verifier = oauth::validate_state(redis, prefix, state).await?;
 
     // Exchange code for token
-    let access_token = oauth::exchange_github_code(config, code).await?;
+    let access_token =
+        oauth::exchange_github_code(config, code, &code_verifier).await?;
 
     // Get user info from GitHub
     let github_user =
@@ -132,7 +167,7 @@ pub async fn github_callback(
     .await??;
 
     // Issue JWT and session
-    issue_oauth_session(app_data, user).await
+    issue_oauth_session(app_data, user, redirect_url).await
 }
 
 #[utoipa::path(
@@ -210,11 +245,12 @@ pub async fn google_callback(
     let redis = app_data.redis_conn_manager.clone();
     let prefix = &app_data.redis_prefix;
 
-    // Validate state
-    let _code_verifier = oauth::validate_state(redis, prefix, state).await?;
+    // Validate state and retrieve code verifier
+    let code_verifier = oauth::validate_state(redis, prefix, state).await?;
 
     // Exchange code for token
-    let access_token = oauth::exchange_google_code(config, code).await?;
+    let access_token =
+        oauth::exchange_google_code(config, code, &code_verifier).await?;
 
     // Get user info from Google
     let google_user =
@@ -239,7 +275,7 @@ pub async fn google_callback(
     .await??;
 
     // Issue JWT and session
-    issue_oauth_session(app_data, user).await
+    issue_oauth_session(app_data, user, None).await
 }
 
 async fn create_oauth_session(
@@ -294,6 +330,7 @@ async fn create_oauth_session(
 async fn issue_oauth_session(
     app_data: Data<AppData>,
     user: crate::models::users::UserWithRoles,
+    redirect_url: Option<String>,
 ) -> Result<HttpResponse, DomainError> {
     let (token, _session_info) = create_oauth_session(&user, &app_data).await?;
 
@@ -311,7 +348,10 @@ async fn issue_oauth_session(
         .finish();
 
     Ok(HttpResponse::TemporaryRedirect()
-        .append_header(("Location", "/"))
+        .append_header((
+            "Location",
+            redirect_url.unwrap_or_else(|| "/".to_string()),
+        ))
         .cookie(cookie)
         .finish())
 }
@@ -319,6 +359,7 @@ async fn issue_oauth_session(
 #[derive(Deserialize, Debug, ToSchema)]
 pub struct OAuthExchangeRequest {
     pub code: String,
+    pub state: String,
 }
 
 #[utoipa::path(
@@ -344,8 +385,14 @@ pub async fn github_exchange(
         ));
     }
 
+    let redis = app_data.redis_conn_manager.clone();
+    let prefix = &app_data.redis_prefix;
+    let code_verifier =
+        oauth::validate_state(redis, prefix, &req.state).await?;
+
     // Exchange code for token
-    let access_token = oauth::exchange_github_code(config, &req.code).await?;
+    let access_token =
+        oauth::exchange_github_code(config, &req.code, &code_verifier).await?;
 
     // Get user info from GitHub
     let github_user =
@@ -411,8 +458,14 @@ pub async fn google_exchange(
         ));
     }
 
+    let redis = app_data.redis_conn_manager.clone();
+    let prefix = &app_data.redis_prefix;
+    let code_verifier =
+        oauth::validate_state(redis, prefix, &req.state).await?;
+
     // Exchange code for token
-    let access_token = oauth::exchange_google_code(config, &req.code).await?;
+    let access_token =
+        oauth::exchange_google_code(config, &req.code, &code_verifier).await?;
 
     // Get user info from Google
     let google_user =

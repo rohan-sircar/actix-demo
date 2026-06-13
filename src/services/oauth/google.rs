@@ -27,15 +27,9 @@ pub fn build_authorize_url(
     state: &str,
     code_challenge: &str,
 ) -> Result<String, DomainError> {
-    let auth_base = if base_url.is_empty()
-        || base_url.starts_with("https://accounts.google.com")
-    {
-        "https://accounts.google.com"
-    } else {
-        base_url
-    };
-    let mut url = Url::parse(&format!("{auth_base}{GOOGLE_AUTH_PATH}"))
-        .map_err(|err| {
+    let mut url =
+        Url::parse(&format!("https://accounts.google.com{GOOGLE_AUTH_PATH}"))
+            .map_err(|err| {
             DomainError::new_internal_error(format!(
                 "Failed to parse Google auth URL: {err}"
             ))
@@ -62,6 +56,7 @@ pub async fn exchange_code_for_token(
     config: &OAuthProviderConfig,
     code: &str,
     base_url: &str,
+    code_verifier: &str,
 ) -> Result<GoogleTokenResponse, DomainError> {
     let client = reqwest::Client::new();
     let redirect_uri = format!("{base_url}/api/v1/auth/oauth/google/callback");
@@ -70,12 +65,14 @@ pub async fn exchange_code_for_token(
     let response = client
         .post(&token_url)
         .header("Accept", "application/json")
+        .header("User-Agent", "actix-demo")
         .form(&serde_json::json!({
             "client_id": config.client_id,
             "client_secret": config.client_secret,
             "code": code,
             "redirect_uri": redirect_uri,
             "grant_type": "authorization_code",
+            "code_verifier": code_verifier,
         }))
         .send()
         .await
@@ -113,6 +110,7 @@ pub async fn get_user_info(
         .get(&user_url)
         .header("Authorization", format!("Bearer {access_token}"))
         .header("Accept", "application/json")
+        .header("User-Agent", "actix-demo")
         .send()
         .await
         .map_err(|err| {

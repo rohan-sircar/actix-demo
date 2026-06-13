@@ -134,7 +134,7 @@ pub fn default_rate_limit_password_reset_window_secs() -> u64 {
 }
 
 pub fn default_oauth_enabled() -> bool {
-    false
+    true
 }
 
 pub fn default_oauth_base_url() -> String {
@@ -145,8 +145,12 @@ pub fn default_oauth_config() -> crate::config::OAuthConfig {
     crate::config::OAuthConfig {
         enabled: default_oauth_enabled(),
         base_url: default_oauth_base_url(),
-        github: crate::config::OAuthProviderConfig::default(),
-        google: crate::config::OAuthProviderConfig::default(),
+        github_client_id: String::new(),
+        github_client_secret: String::new(),
+        github_scopes: Vec::new(),
+        google_client_id: String::new(),
+        google_client_secret: String::new(),
+        google_scopes: Vec::new(),
     }
 }
 

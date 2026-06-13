@@ -4,6 +4,8 @@ use crate::errors::DomainError;
 use serde::Serialize;
 use url::Url;
 
+const GITHUB_URL: &str = "https://github.com";
+const GITHUB_API_URL: &str = "https://api.github.com";
 const GITHUB_AUTH_PATH: &str = "/login/oauth/authorize";
 const GITHUB_TOKEN_PATH: &str = "/login/oauth/access_token";
 const GITHUB_USER_INFO_PATH: &str = "/user";
@@ -26,12 +28,7 @@ pub fn build_authorize_url(
     state: &str,
     code_challenge: &str,
 ) -> Result<String, DomainError> {
-    let auth_base = if base_url.is_empty() || base_url == "https://github.com" {
-        "https://github.com"
-    } else {
-        base_url
-    };
-    let mut url = Url::parse(&format!("{auth_base}{GITHUB_AUTH_PATH}"))
+    let mut url = Url::parse(&format!("https://github.com{GITHUB_AUTH_PATH}"))
         .map_err(|err| {
             DomainError::new_internal_error(format!(
                 "Failed to parse GitHub auth URL: {err}"
@@ -57,14 +54,16 @@ pub async fn exchange_code_for_token(
     config: &OAuthProviderConfig,
     code: &str,
     base_url: &str,
+    code_verifier: &str,
 ) -> Result<GitHubTokenResponse, DomainError> {
     let client = reqwest::Client::new();
     let redirect_uri = format!("{base_url}/api/v1/auth/oauth/github/callback");
-    let token_url = format!("{base_url}{GITHUB_TOKEN_PATH}");
+    let token_url = format!("{GITHUB_URL}{GITHUB_TOKEN_PATH}");
 
     let response = client
         .post(&token_url)
         .header("Accept", "application/json")
+        .header("User-Agent", "actix-demo")
         .basic_auth(
             config.client_id.clone(),
             Some(config.client_secret.clone()),
@@ -73,6 +72,7 @@ pub async fn exchange_code_for_token(
             "code": code,
             "redirect_uri": redirect_uri,
             "grant_type": "authorization_code",
+            "code_verifier": code_verifier,
         }))
         .send()
         .await
@@ -82,18 +82,16 @@ pub async fn exchange_code_for_token(
             ))
         })?;
 
-    if !response.status().is_success() {
-        let body = response.text().await.unwrap_or_default();
+    let status = response.status();
+    let body = response.text().await.unwrap_or_default();
+    if !status.is_success() {
+        tracing::error!(status = %status, body = %body, "GitHub token exchange failed");
         return Err(DomainError::new_internal_error(format!(
-            "GitHub token exchange failed: {body}"
+            "GitHub token exchange failed ({}): {}",
+            status, body
         )));
     }
-
-    let body = response.text().await.map_err(|err| {
-        DomainError::new_internal_error(format!(
-            "Failed to read GitHub token response: {err}"
-        ))
-    })?;
+    tracing::info!(body = %body, "GitHub token exchange response");
 
     // Parse URL-encoded response: access_token=xxx&scope=yyy&token_type=zzz
     let token_response = parse_github_token_response(&body)?;
@@ -103,6 +101,12 @@ pub async fn exchange_code_for_token(
 fn parse_github_token_response(
     body: &str,
 ) -> Result<GitHubTokenResponse, DomainError> {
+    // Try JSON first (GitHub returns JSON when Accept: application/json)
+    if let Ok(response) = serde_json::from_str::<GitHubTokenResponse>(body) {
+        return Ok(response);
+    }
+
+    // Fallback to URL-encoded format
     let mut access_token = String::new();
     let mut scope = String::new();
     let mut token_type = String::new();
@@ -140,26 +144,37 @@ pub async fn get_user_info(
     base_url: &str,
 ) -> Result<GitHubOAuthUser, DomainError> {
     let client = reqwest::Client::new();
-    let user_url = format!("{base_url}{GITHUB_USER_INFO_PATH}");
+    let user_url = format!("{GITHUB_API_URL}{GITHUB_USER_INFO_PATH}");
 
-    let user = client
+    let response = client
         .get(&user_url)
         .header("Authorization", format!("token {access_token}"))
         .header("Accept", "application/json")
+        .header("User-Agent", "actix-demo")
         .send()
         .await
         .map_err(|err| {
             DomainError::new_internal_error(format!(
                 "Failed to fetch GitHub user info: {err}"
             ))
-        })?
-        .json::<GitHubOAuthUser>()
-        .await
-        .map_err(|err| {
-            DomainError::new_internal_error(format!(
-                "Failed to parse GitHub user info: {err}"
-            ))
         })?;
+
+    let status = response.status();
+    let body = response.text().await.unwrap_or_default();
+    tracing::info!(status = %status, body = %body, "GitHub user info response");
+
+    if !status.is_success() {
+        return Err(DomainError::new_internal_error(format!(
+            "GitHub user info failed ({}): {}",
+            status, body
+        )));
+    }
+
+    let user: GitHubOAuthUser = serde_json::from_str(&body).map_err(|err| {
+        DomainError::new_internal_error(format!(
+            "Failed to parse GitHub user info: {err}"
+        ))
+    })?;
 
     Ok(user)
 }
@@ -169,12 +184,13 @@ pub async fn get_user_emails(
     base_url: &str,
 ) -> Result<Vec<GitHubEmail>, DomainError> {
     let client = reqwest::Client::new();
-    let emails_url = format!("{base_url}{GITHUB_EMAILS_PATH}");
+    let emails_url = format!("{GITHUB_API_URL}{GITHUB_EMAILS_PATH}");
 
     let emails = client
         .get(&emails_url)
         .header("Authorization", format!("token {access_token}"))
         .header("Accept", "application/json")
+        .header("User-Agent", "actix-demo")
         .send()
         .await
         .map_err(|err| {

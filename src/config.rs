@@ -15,10 +15,32 @@ pub enum TlsMode {
 pub struct OAuthConfig {
     pub enabled: bool,
     pub base_url: String,
+    pub github_client_id: String,
+    pub github_client_secret: String,
     #[serde(default)]
-    pub github: OAuthProviderConfig,
+    pub github_scopes: Vec<String>,
+    pub google_client_id: String,
+    pub google_client_secret: String,
     #[serde(default)]
-    pub google: OAuthProviderConfig,
+    pub google_scopes: Vec<String>,
+}
+
+impl OAuthConfig {
+    pub fn github(&self) -> OAuthProviderConfig {
+        OAuthProviderConfig {
+            client_id: self.github_client_id.clone(),
+            client_secret: self.github_client_secret.clone(),
+            scopes: self.github_scopes.clone(),
+        }
+    }
+
+    pub fn google(&self) -> OAuthProviderConfig {
+        OAuthProviderConfig {
+            client_id: self.google_client_id.clone(),
+            client_secret: self.google_client_secret.clone(),
+            scopes: self.google_scopes.clone(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
@@ -152,9 +174,23 @@ pub struct EnvConfig {
         default = "models::defaults::default_rate_limit_password_reset_window_secs"
     )]
     pub rate_limit_password_reset_window_secs: u64,
-    // OAuth configuration
-    #[serde(default = "models::defaults::default_oauth_config")]
-    pub oauth: OAuthConfig,
+    // OAuth configuration (flat for envy compatibility)
+    #[serde(default = "models::defaults::default_oauth_enabled")]
+    pub oauth_enabled: bool,
+    #[serde(default = "models::defaults::default_oauth_base_url")]
+    pub oauth_base_url: String,
+    #[serde(default)]
+    pub oauth_github_client_id: String,
+    #[serde(default)]
+    pub oauth_github_client_secret: String,
+    #[serde(default)]
+    pub oauth_github_scopes: String,
+    #[serde(default)]
+    pub oauth_google_client_id: String,
+    #[serde(default)]
+    pub oauth_google_client_secret: String,
+    #[serde(default)]
+    pub oauth_google_scopes: String,
     // API documentation path
     #[serde(default = "models::defaults::default_swagger_path")]
     pub swagger_path: String,

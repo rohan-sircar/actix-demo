@@ -494,9 +494,14 @@ pub async fn app_data(
         oauth: options.oauth_config.unwrap_or(OAuthConfig {
             enabled: false,
             base_url: "http://localhost:7800".to_string(),
-            github: actix_demo::config::OAuthProviderConfig::default(),
-            google: actix_demo::config::OAuthProviderConfig::default(),
+            github_client_id: String::new(),
+            github_client_secret: String::new(),
+            github_scopes: Vec::new(),
+            google_client_id: String::new(),
+            google_client_secret: String::new(),
+            google_scopes: Vec::new(),
         }),
+        cors_origins: "*".to_string(),
     };
 
     let client = redis::Client::open(redis_connstr)
