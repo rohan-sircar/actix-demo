@@ -87,7 +87,7 @@ services:
   #   image: rohansircar/actix-demo:devel
   #   container_name: actix-demo-app
   #   ports:
-  #     - "8085:7800"
+  #     - "8085:8800"
   #   depends_on:
   #     - redis
   #     - postgres

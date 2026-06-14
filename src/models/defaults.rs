@@ -108,8 +108,12 @@ pub fn default_email_token_ttl_reset_secs() -> u64 {
     900 // 15 minutes
 }
 
+pub fn default_http_port() -> u16 {
+    8800
+}
+
 pub fn default_app_base_url() -> String {
-    "http://localhost:7800".to_string()
+    "http://localhost:8800".to_string()
 }
 
 pub fn default_verification_link_template() -> String {
@@ -142,7 +146,7 @@ pub fn default_oauth_enabled() -> bool {
 }
 
 pub fn default_oauth_base_url() -> String {
-    "http://localhost:7800".to_string()
+    "http://localhost:8800".to_string()
 }
 
 pub fn default_oauth_github_base_url() -> String {

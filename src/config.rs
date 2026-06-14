@@ -64,6 +64,8 @@ pub struct EnvConfig {
     pub prometheus_url: url::Url,
     pub database_url: String,
     pub http_host: String,
+    #[serde(default = "models::defaults::default_http_port")]
+    pub http_port: u16,
     #[serde(default = "models::defaults::default_app_base_url")]
     pub app_base_url: String,
     #[serde(default = "models::defaults::default_hash_cost")]

@@ -82,7 +82,7 @@ The project runs alongside several services via Docker Compose:
    cargo run
    ```
 
-The API will be available at `http://localhost:7800`.
+The API will be available at `http://localhost:8800`.
 
 ### Development Tasks
 

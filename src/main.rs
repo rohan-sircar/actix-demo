@@ -312,16 +312,7 @@ async fn main() -> anyhow::Result<()> {
         swagger_path: env_config.swagger_path,
     });
 
-    let server_addr = if !env_config.app_base_url.is_empty() {
-        // Extract host:port from app_base_url (e.g., "http://localhost:7800" -> "0.0.0.0:7800")
-        let parsed = url::Url::parse(&env_config.app_base_url)
-            .unwrap_or_else(|_| url::Url::parse("http://localhost:7800").unwrap());
-        let host = env_config.http_host.clone();
-        let port = parsed.port().unwrap_or(7800);
-        format!("{host}:{port}")
-    } else {
-        format!("{}:7800", env_config.http_host)
-    };
+    let server_addr = format!("{}:{}", env_config.http_host, env_config.http_port);
 
     let _app = actix_demo::run(server_addr, app_data).await?;
 
