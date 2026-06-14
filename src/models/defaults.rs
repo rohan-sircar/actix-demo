@@ -108,12 +108,16 @@ pub fn default_email_token_ttl_reset_secs() -> u64 {
     900 // 15 minutes
 }
 
+pub fn default_app_base_url() -> String {
+    "http://localhost:7800".to_string()
+}
+
 pub fn default_verification_link_template() -> String {
-    "https://yourapp.com/verify?token={token}&user={user_name}".to_string()
+    "{base_url}/verify?token={token}&user={user_name}".to_string()
 }
 
 pub fn default_password_reset_link_template() -> String {
-    "https://yourapp.com/reset-password?token={token}&user={user_name}"
+    "{base_url}/reset-password?token={token}&user={user_name}"
         .to_string()
 }
 

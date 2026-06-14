@@ -15,6 +15,7 @@ pub fn create_mailer(
         username: config.smtp_username.clone(),
         password: config.smtp_password.clone(),
         from_email: config.smtp_from_email.clone(),
+        app_base_url: config.app_base_url.clone(),
         verification_link_template: config.verification_link_template.clone(),
         password_reset_link_template: config
             .password_reset_link_template

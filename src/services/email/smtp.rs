@@ -16,6 +16,7 @@ pub struct SmtpSenderConfig {
     pub username: String,
     pub password: String,
     pub from_email: String,
+    pub app_base_url: String,
     pub verification_link_template: String,
     pub password_reset_link_template: String,
 }
@@ -23,6 +24,7 @@ pub struct SmtpSenderConfig {
 pub struct SmtpSender {
     transport: AsyncSmtpTransport<Tokio1Executor>,
     from_email: String,
+    app_base_url: String,
     verification_link_template: String,
     password_reset_link_template: String,
 }
@@ -74,6 +76,7 @@ impl SmtpSender {
         Ok(Self {
             transport,
             from_email: config.from_email.clone(),
+            app_base_url: config.app_base_url.clone(),
             verification_link_template: config
                 .verification_link_template
                 .clone(),
@@ -117,15 +120,15 @@ impl SmtpSender {
     }
 
     fn render_verification_link(&self, token: &str, user_name: &str) -> String {
-        self.verification_link_template
-            .replace("{token}", token)
-            .replace("{user_name}", user_name)
+        let url = self.verification_link_template
+            .replace("{base_url}", &self.app_base_url);
+        url.replace("{token}", token).replace("{user_name}", user_name)
     }
 
     fn render_reset_link(&self, token: &str, user_name: &str) -> String {
-        self.password_reset_link_template
-            .replace("{token}", token)
-            .replace("{user_name}", user_name)
+        let url = self.password_reset_link_template
+            .replace("{base_url}", &self.app_base_url);
+        url.replace("{token}", token).replace("{user_name}", user_name)
     }
 }
 
