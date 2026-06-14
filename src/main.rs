@@ -47,6 +47,44 @@ async fn main() -> anyhow::Result<()> {
         .from_env::<EnvConfig>()
         .context("Failed to parse config")?;
 
+    let oauth_config = actix_demo::config::OAuthConfig {
+        enabled: env_config.oauth_enabled,
+        base_url: env_config.oauth_base_url.clone(),
+        github_base_url: if env_config.oauth_github_base_url.is_empty() {
+            "https://github.com".to_string()
+        } else {
+            env_config.oauth_github_base_url.clone()
+        },
+        github_api_base_url: if env_config.oauth_github_api_base_url.is_empty()
+        {
+            "https://api.github.com".to_string()
+        } else {
+            env_config.oauth_github_api_base_url.clone()
+        },
+        github_client_id: env_config.oauth_github_client_id.clone(),
+        github_client_secret: env_config.oauth_github_client_secret.clone(),
+        github_scopes: if env_config.oauth_github_scopes.is_empty() {
+            Vec::new()
+        } else {
+            env_config
+                .oauth_github_scopes
+                .split(',')
+                .map(|s| s.trim().to_string())
+                .collect()
+        },
+        google_client_id: env_config.oauth_google_client_id.clone(),
+        google_client_secret: env_config.oauth_google_client_secret.clone(),
+        google_scopes: if env_config.oauth_google_scopes.is_empty() {
+            Vec::new()
+        } else {
+            env_config
+                .oauth_google_scopes
+                .split(',')
+                .map(|s| s.trim().to_string())
+                .collect()
+        },
+    };
+
     //bind guard to variable instead of _
     let _guard = setup_logger(
         env_config.logger_format.clone(),
@@ -255,7 +293,7 @@ async fn main() -> anyhow::Result<()> {
                 from_email: env_config.smtp_from_email.clone(),
                 tls_mode: env_config.smtp_tls_mode,
             },
-            oauth: env_config.oauth.clone(),
+            oauth: oauth_config,
             cors_origins: env_config.cors_origins.clone(),
         },
         pool,

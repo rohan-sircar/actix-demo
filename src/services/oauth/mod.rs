@@ -16,7 +16,11 @@ pub async fn generate_state_and_challenge(
     use sha2::Digest;
 
     let state = Uuid::new_v4().to_string();
-    let code_verifier = Uuid::new_v4().to_string();
+    // RFC 7636: 43-128 chars, only [a-zA-Z0-9_.~-]
+    let code_verifier = {
+        let rand_bytes: [u8; 32] = rand::random();
+        base64_url_encode(&rand_bytes)
+    };
     let mut hasher = sha2::Sha256::new();
     hasher.update(code_verifier.as_bytes());
     let code_challenge = base64_url_encode(&hasher.finalize());
@@ -35,8 +39,8 @@ pub async fn generate_state_and_challenge(
 }
 
 pub fn base64_url_encode(data: &[u8]) -> String {
-    use data_encoding::BASE64URL;
-    BASE64URL.encode(data)
+    use data_encoding::BASE64URL_NOPAD;
+    BASE64URL_NOPAD.encode(data)
 }
 
 pub async fn validate_state(
@@ -66,10 +70,12 @@ pub async fn validate_state(
 
 pub async fn get_github_user_info(
     access_token: &str,
-    base_url: &str,
+    github_api_base_url: &str,
 ) -> Result<GitHubOAuthUser, DomainError> {
-    let github_user = github::get_user_info(access_token, base_url).await?;
-    let emails = github::get_user_emails(access_token, base_url).await?;
+    let github_user =
+        github::get_user_info(access_token, github_api_base_url).await?;
+    let emails =
+        github::get_user_emails(access_token, github_api_base_url).await?;
 
     let primary_email = emails
         .iter()
@@ -97,7 +103,7 @@ pub fn build_github_authorize_url(
     code_challenge: &str,
 ) -> Result<String, DomainError> {
     github::build_authorize_url(
-        &config.github,
+        &config.github(),
         &config.base_url,
         state,
         code_challenge,
@@ -107,10 +113,16 @@ pub fn build_github_authorize_url(
 pub async fn exchange_github_code(
     config: &OAuthConfig,
     code: &str,
+    code_verifier: &str,
 ) -> Result<String, DomainError> {
-    let token_response =
-        github::exchange_code_for_token(&config.github, code, &config.base_url)
-            .await?;
+    let token_response = github::exchange_code_for_token(
+        &config.github(),
+        code,
+        &config.base_url,
+        &config.github_base_url,
+        code_verifier,
+    )
+    .await?;
     Ok(token_response.access_token)
 }
 
@@ -120,7 +132,7 @@ pub fn build_google_authorize_url(
     code_challenge: &str,
 ) -> Result<String, DomainError> {
     google::build_authorize_url(
-        &config.google,
+        &config.google(),
         &config.base_url,
         state,
         code_challenge,
@@ -130,10 +142,15 @@ pub fn build_google_authorize_url(
 pub async fn exchange_google_code(
     config: &OAuthConfig,
     code: &str,
+    code_verifier: &str,
 ) -> Result<String, DomainError> {
-    let token_response =
-        google::exchange_code_for_token(&config.google, code, &config.base_url)
-            .await?;
+    let token_response = google::exchange_code_for_token(
+        &config.google(),
+        code,
+        &config.base_url,
+        code_verifier,
+    )
+    .await?;
     Ok(token_response.access_token)
 }
 

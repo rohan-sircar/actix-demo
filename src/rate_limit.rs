@@ -95,14 +95,18 @@ pub fn create_login_rate_limiter(
     );
     let input_fn =
         build_input_function(&config.key_strategy, input_fn_builder).build();
+    let max_requests = config.auth.max_requests;
 
     RateLimiter::builder(backend, input_fn)
         .rollback_condition(Some(|status| {
             status != actix_web::http::StatusCode::UNAUTHORIZED
         }))
         .add_headers()
-        .request_denied_response(|status| {
-            let _ = tracing::warn!("Reached rate limit for login");
+        .request_denied_response(move |status| {
+            let _ = tracing::warn!(
+                "Reached rate limit for login: {}",
+                max_requests
+            );
             make_denied_response(status)
         })
         .build()

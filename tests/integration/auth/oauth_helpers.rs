@@ -1,4 +1,4 @@
-use actix_demo::config::{OAuthConfig, OAuthProviderConfig};
+use actix_demo::config::OAuthConfig;
 use awc::Client;
 use wiremock::MockServer;
 
@@ -20,16 +20,14 @@ pub async fn setup_oauth_app_with_servers(
     let oauth_config = OAuthConfig {
         enabled: true,
         base_url: format!("http://{}", github_server.address()),
-        github: OAuthProviderConfig {
-            client_id: "test-github-client-id".to_string(),
-            client_secret: "test-github-client-secret".to_string(),
-            scopes: vec!["user:email".to_string()],
-        },
-        google: OAuthProviderConfig {
-            client_id: "test-google-client-id".to_string(),
-            client_secret: "test-google-client-secret".to_string(),
-            scopes: vec!["openid email profile".to_string()],
-        },
+        github_base_url: format!("http://{}", github_server.address()),
+        github_api_base_url: format!("http://{}", github_server.address()),
+        github_client_id: "test-github-client-id".to_string(),
+        github_client_secret: "test-github-client-secret".to_string(),
+        github_scopes: vec!["user:email".to_string()],
+        google_client_id: "test-google-client-id".to_string(),
+        google_client_secret: "test-google-client-secret".to_string(),
+        google_scopes: vec!["openid email profile".to_string()],
     };
 
     let options = TestAppOptionsBuilder::default()
