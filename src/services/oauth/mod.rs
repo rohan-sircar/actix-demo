@@ -70,10 +70,9 @@ pub async fn validate_state(
 
 pub async fn get_github_user_info(
     access_token: &str,
-    base_url: &str,
 ) -> Result<GitHubOAuthUser, DomainError> {
-    let github_user = github::get_user_info(access_token, base_url).await?;
-    let emails = github::get_user_emails(access_token, base_url).await?;
+    let github_user = github::get_user_info(access_token).await?;
+    let emails = github::get_user_emails(access_token).await?;
 
     let primary_email = emails
         .iter()

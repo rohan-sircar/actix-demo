@@ -141,7 +141,6 @@ fn parse_github_token_response(
 
 pub async fn get_user_info(
     access_token: &str,
-    base_url: &str,
 ) -> Result<GitHubOAuthUser, DomainError> {
     let client = reqwest::Client::new();
     let user_url = format!("{GITHUB_API_URL}{GITHUB_USER_INFO_PATH}");
@@ -181,7 +180,6 @@ pub async fn get_user_info(
 
 pub async fn get_user_emails(
     access_token: &str,
-    base_url: &str,
 ) -> Result<Vec<GitHubEmail>, DomainError> {
     let client = reqwest::Client::new();
     let emails_url = format!("{GITHUB_API_URL}{GITHUB_EMAILS_PATH}");
