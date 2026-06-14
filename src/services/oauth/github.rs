@@ -4,8 +4,6 @@ use crate::errors::DomainError;
 use serde::Serialize;
 use url::Url;
 
-const GITHUB_URL: &str = "https://github.com";
-const GITHUB_API_URL: &str = "https://api.github.com";
 const GITHUB_AUTH_PATH: &str = "/login/oauth/authorize";
 const GITHUB_TOKEN_PATH: &str = "/login/oauth/access_token";
 const GITHUB_USER_INFO_PATH: &str = "/user";
@@ -54,11 +52,12 @@ pub async fn exchange_code_for_token(
     config: &OAuthProviderConfig,
     code: &str,
     base_url: &str,
+    github_base_url: &str,
     code_verifier: &str,
 ) -> Result<GitHubTokenResponse, DomainError> {
     let client = reqwest::Client::new();
     let redirect_uri = format!("{base_url}/api/v1/auth/oauth/github/callback");
-    let token_url = format!("{GITHUB_URL}{GITHUB_TOKEN_PATH}");
+    let token_url = format!("{github_base_url}{GITHUB_TOKEN_PATH}");
 
     let response = client
         .post(&token_url)
@@ -141,9 +140,10 @@ fn parse_github_token_response(
 
 pub async fn get_user_info(
     access_token: &str,
+    github_api_base_url: &str,
 ) -> Result<GitHubOAuthUser, DomainError> {
     let client = reqwest::Client::new();
-    let user_url = format!("{GITHUB_API_URL}{GITHUB_USER_INFO_PATH}");
+    let user_url = format!("{github_api_base_url}{GITHUB_USER_INFO_PATH}");
 
     let response = client
         .get(&user_url)
@@ -180,9 +180,10 @@ pub async fn get_user_info(
 
 pub async fn get_user_emails(
     access_token: &str,
+    github_api_base_url: &str,
 ) -> Result<Vec<GitHubEmail>, DomainError> {
     let client = reqwest::Client::new();
-    let emails_url = format!("{GITHUB_API_URL}{GITHUB_EMAILS_PATH}");
+    let emails_url = format!("{github_api_base_url}{GITHUB_EMAILS_PATH}");
 
     let emails = client
         .get(&emails_url)

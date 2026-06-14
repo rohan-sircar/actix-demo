@@ -20,6 +20,8 @@ pub async fn setup_oauth_app_with_servers(
     let oauth_config = OAuthConfig {
         enabled: true,
         base_url: format!("http://{}", github_server.address()),
+        github_base_url: format!("http://{}", github_server.address()),
+        github_api_base_url: format!("http://{}", github_server.address()),
         github_client_id: "test-github-client-id".to_string(),
         github_client_secret: "test-github-client-secret".to_string(),
         github_scopes: vec!["user:email".to_string()],

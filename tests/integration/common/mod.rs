@@ -494,6 +494,8 @@ pub async fn app_data(
         oauth: options.oauth_config.unwrap_or(OAuthConfig {
             enabled: false,
             base_url: "http://localhost:7800".to_string(),
+            github_base_url: "https://github.com".to_string(),
+            github_api_base_url: "https://api.github.com".to_string(),
             github_client_id: String::new(),
             github_client_secret: String::new(),
             github_scopes: Vec::new(),

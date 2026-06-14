@@ -50,6 +50,17 @@ async fn main() -> anyhow::Result<()> {
     let oauth_config = actix_demo::config::OAuthConfig {
         enabled: env_config.oauth_enabled,
         base_url: env_config.oauth_base_url.clone(),
+        github_base_url: if env_config.oauth_github_base_url.is_empty() {
+            "https://github.com".to_string()
+        } else {
+            env_config.oauth_github_base_url.clone()
+        },
+        github_api_base_url: if env_config.oauth_github_api_base_url.is_empty()
+        {
+            "https://api.github.com".to_string()
+        } else {
+            env_config.oauth_github_api_base_url.clone()
+        },
         github_client_id: env_config.oauth_github_client_id.clone(),
         github_client_secret: env_config.oauth_github_client_secret.clone(),
         github_scopes: if env_config.oauth_github_scopes.is_empty() {

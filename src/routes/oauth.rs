@@ -141,7 +141,9 @@ pub async fn github_callback(
         oauth::exchange_github_code(config, code, &code_verifier).await?;
 
     // Get user info from GitHub
-    let github_user = oauth::get_github_user_info(&access_token).await?;
+    let github_user =
+        oauth::get_github_user_info(&access_token, &config.github_api_base_url)
+            .await?;
     let email = github_user.email.ok_or_else(|| {
         DomainError::new_bad_input_error(
             "GitHub did not return an email".to_owned(),
@@ -394,7 +396,9 @@ pub async fn github_exchange(
         oauth::exchange_github_code(config, &req.code, &code_verifier).await?;
 
     // Get user info from GitHub
-    let github_user = oauth::get_github_user_info(&access_token).await?;
+    let github_user =
+        oauth::get_github_user_info(&access_token, &config.github_api_base_url)
+            .await?;
     let email = github_user.email.ok_or_else(|| {
         DomainError::new_bad_input_error(
             "GitHub did not return an email".to_owned(),

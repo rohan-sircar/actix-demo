@@ -141,10 +141,20 @@ pub fn default_oauth_base_url() -> String {
     "http://localhost:7800".to_string()
 }
 
+pub fn default_oauth_github_base_url() -> String {
+    "https://github.com".to_string()
+}
+
+pub fn default_oauth_github_api_base_url() -> String {
+    "https://api.github.com".to_string()
+}
+
 pub fn default_oauth_config() -> crate::config::OAuthConfig {
     crate::config::OAuthConfig {
         enabled: default_oauth_enabled(),
         base_url: default_oauth_base_url(),
+        github_base_url: default_oauth_github_base_url(),
+        github_api_base_url: default_oauth_github_api_base_url(),
         github_client_id: String::new(),
         github_client_secret: String::new(),
         github_scopes: Vec::new(),

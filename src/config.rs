@@ -15,6 +15,8 @@ pub enum TlsMode {
 pub struct OAuthConfig {
     pub enabled: bool,
     pub base_url: String,
+    pub github_base_url: String,
+    pub github_api_base_url: String,
     pub github_client_id: String,
     pub github_client_secret: String,
     #[serde(default)]
@@ -32,6 +34,10 @@ impl OAuthConfig {
             client_secret: self.github_client_secret.clone(),
             scopes: self.github_scopes.clone(),
         }
+    }
+
+    pub fn github_api_base_url(&self) -> String {
+        self.github_api_base_url.clone()
     }
 
     pub fn google(&self) -> OAuthProviderConfig {
@@ -179,6 +185,10 @@ pub struct EnvConfig {
     pub oauth_enabled: bool,
     #[serde(default = "models::defaults::default_oauth_base_url")]
     pub oauth_base_url: String,
+    #[serde(default = "models::defaults::default_oauth_github_base_url")]
+    pub oauth_github_base_url: String,
+    #[serde(default = "models::defaults::default_oauth_github_api_base_url")]
+    pub oauth_github_api_base_url: String,
     #[serde(default)]
     pub oauth_github_client_id: String,
     #[serde(default)]
