@@ -159,6 +159,7 @@ diesel::table! {
         #[max_length = 128]
         oauth_uid -> Nullable<Varchar>,
         user_uuid -> Uuid,
+        email_verified -> Bool,
     }
 }
 

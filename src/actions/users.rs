@@ -81,6 +81,7 @@ pub fn find_user_by_uuid(
                 users::created_at,
                 users::deleted_at,
                 users::user_uuid,
+                users::email_verified,
             ))
             .filter(users::user_uuid.eq(uuid))
             .first::<User>(conn)
@@ -112,6 +113,7 @@ pub fn find_active_user_by_uuid(
                 users::created_at,
                 users::deleted_at,
                 users::user_uuid,
+                users::email_verified,
             ))
             .filter(users::user_uuid.eq(uuid))
             .filter(users::deleted_at.is_null())
@@ -143,6 +145,7 @@ pub fn find_user_by_name(
                 users::created_at,
                 users::deleted_at,
                 users::user_uuid,
+                users::email_verified,
             ))
             .filter(users::username.eq(user_name))
             .filter(users::deleted_at.is_null())
@@ -186,6 +189,7 @@ pub fn get_user_auth_details(
                 users::oauth_provider,
                 users::oauth_uid,
                 users::user_uuid,
+                users::email_verified,
             ))
             .filter(users::username.eq(user_name))
             .filter(users::deleted_at.is_null())
@@ -221,6 +225,7 @@ pub fn get_all_users(
                 users::created_at,
                 users::deleted_at,
                 users::user_uuid,
+                users::email_verified,
             ))
             .filter(users::deleted_at.is_null())
             .order_by(users::created_at)
@@ -290,6 +295,7 @@ pub fn search_users(
                 users::created_at,
                 users::deleted_at,
                 users::user_uuid,
+                users::email_verified,
             ))
             .filter(users::deleted_at.is_null())
             .filter(users::username.like(format!("%{}%", query)))
@@ -305,7 +311,7 @@ pub fn search_users(
 pub fn find_user_by_email(
     email: &Email,
     conn: &mut DbConnection,
-) -> Result<Option<UserWithRoles>, DomainError> {
+) -> Result<Option<User>, DomainError> {
     use crate::schema::users::dsl as users;
 
     let mb_user = users::users
@@ -315,30 +321,14 @@ pub fn find_user_by_email(
             users::created_at,
             users::deleted_at,
             users::user_uuid,
+            users::email_verified,
         ))
         .filter(users::email.eq(email))
         .filter(users::deleted_at.is_null())
         .first::<User>(conn)
         .optional()?;
 
-    let roles = match &mb_user {
-        Some(user) => Some(get_roles_for_user(&user.id, conn)?),
-        None => None,
-    };
-
-    let mb_user_with_roles = m! {
-        user <- mb_user;
-        roles <- roles;
-        Some(UserWithRoles {
-            id: user.id,
-            username: user.username,
-            created_at: user.created_at,
-            user_uuid: user.user_uuid,
-            roles,
-        })
-    };
-
-    Ok(mb_user_with_roles)
+    Ok(mb_user)
 }
 
 pub fn email_exists(
@@ -404,6 +394,7 @@ pub fn insert_new_user(
                 users::created_at,
                 users::deleted_at,
                 users::user_uuid,
+                users::email_verified,
             ))
             .filter(users::username.eq(nu.username))
             .filter(users::deleted_at.is_null())
@@ -552,6 +543,7 @@ pub fn update_user_profile(
                 users::created_at,
                 users::deleted_at,
                 users::user_uuid,
+                users::email_verified,
             ))
             .filter(users::id.eq(existing_id))
             .first::<User>(conn)?;
@@ -657,6 +649,7 @@ pub fn find_oauth_user_by_email(
             users::oauth_provider,
             users::oauth_uid,
             users::user_uuid,
+            users::email_verified,
         ))
         .filter(users::email.eq(email))
         .filter(users::deleted_at.is_null())
@@ -688,6 +681,7 @@ pub fn find_or_create_oauth_user(
                 users::created_at,
                 users::deleted_at,
                 users::user_uuid,
+                users::email_verified,
             ))
             .filter(users::oauth_provider.eq(Some(provider.clone())))
             .filter(users::oauth_uid.eq(Some(provider_uid.to_string())))
@@ -819,6 +813,7 @@ pub fn find_or_create_oauth_user(
                 users::created_at,
                 users::deleted_at,
                 users::user_uuid,
+                users::email_verified,
             ))
             .filter(users::username.eq(&username))
             .filter(users::deleted_at.is_null())

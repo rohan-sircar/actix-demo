@@ -259,6 +259,7 @@ pub struct User {
     pub created_at: chrono::NaiveDateTime,
     pub deleted_at: Option<chrono::NaiveDateTime>,
     pub user_uuid: UserUuid,
+    pub email_verified: bool,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
@@ -316,6 +317,7 @@ pub struct UserAuthDetails {
     pub oauth_provider: Option<OAuthProvider>,
     pub oauth_uid: Option<String>,
     pub user_uuid: UserUuid,
+    pub email_verified: bool,
 }
 
 #[derive(Debug, Clone, Queryable)]
@@ -327,6 +329,7 @@ pub struct OAuthUserLookup {
     pub oauth_provider: Option<OAuthProvider>,
     pub oauth_uid: Option<String>,
     pub user_uuid: UserUuid,
+    pub email_verified: bool,
 }
 
 #[derive(Debug, Clone, Deserialize)]
