@@ -312,7 +312,8 @@ async fn main() -> anyhow::Result<()> {
         swagger_path: env_config.swagger_path,
     });
 
-    let server_addr = format!("{}:{}", env_config.http_host, env_config.http_port);
+    let server_addr =
+        format!("{}:{}", env_config.http_host, env_config.http_port);
 
     let _app = actix_demo::run(server_addr, app_data).await?;
 

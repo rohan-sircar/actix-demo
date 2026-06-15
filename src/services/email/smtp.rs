@@ -125,15 +125,19 @@ impl SmtpSender {
     }
 
     fn render_verification_link(&self, token: &str, user_name: &str) -> String {
-        let url = self.verification_link_template
+        let url = self
+            .verification_link_template
             .replace("{base_url}", &self.app_base_url);
-        url.replace("{token}", token).replace("{user_name}", user_name)
+        url.replace("{token}", token)
+            .replace("{user_name}", user_name)
     }
 
     fn render_reset_link(&self, token: &str, user_name: &str) -> String {
-        let url = self.password_reset_link_template
+        let url = self
+            .password_reset_link_template
             .replace("{base_url}", &self.app_base_url);
-        url.replace("{token}", token).replace("{user_name}", user_name)
+        url.replace("{token}", token)
+            .replace("{user_name}", user_name)
     }
 }
 
@@ -146,11 +150,10 @@ impl Mailer for SmtpSender {
         token: &str,
     ) -> Result<(), DomainError> {
         let web_link = self.render_verification_link(token, user_name);
-        let mobile_link = {
-            let url = self.mobile_verification_link_template
-                .replace("{token}", token).replace("{user_name}", user_name);
-            url
-        };
+        let mobile_link = self
+            .mobile_verification_link_template
+            .replace("{token}", token)
+            .replace("{user_name}", user_name);
         let body_html = format!(
             "<html><body><p>Hello {},</p><p>Please verify your email address by clicking the link below:</p><p><a href=\"{}\" style=\"background-color: #4CAF50; color: white; padding: 14px 20px; text-decoration: none; border-radius: 4px;\">Verify Email (Web)</a></p><p>Or open on mobile: <a href=\"{}\">Verify Email (App)</a></p><p>This link expires in 24 hours.</p></body></html>",
             user_name, web_link, mobile_link

@@ -638,9 +638,11 @@ pub async fn app_data(
                         username: "".to_string(),
                         password: "".to_string(),
                         from_email: "noreply@example.com".to_string(),
+                        app_base_url: "http://localhost:8800".to_string(),
                         verification_link_template: "https://app.example.com/verify?token={token}&user={user_name}".to_string(),
                         password_reset_link_template: "https://app.example.com/reset?token={token}&user={user_name}".to_string(),
-      },
+                        mobile_verification_link_template: "my-expo-app://verify?token={token}&user={user_name}".to_string(),
+                    },
                     )
                 .unwrap(),
             )

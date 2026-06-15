@@ -205,7 +205,9 @@ pub fn configure_app(
                     .wrap(api_rate_limiter(
                         &app_data.config.rate_limit.api_public,
                     ))
-                    .route(web::post().to(routes::auth::resend_verification_email)),
+                    .route(
+                        web::post().to(routes::auth::resend_verification_email),
+                    ),
             )
             .service(
                 web::resource("/api/v1/password-reset/request")

@@ -121,8 +121,7 @@ pub fn default_verification_link_template() -> String {
 }
 
 pub fn default_password_reset_link_template() -> String {
-    "{base_url}/reset-password?token={token}&user={user_name}"
-        .to_string()
+    "{base_url}/reset-password?token={token}&user={user_name}".to_string()
 }
 
 pub fn default_mobile_verification_link_template() -> String {
