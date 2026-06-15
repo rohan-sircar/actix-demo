@@ -613,7 +613,8 @@ mod test {
     #[test]
     fn user_model_conversion_test() {
         let user = serde_json::from_str::<User>(
-            r#"{"id":1,"username":"chewbacca","user_uuid":"00000000-0000-0000-0000-000000000001","created_at":"2021-05-12T12:37:56"}"#,
+            r#"{"id":1,"username":"chewbacca","user_uuid":"00000000-0000-0000-0000-000000000001","created_at":"2021-05-12T12:37:56",
+        "email_verified":false}"#,
         ).unwrap();
         let roles = vec![RoleEnum::RoleUser];
         let ur = UserWithRoles::from_user(&user, &roles);
