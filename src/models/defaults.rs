@@ -125,6 +125,10 @@ pub fn default_password_reset_link_template() -> String {
         .to_string()
 }
 
+pub fn default_mobile_verification_link_template() -> String {
+    "my-expo-app://verify?token={token}&user={user_name}".to_string()
+}
+
 pub fn default_rate_limit_registration_max_requests() -> u32 {
     3
 }

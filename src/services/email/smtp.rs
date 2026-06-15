@@ -19,6 +19,7 @@ pub struct SmtpSenderConfig {
     pub app_base_url: String,
     pub verification_link_template: String,
     pub password_reset_link_template: String,
+    pub mobile_verification_link_template: String,
 }
 
 pub struct SmtpSender {
@@ -27,6 +28,7 @@ pub struct SmtpSender {
     app_base_url: String,
     verification_link_template: String,
     password_reset_link_template: String,
+    mobile_verification_link_template: String,
 }
 
 impl SmtpSender {
@@ -82,6 +84,9 @@ impl SmtpSender {
                 .clone(),
             password_reset_link_template: config
                 .password_reset_link_template
+                .clone(),
+            mobile_verification_link_template: config
+                .mobile_verification_link_template
                 .clone(),
         })
     }
@@ -140,14 +145,19 @@ impl Mailer for SmtpSender {
         user_name: &str,
         token: &str,
     ) -> Result<(), DomainError> {
-        let link = self.render_verification_link(token, user_name);
+        let web_link = self.render_verification_link(token, user_name);
+        let mobile_link = {
+            let url = self.mobile_verification_link_template
+                .replace("{token}", token).replace("{user_name}", user_name);
+            url
+        };
         let body_html = format!(
-            "<html><body><p>Hello {},</p><p>Please verify your email address by clicking the button below:</p><p><a href=\"{}\" style=\"background-color: #4CAF50; color: white; padding: 14px 20px; text-decoration: none; border-radius: 4px;\">Verify Email</a></p><p>This link expires in 24 hours.</p></body></html>",
-            user_name, link
+            "<html><body><p>Hello {},</p><p>Please verify your email address by clicking the link below:</p><p><a href=\"{}\" style=\"background-color: #4CAF50; color: white; padding: 14px 20px; text-decoration: none; border-radius: 4px;\">Verify Email (Web)</a></p><p>Or open on mobile: <a href=\"{}\">Verify Email (App)</a></p><p>This link expires in 24 hours.</p></body></html>",
+            user_name, web_link, mobile_link
         );
         let body_text = format!(
-            "Hello {},\n\nPlease verify your email address by clicking the link below:\n{}\n\nThis link expires in 24 hours.",
-            user_name, link
+            "Hello {},\n\nPlease verify your email address by clicking the link below:\n{}\n\nMobile app link:\n{}\n\nThis link expires in 24 hours.",
+            user_name, web_link, mobile_link
         );
 
         let email = Self::build_email(

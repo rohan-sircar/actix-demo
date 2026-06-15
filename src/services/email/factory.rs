@@ -20,6 +20,9 @@ pub fn create_mailer(
         password_reset_link_template: config
             .password_reset_link_template
             .clone(),
+        mobile_verification_link_template: config
+            .mobile_verification_link_template
+            .clone(),
     };
 
     let sender = SmtpSender::new(&sender_config)?;

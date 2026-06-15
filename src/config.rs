@@ -167,6 +167,10 @@ pub struct EnvConfig {
         default = "models::defaults::default_password_reset_link_template"
     )]
     pub password_reset_link_template: String,
+    #[serde(
+        default = "models::defaults::default_mobile_verification_link_template"
+    )]
+    pub mobile_verification_link_template: String,
     // Rate limiting for registration and password reset
     #[serde(
         default = "models::defaults::default_rate_limit_registration_max_requests"
