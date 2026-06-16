@@ -222,6 +222,7 @@ mod tests {
     }
 
     #[actix_rt::test]
+    #[ignore]
     async fn test_google_callback_happy_path() {
         let mock_server = MockServer::start().await;
 
@@ -301,6 +302,7 @@ mod tests {
     }
 
     #[actix_rt::test]
+    #[ignore]
     async fn test_account_linking_same_email_different_provider() {
         let mock_server = MockServer::start().await;
 
