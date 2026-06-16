@@ -255,7 +255,8 @@ pub async fn google_callback(
 
     // Get user info from Google
     let google_user =
-        oauth::get_google_user_info(&access_token, &config.google_base_url()).await?;
+        oauth::get_google_user_info(&access_token, &config.google_base_url())
+            .await?;
     let email = google_user.email.clone();
 
     // Find or create user
@@ -471,7 +472,8 @@ pub async fn google_exchange(
 
     // Get user info from Google
     let google_user =
-        oauth::get_google_user_info(&access_token, &config.google_base_url()).await?;
+        oauth::get_google_user_info(&access_token, &config.google_base_url())
+            .await?;
     let email = google_user.email.clone();
 
     // Find or create user
