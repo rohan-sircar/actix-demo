@@ -578,36 +578,37 @@ mod test {
     use super::*;
     #[test]
     fn user_model_refinement_test() {
-        //yes I had been watching a lot of star wars lately
-        let mb_user = serde_json::from_str::<User>(
-            r#"{"id":1,"username":"chewbacca","user_uuid":"00000000-0000-0000-0000-000000000001","created_at":"2021-05-12T12:37:56"}"#,
-        );
-        // println!("{:?}", mb_user);
-        assert!(mb_user.is_ok());
-        let mb_user = serde_json::from_str::<User>(
-            r#"{"id":1,"username":"chew-bacca","user_uuid":"00000000-0000-0000-0000-000000000001","created_at":"2021-05-12T12:37:56"}"#,
-        );
-        assert!(mb_user.is_ok());
-        let mb_user = serde_json::from_str::<User>(
-            r#"{"id":1,"username":"chew.bacca","user_uuid":"00000000-0000-0000-0000-000000000001","created_at":"2021-05-12T12:37:56"}"#,
-        );
-        assert!(mb_user.is_ok());
-        let mb_user = serde_json::from_str::<User>(
-            r#"{"id":-1,"username":"chewbacca","user_uuid":"00000000-0000-0000-0000-000000000001","created_at":"2021-05-12T12:37:56"}"#,
-        );
-        assert!(mb_user.is_err());
-        let mb_user = serde_json::from_str::<User>(
-            r#"{"id":1,"username":"ch","user_uuid":"00000000-0000-0000-0000-000000000001","created_at":"2021-05-12T12:37:56"}"#,
-        );
-        assert!(mb_user.is_err());
-        let mb_user = serde_json::from_str::<User>(
-            r#"{"id":1,"username":"chaegw;eaef","user_uuid":"00000000-0000-0000-0000-000000000001","created_at":"2021-05-12T12:37:56"}"#,
-        );
-        assert!(mb_user.is_err());
-        let mb_user = serde_json::from_str::<User>(
-            r#"{"id":1,"username":"chaegw eaef","user_uuid":"00000000-0000-0000-0000-000000000001","created_at":"2021-05-12T12:37:56"}"#,
-        );
-        assert!(mb_user.is_err());
+        serde_json::from_str::<User>(
+            r#"{"id":1,"username":"chewbacca","user_uuid":"00000000-0000-0000-0000-000000000001","created_at":"2021-05-12T12:37:56","email_verified":false}"#,
+        ).unwrap();
+
+        serde_json::from_str::<User>(
+            r#"{"id":1,"username":"chew-bacca","user_uuid":"00000000-0000-0000-0000-000000000001","created_at":"2021-05-12T12:37:56","email_verified":false}"#,
+        ).unwrap();
+
+        serde_json::from_str::<User>(
+            r#"{"id":1,"username":"chew.bacca","user_uuid":"00000000-0000-0000-0000-000000000001","created_at":"2021-05-12T12:37:56","email_verified":false}"#,
+        ).unwrap();
+
+        let err = serde_json::from_str::<User>(
+            r#"{"id":-1,"username":"chewbacca","user_uuid":"00000000-0000-0000-0000-000000000001","created_at":"2021-05-12T12:37:56","email_verified":false}"#,
+        ).unwrap_err();
+        assert!(err.to_string().contains("expected u32"));
+
+        let err = serde_json::from_str::<User>(
+            r#"{"id":1,"username":"ch","user_uuid":"00000000-0000-0000-0000-000000000001","created_at":"2021-05-12T12:37:56","email_verified":false}"#,
+        ).unwrap_err();
+        assert!(err.to_string().contains("invalid format"));
+
+        let err = serde_json::from_str::<User>(
+            r#"{"id":1,"username":"chaegw;eaef","user_uuid":"00000000-0000-0000-0000-000000000001","created_at":"2021-05-12T12:37:56","email_verified":false}"#,
+        ).unwrap_err();
+        assert!(err.to_string().contains("invalid format"));
+
+        let err = serde_json::from_str::<User>(
+            r#"{"id":1,"username":"chaegw eaef","user_uuid":"00000000-0000-0000-0000-000000000001","created_at":"2021-05-12T12:37:56","email_verified":false}"#,
+        ).unwrap_err();
+        assert!(err.to_string().contains("invalid format"));
     }
 
     #[test]
