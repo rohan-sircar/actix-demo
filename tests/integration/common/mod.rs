@@ -1030,7 +1030,9 @@ impl TestContext {
     ) -> Vec<User> {
         let mut resp = self
             .test_server
-            .get(format!("/api/v1/private/admin/users?page={page}&limit={limit}"))
+            .get(format!(
+                "/api/v1/private/admin/users?page={page}&limit={limit}"
+            ))
             .with_token(token)
             .send()
             .await

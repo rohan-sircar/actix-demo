@@ -126,7 +126,10 @@ mod tests {
 
             let mut resp = ctx
                 .test_server
-                .get(format!("/api/v1/private/admin/users/{}", non_existent_uuid))
+                .get(format!(
+                    "/api/v1/private/admin/users/{}",
+                    non_existent_uuid
+                ))
                 .with_token(&token)
                 .send()
                 .await

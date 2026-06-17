@@ -192,22 +192,15 @@ pub fn configure_app(
                         web::resource("/verify-email")
                             .route(web::post().to(routes::auth::verify_email)),
                     )
-                    .service(
-                        web::resource("/resend-verification-email")
-                            .route(web::post().to(routes::auth::resend_verification_email)),
-                    )
-                    .service(
-                        web::resource("/password-reset-request")
-                            .route(
-                                web::post().to(routes::auth::request_password_reset),
-                            ),
-                    )
-                    .service(
-                        web::resource("/password-reset-complete")
-                            .route(
-                                web::post().to(routes::auth::complete_password_reset),
-                            ),
-                    )
+                    .service(web::resource("/resend-verification-email").route(
+                        web::post().to(routes::auth::resend_verification_email),
+                    ))
+                    .service(web::resource("/password-reset-request").route(
+                        web::post().to(routes::auth::request_password_reset),
+                    ))
+                    .service(web::resource("/password-reset-complete").route(
+                        web::post().to(routes::auth::complete_password_reset),
+                    ))
                     .service(
                         web::scope("/oauth")
                             .wrap(api_rate_limiter(
@@ -217,30 +210,36 @@ pub fn configure_app(
                                 web::scope("/github")
                                     .route(
                                         "/login",
-                                        web::get().to(routes::oauth::github_login),
+                                        web::get()
+                                            .to(routes::oauth::github_login),
                                     )
                                     .route(
                                         "/callback",
-                                        web::get().to(routes::oauth::github_callback),
+                                        web::get()
+                                            .to(routes::oauth::github_callback),
                                     )
                                     .route(
                                         "/exchange",
-                                        web::post().to(routes::oauth::github_exchange),
+                                        web::post()
+                                            .to(routes::oauth::github_exchange),
                                     ),
                             )
                             .service(
                                 web::scope("/google")
                                     .route(
                                         "/login",
-                                        web::get().to(routes::oauth::google_login),
+                                        web::get()
+                                            .to(routes::oauth::google_login),
                                     )
                                     .route(
                                         "/callback",
-                                        web::get().to(routes::oauth::google_callback),
+                                        web::get()
+                                            .to(routes::oauth::google_callback),
                                     )
                                     .route(
                                         "/exchange",
-                                        web::post().to(routes::oauth::google_exchange),
+                                        web::post()
+                                            .to(routes::oauth::google_exchange),
                                     ),
                             ),
                     ),

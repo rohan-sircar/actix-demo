@@ -36,7 +36,8 @@ async fn send_upload_request(
     image_bytes: Vec<u8>,
     content_type: &str,
 ) -> (StatusCode, serde_json::Value) {
-    let url = format!("http://{addr}/api/v1/private/user/pets/{}/images", pet_uuid);
+    let url =
+        format!("http://{addr}/api/v1/private/user/pets/{}/images", pet_uuid);
     let mut resp = client
         .post(&url)
         .insert_header(("cookie", format!("X-AUTH-TOKEN={}", token)))
@@ -228,8 +229,10 @@ mod pet_images_api {
         img.write_to(&mut std::io::Cursor::new(&mut buf), ImageFormat::Png)
             .unwrap();
 
-        let url =
-            format!("http://{}/api/v1/private/user/pets/{}/images", ctx.addr, pet_uuid);
+        let url = format!(
+            "http://{}/api/v1/private/user/pets/{}/images",
+            ctx.addr, pet_uuid
+        );
         let resp = ctx
             .client
             .post(&url)
@@ -578,10 +581,7 @@ mod pet_images_api {
 
         let mut resp = ctx
             .test_server
-            .get(format!(
-                "/api/v1/pets/images/{}/thumbnail",
-                image_uuid
-            ))
+            .get(format!("/api/v1/pets/images/{}/thumbnail", image_uuid))
             .send()
             .await
             .unwrap();
