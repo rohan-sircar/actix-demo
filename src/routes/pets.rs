@@ -27,7 +27,7 @@ pub(crate) struct PublicImageVariantPath {
 
 #[utoipa::path(
     get,
-    path = "/api/v1/public/pets/traits",
+    path = "/api/v1/pets/traits",
     tag = "pets",
     responses(
         (status = 200, description = "List of personality traits", body = Vec<crate::models::pets::PersonalityTrait>),
@@ -49,7 +49,7 @@ pub async fn get_traits(
 
 #[utoipa::path(
     get,
-    path = "/api/v1/public/pets/{pet_uuid}",
+    path = "/api/v1/pets/{pet_uuid}",
     tag = "pets",
     params(
         ("pet_uuid" = crate::models::pets::PetUuid, Path, description = "Pet UUID"),
@@ -510,7 +510,7 @@ pub async fn set_primary_pet_image(
 
 #[utoipa::path(
     get,
-    path = "/api/v1/public/pets/images/{image_uuid}",
+    path = "/api/v1/pets/images/{image_uuid}",
     tag = "pets",
     params(
         ("image_uuid" = uuid::Uuid, Path, description = "Image UUID"),
@@ -559,7 +559,7 @@ pub async fn get_public_pet_image(
 
 #[utoipa::path(
     get,
-    path = "/api/v1/public/pets/images/{image_uuid}/{variant}",
+    path = "/api/v1/pets/images/{image_uuid}/{variant}",
     tag = "pets",
     params(
         ("image_uuid" = uuid::Uuid, Path, description = "Image UUID"),

@@ -20,7 +20,7 @@ mod tests {
         let ctx = common::TestContext::new(None).await;
         let mut resp = ctx
             .test_server
-            .get("/api/v1/public/build-info")
+            .get("/api/v1/build-info")
             .send()
             .await
             .unwrap();

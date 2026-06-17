@@ -19,7 +19,7 @@ use crate::{errors::DomainError, AppData};
 
 #[utoipa::path(
     get,
-    path = "/api/v1/public/users/{user_id}",
+    path = "/api/v1/users/{user_id}",
     tag = "users",
     params(
         ("user_id" = String, Path, description = "User UUID"),
@@ -276,7 +276,7 @@ pub async fn delete_user_avatar(
 
 #[utoipa::path(
     get,
-    path = "/api/v1/public/avatars/{user_id}",
+    path = "/api/v1/avatars/{user_id}",
     tag = "users",
     params(
         ("user_id" = String, Path, description = "User UUID"),
@@ -498,7 +498,7 @@ pub async fn delete_my_account(
 
 #[utoipa::path(
     get,
-    path = "/api/v1/public/profiles/{user_id}",
+    path = "/api/v1/profiles/{user_id}",
     tag = "users",
     params(
         ("user_id" = String, Path, description = "User UUID"),

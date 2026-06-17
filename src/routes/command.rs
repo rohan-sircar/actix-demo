@@ -345,7 +345,7 @@ pub struct MetricsQuery {
 
 #[utoipa::path(
     get,
-    path = "/api/v1/public/metrics/cmd",
+    path = "/api/v1/metrics/cmd",
     tag = "command",
     params(
         ("hours_since" = Option<i8>, Query, description = "Hours since to filter"),

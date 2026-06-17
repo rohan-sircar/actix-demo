@@ -254,7 +254,7 @@ pub fn configure_app(
             )
             // public api
             .service(
-                web::scope("/api/v1/public")
+                web::scope("/api/v1")
                     .wrap(api_rate_limiter(
                         &app_data.config.rate_limit.api_public,
                     ))
@@ -289,14 +289,7 @@ pub fn configure_app(
                     .route(
                         "/pets/images/{image_uuid}/{variant}",
                         web::get().to(routes::pets::get_pet_image_variant),
-                    ),
-            )
-            // public user endpoints (unauthenticated)
-            .service(
-                web::scope("/api/v1/public")
-                    .wrap(api_rate_limiter(
-                        &app_data.config.rate_limit.api_public,
-                    ))
+                    )
                     .service(
                         web::scope("/users")
                             .route("", web::get().to(routes::users::get_users))

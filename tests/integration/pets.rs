@@ -517,7 +517,7 @@ mod pet_profiles_api {
 
         let mut resp = ctx
             .test_server
-            .get("/api/v1/public/pets/traits")
+            .get("/api/v1/pets/traits")
             .send()
             .await
             .unwrap();
@@ -562,7 +562,7 @@ mod pet_profiles_api {
         // Get public view (no auth needed)
         let mut resp = ctx
             .test_server
-            .get(format!("/api/v1/public/pets/{}", pet_uuid))
+            .get(format!("/api/v1/pets/{}", pet_uuid))
             .send()
             .await
             .unwrap();
@@ -580,7 +580,7 @@ mod pet_profiles_api {
 
         let resp = ctx
             .test_server
-            .get("/api/v1/public/pets/00000000-0000-0000-0000-000000000000")
+            .get("/api/v1/pets/00000000-0000-0000-0000-000000000000")
             .send()
             .await
             .unwrap();

@@ -322,7 +322,7 @@ mod tests {
 
                 let resp = ctx
                     .test_server
-                    .get(format!("/api/v1/public/profiles/{}", user_uuid))
+                    .get(format!("/api/v1/profiles/{}", user_uuid))
                     .with_token(&admin_token)
                     .send()
                     .await
@@ -372,7 +372,7 @@ mod tests {
 
                 let mut resp = ctx
                     .test_server
-                    .get(format!("/api/v1/public/profiles/{}", user_uuid))
+                    .get(format!("/api/v1/profiles/{}", user_uuid))
                     .with_token(&admin_token)
                     .send()
                     .await
