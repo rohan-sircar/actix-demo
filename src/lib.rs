@@ -194,20 +194,17 @@ pub fn configure_app(
                     .route(web::post().to(routes::users::add_user)),
             )
             .service(
-                web::resource("/api/v1/email/verify")
+                web::scope("/api/v1/email")
                     .wrap(api_rate_limiter(
                         &app_data.config.rate_limit.api_public,
                     ))
-                    .route(web::post().to(routes::auth::verify_email)),
-            )
-            .service(
-                web::resource("/email/verify/resend")
-                    .wrap(api_rate_limiter(
-                        &app_data.config.rate_limit.api_public,
-                    ))
-                    .route(
+                    .service(
+                        web::resource("/verify")
+                            .route(web::post().to(routes::auth::verify_email)),
+                    )
+                    .service(web::resource("/verify/resend").route(
                         web::post().to(routes::auth::resend_verification_email),
-                    ),
+                    )),
             )
             .service(
                 web::resource("/api/v1/password-reset/request")

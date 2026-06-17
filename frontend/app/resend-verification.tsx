@@ -32,7 +32,7 @@ const ResendVerificationScreen = () => {
   const onSubmit = async (data: ResendVerificationFormData) => {
     setError('');
     try {
-      await api.post('/email/verify/resend', { email: data.email });
+      await api.post('/api/v1/email/verify/resend', { email: data.email });
       setSent(true);
     } catch {
       setError('Failed to send verification email. Please try again.');
