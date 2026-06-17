@@ -251,54 +251,7 @@ pub fn configure_app(
                     ))
                     .route("", web::get().to(routes::ws::ws)),
             )
-            // public api
-            .service(
-                web::scope("/api/v1")
-                    .wrap(api_rate_limiter(
-                        &app_data.config.rate_limit.api_public,
-                    ))
-                    .route(
-                        "/build-info",
-                        web::get().to(routes::misc::build_info_req),
-                    )
-                    .route(
-                        "/metrics/cmd",
-                        web::get().to(routes::command::handle_get_job_metrics),
-                    )
-                    .route(
-                        "/avatars/{user_id}",
-                        web::get().to(routes::users::get_user_avatar),
-                    )
-                    .route(
-                        "/profiles/{user_id}",
-                        web::get().to(routes::users::get_public_profile),
-                    )
-                    .route(
-                        "/pets/traits",
-                        web::get().to(routes::pets::get_traits),
-                    )
-                    .route(
-                        "/pets/{pet_uuid}",
-                        web::get().to(routes::pets::get_public_pet),
-                    )
-                    .route(
-                        "/pets/images/{image_uuid}",
-                        web::get().to(routes::pets::get_public_pet_image),
-                    )
-                    .route(
-                        "/pets/images/{image_uuid}/{variant}",
-                        web::get().to(routes::pets::get_pet_image_variant),
-                    )
-                    .service(
-                        web::scope("/users")
-                            .route("", web::get().to(routes::users::get_users))
-                            .route(
-                                "/{user_id}",
-                                web::get().to(routes::users::get_user),
-                            ),
-                    ),
-            )
-            // authenticated api
+            // authenticated api (must come before /api/v1 to avoid prefix match)
             .service(
                 web::scope("/api/v1/private")
                     .wrap(api_rate_limiter(&app_data.config.rate_limit.api))
@@ -443,6 +396,53 @@ pub fn configure_app(
                                     web::get().to(routes::users::get_user),
                                 ),
                         ),
+                    ),
+            )
+            // public api
+            .service(
+                web::scope("/api/v1")
+                    .wrap(api_rate_limiter(
+                        &app_data.config.rate_limit.api_public,
+                    ))
+                    .route(
+                        "/build-info",
+                        web::get().to(routes::misc::build_info_req),
+                    )
+                    .route(
+                        "/metrics/cmd",
+                        web::get().to(routes::command::handle_get_job_metrics),
+                    )
+                    .route(
+                        "/avatars/{user_id}",
+                        web::get().to(routes::users::get_user_avatar),
+                    )
+                    .route(
+                        "/profiles/{user_id}",
+                        web::get().to(routes::users::get_public_profile),
+                    )
+                    .route(
+                        "/pets/traits",
+                        web::get().to(routes::pets::get_traits),
+                    )
+                    .route(
+                        "/pets/{pet_uuid}",
+                        web::get().to(routes::pets::get_public_pet),
+                    )
+                    .route(
+                        "/pets/images/{image_uuid}",
+                        web::get().to(routes::pets::get_public_pet_image),
+                    )
+                    .route(
+                        "/pets/images/{image_uuid}/{variant}",
+                        web::get().to(routes::pets::get_pet_image_variant),
+                    )
+                    .service(
+                        web::scope("/users")
+                            .route("", web::get().to(routes::users::get_users))
+                            .route(
+                                "/{user_id}",
+                                web::get().to(routes::users::get_user),
+                            ),
                     ),
             );
     })
