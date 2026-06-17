@@ -43,7 +43,7 @@ const GoogleButton = () => {
           const code = url.searchParams.get('code');
 
           if (code) {
-            const res = await api.post('/auth/oauth/google/exchange', { code, state: url.searchParams.get('state') });
+            const res = await api.post('/api/v1/auth/oauth/google/exchange', { code, state: url.searchParams.get('state') });
             setCredentials(res.data.token, res.data.user);
           }
         }

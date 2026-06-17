@@ -198,20 +198,50 @@ pub fn configure_app(
                     )
                     .service(
                         web::resource("/password-reset-request")
-                            .wrap(api_rate_limiter(
-                                &app_data.config.rate_limit.api_public,
-                            ))
                             .route(
                                 web::post().to(routes::auth::request_password_reset),
                             ),
                     )
                     .service(
                         web::resource("/password-reset-complete")
+                            .route(
+                                web::post().to(routes::auth::complete_password_reset),
+                            ),
+                    )
+                    .service(
+                        web::scope("/oauth")
                             .wrap(api_rate_limiter(
                                 &app_data.config.rate_limit.api_public,
                             ))
-                            .route(
-                                web::post().to(routes::auth::complete_password_reset),
+                            .service(
+                                web::scope("/github")
+                                    .route(
+                                        "/login",
+                                        web::get().to(routes::oauth::github_login),
+                                    )
+                                    .route(
+                                        "/callback",
+                                        web::get().to(routes::oauth::github_callback),
+                                    )
+                                    .route(
+                                        "/exchange",
+                                        web::post().to(routes::oauth::github_exchange),
+                                    ),
+                            )
+                            .service(
+                                web::scope("/google")
+                                    .route(
+                                        "/login",
+                                        web::get().to(routes::oauth::google_login),
+                                    )
+                                    .route(
+                                        "/callback",
+                                        web::get().to(routes::oauth::google_callback),
+                                    )
+                                    .route(
+                                        "/exchange",
+                                        web::post().to(routes::oauth::google_exchange),
+                                    ),
                             ),
                     ),
             )
@@ -273,43 +303,6 @@ pub fn configure_app(
                             .route(
                                 "/{user_id}",
                                 web::get().to(routes::users::get_user),
-                            ),
-                    ),
-            )
-            // OAuth endpoints (unauthenticated)
-            .service(
-                web::scope("/api/v1/auth/oauth")
-                    .wrap(api_rate_limiter(
-                        &app_data.config.rate_limit.api_public,
-                    ))
-                    .service(
-                        web::scope("/github")
-                            .route(
-                                "/login",
-                                web::get().to(routes::oauth::github_login),
-                            )
-                            .route(
-                                "/callback",
-                                web::get().to(routes::oauth::github_callback),
-                            )
-                            .route(
-                                "/exchange",
-                                web::post().to(routes::oauth::github_exchange),
-                            ),
-                    )
-                    .service(
-                        web::scope("/google")
-                            .route(
-                                "/login",
-                                web::get().to(routes::oauth::google_login),
-                            )
-                            .route(
-                                "/callback",
-                                web::get().to(routes::oauth::google_callback),
-                            )
-                            .route(
-                                "/exchange",
-                                web::post().to(routes::oauth::google_exchange),
                             ),
                     ),
             )

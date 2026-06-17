@@ -42,7 +42,7 @@ const GithubButton = () => {
           const code = url.searchParams.get('code');
 
           if (code) {
-            const res = await api.post('/auth/oauth/github/exchange', {
+            const res = await api.post('/api/v1/auth/oauth/github/exchange', {
               code,
               state: url.searchParams.get('state'),
             });
