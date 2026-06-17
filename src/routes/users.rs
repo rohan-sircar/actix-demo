@@ -102,7 +102,7 @@ pub async fn get_users(
 
 #[utoipa::path(
     post,
-    path = "/api/v1/registration",
+    path = "/api/v1/auth/registration",
     tag = "users",
     request_body = NewUser,
     responses(

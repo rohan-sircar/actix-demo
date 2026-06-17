@@ -37,14 +37,14 @@ const RegisterScreen = () => {
     setLoading(true);
     setError('');
     try {
-      await api.post('/api/v1/registration', {
+      await api.post('/api/v1/auth/registration', {
         username: data.username,
         email: data.email,
         password: data.password,
       });
       try {
         if (isWeb) {
-          await api.post('/api/v1/login', {
+          await api.post('/api/v1/auth/login', {
             username: data.username,
             password: data.password,
             device_name: 'Web',

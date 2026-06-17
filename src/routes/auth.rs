@@ -178,7 +178,7 @@ pub async fn validate_token(
 
 #[utoipa::path(
     post,
-    path = "/api/v1/login",
+    path = "/api/v1/auth/login",
     tag = "auth",
     request_body = UserLogin,
     responses(
@@ -324,7 +324,7 @@ pub async fn list_sessions(
 
 #[utoipa::path(
     post,
-    path = "/api/v1/logout",
+    path = "/api/v1/auth/logout",
     tag = "auth",
     responses(
         (status = 200, description = "Logout successful - clears auth cookie"),

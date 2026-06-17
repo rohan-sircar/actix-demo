@@ -250,7 +250,7 @@ mod tests {
         // Logout with Bearer token
         let resp = ctx
             .test_server
-            .post("/api/v1/logout")
+            .post("/api/v1/auth/logout")
             .with_bearer(token)
             .send()
             .await

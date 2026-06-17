@@ -55,7 +55,7 @@ mod tests {
             // Step 4: Login with the verified account
             let resp = ctx
                 .test_server
-                .post("/api/v1/login")
+                .post("/api/v1/auth/login")
                 .append_header((header::CONTENT_TYPE, "application/json"))
                 .send_json(&serde_json::json!({
                     "username": username,
@@ -132,7 +132,7 @@ mod tests {
 
             // First registration should succeed
             let resp = client
-                .post(format!("http://{addr}/api/v1/registration"))
+                .post(format!("http://{addr}/api/v1/auth/registration"))
                 .insert_header(("content-type", "application/json"))
                 .send_body(format!(
                     r#"{{"username":"{username}","password":"{password}","email":"{email}"}}"#
@@ -143,7 +143,7 @@ mod tests {
 
             // Second registration with same email should fail
             let resp = client
-                .post(format!("http://{addr}/api/v1/registration"))
+                .post(format!("http://{addr}/api/v1/auth/registration"))
                 .insert_header(("content-type", "application/json"))
                 .send_body(format!(
                     r#"{{"username":"dupuser2","password":"{password}","email":"{email}"}}"#
@@ -215,7 +215,7 @@ mod tests {
             // Do NOT verify the email - attempt login anyway
             let resp = ctx
                 .test_server
-                .post("/api/v1/login")
+                .post("/api/v1/auth/login")
                 .append_header((header::CONTENT_TYPE, "application/json"))
                 .send_json(&serde_json::json!({
                     "username": username,

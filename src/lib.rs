@@ -114,8 +114,8 @@ pub fn configure_app(
     app_data: Data<AppData>,
 ) -> Box<dyn Fn(&mut ServiceConfig)> {
     Box::new(move |cfg: &mut ServiceConfig| {
-        // Configure rate limiter for login endpoint
-        let login_limiter = {
+        // Configure rate limiter for auth endpoints
+        let auth_rate_limiter = {
             let backend = rate_limit::initialize_rate_limit_backend(&app_data);
             rate_limit::create_login_rate_limiter(
                 &app_data.config.rate_limit,
@@ -170,28 +170,24 @@ pub fn configure_app(
                     .route("", web::get().to(routes::healthcheck::healthcheck)),
             )
             .service(
-                web::resource("/api/v1/login")
-                    .wrap(login_limiter.clone())
-                    .route(web::post().to(routes::auth::login)),
-            )
-            .service(
-                web::resource("/api/v1/auth/exchange")
-                    .wrap(login_limiter.clone())
-                    .route(web::post().to(routes::auth::exchange)),
-            )
-            .service(
-                web::resource("/api/v1/logout")
-                    .wrap(api_rate_limiter(
-                        &app_data.config.rate_limit.api_public,
-                    ))
-                    .route(web::post().to(routes::auth::logout)),
-            )
-            .service(
-                web::resource("/api/v1/registration")
-                    .wrap(api_rate_limiter(
-                        &app_data.config.rate_limit.api_public,
-                    ))
-                    .route(web::post().to(routes::users::add_user)),
+                web::scope("/api/v1/auth")
+                    .wrap(auth_rate_limiter.clone())
+                    .service(
+                        web::resource("/login")
+                            .route(web::post().to(routes::auth::login)),
+                    )
+                    .service(
+                        web::resource("/exchange")
+                            .route(web::post().to(routes::auth::exchange)),
+                    )
+                    .service(
+                        web::resource("/logout")
+                            .route(web::post().to(routes::auth::logout)),
+                    )
+                    .service(
+                        web::resource("/registration")
+                            .route(web::post().to(routes::users::add_user)),
+                    ),
             )
             .service(
                 web::scope("/api/v1/email")

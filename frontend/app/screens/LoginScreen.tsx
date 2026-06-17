@@ -40,7 +40,7 @@ const LoginScreen = () => {
     setError('');
     try {
       if (isWeb) {
-        await api.post('/api/v1/login', {
+        await api.post('/api/v1/auth/login', {
           ...data,
           device_name: 'Web',
         });
