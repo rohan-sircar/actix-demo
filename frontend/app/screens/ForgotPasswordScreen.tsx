@@ -32,7 +32,7 @@ const ForgotPasswordScreen = () => {
   const onSubmit = async (data: ForgotPasswordFormData) => {
     setError('');
     try {
-      await api.post('/password-reset/request', { email: data.email });
+      await api.post('/api/v1/auth/password-reset-request', { email: data.email });
       setSent(true);
     } catch {
       setError('Failed to send reset email. Please try again.');

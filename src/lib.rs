@@ -187,37 +187,32 @@ pub fn configure_app(
                     .service(
                         web::resource("/registration")
                             .route(web::post().to(routes::users::add_user)),
-                    ),
-            )
-            .service(
-                web::scope("/api/v1/email")
-                    .wrap(api_rate_limiter(
-                        &app_data.config.rate_limit.api_public,
-                    ))
+                    )
                     .service(
-                        web::resource("/verify")
+                        web::resource("/verify-email")
                             .route(web::post().to(routes::auth::verify_email)),
                     )
-                    .service(web::resource("/verify/resend").route(
-                        web::post().to(routes::auth::resend_verification_email),
-                    )),
-            )
-            .service(
-                web::resource("/api/v1/password-reset/request")
-                    .wrap(api_rate_limiter(
-                        &app_data.config.rate_limit.api_public,
-                    ))
-                    .route(
-                        web::post().to(routes::auth::request_password_reset),
-                    ),
-            )
-            .service(
-                web::resource("/api/v1/password-reset/complete")
-                    .wrap(api_rate_limiter(
-                        &app_data.config.rate_limit.api_public,
-                    ))
-                    .route(
-                        web::post().to(routes::auth::complete_password_reset),
+                    .service(
+                        web::resource("/resend-verification-email")
+                            .route(web::post().to(routes::auth::resend_verification_email)),
+                    )
+                    .service(
+                        web::resource("/password-reset-request")
+                            .wrap(api_rate_limiter(
+                                &app_data.config.rate_limit.api_public,
+                            ))
+                            .route(
+                                web::post().to(routes::auth::request_password_reset),
+                            ),
+                    )
+                    .service(
+                        web::resource("/password-reset-complete")
+                            .wrap(api_rate_limiter(
+                                &app_data.config.rate_limit.api_public,
+                            ))
+                            .route(
+                                web::post().to(routes::auth::complete_password_reset),
+                            ),
                     ),
             )
             .service(

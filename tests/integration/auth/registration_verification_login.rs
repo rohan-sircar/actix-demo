@@ -40,7 +40,7 @@ mod tests {
             // Step 3: Verify the email using the token
             let mut resp = ctx
                 .test_server
-                .post("/api/v1/email/verify")
+                .post("/api/v1/auth/verify-email")
                 .append_header((header::CONTENT_TYPE, "application/json"))
                 .send_json(&serde_json::json!({
                     "token": token
@@ -242,7 +242,7 @@ mod tests {
             // Try to verify with a non-existent token
             let mut resp = ctx
                 .test_server
-                .post("/api/v1/email/verify")
+                .post("/api/v1/auth/verify-email")
                 .append_header((header::CONTENT_TYPE, "application/json"))
                 .send_json(&serde_json::json!({
                     "token": "invalid_token_12345"
@@ -287,7 +287,7 @@ mod tests {
             // The token should be usable for verification
             let mut resp = ctx
                 .test_server
-                .post("/api/v1/email/verify")
+                .post("/api/v1/auth/verify-email")
                 .append_header((header::CONTENT_TYPE, "application/json"))
                 .send_json(&serde_json::json!({
                     "token": token

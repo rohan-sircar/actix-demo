@@ -46,7 +46,7 @@ const ResetPasswordScreen = ({ route }: ResetPasswordScreenProps) => {
       return;
     }
     try {
-      await api.post('/password-reset/complete', {
+      await api.post('/api/v1/auth/password-reset-complete', {
         token,
         new_password: data.new_password,
       });

@@ -30,7 +30,7 @@ const VerifyWebScreen = () => {
       }
 
       try {
-        await api.post('/api/v1/email/verify', { token });
+        await api.post('/api/v1/auth/verify-email', { token });
         setStatus('success');
         setMessage('Email verified successfully! You can now use all features.');
       } catch (err: any) {

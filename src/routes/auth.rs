@@ -467,7 +467,7 @@ pub struct PasswordResetCompleteRequest {
 
 #[utoipa::path(
     post,
-    path = "/api/v1/email/verify",
+    path = "/api/v1/auth/verify-email",
     tag = "auth",
     request_body = VerifyEmailRequest,
     responses(
@@ -546,7 +546,7 @@ pub async fn verify_email(
 
 #[utoipa::path(
     post,
-    path = "/api/v1/email/verify/resend",
+    path = "/api/v1/auth/resend-verification-email",
     tag = "auth",
     request_body = ResendVerificationRequest,
     responses(
@@ -622,7 +622,7 @@ pub async fn resend_verification_email(
 
 #[utoipa::path(
     post,
-    path = "/api/v1/password-reset/request",
+    path = "/api/v1/auth/password-reset-request",
     tag = "auth",
     request_body = PasswordResetRequest,
     responses(
@@ -688,7 +688,7 @@ pub async fn request_password_reset(
 
 #[utoipa::path(
     post,
-    path = "/api/v1/password-reset/complete",
+    path = "/api/v1/auth/password-reset-complete",
     tag = "auth",
     request_body = PasswordResetCompleteRequest,
     responses(
