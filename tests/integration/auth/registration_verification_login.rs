@@ -40,7 +40,7 @@ mod tests {
             // Step 3: Verify the email using the token
             let mut resp = ctx
                 .test_server
-                .post("/api/v1/email/verify")
+                .post("/api/v1/auth/verify-email")
                 .append_header((header::CONTENT_TYPE, "application/json"))
                 .send_json(&serde_json::json!({
                     "token": token
@@ -55,7 +55,7 @@ mod tests {
             // Step 4: Login with the verified account
             let resp = ctx
                 .test_server
-                .post("/api/v1/login")
+                .post("/api/v1/auth/login")
                 .append_header((header::CONTENT_TYPE, "application/json"))
                 .send_json(&serde_json::json!({
                     "username": username,
@@ -74,7 +74,7 @@ mod tests {
             // Step 6: Use the token to make a protected request
             let resp = ctx
                 .test_server
-                .get("/api/v1/sessions")
+                .get("/api/v1/private/sessions")
                 .with_token(&auth_token)
                 .send()
                 .await
@@ -132,7 +132,7 @@ mod tests {
 
             // First registration should succeed
             let resp = client
-                .post(format!("http://{addr}/api/v1/registration"))
+                .post(format!("http://{addr}/api/v1/auth/registration"))
                 .insert_header(("content-type", "application/json"))
                 .send_body(format!(
                     r#"{{"username":"{username}","password":"{password}","email":"{email}"}}"#
@@ -143,7 +143,7 @@ mod tests {
 
             // Second registration with same email should fail
             let resp = client
-                .post(format!("http://{addr}/api/v1/registration"))
+                .post(format!("http://{addr}/api/v1/auth/registration"))
                 .insert_header(("content-type", "application/json"))
                 .send_body(format!(
                     r#"{{"username":"dupuser2","password":"{password}","email":"{email}"}}"#
@@ -215,7 +215,7 @@ mod tests {
             // Do NOT verify the email - attempt login anyway
             let resp = ctx
                 .test_server
-                .post("/api/v1/login")
+                .post("/api/v1/auth/login")
                 .append_header((header::CONTENT_TYPE, "application/json"))
                 .send_json(&serde_json::json!({
                     "username": username,
@@ -242,7 +242,7 @@ mod tests {
             // Try to verify with a non-existent token
             let mut resp = ctx
                 .test_server
-                .post("/api/v1/email/verify")
+                .post("/api/v1/auth/verify-email")
                 .append_header((header::CONTENT_TYPE, "application/json"))
                 .send_json(&serde_json::json!({
                     "token": "invalid_token_12345"
@@ -287,7 +287,7 @@ mod tests {
             // The token should be usable for verification
             let mut resp = ctx
                 .test_server
-                .post("/api/v1/email/verify")
+                .post("/api/v1/auth/verify-email")
                 .append_header((header::CONTENT_TYPE, "application/json"))
                 .send_json(&serde_json::json!({
                     "token": token

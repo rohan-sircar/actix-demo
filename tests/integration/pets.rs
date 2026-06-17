@@ -11,7 +11,7 @@ mod pet_profiles_api {
 
         let mut resp = ctx
             .test_server
-            .post("/api/v1/user/pets")
+            .post("/api/v1/private/user/pets")
             .with_token(&token)
             .append_header((CONTENT_TYPE, "application/json"))
             .send_json(&serde_json::json!({
@@ -47,7 +47,7 @@ mod pet_profiles_api {
         // Verify the pet was created in the database
         let get_resp = ctx
             .test_server
-            .get(format!("/api/v1/user/pets/{}", pet_uuid))
+            .get(format!("/api/v1/private/user/pets/{}", pet_uuid))
             .with_token(&token)
             .send()
             .await
@@ -62,7 +62,7 @@ mod pet_profiles_api {
 
         let mut resp = ctx
             .test_server
-            .post("/api/v1/user/pets")
+            .post("/api/v1/private/user/pets")
             .with_token(&token)
             .append_header((CONTENT_TYPE, "application/json"))
             .send_json(&serde_json::json!({
@@ -87,7 +87,7 @@ mod pet_profiles_api {
 
         let resp = ctx
             .test_server
-            .post("/api/v1/user/pets")
+            .post("/api/v1/private/user/pets")
             .with_token(&token)
             .append_header((CONTENT_TYPE, "application/json"))
             .send_json(&serde_json::json!({
@@ -108,7 +108,7 @@ mod pet_profiles_api {
 
         let mut resp = ctx
             .test_server
-            .post("/api/v1/user/pets")
+            .post("/api/v1/private/user/pets")
             .with_token(&token)
             .append_header((CONTENT_TYPE, "application/json"))
             .send_json(&serde_json::json!({
@@ -134,7 +134,7 @@ mod pet_profiles_api {
         // Create a pet first
         let mut create_resp = ctx
             .test_server
-            .post("/api/v1/user/pets")
+            .post("/api/v1/private/user/pets")
             .with_token(&token)
             .append_header((CONTENT_TYPE, "application/json"))
             .send_json(&serde_json::json!({
@@ -153,7 +153,7 @@ mod pet_profiles_api {
         // Get the pet
         let mut resp = ctx
             .test_server
-            .get(format!("/api/v1/user/pets/{}", pet_uuid))
+            .get(format!("/api/v1/private/user/pets/{}", pet_uuid))
             .with_token(&token)
             .send()
             .await
@@ -172,7 +172,7 @@ mod pet_profiles_api {
 
         let resp = ctx
             .test_server
-            .get("/api/v1/user/pets/00000000-0000-0000-0000-000000000000")
+            .get("/api/v1/private/user/pets/00000000-0000-0000-0000-000000000000")
             .with_token(&token)
             .send()
             .await
@@ -189,7 +189,7 @@ mod pet_profiles_api {
         // Owner A creates a pet
         let mut create_resp = ctx
             .test_server
-            .post("/api/v1/user/pets")
+            .post("/api/v1/private/user/pets")
             .with_token(&token1)
             .append_header((CONTENT_TYPE, "application/json"))
             .send_json(&serde_json::json!({
@@ -207,7 +207,7 @@ mod pet_profiles_api {
         // Owner B tries to get the pet
         let resp = ctx
             .test_server
-            .get(format!("/api/v1/user/pets/{}", pet_uuid))
+            .get(format!("/api/v1/private/user/pets/{}", pet_uuid))
             .with_token(&token2)
             .send()
             .await
@@ -222,7 +222,7 @@ mod pet_profiles_api {
 
         // Create multiple pets
         ctx.test_server
-            .post("/api/v1/user/pets")
+            .post("/api/v1/private/user/pets")
             .with_token(&token)
             .append_header((CONTENT_TYPE, "application/json"))
             .send_json(&serde_json::json!({
@@ -234,7 +234,7 @@ mod pet_profiles_api {
             .unwrap();
 
         ctx.test_server
-            .post("/api/v1/user/pets")
+            .post("/api/v1/private/user/pets")
             .with_token(&token)
             .append_header((CONTENT_TYPE, "application/json"))
             .send_json(&serde_json::json!({
@@ -246,7 +246,7 @@ mod pet_profiles_api {
             .unwrap();
 
         ctx.test_server
-            .post("/api/v1/user/pets")
+            .post("/api/v1/private/user/pets")
             .with_token(&token)
             .append_header((CONTENT_TYPE, "application/json"))
             .send_json(&serde_json::json!({
@@ -260,7 +260,7 @@ mod pet_profiles_api {
         // List all pets
         let mut resp = ctx
             .test_server
-            .get("/api/v1/user/pets")
+            .get("/api/v1/private/user/pets")
             .with_token(&token)
             .send()
             .await
@@ -272,7 +272,7 @@ mod pet_profiles_api {
         // Filter by species
         let mut resp = ctx
             .test_server
-            .get("/api/v1/user/pets?species=dog")
+            .get("/api/v1/private/user/pets?species=dog")
             .with_token(&token)
             .send()
             .await
@@ -285,7 +285,7 @@ mod pet_profiles_api {
         // Filter by traits
         let mut resp = ctx
             .test_server
-            .get("/api/v1/user/pets?traits=playful")
+            .get("/api/v1/private/user/pets?traits=playful")
             .with_token(&token)
             .send()
             .await
@@ -304,7 +304,7 @@ mod pet_profiles_api {
         // Create a pet
         let mut create_resp = ctx
             .test_server
-            .post("/api/v1/user/pets")
+            .post("/api/v1/private/user/pets")
             .with_token(&token)
             .append_header((CONTENT_TYPE, "application/json"))
             .send_json(&serde_json::json!({
@@ -324,7 +324,7 @@ mod pet_profiles_api {
         // Partial update - only change name and weight
         let mut resp = ctx
             .test_server
-            .patch(format!("/api/v1/user/pets/{}", pet_uuid))
+            .patch(format!("/api/v1/private/user/pets/{}", pet_uuid))
             .with_token(&token)
             .append_header((CONTENT_TYPE, "application/json"))
             .send_json(&serde_json::json!({
@@ -349,7 +349,7 @@ mod pet_profiles_api {
         // Create a pet with breed
         let mut create_resp = ctx
             .test_server
-            .post("/api/v1/user/pets")
+            .post("/api/v1/private/user/pets")
             .with_token(&token)
             .append_header((CONTENT_TYPE, "application/json"))
             .send_json(&serde_json::json!({
@@ -368,7 +368,7 @@ mod pet_profiles_api {
         // Clear the breed field
         let mut resp = ctx
             .test_server
-            .patch(format!("/api/v1/user/pets/{}", pet_uuid))
+            .patch(format!("/api/v1/private/user/pets/{}", pet_uuid))
             .with_token(&token)
             .append_header((CONTENT_TYPE, "application/json"))
             .send_json(&serde_json::json!({
@@ -390,7 +390,7 @@ mod pet_profiles_api {
         // Create a pet with traits
         let mut create_resp = ctx
             .test_server
-            .post("/api/v1/user/pets")
+            .post("/api/v1/private/user/pets")
             .with_token(&token)
             .append_header((CONTENT_TYPE, "application/json"))
             .send_json(&serde_json::json!({
@@ -409,7 +409,7 @@ mod pet_profiles_api {
         // Replace traits
         let mut resp = ctx
             .test_server
-            .patch(format!("/api/v1/user/pets/{}", pet_uuid))
+            .patch(format!("/api/v1/private/user/pets/{}", pet_uuid))
             .with_token(&token)
             .append_header((CONTENT_TYPE, "application/json"))
             .send_json(&serde_json::json!({
@@ -440,7 +440,7 @@ mod pet_profiles_api {
         // Create a pet
         let mut create_resp = ctx
             .test_server
-            .post("/api/v1/user/pets")
+            .post("/api/v1/private/user/pets")
             .with_token(&token)
             .append_header((CONTENT_TYPE, "application/json"))
             .send_json(&serde_json::json!({
@@ -458,7 +458,7 @@ mod pet_profiles_api {
         // Delete the pet
         let resp = ctx
             .test_server
-            .delete(format!("/api/v1/user/pets/{}", pet_uuid))
+            .delete(format!("/api/v1/private/user/pets/{}", pet_uuid))
             .with_token(&token)
             .send()
             .await
@@ -468,7 +468,7 @@ mod pet_profiles_api {
         // Verify it's gone
         let resp = ctx
             .test_server
-            .get(format!("/api/v1/user/pets/{}", pet_uuid))
+            .get(format!("/api/v1/private/user/pets/{}", pet_uuid))
             .with_token(&token)
             .send()
             .await
@@ -485,7 +485,7 @@ mod pet_profiles_api {
         // Owner X creates a pet
         let mut create_resp = ctx
             .test_server
-            .post("/api/v1/user/pets")
+            .post("/api/v1/private/user/pets")
             .with_token(&token1)
             .append_header((CONTENT_TYPE, "application/json"))
             .send_json(&serde_json::json!({
@@ -503,7 +503,7 @@ mod pet_profiles_api {
         // Owner Y tries to delete the pet
         let resp = ctx
             .test_server
-            .delete(format!("/api/v1/user/pets/{}", pet_uuid))
+            .delete(format!("/api/v1/private/user/pets/{}", pet_uuid))
             .with_token(&token2)
             .send()
             .await
@@ -517,7 +517,7 @@ mod pet_profiles_api {
 
         let mut resp = ctx
             .test_server
-            .get("/api/v1/public/pets/traits")
+            .get("/api/v1/pets/traits")
             .send()
             .await
             .unwrap();
@@ -542,7 +542,7 @@ mod pet_profiles_api {
         // Create a pet
         let mut create_resp = ctx
             .test_server
-            .post("/api/v1/user/pets")
+            .post("/api/v1/private/user/pets")
             .with_token(&token)
             .append_header((CONTENT_TYPE, "application/json"))
             .send_json(&serde_json::json!({
@@ -562,7 +562,7 @@ mod pet_profiles_api {
         // Get public view (no auth needed)
         let mut resp = ctx
             .test_server
-            .get(format!("/api/v1/public/pets/{}", pet_uuid))
+            .get(format!("/api/v1/pets/{}", pet_uuid))
             .send()
             .await
             .unwrap();
@@ -580,7 +580,7 @@ mod pet_profiles_api {
 
         let resp = ctx
             .test_server
-            .get("/api/v1/public/pets/00000000-0000-0000-0000-000000000000")
+            .get("/api/v1/pets/00000000-0000-0000-0000-000000000000")
             .send()
             .await
             .unwrap();
@@ -594,7 +594,7 @@ mod pet_profiles_api {
 
         let mut resp = ctx
             .test_server
-            .get("/api/v1/user/pets")
+            .get("/api/v1/private/user/pets")
             .with_token(&token)
             .send()
             .await

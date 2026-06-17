@@ -707,7 +707,7 @@ pub async fn get_token(
         .set_payload(format!(
             r#"{{"username":"{username}","password":"{password}"}}"#
         ))
-        .uri("/api/v1/login")
+        .uri("/api/v1/auth/login")
         .to_request();
     let resp: ServiceResponse<_> = test_app.call(req).await.unwrap();
     // Get the underlying HttpResponse
@@ -794,7 +794,7 @@ pub async fn get_http_token(
     client: &Client,
 ) -> anyhow::Result<String> {
     let resp = client
-        .post(format!("http://{addr}/api/v1/login"))
+        .post(format!("http://{addr}/api/v1/auth/login"))
         .insert_header((header::CONTENT_TYPE, "application/json"))
         .send_body(format!(
             r#"{{"username":"{username}","password":"{password}"}}"#
@@ -823,7 +823,7 @@ pub async fn create_http_user_with_email(
     client: &Client,
 ) -> anyhow::Result<()> {
     let mut resp = client
-        .post(format!("http://{addr}/api/v1/registration"))
+        .post(format!("http://{addr}/api/v1/auth/registration"))
         .insert_header(("content-type", "application/json"))
         .send_json(&serde_json::json!({
             "username": username,
@@ -1000,7 +1000,7 @@ impl TestContext {
     ) -> HashMap<Uuid, SessionInfo> {
         let mut resp = self
             .test_server
-            .get("/api/v1/sessions")
+            .get("/api/v1/private/sessions")
             .with_token(token)
             .send()
             .await
@@ -1013,7 +1013,7 @@ impl TestContext {
     pub async fn delete_session(&self, session_id: Uuid, token: &str) {
         let resp = self
             .test_server
-            .delete(format!("/api/v1/sessions/{}", session_id))
+            .delete(format!("/api/v1/private/sessions/{}", session_id))
             .with_token(token)
             .send()
             .await
@@ -1030,7 +1030,9 @@ impl TestContext {
     ) -> Vec<User> {
         let mut resp = self
             .test_server
-            .get(format!("/api/v1/admin/users?page={page}&limit={limit}"))
+            .get(format!(
+                "/api/v1/private/admin/users?page={page}&limit={limit}"
+            ))
             .with_token(token)
             .send()
             .await

@@ -20,7 +20,7 @@ mod tests {
         let ctx = common::TestContext::new(None).await;
         let mut resp = ctx
             .test_server
-            .get("/api/v1/public/build-info")
+            .get("/api/v1/build-info")
             .send()
             .await
             .unwrap();
@@ -62,7 +62,7 @@ mod tests {
             };
             let mut resp = ctx
                 .test_server
-                .post("/api/v1/cmd")
+                .post("/api/v1/private/cmd")
                 .append_header((header::CONTENT_TYPE, "application/json"))
                 .with_token(&token)
                 .send_body(r#"{"args":[]}"#)
@@ -78,7 +78,7 @@ mod tests {
 
             let mut resp = ctx
                 .test_server
-                .get(format!("/api/v1/cmd/{job_id}"))
+                .get(format!("/api/v1/private/cmd/{job_id}"))
                 .with_token(&token)
                 .send()
                 .await

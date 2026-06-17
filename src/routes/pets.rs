@@ -27,7 +27,7 @@ pub(crate) struct PublicImageVariantPath {
 
 #[utoipa::path(
     get,
-    path = "/api/v1/public/pets/traits",
+    path = "/api/v1/pets/traits",
     tag = "pets",
     responses(
         (status = 200, description = "List of personality traits", body = Vec<crate::models::pets::PersonalityTrait>),
@@ -49,7 +49,7 @@ pub async fn get_traits(
 
 #[utoipa::path(
     get,
-    path = "/api/v1/public/pets/{pet_uuid}",
+    path = "/api/v1/pets/{pet_uuid}",
     tag = "pets",
     params(
         ("pet_uuid" = crate::models::pets::PetUuid, Path, description = "Pet UUID"),
@@ -78,7 +78,7 @@ pub async fn get_public_pet(
 
 #[utoipa::path(
     post,
-    path = "/api/v1/user/pets",
+    path = "/api/v1/private/user/pets",
     tag = "pets",
     request_body = crate::models::pets::CreatePet,
     responses(
@@ -110,7 +110,7 @@ pub async fn create_pet(
 
 #[utoipa::path(
     get,
-    path = "/api/v1/user/pets",
+    path = "/api/v1/private/user/pets",
     tag = "pets",
     params(
         ("species" = Option<String>, Query, description = "Filter by species"),
@@ -152,7 +152,7 @@ pub async fn list_pets(
 
 #[utoipa::path(
     get,
-    path = "/api/v1/user/pets/{pet_uuid}",
+    path = "/api/v1/private/user/pets/{pet_uuid}",
     tag = "pets",
     params(
         ("pet_uuid" = crate::models::pets::PetUuid, Path, description = "Pet UUID"),
@@ -193,7 +193,7 @@ pub async fn get_pet(
 
 #[utoipa::path(
     patch,
-    path = "/api/v1/user/pets/{pet_uuid}",
+    path = "/api/v1/private/user/pets/{pet_uuid}",
     tag = "pets",
     params(
         ("pet_uuid" = crate::models::pets::PetUuid, Path, description = "Pet UUID"),
@@ -236,7 +236,7 @@ pub async fn update_pet(
 
 #[utoipa::path(
     delete,
-    path = "/api/v1/user/pets/{pet_uuid}",
+    path = "/api/v1/private/user/pets/{pet_uuid}",
     tag = "pets",
     params(
         ("pet_uuid" = crate::models::pets::PetUuid, Path, description = "Pet UUID"),
@@ -271,7 +271,7 @@ pub async fn delete_pet(
 
 #[utoipa::path(
     post,
-    path = "/api/v1/user/pets/{pet_uuid}/images",
+    path = "/api/v1/private/user/pets/{pet_uuid}/images",
     tag = "pets",
     params(
         ("pet_uuid" = crate::models::pets::PetUuid, Path, description = "Pet UUID"),
@@ -378,7 +378,7 @@ pub async fn upload_pet_image(
 
 #[utoipa::path(
     get,
-    path = "/api/v1/user/pets/{pet_uuid}/images",
+    path = "/api/v1/private/user/pets/{pet_uuid}/images",
     tag = "pets",
     params(
         ("pet_uuid" = crate::models::pets::PetUuid, Path, description = "Pet UUID"),
@@ -413,7 +413,7 @@ pub async fn list_pet_images(
 
 #[utoipa::path(
     delete,
-    path = "/api/v1/user/pets/{pet_uuid}/images/{image_uuid}",
+    path = "/api/v1/private/user/pets/{pet_uuid}/images/{image_uuid}",
     tag = "pets",
     params(
         ("pet_uuid" = crate::models::pets::PetUuid, Path, description = "Pet UUID"),
@@ -457,7 +457,7 @@ pub async fn delete_pet_image(
 
 #[utoipa::path(
     patch,
-    path = "/api/v1/user/pets/{pet_uuid}/images/{image_uuid}",
+    path = "/api/v1/private/user/pets/{pet_uuid}/images/{image_uuid}",
     tag = "pets",
     params(
         ("pet_uuid" = crate::models::pets::PetUuid, Path, description = "Pet UUID"),
@@ -510,7 +510,7 @@ pub async fn set_primary_pet_image(
 
 #[utoipa::path(
     get,
-    path = "/api/v1/public/pets/images/{image_uuid}",
+    path = "/api/v1/pets/images/{image_uuid}",
     tag = "pets",
     params(
         ("image_uuid" = uuid::Uuid, Path, description = "Image UUID"),
@@ -559,7 +559,7 @@ pub async fn get_public_pet_image(
 
 #[utoipa::path(
     get,
-    path = "/api/v1/public/pets/images/{image_uuid}/{variant}",
+    path = "/api/v1/pets/images/{image_uuid}/{variant}",
     tag = "pets",
     params(
         ("image_uuid" = uuid::Uuid, Path, description = "Image UUID"),

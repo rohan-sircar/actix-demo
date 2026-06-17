@@ -25,7 +25,7 @@ mod tests {
             for _ in 0..2 {
                 let resp = ctx
                     .test_server
-                    .get("/api/v1/sessions")
+                    .get("/api/v1/private/sessions")
                     .with_token(&token)
                     .send()
                     .await
@@ -44,7 +44,7 @@ mod tests {
             // Send 3rd request which should be rate limited
             let resp = ctx
                 .test_server
-                .get("/api/v1/sessions")
+                .get("/api/v1/private/sessions")
                 .with_token(&token)
                 .send()
                 .await
@@ -65,7 +65,7 @@ mod tests {
             // Try API request after window expiration
             let resp = ctx
                 .test_server
-                .get("/api/v1/sessions")
+                .get("/api/v1/private/sessions")
                 .with_token(&token)
                 .send()
                 .await

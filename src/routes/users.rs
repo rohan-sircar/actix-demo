@@ -19,7 +19,7 @@ use crate::{errors::DomainError, AppData};
 
 #[utoipa::path(
     get,
-    path = "/api/v1/public/users/{user_id}",
+    path = "/api/v1/users/{user_id}",
     tag = "users",
     params(
         ("user_id" = String, Path, description = "User UUID"),
@@ -63,7 +63,7 @@ pub async fn get_user(
 
 #[utoipa::path(
     get,
-    path = "/api/v1/admin/users",
+    path = "/api/v1/private/admin/users",
     tag = "users",
     params(
         ("page" = u16, Query, description = "Page number"),
@@ -102,7 +102,7 @@ pub async fn get_users(
 
 #[utoipa::path(
     post,
-    path = "/api/v1/registration",
+    path = "/api/v1/auth/registration",
     tag = "users",
     request_body = NewUser,
     responses(
@@ -188,7 +188,7 @@ pub struct UploadAvatarRequest {
 }
 #[utoipa::path(
     put,
-    path = "/api/v1/avatars",
+    path = "/api/v1/private/avatars",
     tag = "users",
     request_body = UploadAvatarRequest,
     responses(
@@ -244,7 +244,7 @@ pub async fn upload_user_avatar(
 
 #[utoipa::path(
     delete,
-    path = "/api/v1/avatars",
+    path = "/api/v1/private/avatars",
     tag = "users",
     responses(
         (status = 204, description = "Avatar deleted successfully"),
@@ -276,7 +276,7 @@ pub async fn delete_user_avatar(
 
 #[utoipa::path(
     get,
-    path = "/api/v1/public/avatars/{user_id}",
+    path = "/api/v1/avatars/{user_id}",
     tag = "users",
     params(
         ("user_id" = String, Path, description = "User UUID"),
@@ -325,7 +325,7 @@ pub async fn get_user_avatar(
 
 #[utoipa::path(
     get,
-    path = "/api/v1/user",
+    path = "/api/v1/private/user",
     tag = "users",
     responses(
         (status = 200, description = "User profile", body = User),
@@ -360,7 +360,7 @@ pub async fn get_my_profile(
 
 #[utoipa::path(
     patch,
-    path = "/api/v1/user",
+    path = "/api/v1/private/user",
     tag = "users",
     request_body = UpdateUserProfile,
     responses(
@@ -444,7 +444,7 @@ pub async fn update_my_profile(
 
 #[utoipa::path(
     delete,
-    path = "/api/v1/user",
+    path = "/api/v1/private/user",
     tag = "users",
     responses(
         (status = 200, description = "Account deleted successfully"),
@@ -498,7 +498,7 @@ pub async fn delete_my_account(
 
 #[utoipa::path(
     get,
-    path = "/api/v1/public/profiles/{user_id}",
+    path = "/api/v1/profiles/{user_id}",
     tag = "users",
     params(
         ("user_id" = String, Path, description = "User UUID"),
@@ -529,7 +529,7 @@ pub async fn get_public_profile(
 
 #[utoipa::path(
     get,
-    path = "/api/v1/user/profile",
+    path = "/api/v1/private/user/profile",
     tag = "users",
     responses(
         (status = 200, description = "Profile retrieved", body = PublicProfile),
@@ -570,7 +570,7 @@ pub async fn get_user_profile(
 
 #[utoipa::path(
     post,
-    path = "/api/v1/user/profile",
+    path = "/api/v1/private/user/profile",
     tag = "users",
     request_body = CreateProfile,
     responses(
@@ -602,7 +602,7 @@ pub async fn create_user_profile(
 
 #[utoipa::path(
     patch,
-    path = "/api/v1/user/profile",
+    path = "/api/v1/private/user/profile",
     tag = "users",
     request_body = UpdateProfile,
     responses(

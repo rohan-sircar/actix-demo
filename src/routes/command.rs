@@ -30,7 +30,7 @@ pub struct RunCommandRequest {
 
 #[utoipa::path(
     post,
-    path = "/api/v1/cmd",
+    path = "/api/v1/private/cmd",
     tag = "command",
     request_body = RunCommandRequest,
     responses(
@@ -277,7 +277,7 @@ pub async fn handle_run_command(
 
 #[utoipa::path(
     get,
-    path = "/api/v1/cmd/{job_id}",
+    path = "/api/v1/private/cmd/{job_id}",
     tag = "command",
     params(
         ("job_id" = String, Path, description = "Job UUID"),
@@ -345,7 +345,7 @@ pub struct MetricsQuery {
 
 #[utoipa::path(
     get,
-    path = "/api/v1/public/metrics/cmd",
+    path = "/api/v1/metrics/cmd",
     tag = "command",
     params(
         ("hours_since" = Option<i8>, Query, description = "Hours since to filter"),
@@ -386,7 +386,7 @@ pub async fn handle_get_job_metrics(
 
 #[utoipa::path(
     delete,
-    path = "/api/v1/cmd/{job_id}",
+    path = "/api/v1/private/cmd/{job_id}",
     tag = "command",
     params(
         ("job_id" = String, Path, description = "Job UUID to abort"),
