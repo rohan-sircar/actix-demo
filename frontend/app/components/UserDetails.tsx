@@ -18,7 +18,7 @@ const UserDetails = () => {
   const { data, isLoading, isError, error } = useQuery<UserResponse, Error>({
     queryKey: ['user-details'],
     queryFn: async () => {
-      const res = await api.get<UserResponse>('/api/v1/user');
+      const res = await api.get<UserResponse>('/api/v1/private/user');
       return res.data;
     },
     enabled: !!user,

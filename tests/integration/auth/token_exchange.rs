@@ -116,7 +116,7 @@ mod tests {
         // Use Bearer token for protected endpoint
         let resp = ctx
             .test_server
-            .get("/api/v1/sessions")
+            .get("/api/v1/private/sessions")
             .with_bearer(token)
             .send()
             .await
@@ -151,7 +151,7 @@ mod tests {
         // Use Bearer token for user profile endpoint
         let resp = ctx
             .test_server
-            .get("/api/v1/user")
+            .get("/api/v1/private/user")
             .with_bearer(token)
             .send()
             .await
@@ -170,7 +170,7 @@ mod tests {
 
         let resp = ctx
             .test_server
-            .get("/api/v1/sessions")
+            .get("/api/v1/private/sessions")
             .send()
             .await
             .unwrap();
@@ -206,7 +206,7 @@ mod tests {
         // Check session has the device name via session headers
         let mut sessions_resp = ctx
             .test_server
-            .get("/api/v1/sessions")
+            .get("/api/v1/private/sessions")
             .with_bearer(token)
             .send()
             .await
@@ -265,7 +265,7 @@ mod tests {
         // Verify token no longer works
         let resp = ctx
             .test_server
-            .get("/api/v1/sessions")
+            .get("/api/v1/private/sessions")
             .with_bearer(token)
             .send()
             .await
@@ -305,7 +305,7 @@ mod tests {
         // Use first token to revoke others with Bearer
         let resp = ctx
             .test_server
-            .post("/api/v1/sessions/revoke-others")
+            .post("/api/v1/private/sessions/revoke-others")
             .with_bearer(&tokens[0])
             .send()
             .await
@@ -320,7 +320,7 @@ mod tests {
         // Verify first token still works
         let resp = ctx
             .test_server
-            .get("/api/v1/sessions")
+            .get("/api/v1/private/sessions")
             .with_bearer(&tokens[0])
             .send()
             .await
@@ -332,7 +332,7 @@ mod tests {
         for token in &tokens[1..] {
             let resp = ctx
                 .test_server
-                .get("/api/v1/sessions")
+                .get("/api/v1/private/sessions")
                 .with_bearer(token)
                 .send()
                 .await
@@ -378,7 +378,7 @@ mod tests {
         // Both tokens should work
         let resp = ctx
             .test_server
-            .get("/api/v1/sessions")
+            .get("/api/v1/private/sessions")
             .with_bearer(exchange_token)
             .send()
             .await
@@ -387,7 +387,7 @@ mod tests {
 
         let resp = ctx
             .test_server
-            .get("/api/v1/sessions")
+            .get("/api/v1/private/sessions")
             .with_token(&cookie_token)
             .send()
             .await
@@ -435,7 +435,7 @@ mod tests {
         // Use cookie token to get user profile
         let mut resp = ctx
             .test_server
-            .get("/api/v1/user")
+            .get("/api/v1/private/user")
             .with_token(&cookie_token)
             .send()
             .await

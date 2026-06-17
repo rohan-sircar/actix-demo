@@ -74,7 +74,7 @@ mod tests {
             // Step 6: Use the token to make a protected request
             let resp = ctx
                 .test_server
-                .get("/api/v1/sessions")
+                .get("/api/v1/private/sessions")
                 .with_token(&auth_token)
                 .send()
                 .await

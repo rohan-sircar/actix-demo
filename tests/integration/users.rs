@@ -37,7 +37,7 @@ mod tests {
 
             let mut resp = ctx
                 .test_server
-                .get("/api/v1/admin/users?page=0&limit=2")
+                .get("/api/v1/private/admin/users?page=0&limit=2")
                 .with_token(&token)
                 .send()
                 .await
@@ -83,7 +83,7 @@ mod tests {
             // First page with 10 users
             let mut resp = ctx
                 .test_server
-                .get("/api/v1/admin/users?page=0&limit=10")
+                .get("/api/v1/private/admin/users?page=0&limit=10")
                 .with_token(&token)
                 .send()
                 .await
@@ -95,7 +95,7 @@ mod tests {
             // Second page with > 1 user
             let mut resp = ctx
                 .test_server
-                .get("/api/v1/admin/users?page=1&limit=10")
+                .get("/api/v1/private/admin/users?page=1&limit=10")
                 .with_token(&token)
                 .send()
                 .await
@@ -126,7 +126,7 @@ mod tests {
 
             let mut resp = ctx
                 .test_server
-                .get(format!("/api/v1/admin/users/{}", non_existent_uuid))
+                .get(format!("/api/v1/private/admin/users/{}", non_existent_uuid))
                 .with_token(&token)
                 .send()
                 .await
@@ -157,7 +157,7 @@ mod tests {
 
                 let mut resp = ctx
                     .test_server
-                    .get("/api/v1/user/profile")
+                    .get("/api/v1/private/user/profile")
                     .with_token(&token)
                     .send()
                     .await
@@ -181,7 +181,7 @@ mod tests {
 
                 let mut resp = ctx
                     .test_server
-                    .post("/api/v1/user/profile")
+                    .post("/api/v1/private/user/profile")
                     .with_token(&token)
                     .append_header((CONTENT_TYPE, "application/json"))
                     .send_json(&serde_json::json!({
@@ -206,7 +206,7 @@ mod tests {
 
                 let mut get_resp = ctx
                     .test_server
-                    .get("/api/v1/user/profile")
+                    .get("/api/v1/private/user/profile")
                     .with_token(&token)
                     .send()
                     .await
@@ -225,7 +225,7 @@ mod tests {
                     register_and_login(&ctx, "partialupdate", "test123").await;
 
                 ctx.test_server
-                    .post("/api/v1/user/profile")
+                    .post("/api/v1/private/user/profile")
                     .with_token(&token)
                     .append_header((CONTENT_TYPE, "application/json"))
                     .send_json(&serde_json::json!({
@@ -241,7 +241,7 @@ mod tests {
 
                 let mut resp = ctx
                     .test_server
-                    .patch("/api/v1/user/profile")
+                    .patch("/api/v1/private/user/profile")
                     .with_token(&token)
                     .append_header((CONTENT_TYPE, "application/json"))
                     .send_json(&serde_json::json!({
@@ -267,7 +267,7 @@ mod tests {
                     register_and_login(&ctx, "clearfield", "test123").await;
 
                 ctx.test_server
-                    .post("/api/v1/user/profile")
+                    .post("/api/v1/private/user/profile")
                     .with_token(&token)
                     .append_header((CONTENT_TYPE, "application/json"))
                     .send_json(&serde_json::json!({
@@ -283,7 +283,7 @@ mod tests {
 
                 let mut resp = ctx
                     .test_server
-                    .patch("/api/v1/user/profile")
+                    .patch("/api/v1/private/user/profile")
                     .with_token(&token)
                     .append_header((CONTENT_TYPE, "application/json"))
                     .send_json(&serde_json::json!({
@@ -338,7 +338,7 @@ mod tests {
                     register_and_login(&ctx, "pubprofile", "test123").await;
 
                 ctx.test_server
-                    .post("/api/v1/user/profile")
+                    .post("/api/v1/private/user/profile")
                     .with_token(&token)
                     .append_header((CONTENT_TYPE, "application/json"))
                     .send_json(&serde_json::json!({
@@ -390,7 +390,7 @@ mod tests {
 
                 let resp = ctx
                     .test_server
-                    .get("/api/v1/user/profile")
+                    .get("/api/v1/private/user/profile")
                     .send()
                     .await
                     .unwrap();
@@ -404,7 +404,7 @@ mod tests {
 
                 let resp = ctx
                     .test_server
-                    .patch("/api/v1/user/profile")
+                    .patch("/api/v1/private/user/profile")
                     .append_header((CONTENT_TYPE, "application/json"))
                     .send_json(&serde_json::json!({
                         "bio": "test"
@@ -425,7 +425,7 @@ mod tests {
 
                 let resp = ctx
                     .test_server
-                    .post("/api/v1/user/profile")
+                    .post("/api/v1/private/user/profile")
                     .with_token(&token)
                     .append_header((CONTENT_TYPE, "application/json"))
                     .send_json(&serde_json::json!({

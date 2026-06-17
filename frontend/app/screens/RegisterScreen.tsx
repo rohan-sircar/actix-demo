@@ -49,7 +49,7 @@ const RegisterScreen = () => {
             password: data.password,
             device_name: 'Web',
           });
-          const userRes = await api.get<UserResponse>('/api/v1/user');
+          const userRes = await api.get<UserResponse>('/api/v1/private/user');
           setCredentials('', userRes.data);
         } else {
           const res = await api.post('/auth/exchange', {

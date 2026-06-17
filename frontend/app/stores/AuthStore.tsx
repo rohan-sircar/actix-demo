@@ -75,7 +75,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ isLoading: true });
     try {
       if (isWeb) {
-        const res = await api.get<UserResponse>('/api/v1/user');
+        const res = await api.get<UserResponse>('/api/v1/private/user');
         set({
           token: null,
           user: res.data,
@@ -86,7 +86,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       } else {
         const token = await SecureStore.getItemAsync('auth_token');
         if (token) {
-          const res = await api.get<UserResponse>('/api/v1/user');
+          const res = await api.get<UserResponse>('/api/v1/private/user');
           set({
             token,
             user: res.data,

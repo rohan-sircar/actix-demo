@@ -1000,7 +1000,7 @@ impl TestContext {
     ) -> HashMap<Uuid, SessionInfo> {
         let mut resp = self
             .test_server
-            .get("/api/v1/sessions")
+            .get("/api/v1/private/sessions")
             .with_token(token)
             .send()
             .await
@@ -1013,7 +1013,7 @@ impl TestContext {
     pub async fn delete_session(&self, session_id: Uuid, token: &str) {
         let resp = self
             .test_server
-            .delete(format!("/api/v1/sessions/{}", session_id))
+            .delete(format!("/api/v1/private/sessions/{}", session_id))
             .with_token(token)
             .send()
             .await
@@ -1030,7 +1030,7 @@ impl TestContext {
     ) -> Vec<User> {
         let mut resp = self
             .test_server
-            .get(format!("/api/v1/admin/users?page={page}&limit={limit}"))
+            .get(format!("/api/v1/private/admin/users?page={page}&limit={limit}"))
             .with_token(token)
             .send()
             .await

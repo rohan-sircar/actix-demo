@@ -26,7 +26,7 @@ export default function ProfileScreen() {
   const { data: user, isLoading } = useQuery({
     queryKey: ['user'],
     queryFn: async () => {
-      const res = await api.get<UserResponse>('/api/v1/user');
+      const res = await api.get<UserResponse>('/api/v1/private/user');
       return res.data;
     },
   });
@@ -38,7 +38,7 @@ export default function ProfileScreen() {
       location?: string;
       website?: string;
     }) => {
-      await api.patch('/api/v1/user/profile', data);
+      await api.patch('/api/v1/private/user/profile', data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['user'] });

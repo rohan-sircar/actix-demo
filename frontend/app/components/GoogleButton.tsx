@@ -30,7 +30,7 @@ const GoogleButton = () => {
         const loginUrl = `${API_BASE_URL}/api/v1/auth/oauth/google/login?redirect=${encodeURIComponent(`${API_BASE_URL}/api/v1/auth/oauth/google/callback`)}`;
         await WebBrowser.openAuthSessionAsync(loginUrl, loginUrl);
 
-        const userRes = await api.get<UserResponse>('/api/v1/user');
+        const userRes = await api.get<UserResponse>('/api/v1/private/user');
         setCredentials('', userRes.data);
       } else {
         const authorizeUrl = `${API_BASE_URL}/api/v1/auth/oauth/google/login`;

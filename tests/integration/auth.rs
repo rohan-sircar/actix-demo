@@ -156,7 +156,7 @@ mod tests {
     async fn get_sessions(ctx: &TestContext, token: &str) -> StatusCode {
         let resp = ctx
             .test_server
-            .get("/api/v1/sessions")
+            .get("/api/v1/private/sessions")
             .with_token(token)
             .send()
             .await

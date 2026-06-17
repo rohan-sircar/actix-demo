@@ -300,7 +300,7 @@ pub async fn exchange(
 
 #[utoipa::path(
     get,
-    path = "/api/v1/sessions",
+    path = "/api/v1/private/sessions",
     tag = "auth",
     responses(
         (status = 200, description = "List of active sessions", body = Vec<SessionInfo>),
@@ -360,7 +360,7 @@ pub async fn logout(
 
 #[utoipa::path(
     delete,
-    path = "/api/v1/sessions/{session_id}",
+    path = "/api/v1/private/sessions/{session_id}",
     tag = "auth",
     params(
         ("session_id" = String, Path, description = "Session ID to revoke"),
@@ -409,7 +409,7 @@ pub async fn revoke_session(
 
 #[utoipa::path(
     post,
-    path = "/api/v1/sessions/revoke-others",
+    path = "/api/v1/private/sessions/revoke-others",
     tag = "auth",
     responses(
         (status = 200, description = "All other sessions revoked successfully"),

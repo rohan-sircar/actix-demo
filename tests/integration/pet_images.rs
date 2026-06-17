@@ -36,7 +36,7 @@ async fn send_upload_request(
     image_bytes: Vec<u8>,
     content_type: &str,
 ) -> (StatusCode, serde_json::Value) {
-    let url = format!("http://{addr}/api/v1/user/pets/{}/images", pet_uuid);
+    let url = format!("http://{addr}/api/v1/private/user/pets/{}/images", pet_uuid);
     let mut resp = client
         .post(&url)
         .insert_header(("cookie", format!("X-AUTH-TOKEN={}", token)))
@@ -58,7 +58,7 @@ async fn create_pet(
 ) -> String {
     let mut resp = ctx
         .test_server
-        .post("/api/v1/user/pets")
+        .post("/api/v1/private/user/pets")
         .with_token(token)
         .append_header((
             actix_web::http::header::CONTENT_TYPE,
@@ -229,7 +229,7 @@ mod pet_images_api {
             .unwrap();
 
         let url =
-            format!("http://{}/api/v1/user/pets/{}/images", ctx.addr, pet_uuid);
+            format!("http://{}/api/v1/private/user/pets/{}/images", ctx.addr, pet_uuid);
         let resp = ctx
             .client
             .post(&url)
@@ -300,7 +300,7 @@ mod pet_images_api {
         // List images
         let mut resp = ctx
             .test_server
-            .get(format!("/api/v1/user/pets/{}/images", pet_uuid))
+            .get(format!("/api/v1/private/user/pets/{}/images", pet_uuid))
             .with_token(&token)
             .send()
             .await
@@ -322,7 +322,7 @@ mod pet_images_api {
 
         let mut resp = ctx
             .test_server
-            .get(format!("/api/v1/user/pets/{}/images", pet_uuid))
+            .get(format!("/api/v1/private/user/pets/{}/images", pet_uuid))
             .with_token(&token)
             .send()
             .await
@@ -368,7 +368,7 @@ mod pet_images_api {
         let resp = ctx
             .test_server
             .patch(format!(
-                "/api/v1/user/pets/{}/images/{}",
+                "/api/v1/private/user/pets/{}/images/{}",
                 pet_uuid, image_uuid_2
             ))
             .with_token(&token)
@@ -384,7 +384,7 @@ mod pet_images_api {
         // List images and verify toggle
         let mut resp = ctx
             .test_server
-            .get(format!("/api/v1/user/pets/{}/images", pet_uuid))
+            .get(format!("/api/v1/private/user/pets/{}/images", pet_uuid))
             .with_token(&token)
             .send()
             .await
@@ -419,7 +419,7 @@ mod pet_images_api {
         let resp = ctx
             .test_server
             .patch(format!(
-                "/api/v1/user/pets/{}/images/{}",
+                "/api/v1/private/user/pets/{}/images/{}",
                 pet_uuid, image_uuid
             ))
             .with_token(&token)
@@ -457,7 +457,7 @@ mod pet_images_api {
         let resp = ctx
             .test_server
             .delete(format!(
-                "/api/v1/user/pets/{}/images/{}",
+                "/api/v1/private/user/pets/{}/images/{}",
                 pet_uuid, image_uuid
             ))
             .with_token(&token)
@@ -469,7 +469,7 @@ mod pet_images_api {
         // Verify it's gone
         let mut resp = ctx
             .test_server
-            .get(format!("/api/v1/user/pets/{}/images", pet_uuid))
+            .get(format!("/api/v1/private/user/pets/{}/images", pet_uuid))
             .with_token(&token)
             .send()
             .await
@@ -482,7 +482,7 @@ mod pet_images_api {
         let resp = ctx
             .test_server
             .delete(format!(
-                "/api/v1/user/pets/{}/images/{}",
+                "/api/v1/private/user/pets/{}/images/{}",
                 pet_uuid, image_uuid
             ))
             .with_token(&token)
@@ -516,7 +516,7 @@ mod pet_images_api {
         let resp = ctx
             .test_server
             .delete(format!(
-                "/api/v1/user/pets/{}/images/{}",
+                "/api/v1/private/user/pets/{}/images/{}",
                 pet_uuid, image_uuid
             ))
             .with_token(&token_b)

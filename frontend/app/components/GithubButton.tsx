@@ -26,7 +26,7 @@ const GithubButton = () => {
         await WebBrowser.openAuthSessionAsync(loginUrl, frontendUrl);
 
         try {
-          const userRes = await api.get<UserResponse>('/api/v1/user');
+          const userRes = await api.get<UserResponse>('/api/v1/private/user');
           setCredentials('', userRes.data);
         } catch {
           Alert.alert('Error', 'Authentication failed. Please try again.');

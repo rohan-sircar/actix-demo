@@ -301,7 +301,7 @@ pub fn configure_app(
             )
             // authenticated api
             .service(
-                web::scope("/api/v1")
+                web::scope("/api/v1/private")
                     .wrap(api_rate_limiter(&app_data.config.rate_limit.api))
                     .wrap(GrantsMiddleware::with_extractor(
                         routes::auth::extract,

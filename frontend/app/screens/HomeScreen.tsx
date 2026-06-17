@@ -22,7 +22,7 @@ const Home = () => {
   } = useQuery({
     queryKey: ['pets'],
     queryFn: async () => {
-      const res = await api.get<Pet[]>('/api/v1/user/pets');
+      const res = await api.get<Pet[]>('/api/v1/private/user/pets');
       return res.data;
     },
   });
