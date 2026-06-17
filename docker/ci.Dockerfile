@@ -9,7 +9,7 @@ RUN apt-get update && \
     libz-dev && \
     rm -rf /var/lib/apt/lists/*
 
-EXPOSE 7800
+EXPOSE 8800
 
 ENV TZ=Etc/UTC \
     APP_USER=appuser

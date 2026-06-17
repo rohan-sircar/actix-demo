@@ -148,6 +148,7 @@ pub async fn exchange_google_code(
         &config.google(),
         code,
         &config.base_url,
+        &config.google_base_url(),
         code_verifier,
     )
     .await?;
@@ -156,7 +157,7 @@ pub async fn exchange_google_code(
 
 pub async fn get_google_user_info(
     access_token: &str,
-    base_url: &str,
+    google_base_url: &str,
 ) -> Result<GoogleOAuthUser, DomainError> {
-    google::get_user_info(access_token, base_url).await
+    google::get_user_info(access_token, google_base_url).await
 }

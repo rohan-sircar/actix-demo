@@ -112,7 +112,7 @@ RUN apt-get update && \
     tzdata libpq-dev \
     libz-dev libssl-dev
 
-EXPOSE 7800
+EXPOSE 8800
 
 ENV TZ=Etc/UTC \
     APP_USER=appuser

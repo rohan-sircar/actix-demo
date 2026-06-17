@@ -56,11 +56,12 @@ pub async fn exchange_code_for_token(
     config: &OAuthProviderConfig,
     code: &str,
     base_url: &str,
+    google_base_url: &str,
     code_verifier: &str,
 ) -> Result<GoogleTokenResponse, DomainError> {
     let client = reqwest::Client::new();
     let redirect_uri = format!("{base_url}/api/v1/auth/oauth/google/callback");
-    let token_url = format!("{base_url}{GOOGLE_TOKEN_PATH}");
+    let token_url = format!("{google_base_url}{GOOGLE_TOKEN_PATH}");
 
     let response = client
         .post(&token_url)
@@ -101,10 +102,10 @@ pub async fn exchange_code_for_token(
 
 pub async fn get_user_info(
     access_token: &str,
-    base_url: &str,
+    google_base_url: &str,
 ) -> Result<GoogleOAuthUser, DomainError> {
     let client = reqwest::Client::new();
-    let user_url = format!("{base_url}{GOOGLE_USER_INFO_PATH}");
+    let user_url = format!("{google_base_url}{GOOGLE_USER_INFO_PATH}");
 
     let user = client
         .get(&user_url)

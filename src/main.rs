@@ -61,6 +61,11 @@ async fn main() -> anyhow::Result<()> {
         } else {
             env_config.oauth_github_api_base_url.clone()
         },
+        google_base_url: if env_config.oauth_google_base_url.is_empty() {
+            "https://oauth2.googleapis.com".to_string()
+        } else {
+            env_config.oauth_google_base_url.clone()
+        },
         github_client_id: env_config.oauth_github_client_id.clone(),
         github_client_secret: env_config.oauth_github_client_secret.clone(),
         github_scopes: if env_config.oauth_github_scopes.is_empty() {
@@ -312,9 +317,10 @@ async fn main() -> anyhow::Result<()> {
         swagger_path: env_config.swagger_path,
     });
 
-    let _app =
-        actix_demo::run(format!("{}:7800", env_config.http_host), app_data)
-            .await?;
+    let server_addr =
+        format!("{}:{}", env_config.http_host, env_config.http_port);
+
+    let _app = actix_demo::run(server_addr, app_data).await?;
 
     Ok(())
 }

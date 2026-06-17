@@ -201,6 +201,15 @@ pub fn configure_app(
                     .route(web::post().to(routes::auth::verify_email)),
             )
             .service(
+                web::resource("/email/verify/resend")
+                    .wrap(api_rate_limiter(
+                        &app_data.config.rate_limit.api_public,
+                    ))
+                    .route(
+                        web::post().to(routes::auth::resend_verification_email),
+                    ),
+            )
+            .service(
                 web::resource("/api/v1/password-reset/request")
                     .wrap(api_rate_limiter(
                         &app_data.config.rate_limit.api_public,
@@ -475,6 +484,7 @@ pub fn configure_app(
         routes::auth::revoke_session,
         routes::auth::revoke_other_sessions,
         routes::auth::verify_email,
+        routes::auth::resend_verification_email,
         routes::auth::request_password_reset,
         routes::auth::complete_password_reset,
         routes::users::get_user,
@@ -528,6 +538,7 @@ pub fn configure_app(
             models::misc::ErrorResponseString,
             routes::auth::VerifyEmailRequest,
             routes::auth::PasswordResetRequest,
+            routes::auth::ResendVerificationRequest,
             routes::auth::PasswordResetCompleteRequest,
             routes::auth::AuthResponse,
             routes::auth::AuthUser,

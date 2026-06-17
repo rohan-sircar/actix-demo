@@ -455,6 +455,11 @@ pub struct PasswordResetRequest {
 }
 
 #[derive(Deserialize, ToSchema)]
+pub struct ResendVerificationRequest {
+    pub email: Email,
+}
+
+#[derive(Deserialize, ToSchema)]
 pub struct PasswordResetCompleteRequest {
     pub token: String,
     pub new_password: String,
@@ -511,6 +516,11 @@ pub async fn verify_email(
                         .set(used.eq(true))
                         .execute(conn)?;
 
+                    use crate::schema::users::dsl as users;
+                    diesel::update(users::users.filter(users::id.eq(uid)))
+                        .set(users::email_verified.eq(true))
+                        .execute(conn)?;
+
                     Ok(Some(uid))
                 }
             }
@@ -526,6 +536,82 @@ pub async fn verify_email(
             "success": true,
             "message": "Email verified successfully"
         })));
+    }
+
+    Ok(HttpResponse::Ok().json(serde_json::json!({
+        "success": true,
+        "message": "If the email is registered, you will receive a verification email"
+    })))
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/v1/email/verify/resend",
+    tag = "auth",
+    request_body = ResendVerificationRequest,
+    responses(
+        (status = 200, description = "Verification email resent if user exists and is not yet verified"),
+    ),
+)]
+#[tracing::instrument(level = "info", skip(app_data, form))]
+pub async fn resend_verification_email(
+    app_data: web::Data<AppData>,
+    form: web::Json<ResendVerificationRequest>,
+) -> Result<HttpResponse, DomainError> {
+    let email = form.into_inner().email;
+    let mailer = app_data.mailer.clone();
+    let email_clone = email.clone();
+    let pool_clone = app_data.pool.clone();
+    let ttl_secs = app_data.config.email_token_ttl_verification_secs;
+
+    let result = web::block(move || {
+        let pool = &app_data.pool;
+        let mut conn = pool.get()?;
+        crate::actions::users::find_user_by_email(&email_clone, &mut conn)
+    })
+    .await??;
+
+    if let Some(user) = result {
+        let uid: i32 = user.id.as_uint() as i32;
+        let user_name = user.username.as_str().to_string();
+
+        let is_verified = user.email_verified;
+
+        if is_verified {
+            tracing::info!(user_id = %uid, "Email already verified, skipping resend");
+            return Ok(HttpResponse::Ok().json(serde_json::json!({
+                "success": true,
+                "message": "If the email is registered, you will receive a verification email"
+            })));
+        }
+
+        let token = tokens::generate_token();
+        let thash = tokens::hash_token(&token);
+
+        tokio::spawn(async move {
+            if let Ok(mut conn) = pool_clone.get() {
+                use crate::schema::email_verification_tokens::dsl::*;
+
+                if let Err(e) = diesel::insert_into(email_verification_tokens)
+                    .values((
+                        user_id.eq(uid),
+                        token_hash.eq(&thash),
+                        expires_at.eq(chrono::Utc::now().naive_utc()
+                            + chrono::Duration::seconds(ttl_secs as i64)),
+                    ))
+                    .execute(&mut conn)
+                {
+                    tracing::error!(error = %e, uid = %uid, "Failed to store verification token");
+                }
+            }
+
+            if let Err(e) = mailer
+                .send_verification_email(email.as_str(), &user_name, &token)
+                .await
+            {
+                tracing::error!(error = %e, "Failed to send verification email");
+            }
+        });
     }
 
     Ok(HttpResponse::Ok().json(serde_json::json!({

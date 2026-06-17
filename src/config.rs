@@ -17,6 +17,7 @@ pub struct OAuthConfig {
     pub base_url: String,
     pub github_base_url: String,
     pub github_api_base_url: String,
+    pub google_base_url: String,
     pub github_client_id: String,
     pub github_client_secret: String,
     #[serde(default)]
@@ -47,6 +48,10 @@ impl OAuthConfig {
             scopes: self.google_scopes.clone(),
         }
     }
+
+    pub fn google_base_url(&self) -> String {
+        self.google_base_url.clone()
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
@@ -64,6 +69,10 @@ pub struct EnvConfig {
     pub prometheus_url: url::Url,
     pub database_url: String,
     pub http_host: String,
+    #[serde(default = "models::defaults::default_http_port")]
+    pub http_port: u16,
+    #[serde(default = "models::defaults::default_frontend_url")]
+    pub frontend_url: String,
     #[serde(default = "models::defaults::default_hash_cost")]
     pub hash_cost: u32,
     pub logger_format: LoggerFormat,
@@ -163,6 +172,10 @@ pub struct EnvConfig {
         default = "models::defaults::default_password_reset_link_template"
     )]
     pub password_reset_link_template: String,
+    #[serde(
+        default = "models::defaults::default_mobile_verification_link_template"
+    )]
+    pub mobile_verification_link_template: String,
     // Rate limiting for registration and password reset
     #[serde(
         default = "models::defaults::default_rate_limit_registration_max_requests"
@@ -189,6 +202,8 @@ pub struct EnvConfig {
     pub oauth_github_base_url: String,
     #[serde(default = "models::defaults::default_oauth_github_api_base_url")]
     pub oauth_github_api_base_url: String,
+    #[serde(default = "models::defaults::default_oauth_google_base_url")]
+    pub oauth_google_base_url: String,
     #[serde(default)]
     pub oauth_github_client_id: String,
     #[serde(default)]

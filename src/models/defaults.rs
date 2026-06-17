@@ -108,13 +108,24 @@ pub fn default_email_token_ttl_reset_secs() -> u64 {
     900 // 15 minutes
 }
 
+pub fn default_http_port() -> u16 {
+    8800
+}
+
+pub fn default_frontend_url() -> String {
+    "http://localhost:8082".to_string()
+}
+
 pub fn default_verification_link_template() -> String {
-    "https://yourapp.com/verify?token={token}&user={user_name}".to_string()
+    "{base_url}/verify?token={token}&user={user_name}".to_string()
 }
 
 pub fn default_password_reset_link_template() -> String {
-    "https://yourapp.com/reset-password?token={token}&user={user_name}"
-        .to_string()
+    "{base_url}/reset-password?token={token}&user={user_name}".to_string()
+}
+
+pub fn default_mobile_verification_link_template() -> String {
+    "my-expo-app://verify?token={token}&user={user_name}".to_string()
 }
 
 pub fn default_rate_limit_registration_max_requests() -> u32 {
@@ -138,7 +149,7 @@ pub fn default_oauth_enabled() -> bool {
 }
 
 pub fn default_oauth_base_url() -> String {
-    "http://localhost:7800".to_string()
+    "http://localhost:8800".to_string()
 }
 
 pub fn default_oauth_github_base_url() -> String {
@@ -149,12 +160,17 @@ pub fn default_oauth_github_api_base_url() -> String {
     "https://api.github.com".to_string()
 }
 
+pub fn default_oauth_google_base_url() -> String {
+    "https://oauth2.googleapis.com".to_string()
+}
+
 pub fn default_oauth_config() -> crate::config::OAuthConfig {
     crate::config::OAuthConfig {
         enabled: default_oauth_enabled(),
         base_url: default_oauth_base_url(),
         github_base_url: default_oauth_github_base_url(),
         github_api_base_url: default_oauth_github_api_base_url(),
+        google_base_url: default_oauth_google_base_url(),
         github_client_id: String::new(),
         github_client_secret: String::new(),
         github_scopes: Vec::new(),

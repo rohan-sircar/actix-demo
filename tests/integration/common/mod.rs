@@ -493,9 +493,10 @@ pub async fn app_data(
         },
         oauth: options.oauth_config.unwrap_or(OAuthConfig {
             enabled: false,
-            base_url: "http://localhost:7800".to_string(),
+            base_url: "http://localhost:8800".to_string(),
             github_base_url: "https://github.com".to_string(),
             github_api_base_url: "https://api.github.com".to_string(),
+            google_base_url: "https://oauth2.googleapis.com".to_string(),
             github_client_id: String::new(),
             github_client_secret: String::new(),
             github_scopes: Vec::new(),
@@ -638,9 +639,11 @@ pub async fn app_data(
                         username: "".to_string(),
                         password: "".to_string(),
                         from_email: "noreply@example.com".to_string(),
+                        app_base_url: "http://localhost:8082".to_string(),
                         verification_link_template: "https://app.example.com/verify?token={token}&user={user_name}".to_string(),
                         password_reset_link_template: "https://app.example.com/reset?token={token}&user={user_name}".to_string(),
-      },
+                        mobile_verification_link_template: "my-expo-app://verify?token={token}&user={user_name}".to_string(),
+                    },
                     )
                 .unwrap(),
             )
