@@ -42,9 +42,9 @@ export type NavigationConfig = {
   icon?: string;
 };
 
-// Route param types
 export type TabParamList = {
   Feed: undefined;
+  Discover: undefined;
   Profile: undefined;
   Sessions: undefined;
 };
@@ -68,19 +68,18 @@ export type RootStackParamList = {
   Profile: { userId: string };
 };
 
-// Type guard for checking if a navigation route belongs to DrawerParamList
 export function isDrawerRoute(route: string): route is keyof DrawerParamList {
   return Object.values(NAVIGATION_CONFIG).some((config) => config.name === route);
 }
 
-// Helper to get screen title from navigation config
 export function getScreenTitle(route: string): string {
   const config = Object.values(NAVIGATION_CONFIG).find((c) => c.name === route);
   return config?.title || route;
 }
 
-// Navigation helper that handles both navigation and title updates
 export function navigateWithTitle(navigate: () => void, title?: string) {
-  if (Platform.OS == 'web') { document.title = title ? `My Web App | ${title}` : 'My App'; }
+  if (Platform.OS == 'web') {
+    document.title = title ? `PetMatch | ${title}` : 'PetMatch';
+  }
   navigate();
 }

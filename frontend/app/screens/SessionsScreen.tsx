@@ -85,37 +85,47 @@ export default function SessionsScreen() {
 
   const renderSession = ({ item, index }: { item: SessionInfo; index: number }) => (
     <View
-      className={`mb-3 rounded-lg p-4 ${isCurrentSession(item, index) ? 'border border-emerald-500' : ''}`}
+      className={`mb-3 rounded-2xl p-4 ${isCurrentSession(item, index) ? 'border-2 border-emerald-500/50' : ''}`}
       style={Style.cardStyle(isDarkColorScheme, colors, accentSet)}>
       <View className="flex-row items-center justify-between">
         <View className="flex-1">
           <View className="flex-row items-center gap-2">
-            <Text className="font-medium" style={{ color: colors.text }}>
+            <Text className="font-semibold" style={{ color: colors.text }}>
               {item.device_name || 'Unknown Device'}
             </Text>
             {isCurrentSession(item, index) && (
-              <Text className="rounded bg-emerald-500 px-2 py-0.5 text-xs text-white">Current</Text>
+              <Text className="rounded-full bg-emerald-500 px-2.5 py-0.5 text-xs font-semibold text-white">
+                Current
+              </Text>
             )}
           </View>
-          <Text className="mt-1 text-xs text-gray-500">Created: {formatDate(item.created_at)}</Text>
-          <Text className="text-xs text-gray-500">
+          <Text className="mt-1 text-xs" style={{ color: colors.grey }}>
+            Created: {formatDate(item.created_at)}
+          </Text>
+          <Text className="text-xs" style={{ color: colors.grey }}>
             Last active: {formatDate(item.last_used_at)}
           </Text>
-          <Text className="mt-1 text-xs text-gray-400">ID: {item.session_id.slice(0, 8)}</Text>
+          <Text className="mt-1 text-xs" style={{ color: colors.grey }}>
+            ID: {item.session_id.slice(0, 8)}
+          </Text>
         </View>
         {!isCurrentSession(item, index) && revoking !== item.session_id && (
           <TouchableOpacity
             onPress={() => handleRevoke(item.session_id)}
             style={{
-              backgroundColor: '#e11d48',
+              backgroundColor: '#E11D48',
               paddingHorizontal: 12,
               paddingVertical: 6,
-              borderRadius: 6,
+              borderRadius: 8,
             }}>
-            <Text className="text-sm text-white">Revoke</Text>
+            <Text className="text-sm font-semibold text-white">Revoke</Text>
           </TouchableOpacity>
         )}
-        {revoking === item.session_id && <Text className="text-xs text-gray-400">Revoking...</Text>}
+        {revoking === item.session_id && (
+          <Text className="text-xs font-medium" style={{ color: colors.grey }}>
+            Revoking...
+          </Text>
+        )}
       </View>
     </View>
   );
@@ -123,14 +133,14 @@ export default function SessionsScreen() {
   if (isLoading) {
     return (
       <View className="flex-1 items-center justify-center">
-        <Text>Loading sessions...</Text>
+        <Text style={{ color: colors.grey }}>Loading sessions...</Text>
       </View>
     );
   }
 
   return (
-    <View className="flex-1 px-4 py-4">
-      <Text className="mb-4 text-lg font-semibold" style={{ color: colors.text }}>
+    <View className="flex-1 px-4 pb-4 pt-4">
+      <Text className="mb-4 text-xl font-bold" style={{ color: colors.text }}>
         Active Sessions
       </Text>
 
@@ -144,17 +154,17 @@ export default function SessionsScreen() {
           />
           {sessions.length > 1 && (
             <Button
-              className="mt-2 h-12 w-full flex-row items-center justify-center rounded-lg bg-rose-500"
-              defaultColor="#e11d48"
-              hoverColor="#be123c"
+              className="mt-2 h-12 w-full items-center justify-center rounded-xl"
+              defaultColor="#E11D48"
+              hoverColor="#BE123C"
               onPress={handleRevokeOthers}>
-              <Text className="text-sm font-medium text-white">Revoke All Other Sessions</Text>
+              <Text className="text-sm font-semibold text-white">Revoke All Other Sessions</Text>
             </Button>
           )}
         </>
       ) : (
         <View className="flex-1 items-center justify-center">
-          <Text className="text-gray-500">No active sessions</Text>
+          <Text style={{ color: colors.grey }}>No active sessions</Text>
         </View>
       )}
     </View>

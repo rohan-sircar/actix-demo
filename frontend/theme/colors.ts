@@ -5,8 +5,6 @@ import { Map as ImmutableMap } from 'immutable';
 export type UIColorValue = string;
 
 export type SystemColors = {
-  // white: UIColorValue;
-  // black: UIColorValue;
   readonly grey6: UIColorValue;
   readonly grey5: UIColorValue;
   readonly grey4: UIColorValue;
@@ -26,34 +24,34 @@ const IOS_SYSTEM_COLORS = {
   white: 'rgb(255, 255, 255)',
   black: 'rgb(0, 0, 0)',
   light: {
-    grey6: 'rgb(242, 242, 247)',
-    grey5: 'rgb(230, 230, 235)',
-    grey4: 'rgb(210, 210, 215)',
-    grey3: 'rgb(199, 199, 204)',
-    grey2: 'rgb(175, 176, 180)',
-    grey: 'rgb(142, 142, 147)',
-    background: 'rgb(242, 242, 247)',
-    foreground: 'rgb(0, 0, 0)',
-    root: 'rgb(255, 255, 255)',
+    grey6: 'rgb(255, 240, 232)',
+    grey5: 'rgb(245, 225, 215)',
+    grey4: 'rgb(230, 205, 195)',
+    grey3: 'rgb(210, 185, 175)',
+    grey2: 'rgb(190, 165, 155)',
+    grey: 'rgb(160, 140, 130)',
+    background: 'rgb(255, 247, 240)',
+    foreground: 'rgb(45, 25, 20)',
+    root: 'rgb(255, 247, 240)',
     card: 'rgb(255, 255, 255)',
-    destructive: 'rgb(255, 56, 43)',
-    primary: 'rgb(0, 123, 254)',
-    text: 'rgb(51, 51, 51)',
+    destructive: 'rgb(220, 60, 60)',
+    primary: 'rgb(244, 100, 80)',
+    text: 'rgb(45, 25, 20)',
   },
   dark: {
-    grey6: 'rgb(21, 21, 24)',
-    grey5: 'rgb(40, 40, 42)',
-    grey4: 'rgb(55, 55, 57)',
-    grey3: 'rgb(70, 70, 73)',
-    grey2: 'rgb(99, 99, 102)',
-    grey: 'rgb(142, 142, 147)',
-    background: 'rgb(0, 0, 0)',
-    foreground: 'rgb(255, 255, 255)',
-    root: 'rgb(0, 0, 0)',
-    card: 'rgb(28, 28, 30)',
-    destructive: 'rgb(254, 67, 54)',
-    primary: 'rgb(3, 133, 255)',
-    text: 'rgb(228, 228, 231)',
+    grey6: 'rgb(35, 25, 22)',
+    grey5: 'rgb(50, 35, 30)',
+    grey4: 'rgb(65, 48, 42)',
+    grey3: 'rgb(80, 60, 54)',
+    grey2: 'rgb(120, 95, 85)',
+    grey: 'rgb(160, 140, 130)',
+    background: 'rgb(25, 18, 15)',
+    foreground: 'rgb(250, 235, 230)',
+    root: 'rgb(25, 18, 15)',
+    card: 'rgb(40, 28, 24)',
+    destructive: 'rgb(230, 70, 70)',
+    primary: 'rgb(250, 120, 100)',
+    text: 'rgb(250, 235, 230)',
   },
 };
 
@@ -61,34 +59,34 @@ const ANDROID_COLORS = {
   white: 'rgb(255, 255, 255)',
   black: 'rgb(0, 0, 0)',
   light: {
-    grey6: 'rgb(249, 249, 255)',
-    grey5: 'rgb(215, 217, 228)',
-    grey4: 'rgb(193, 198, 215)',
-    grey3: 'rgb(113, 119, 134)',
-    grey2: 'rgb(65, 71, 84)',
-    grey: 'rgb(24, 28, 35)',
-    background: 'rgb(249, 249, 255)',
-    foreground: 'rgb(0, 0, 0)',
-    root: 'rgb(255, 255, 255)',
+    grey6: 'rgb(255, 240, 232)',
+    grey5: 'rgb(245, 225, 215)',
+    grey4: 'rgb(230, 205, 195)',
+    grey3: 'rgb(210, 185, 175)',
+    grey2: 'rgb(120, 100, 90)',
+    grey: 'rgb(45, 25, 20)',
+    background: 'rgb(255, 247, 240)',
+    foreground: 'rgb(45, 25, 20)',
+    root: 'rgb(255, 247, 240)',
     card: 'rgb(255, 255, 255)',
-    destructive: 'rgb(186, 26, 26)',
-    primary: 'rgb(0, 112, 233)',
-    text: 'rgb(51, 51, 51)',
+    destructive: 'rgb(200, 40, 40)',
+    primary: 'rgb(234, 80, 60)',
+    text: 'rgb(45, 25, 20)',
   },
   dark: {
-    grey6: 'rgb(16, 19, 27)',
-    grey5: 'rgb(39, 42, 50)',
-    grey4: 'rgb(49, 53, 61)',
-    grey3: 'rgb(54, 57, 66)',
-    grey2: 'rgb(139, 144, 160)',
-    grey: 'rgb(193, 198, 215)',
-    background: 'rgb(7, 7, 7)',
-    foreground: 'rgb(255, 255, 255)',
-    root: 'rgb(0, 0, 0)',
-    card: 'rgb(16, 19, 27)',
-    destructive: 'rgb(147, 0, 10)',
-    primary: 'rgb(3, 133, 255)',
-    text: 'rgb(228, 228, 231)',
+    grey6: 'rgb(30, 22, 18)',
+    grey5: 'rgb(45, 32, 28)',
+    grey4: 'rgb(58, 42, 36)',
+    grey3: 'rgb(70, 52, 46)',
+    grey2: 'rgb(140, 120, 110)',
+    grey: 'rgb(200, 180, 170)',
+    background: 'rgb(20, 14, 12)',
+    foreground: 'rgb(245, 230, 225)',
+    root: 'rgb(20, 14, 12)',
+    card: 'rgb(30, 22, 18)',
+    destructive: 'rgb(210, 50, 50)',
+    primary: 'rgb(240, 100, 80)',
+    text: 'rgb(245, 230, 225)',
   },
 };
 
@@ -115,47 +113,47 @@ export type AccentColorSet = {
 };
 
 export enum AccentColorType {
-  BLUE = 'blue',
+  CORAL = 'coral',
   GREEN = 'green',
   ORANGE = 'orange',
-  PURPLE = 'purple',
-  RED = 'red',
-  YELLOW = 'yellow',
+  PEACH = 'peach',
+  ROSE = 'rose',
+  TEAL = 'teal',
 }
 
 export const BaseAccentColors = {
-  blue: 'rgb(0,0,255)',
-  red: 'rgb(255,0,0)',
-  orange: 'rgb(255,140,0)',
-  yellow: 'rgb(255,215,0)',
-  green: 'rgb(40,167,69)',
-  purple: 'rgb(128, 0, 255)',
+  coral: 'rgb(244,100,80)',
+  rose: 'rgb(230,80,100)',
+  orange: 'rgb(240,140,50)',
+  peach: 'rgb(250,170,100)',
+  green: 'rgb(72,180,140)',
+  teal: 'rgb(50,160,150)',
 };
 
 export const BaseAccentGradients = {
-  blue: {
-    gradientStart: '#00008B', // Darker blue
-    gradientEnd: '#4169E1', // Lighter blue
+  coral: {
+    gradientStart: '#F4644E',
+    gradientEnd: '#FFB088',
   },
-  red: {
-    gradientStart: '#990000', // Darker red
-    gradientEnd: '#FF6666', // Lighter red
+  rose: {
+    gradientStart: '#E64980',
+    gradientEnd: '#FF8FAB',
   },
   orange: {
-    gradientStart: '#C86400', // Darker orange
-    gradientEnd: '#FFB432', // Lighter orange
+    gradientStart: '#E8721C',
+    gradientEnd: '#FFB347',
   },
-  yellow: {
-    gradientStart: '#F0E68C', // Darker yellow
-    gradientEnd: '#F7DC6F', // Lighter yellow
+  peach: {
+    gradientStart: '#FF9A55',
+    gradientEnd: '#FFD4A8',
   },
   green: {
-    gradientStart: '#1E7832', // Darker green
-    gradientEnd: '#50C864', // Lighter green
+    gradientStart: '#2E8B57',
+    gradientEnd: '#6FCF97',
   },
-  purple: {
-    gradientStart: '#6A0DAD', // Darker purple
-    gradientEnd: '#D741D7', // Lighter purple
+  teal: {
+    gradientStart: '#1A7A6D',
+    gradientEnd: '#4ECDC4',
   },
 };
 
@@ -170,22 +168,22 @@ function generateAccentSet(baseColor: string): AccentColorSet {
   const color = new Color(baseColor);
   return {
     base: baseColor,
-    hover: color.lighten(0.2).hex(),
+    hover: color.lighten(0.15).hex(),
     active: color.darken(0.1).hex(),
     disabled: color.alpha(0.5).hex(),
-    textOnAccent: color.lighten(0.5).hex(),
+    textOnAccent: color.lighten(0.6).hex(),
     textMuted: color.lighten(0.3).hex(),
-    border: color.lighten(0.15).hex(),
-    focus: color.lighten(0.2).hex(),
-    shadow: color.darken(0.2).hex(),
-    bgSubtle: color.lighten(0.05).hex(),
-    bgHover: color.lighten(0.4).hex(),
-    bgActive: color.darken(0.15).hex(),
+    border: color.lighten(0.2).hex(),
+    focus: color.lighten(0.15).hex(),
+    shadow: color.darken(0.15).hex(),
+    bgSubtle: color.lighten(0.85).hex(),
+    bgHover: color.lighten(0.5).hex(),
+    bgActive: color.darken(0.1).hex(),
     iconActive: color.lighten(0.1).hex(),
     iconMuted: color.lighten(0.5).alpha(0.5).hex(),
-    bgNavTab: color.lighten(0.2).hex(),
-    gradientStart: color.darken(0.2).hex(), // Added gradientStart
-    gradientEnd: color.lighten(0.2).hex(), // Added gradientEnd
+    bgNavTab: color.lighten(0.3).hex(),
+    gradientStart: color.darken(0.15).hex(),
+    gradientEnd: color.lighten(0.25).hex(),
   };
 }
 

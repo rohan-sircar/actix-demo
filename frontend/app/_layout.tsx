@@ -10,7 +10,7 @@ import { Slot, usePathname, useSegments } from 'expo-router';
 import 'expo-dev-client';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect } from 'react';
-import { Pressable, SafeAreaView, View } from 'react-native';
+import { Platform, Pressable, SafeAreaView, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import '../global.css';
 
@@ -22,9 +22,8 @@ import { useResponsiveLayout } from '~/lib/useResponsiveLayout';
 import { NAV_THEME } from '~/theme';
 
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { LinearGradient } from 'expo-linear-gradient';
 import { LogoutButton } from '~/components/LogoutButton';
-import { BaseAccentGradients, SystemColors } from '~/theme/colors';
+import { SystemColors } from '~/theme/colors';
 import { NAVIGATION_CONFIG } from '~/types/navigation';
 import AuthStack from './components/AuthStack';
 import DrawerContent from './components/DrawerContent';
@@ -39,7 +38,6 @@ const SCREEN_OPTIONS = {
   animation: 'ios_from_right',
 } as const;
 
-// Routes that render standalone (outside the drawer)
 const STANDALONE_ROUTES = ['verify', 'resend-verification'];
 
 export default function RootLayout() {
@@ -78,54 +76,47 @@ export default function RootLayout() {
             <ActionSheetProvider>
               <NavThemeProvider value={NAV_THEME[colorScheme]}>
                 <QueryClientProvider client={queryClient}>
-                  <LinearGradient
-                    colors={[
-                      BaseAccentGradients[accentColor].gradientStart,
-                      BaseAccentGradients[accentColor].gradientEnd,
-                    ]}
-                    style={{ flex: 1 }}>
-                    <SafeAreaView className="flex-1">
-                      <View className="mx-auto w-full max-w-[800px] flex-1">
-                        <Drawer.Navigator
-                          drawerContent={(props) => <DrawerContent {...props} />}
-                          screenOptions={({ navigation }) => ({
-                            headerRight: () => (
-                              <View className="flex flex-row items-center gap-3 pr-2">
-                                <ThemeToggle />
-                                {isAuthenticated && <SettingsIcon />}
-                                {isAuthenticated && <LogoutButton />}
-                              </View>
-                            ),
-                            ...(isDesktop
-                              ? desktopDrawerProperties(colors)
-                              : mobileDrawerProperties(colors, navigation)),
-                          })}>
-                          <Drawer.Screen
-                            name={NAVIGATION_CONFIG.Home.name}
-                            component={HomeTabs}
-                            options={{
-                              title: NAVIGATION_CONFIG.Home.title,
-                            }}
-                          />
-                          <Drawer.Screen
-                            name={NAVIGATION_CONFIG.Account.name}
-                            component={AuthStack}
-                            options={{
-                              title: NAVIGATION_CONFIG.Account.title,
-                            }}
-                          />
-                          <Drawer.Screen
-                            name={NAVIGATION_CONFIG.Settings.name}
-                            component={ControlsScreen}
-                            options={{
-                              title: NAVIGATION_CONFIG.Settings.title,
-                              headerShown: isDesktop ? false : true,
-                            }}
-                          />
-                        </Drawer.Navigator>
-                      </View>
-                    </SafeAreaView>
-                  </LinearGradient>
+                  <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
+                    <View className="mx-auto w-full max-w-[800px] flex-1">
+                      <Drawer.Navigator
+                        drawerContent={(props) => <DrawerContent {...props} />}
+                        screenOptions={({ navigation }) => ({
+                          headerRight: () => (
+                            <View className="flex flex-row items-center gap-3 pr-2">
+                              <ThemeToggle />
+                              {isAuthenticated && <SettingsIcon />}
+                              {isAuthenticated && <LogoutButton />}
+                            </View>
+                          ),
+                          ...(Platform.OS !== 'web' || !isDesktop
+                            ? mobileDrawerProperties(colors, navigation)
+                            : desktopDrawerProperties(colors)),
+                        })}>
+                        <Drawer.Screen
+                          name={NAVIGATION_CONFIG.Home.name}
+                          component={HomeTabs}
+                          options={{
+                            title: NAVIGATION_CONFIG.Home.title,
+                          }}
+                        />
+                        <Drawer.Screen
+                          name={NAVIGATION_CONFIG.Account.name}
+                          component={AuthStack}
+                          options={{
+                            title: NAVIGATION_CONFIG.Account.title,
+                          }}
+                        />
+                        <Drawer.Screen
+                          name={NAVIGATION_CONFIG.Settings.name}
+                          component={ControlsScreen}
+                          options={{
+                            title: NAVIGATION_CONFIG.Settings.title,
+                            headerShown: isDesktop ? false : true,
+                          }}
+                        />
+                      </Drawer.Navigator>
+                    </View>
+                  </SafeAreaView>
                 </QueryClientProvider>
               </NavThemeProvider>
             </ActionSheetProvider>
@@ -137,18 +128,11 @@ export default function RootLayout() {
             <ActionSheetProvider>
               <NavThemeProvider value={NAV_THEME[colorScheme]}>
                 <QueryClientProvider client={queryClient}>
-                  <LinearGradient
-                    colors={[
-                      BaseAccentGradients[accentColor].gradientStart,
-                      BaseAccentGradients[accentColor].gradientEnd,
-                    ]}
-                    style={{ flex: 1 }}>
-                    <SafeAreaView className="flex-1">
-                      <View className="mx-auto w-full max-w-[800px] flex-1">
-                        <Slot />
-                      </View>
-                    </SafeAreaView>
-                  </LinearGradient>
+                  <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
+                    <View className="mx-auto w-full max-w-[800px] flex-1">
+                      <Slot />
+                    </View>
+                  </SafeAreaView>
                 </QueryClientProvider>
               </NavThemeProvider>
             </ActionSheetProvider>
@@ -165,6 +149,7 @@ const desktopDrawerProperties = (colors: SystemColors): DrawerNavigationOptions 
     width: 240,
     backgroundColor: colors.background,
   },
+  headerLeft: () => null,
 });
 
 const mobileDrawerProperties = (

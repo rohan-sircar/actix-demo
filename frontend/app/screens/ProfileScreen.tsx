@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { useState } from 'react';
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 import Avatar from '../components/Avatar';
 import StatTile from '../components/StatTile';
@@ -49,7 +49,7 @@ export default function ProfileScreen() {
   if (isLoading) {
     return (
       <View className="w-full flex-1 items-center justify-center">
-        <Text>Loading...</Text>
+        <Text style={{ color: colors.grey }}>Loading profile...</Text>
       </View>
     );
   }
@@ -72,26 +72,34 @@ export default function ProfileScreen() {
   };
 
   return (
-    <View className="w-full flex-1 items-center">
-      <View className="w-full flex-1 px-4 py-4 md:px-8">
-        <View className="mb-1 flex-row items-center">
-          <Avatar userId={user.id} style={styles.avatarContainer} size={64} />
-          <View>
-            <Text className="mb-1 text-lg font-semibold" style={{ color: colors.text }}>
-              {profile.display_name || user.username}
-            </Text>
-            <Text style={{ color: colors.text }}>@{user.username}</Text>
+    <View className="w-full flex-1">
+      <View className="w-full flex-1 px-4 pb-4 pt-2">
+        <View className="mb-4">
+          <Text className="mb-4 text-2xl font-bold" style={{ color: colors.text }}>
+            My Profile
+          </Text>
+
+          <View className="flex-row items-center">
+            <Avatar userId={user.id} size={64} style={{ marginRight: 16 }} />
+            <View className="flex-1">
+              <Text className="text-lg font-bold" style={{ color: colors.text }}>
+                {profile.display_name || user.username}
+              </Text>
+              <Text className="text-sm" style={{ color: colors.grey }}>
+                @{user.username}
+              </Text>
+            </View>
           </View>
         </View>
 
-        <View className="mb-4 pl-20">
+        <View className="mb-4">
           {isEditing ? (
             <View className="gap-3">
               <TextInput
                 placeholder="Display Name"
                 value={displayName || profile.display_name || ''}
                 onChangeText={setDisplayName}
-                className="h-10 rounded-lg border px-3"
+                className="h-11 rounded-xl border px-3"
                 style={Style.inputStyle(isDarkColorScheme, accentSet)}
                 placeholderTextColor={Style.getPlaceholderColor(isDarkColorScheme, accentSet)}
               />
@@ -100,7 +108,7 @@ export default function ProfileScreen() {
                 value={bio || profile.bio || ''}
                 onChangeText={setBio}
                 multiline
-                className="min-h-[60px] rounded-lg border px-3"
+                className="min-h-[60px] rounded-xl border px-3 py-2"
                 style={Style.inputStyle(isDarkColorScheme, accentSet)}
                 placeholderTextColor={Style.getPlaceholderColor(isDarkColorScheme, accentSet)}
               />
@@ -108,7 +116,7 @@ export default function ProfileScreen() {
                 placeholder="Location"
                 value={location || profile.location || ''}
                 onChangeText={setLocation}
-                className="h-10 rounded-lg border px-3"
+                className="h-11 rounded-xl border px-3"
                 style={Style.inputStyle(isDarkColorScheme, accentSet)}
                 placeholderTextColor={Style.getPlaceholderColor(isDarkColorScheme, accentSet)}
               />
@@ -116,62 +124,71 @@ export default function ProfileScreen() {
                 placeholder="Website"
                 value={website || profile.website || ''}
                 onChangeText={setWebsite}
-                className="h-10 rounded-lg border px-3"
+                className="h-11 rounded-xl border px-3"
                 style={Style.inputStyle(isDarkColorScheme, accentSet)}
                 placeholderTextColor={Style.getPlaceholderColor(isDarkColorScheme, accentSet)}
               />
-              <View className="flex-row gap-3">
-                <TouchableOpacity onPress={handleSave} className="rounded-lg bg-blue-500 px-4 py-2">
-                  <Text className="text-white">Save</Text>
+              <View className="mt-2 flex-row gap-3">
+                <TouchableOpacity
+                  onPress={handleSave}
+                  className="flex-1 items-center rounded-xl py-3"
+                  style={{ backgroundColor: accentSet.base }}>
+                  <Text className="font-semibold text-white">Save Changes</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => setIsEditing(false)}
-                  className="rounded-lg bg-gray-300 px-4 py-2 dark:bg-gray-700">
-                  <Text>Cancel</Text>
+                  className="flex-1 items-center rounded-xl py-3"
+                  style={{ backgroundColor: isDarkColorScheme ? '#3d2a22' : '#f0e0d8' }}>
+                  <Text className="font-semibold" style={{ color: colors.text }}>
+                    Cancel
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
           ) : (
-            <TouchableOpacity onPress={() => setIsEditing(true)}>
-              <Text className="text-blue-500">Edit Profile</Text>
+            <TouchableOpacity
+              onPress={() => setIsEditing(true)}
+              className="items-center rounded-xl px-4 py-3"
+              style={{ backgroundColor: accentSet.bgSubtle }}>
+              <Text className="font-semibold" style={{ color: accentSet.base }}>
+                Edit Profile
+              </Text>
             </TouchableOpacity>
           )}
         </View>
 
         {profile.bio ? (
           <>
-            <Text className="mb-2 font-medium" style={{ color: colors.text }}>
+            <Text className="mb-1.5 font-semibold" style={{ color: colors.text }}>
               About me
             </Text>
-            <Text className="pr-3 text-gray-500">{profile.bio}</Text>
+            <Text className="mb-3 text-sm leading-relaxed" style={{ color: colors.grey }}>
+              {profile.bio}
+            </Text>
           </>
         ) : null}
 
         {(profile.location || profile.website) && (
-          <View className="mt-3 flex-row gap-4">
+          <View className="mb-4 flex-row flex-wrap gap-4">
             {profile.location && (
-              <Text style={{ color: colors.text }}>
-                <Ionicons name="location" size={16} color={colors.text} /> {profile.location}
+              <Text className="text-sm" style={{ color: colors.grey }}>
+                <Ionicons name="location" size={16} color={colors.grey} /> {profile.location}
               </Text>
             )}
             {profile.website && (
-              <Text style={{ color: colors.text }}>
-                <Ionicons name="globe" size={16} color={colors.text} /> {profile.website}
+              <Text className="text-sm" style={{ color: colors.grey }}>
+                <Ionicons name="globe" size={16} color={colors.grey} /> {profile.website}
               </Text>
             )}
           </View>
         )}
 
-        <View className="mt-5 flex-row justify-between border-b border-t border-gray-200 py-5 dark:border-gray-700">
+        <View
+          className="mt-2 flex-row justify-between rounded-xl border-x border-b border-t px-4 py-5"
+          style={{ borderColor: colors.grey5 }}>
           <StatTile title="Pets" value="0" />
         </View>
       </View>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  avatarContainer: {
-    marginRight: 16,
-  },
-});

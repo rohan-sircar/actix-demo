@@ -3,7 +3,6 @@ import { Alert, Text, View, Platform } from 'react-native';
 import { Button } from '~/components/nativewindui/Button';
 import * as WebBrowser from 'expo-web-browser';
 import { useAuthStore, UserResponse } from '~/app/stores/AuthStore';
-import * as Style from '../styles/Styles';
 import { useColorScheme } from '~/lib/useColorScheme';
 import { useAccentColor, getAccentSet } from '~/lib/useAccentColor';
 import { Ionicons } from '@expo/vector-icons';
@@ -43,7 +42,10 @@ const GoogleButton = () => {
           const code = url.searchParams.get('code');
 
           if (code) {
-            const res = await api.post('/api/v1/auth/oauth/google/exchange', { code, state: url.searchParams.get('state') });
+            const res = await api.post('/api/v1/auth/oauth/google/exchange', {
+              code,
+              state: url.searchParams.get('state'),
+            });
             setCredentials(res.data.token, res.data.user);
           }
         }
@@ -58,21 +60,15 @@ const GoogleButton = () => {
 
   return (
     <Button
-      className={Style.getSocialButtonClasses(isDarkColorScheme, accentSet)}
-      hoverColor={colors.grey6}
+      className="h-12 w-full flex-row items-center justify-center gap-3 rounded-xl border-2 border-[#E8D0C0]"
+      hoverColor={isDarkColorScheme ? '#3d2a22' : '#FFF0E8'}
       defaultColor={colors.card}
       onPress={handlePress}
       disabled={loading}>
-      <View className="flex-row items-center gap-3">
-        <Ionicons name="logo-google" size={20} color="#4285F4" />
-        <Text
-          className={`text-base font-medium ${Style.getHeadingTextColor(
-            isDarkColorScheme,
-            accentSet
-          )}`}>
-          {loading ? 'Signing in...' : 'Sign in with Google'}
-        </Text>
-      </View>
+      <Ionicons name="logo-google" size={20} color="#4285F4" />
+      <Text className="text-base font-semibold" style={{ color: colors.text }}>
+        {loading ? 'Signing in...' : 'Continue with Google'}
+      </Text>
     </Button>
   );
 };

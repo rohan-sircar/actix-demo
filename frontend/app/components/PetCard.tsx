@@ -6,20 +6,17 @@ import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
 import * as Style from '../styles/Styles';
 import type { Pet } from '~/app/models/pets';
 
-const PetCard: React.FC<
-  Pick<
-    Pet,
-    | 'id'
-    | 'name'
-    | 'species'
-    | 'breed'
-    | 'date_of_birth'
-    | 'gender'
-    | 'weight'
-    | 'description'
-    | 'traits'
-  >
-> = ({ name, species, breed, date_of_birth, gender, weight, description, traits }) => {
+const PetCard: React.FC<{
+  id: Pet['id'] | string;
+  name: Pet['name'];
+  species: Pet['species'];
+  breed?: Pet['breed'];
+  date_of_birth?: Pet['date_of_birth'];
+  gender?: Pet['gender'];
+  weight?: Pet['weight'];
+  description?: Pet['description'];
+  traits?: Pet['traits'];
+}> = ({ name, species, breed, date_of_birth, gender, weight, description, traits }) => {
   const { colors, isDarkColorScheme } = useColorScheme();
   const { accentColor } = useAccentColor();
   const accentSet = getAccentSet(accentColor);
@@ -50,48 +47,52 @@ const PetCard: React.FC<
     return `${ageDays}d`;
   };
 
-  const badgeBg = `${accentSet.bgSubtle}40`;
-  const badgeColor = accentSet.textOnAccent;
+  const badgeBg = `${accentSet.bgSubtle}80`;
+  const badgeColor = accentSet.base;
   const secondaryColor = colors.grey;
 
   return (
     <View
-      className="mb-3 rounded-xl p-4"
+      className="mb-3 rounded-2xl px-4 py-3"
       style={Style.cardStyle(isDarkColorScheme, colors, accentSet)}>
       <View className="flex-row items-start gap-3">
         <View
-          className="flex-row items-center justify-center rounded-full"
-          style={{ backgroundColor: `${accentSet.bgSubtle}60`, width: 48, height: 48 }}>
+          className="items-center justify-center rounded-2xl"
+          style={{
+            backgroundColor: `${accentSet.bgSubtle}90`,
+            width: 52,
+            height: 52,
+          }}>
           <Ionicons name={getSpeciesIcon(species)} size={24} color={accentSet.base} />
         </View>
         <View className="flex-1">
           <View className="flex-row items-center gap-2">
-            <Text className="text-lg font-semibold" style={{ color: colors.text }}>
+            <Text className="text-lg font-bold" style={{ color: colors.text }}>
               {name}
             </Text>
             {gender && (
               <Ionicons
                 name={gender.toLowerCase() === 'male' ? 'male' : 'female'}
                 size={16}
-                color={gender.toLowerCase() === 'male' ? '#3b82f6' : '#ec4899'}
+                color={gender.toLowerCase() === 'male' ? '#5B8DEF' : '#F472B6'}
               />
             )}
           </View>
-          <Text className="text-sm" style={{ color: secondaryColor }}>
+          <Text className="text-sm font-medium" style={{ color: secondaryColor }}>
             {species}
             {breed ? ` · ${breed}` : ''}
           </Text>
-          <View className="mt-1 flex-row flex-wrap gap-1">
+          <View className="mt-1.5 flex-row flex-wrap gap-1.5">
             {date_of_birth && (
-              <View className="rounded-full px-2 py-0.5" style={{ backgroundColor: badgeBg }}>
-                <Text className="text-xs" style={{ color: badgeColor }}>
+              <View className="rounded-full px-2.5 py-1" style={{ backgroundColor: badgeBg }}>
+                <Text className="text-xs font-semibold" style={{ color: badgeColor }}>
                   {getAgeFromDob(date_of_birth)}
                 </Text>
               </View>
             )}
             {weight && (
-              <View className="rounded-full px-2 py-0.5" style={{ backgroundColor: badgeBg }}>
-                <Text className="text-xs" style={{ color: badgeColor }}>
+              <View className="rounded-full px-2.5 py-1" style={{ backgroundColor: badgeBg }}>
+                <Text className="text-xs font-semibold" style={{ color: badgeColor }}>
                   {weight}kg
                 </Text>
               </View>
@@ -99,9 +100,9 @@ const PetCard: React.FC<
             {traits?.map((trait) => (
               <View
                 key={trait}
-                className="rounded-full px-2 py-0.5"
+                className="rounded-full px-2.5 py-1"
                 style={{ backgroundColor: badgeBg }}>
-                <Text className="text-xs" style={{ color: badgeColor }}>
+                <Text className="text-xs font-semibold" style={{ color: badgeColor }}>
                   {trait}
                 </Text>
               </View>

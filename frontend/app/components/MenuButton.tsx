@@ -20,17 +20,17 @@ export const MenuButton = ({ onPress, icon, label }: MenuButtonProps) => {
       style={({ pressed }) => [
         {
           paddingVertical: 12,
-          paddingHorizontal: 16,
+          paddingHorizontal: 12,
           flexDirection: 'row',
           alignItems: 'center',
           gap: 12,
-          borderRadius: 8,
+          borderRadius: 12,
           backgroundColor: pressed ? colors.grey4 : 'transparent',
         },
         hoverStyle,
       ]}>
       {icon}
-      <Text style={{ color: colors.foreground }}>{label}</Text>
+      <Text style={{ color: colors.foreground, fontSize: 15 }}>{label}</Text>
     </Pressable>
   );
 };
