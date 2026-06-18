@@ -28,6 +28,7 @@ export const HomeTabs = () => {
 
   return (
     <Tab.Navigator
+      initialRouteName={isAuthenticated ? 'Feed' : 'Discover'}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: accentSet.base,
@@ -48,14 +49,16 @@ export const HomeTabs = () => {
           </TabButton>
         ),
       }}>
-      <Tab.Screen
-        name="Feed"
-        component={HomeScreen}
-        options={{
-          tabBarIcon: ({ color }) => <Icon name={'home'} color={color} />,
-          title: 'Home',
-        }}
-      />
+      {isAuthenticated && (
+        <Tab.Screen
+          name="Feed"
+          component={HomeScreen}
+          options={{
+            tabBarIcon: ({ color }) => <Icon name={'home'} color={color} />,
+            title: 'Home',
+          }}
+        />
+      )}
       <Tab.Screen
         name="Discover"
         component={DiscoverScreen}

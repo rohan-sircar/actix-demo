@@ -26,10 +26,10 @@ import { LogoutButton } from '~/components/LogoutButton';
 import { SystemColors } from '~/theme/colors';
 import { NAVIGATION_CONFIG } from '~/types/navigation';
 import AuthStack from './components/AuthStack';
-import DrawerContent from './components/DrawerContent';
 import HomeTabs from './components/HomeTabs';
 import { SettingsIcon } from './components/SettingsIcon';
 import ControlsScreen from './screens/ControlsScreen';
+import MenuScreen from './screens/MenuScreen';
 import { useAuthStore } from './stores/AuthStore';
 
 const Drawer = createDrawerNavigator();
@@ -79,7 +79,7 @@ export default function RootLayout() {
                   <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
                     <View className="mx-auto w-full max-w-[800px] flex-1">
                       <Drawer.Navigator
-                        drawerContent={(props) => <DrawerContent {...props} />}
+                        drawerContent={() => <MenuScreen />}
                         screenOptions={({ navigation }) => ({
                           headerRight: () => (
                             <View className="flex flex-row items-center gap-3 pr-2">
@@ -88,9 +88,9 @@ export default function RootLayout() {
                               {isAuthenticated && <LogoutButton />}
                             </View>
                           ),
-                          ...(Platform.OS !== 'web' || !isDesktop
-                            ? mobileDrawerProperties(colors, navigation)
-                            : desktopDrawerProperties(colors)),
+                          ...(Platform.OS === 'web' && isDesktop
+                            ? desktopDrawerProperties(colors)
+                            : mobileDrawerProperties(colors, navigation)),
                         })}>
                         <Drawer.Screen
                           name={NAVIGATION_CONFIG.Home.name}
@@ -111,7 +111,7 @@ export default function RootLayout() {
                           component={ControlsScreen}
                           options={{
                             title: NAVIGATION_CONFIG.Settings.title,
-                            headerShown: isDesktop ? false : true,
+                            headerShown: Platform.OS === 'web' && isDesktop ? false : true,
                           }}
                         />
                       </Drawer.Navigator>
@@ -169,3 +169,4 @@ const mobileDrawerProperties = (
   },
   ...SCREEN_OPTIONS,
 });
+

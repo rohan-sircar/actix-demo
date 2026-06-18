@@ -1,5 +1,6 @@
 import { DrawerContentComponentProps } from '@react-navigation/drawer';
 import { Platform, View, Text, ScrollView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useColorScheme } from '~/lib/useColorScheme';
 import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
@@ -32,6 +33,7 @@ export const DrawerContent = (_props: DrawerContentComponentProps) => {
   const accentSet = getAccentSet(accentColor);
   const { isAuthenticated, user } = useAuthStore();
   const navigation = useNavigation<DrawerNavigationProp<DrawerParamList>>();
+  const insets = useSafeAreaInsets();
 
   const navigateTo: NavigationActions = {
     home: () =>
@@ -65,6 +67,7 @@ export const DrawerContent = (_props: DrawerContentComponentProps) => {
       style={{
         flex: 1,
         backgroundColor: colors.background,
+        paddingTop: insets.top,
       }}>
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
         <View
@@ -98,7 +101,7 @@ export const DrawerContent = (_props: DrawerContentComponentProps) => {
           ) : null}
         </View>
 
-        <View style={{ paddingHorizontal: 12 }}>
+        <View style={{ paddingHorizontal: 12, gap: 4 }}>
           <MenuButton
             onPress={navigateTo.home}
             icon={
@@ -112,7 +115,7 @@ export const DrawerContent = (_props: DrawerContentComponentProps) => {
           />
 
           {isAuthenticated && user && (
-            <View>
+            <View style={{ gap: 4 }}>
               <MenuButton
                 onPress={navigateTo.profile}
                 icon={<Icon name="person" color={colors.foreground} size={14} />}
@@ -127,7 +130,7 @@ export const DrawerContent = (_props: DrawerContentComponentProps) => {
           )}
 
           {!isAuthenticated && (
-            <View>
+            <View style={{ gap: 4 }}>
               <MenuButton
                 onPress={navigateTo.register}
                 icon={<FontAwesome name="chevron-up" size={14} color={colors.foreground} />}
@@ -141,7 +144,7 @@ export const DrawerContent = (_props: DrawerContentComponentProps) => {
             </View>
           )}
 
-          <View style={{ marginTop: 12, borderTopWidth: 1, borderTopColor: colors.grey5 }} />
+          <View style={{ marginVertical: 8, borderTopWidth: 1, borderTopColor: colors.grey5 }} />
 
           <MenuButton
             onPress={navigateTo.controls}

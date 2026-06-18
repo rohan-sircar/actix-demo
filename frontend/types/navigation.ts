@@ -19,6 +19,11 @@ export const NAVIGATION_CONFIG = {
     title: 'Settings',
     icon: 'cog',
   },
+  Menu: {
+    name: 'Menu',
+    title: 'Menu',
+    icon: 'bars',
+  },
 } as const;
 
 export const AUTH_NAVIGATION_CONFIG = {
@@ -60,6 +65,14 @@ export type DrawerParamList = {
   [NAVIGATION_CONFIG.Home.name]: NavigatorScreenParams<TabParamList>;
   [NAVIGATION_CONFIG.Account.name]: NavigatorScreenParams<AuthStackParamList>;
   [NAVIGATION_CONFIG.Settings.name]: undefined;
+  [NAVIGATION_CONFIG.Menu.name]: undefined;
+};
+
+export type StackParamList = {
+  [NAVIGATION_CONFIG.Home.name]: NavigatorScreenParams<TabParamList>;
+  [NAVIGATION_CONFIG.Account.name]: NavigatorScreenParams<AuthStackParamList>;
+  [NAVIGATION_CONFIG.Settings.name]: undefined;
+  [NAVIGATION_CONFIG.Menu.name]: undefined;
 };
 
 export type RootStackParamList = {
