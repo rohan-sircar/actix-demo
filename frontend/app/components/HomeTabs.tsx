@@ -38,7 +38,7 @@ export const HomeTabs = () => {
           borderTopWidth: 0,
           paddingBottom: 8,
           paddingTop: 8,
-          height: 60,
+          height: 80,
         },
         tabBarButton: (props) => (
           <TabButton
