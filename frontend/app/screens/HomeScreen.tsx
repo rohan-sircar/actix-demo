@@ -58,6 +58,7 @@ const Home = () => {
     },
     onSuccess: () => {
       refetch();
+      queryClient.invalidateQueries({ queryKey: ['pets-count'] });
       setShowAddForm(false);
       setFormData({
         name: '',
@@ -79,6 +80,7 @@ const Home = () => {
     },
     onSuccess: () => {
       refetch();
+      queryClient.invalidateQueries({ queryKey: ['pets-count'] });
       setPendingDelete(null);
     },
     onError: () => {

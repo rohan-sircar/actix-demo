@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import React from 'react';
+import React, { useCallback } from 'react';
 import { useState } from 'react';
 import { Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 
 import Avatar from '../components/Avatar';
 import StatTile from '../components/StatTile';
@@ -32,13 +33,19 @@ export default function ProfileScreen() {
     },
   });
 
-  const { data: pets } = useQuery({
+  const { data: pets, refetch: refetchPets } = useQuery({
     queryKey: ['pets-count'],
     queryFn: async () => {
       const res = await api.get<Pet[]>('/api/v1/private/user/pets');
       return res.data;
     },
   });
+
+  useFocusEffect(
+    useCallback(() => {
+      refetchPets();
+    }, [refetchPets])
+  );
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: {
