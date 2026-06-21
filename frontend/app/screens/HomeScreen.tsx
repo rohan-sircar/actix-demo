@@ -27,6 +27,14 @@ import * as Style from '~/app/styles/Styles';
 import type { TabParamList } from '~/types/navigation';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 
+const guessMimeTypeFromUri = (uri: string): string => {
+  const lower = uri.toLowerCase();
+  if (lower.includes('.png')) return 'image/png';
+  if (lower.includes('.webp')) return 'image/webp';
+  if (lower.includes('.gif')) return 'image/gif';
+  return 'image/jpeg';
+};
+
 const Home = () => {
   const navigation = useNavigation<BottomTabNavigationProp<TabParamList>>();
   const { colors, isDarkColorScheme } = useColorScheme();
@@ -192,25 +200,27 @@ const Home = () => {
     if (!result.canceled && result.assets[0]) {
       const asset = result.assets[0];
       const uri = asset.uri;
-      const mimeType = asset.type || 'image/jpeg';
       try {
         let dataUrl: string;
+        let mimeType: string;
         if (Platform.OS === 'web') {
           const response = await fetch(uri);
           const blob = await response.blob();
+          mimeType = blob.type || 'image/jpeg';
           dataUrl = await new Promise<string>((resolve) => {
             const reader = new FileReader();
             reader.onloadend = () => resolve(reader.result as string);
             reader.readAsDataURL(blob);
           });
         } else {
+          mimeType = asset.type || guessMimeTypeFromUri(uri);
           const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
           dataUrl = `data:${mimeType};base64,${base64}`;
         }
         setSelectedImage({ uri: dataUrl, mimeType });
       } catch (err) {
         console.error('Failed to load image:', err);
-        setSelectedImage({ uri, mimeType });
+        setSelectedImage({ uri, mimeType: 'image/jpeg' });
       }
     }
   };

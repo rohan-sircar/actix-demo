@@ -17,6 +17,20 @@ import { useFocusEffect } from '@react-navigation/native';
 
 const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8800/api/v1';
 
+const detectMimeTypeFromUri = async (uri: string, fallback?: string): Promise<string> => {
+  if (fallback) return fallback;
+  const lower = uri.toLowerCase();
+  if (lower.includes('.png')) return 'image/png';
+  if (lower.includes('.webp')) return 'image/webp';
+  if (lower.includes('.gif')) return 'image/gif';
+  if (lower.startsWith('blob:')) {
+    const res = await fetch(uri);
+    const blob = await res.blob();
+    return blob.type || 'image/jpeg';
+  }
+  return 'image/jpeg';
+};
+
 const getImageUrl = (imageUuid: string, variant: 'thumbnail' | 'medium' | 'original' = 'thumbnail'): string => {
   return `${API_BASE}/api/v1/pets/images/${imageUuid}/${variant}`;
 };
@@ -90,7 +104,7 @@ export default function PetProfileScreen({ route }: PetProfileScreenProps) {
     if (!result.canceled && result.assets[0] && pet) {
       try {
         const uri = result.assets[0].uri;
-        const mimeType = result.assets[0].type || 'image/png';
+        const mimeType = await detectMimeTypeFromUri(uri, result.assets[0].type);
         console.log('[PetProfile] Uploading image:', uri, mimeType);
         await petImageApi.upload(pet.pet_uuid, uri, mimeType);
         queryClient.invalidateQueries({ queryKey: ['pet', pet_uuid] });
