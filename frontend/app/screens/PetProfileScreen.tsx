@@ -1,20 +1,24 @@
-import React, { useLayoutEffect } from 'react';
-import { ActivityIndicator, View, Text, Image as RNImage, ScrollView } from 'react-native';
+import React, { useCallback, useLayoutEffect, useState } from 'react';
+import { ActivityIndicator, View, Text, Image as RNImage, ScrollView, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import * as ImagePicker from 'expo-image-picker';
 
 import api from '~/app/lib/api';
+import { petImageApi } from '~/app/lib/api';
 import { useColorScheme } from '~/lib/useColorScheme';
 import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
 import * as Style from '~/app/styles/Styles';
 import type { Pet, PetImage } from '~/app/models/pets';
-import { RootStackParamList } from '~/types/navigation';
+import { TabStackParamList } from '~/types/navigation';
+import { useFocusEffect } from '@react-navigation/native';
 
-const getImageUrl = (image: PetImage | null): string | undefined => {
-  if (!image) return undefined;
-  return `http://localhost:8800/api/v1/pets/images/${image.uuid}/thumbnail`;
+const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8800/api/v1';
+
+const getImageUrl = (imageUuid: string, variant: 'thumbnail' | 'medium' | 'original' = 'thumbnail'): string => {
+  return `${API_BASE}/api/v1/pets/images/${imageUuid}/${variant}`;
 };
 
 const getAgeFromDob = (dob: string) => {
@@ -49,7 +53,8 @@ type PetProfileScreenProps = {
 
 export default function PetProfileScreen({ route }: PetProfileScreenProps) {
   const { pet_uuid } = route.params;
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation = useNavigation<NativeStackNavigationProp<TabStackParamList>>();
+  const queryClient = useQueryClient();
   const { colors, isDarkColorScheme } = useColorScheme();
   const { accentColor } = useAccentColor();
   const accentSet = getAccentSet(accentColor);
@@ -67,6 +72,33 @@ export default function PetProfileScreen({ route }: PetProfileScreenProps) {
       headerTitle: pet?.name || 'Pet Profile',
     });
   }, [navigation, pet?.name]);
+
+  useFocusEffect(
+    useCallback(() => {
+      queryClient.invalidateQueries({ queryKey: ['pet', pet_uuid] });
+    }, [queryClient, pet_uuid])
+  );
+
+  const handlePickImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0] && pet) {
+      try {
+        const uri = result.assets[0].uri;
+        const mimeType = result.assets[0].type || 'image/png';
+        console.log('[PetProfile] Uploading image:', uri, mimeType);
+        await petImageApi.upload(pet.pet_uuid, uri, mimeType);
+        queryClient.invalidateQueries({ queryKey: ['pet', pet_uuid] });
+      } catch (err) {
+        console.error('[PetProfile] Image upload failed:', err);
+      }
+    }
+  };
 
   const badgeBg = `${accentSet.bgSubtle}80`;
   const badgeColor = accentSet.base;
@@ -94,35 +126,42 @@ export default function PetProfileScreen({ route }: PetProfileScreenProps) {
     );
   }
 
-  const imageUrl = pet.primary_image
-    ? `http://localhost:8800/api/v1/pets/images/${pet.primary_image.uuid}/thumbnail`
-    : undefined;
+  const imageUrl = pet.primary_image ? getImageUrl(pet.primary_image.uuid, 'thumbnail') : undefined;
 
   return (
     <ScrollView className="flex-1">
       <View className="items-center pt-6 pb-4">
-        {imageUrl ? (
-          <RNImage
-            source={{ uri: imageUrl }}
-            style={{
-              width: 180,
-              height: 180,
-              borderRadius: 90,
-              marginBottom: 16,
-            }}
-            resizeMode="cover"
-          />
-        ) : (
-          <View
-            className="mb-4 items-center justify-center rounded-full"
-            style={{
-              width: 180,
-              height: 180,
-              backgroundColor: `${accentSet.bgSubtle}90`,
-            }}>
-            <Ionicons name={getSpeciesIcon(pet.species)} size={72} color={accentSet.base} />
-          </View>
-        )}
+        <View className="relative">
+          {imageUrl ? (
+            <RNImage
+              source={{ uri: imageUrl }}
+              style={{
+                width: 180,
+                height: 180,
+                borderRadius: 90,
+                marginBottom: 16,
+              }}
+              resizeMode="cover"
+            />
+          ) : (
+            <View
+              className="mb-4 items-center justify-center rounded-full"
+              style={{
+                width: 180,
+                height: 180,
+                backgroundColor: `${accentSet.bgSubtle}90`,
+              }}>
+              <Ionicons name={getSpeciesIcon(pet.species)} size={72} color={accentSet.base} />
+            </View>
+          )}
+
+          <TouchableOpacity
+            onPress={handlePickImage}
+            className="absolute -bottom-1 -right-1 items-center justify-center rounded-full"
+            style={{ width: 36, height: 36, backgroundColor: accentSet.base }}>
+            <Ionicons name="add" size={20} color="#fff" />
+          </TouchableOpacity>
+        </View>
 
         <Text className="text-2xl font-bold" style={{ color: colors.text }}>
           {pet.name}
@@ -132,6 +171,16 @@ export default function PetProfileScreen({ route }: PetProfileScreenProps) {
           {pet.species}
           {pet.breed ? ` · ${pet.breed}` : ''}
         </Text>
+
+        <TouchableOpacity
+          onPress={() => navigation.navigate('ImageGallery', { pet_uuid })}
+          className="mt-3 flex-row items-center gap-1.5"
+          style={{ backgroundColor: accentSet.bgSubtle, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 }}>
+          <Ionicons name="images" size={16} color={accentSet.base} />
+          <Text className="text-sm font-semibold" style={{ color: accentSet.base }}>
+            Manage Photos
+          </Text>
+        </TouchableOpacity>
       </View>
 
       <View className="mx-4 gap-4 pb-8">

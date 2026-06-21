@@ -12,6 +12,7 @@ import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
 import ControlsScreen from '../screens/ControlsScreen';
 import DiscoverScreen from '../screens/DiscoverScreen';
 import HomeScreen from '../screens/HomeScreen';
+import ImageGalleryScreen from '../screens/ImageGalleryScreen';
 import PetProfileScreen from '../screens/PetProfileScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import SessionsScreen from '../screens/SessionsScreen';
@@ -105,6 +106,13 @@ export const HomeTabs = () => {
         <Stack.Screen
           name="PetProfile"
           component={PetProfileScreen}
+          options={{ animation: 'slide_from_right' }}
+        />
+      )}
+      {isAuthenticated && (
+        <Stack.Screen
+          name="ImageGallery"
+          component={ImageGalleryScreen}
           options={{ animation: 'slide_from_right' }}
         />
       )}

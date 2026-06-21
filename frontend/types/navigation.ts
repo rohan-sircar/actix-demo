@@ -53,11 +53,13 @@ export type TabParamList = {
   Profile: undefined;
   Sessions: undefined;
   PetProfile: { pet_uuid: string };
+  ImageGallery: { pet_uuid: string };
 };
 
 export type TabStackParamList = {
   Tabs: undefined;
   PetProfile: { pet_uuid: string };
+  ImageGallery: { pet_uuid: string };
 };
 
 export type AuthStackParamList = {

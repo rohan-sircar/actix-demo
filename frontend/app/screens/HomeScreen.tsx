@@ -8,10 +8,15 @@ import {
   TouchableOpacity,
   ScrollView,
   TextInput,
+  Image,
   Alert,
+  Platform,
 } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useActionSheet } from '@expo/react-native-action-sheet';
+import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system/legacy';
+import { petImageApi } from '~/app/lib/api';
 import api from '~/app/lib/api';
 import PetCard from '~/app/components/PetCard';
 import { useColorScheme } from '~/lib/useColorScheme';
@@ -74,6 +79,7 @@ const Home = () => {
         description: '',
       });
       setFormError('');
+      setSelectedImage(null);
     },
   });
 
@@ -134,6 +140,7 @@ const Home = () => {
     description: '',
   });
   const [formError, setFormError] = useState('');
+  const [selectedImage, setSelectedImage] = useState<{ uri: string; mimeType: string } | null>(null);
 
   const handleCreatePet = async () => {
     if (!formData.name.trim() || !formData.species.trim()) {
@@ -142,8 +149,10 @@ const Home = () => {
     }
     setFormError('');
 
+    let petUuid: string | undefined;
+
     try {
-      await createPetMutation.mutateAsync({
+      const result = await createPetMutation.mutateAsync({
         name: formData.name.trim(),
         species: formData.species.trim(),
         ...(formData.breed.trim() && { breed: formData.breed.trim() }),
@@ -153,11 +162,55 @@ const Home = () => {
         ...(formData.color_markings.trim() && { color_markings: formData.color_markings.trim() }),
         ...(formData.description.trim() && { description: formData.description.trim() }),
       });
+      petUuid = result.pet_uuid;
     } catch (err: any) {
       if (err.response?.data?.message) {
         setFormError(err.response.data.message);
       } else {
         setFormError('Failed to create pet. Please try again.');
+      }
+      return;
+    }
+
+    if (selectedImage && petUuid) {
+      try {
+        await petImageApi.upload(petUuid, selectedImage.uri, selectedImage.mimeType);
+      } catch {
+        // Image upload failed but pet was created successfully — non-critical
+      }
+    }
+  };
+
+  const handlePickImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      const asset = result.assets[0];
+      const uri = asset.uri;
+      const mimeType = asset.type || 'image/jpeg';
+      try {
+        let dataUrl: string;
+        if (Platform.OS === 'web') {
+          const response = await fetch(uri);
+          const blob = await response.blob();
+          dataUrl = await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.readAsDataURL(blob);
+          });
+        } else {
+          const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
+          dataUrl = `data:${mimeType};base64,${base64}`;
+        }
+        setSelectedImage({ uri: dataUrl, mimeType });
+      } catch (err) {
+        console.error('Failed to load image:', err);
+        setSelectedImage({ uri, mimeType });
       }
     }
   };
@@ -171,6 +224,22 @@ const Home = () => {
         <Text className="mb-4 text-lg font-bold" style={{ color: colors.text }}>
           Pet Details
         </Text>
+
+        <TouchableOpacity
+          onPress={handlePickImage}
+          className="mb-4 items-center justify-center rounded-2xl border-2 border-dashed"
+          style={{ height: 140, borderColor: selectedImage ? accentSet.base : secondaryColor }}>
+          {selectedImage ? (
+            <Image source={{ uri: selectedImage.uri }} className="h-full w-full rounded-2xl" resizeMode="cover" />
+          ) : (
+            <>
+              <Ionicons name="camera" size={28} color={secondaryColor} />
+              <Text className="mt-2 text-sm font-medium" style={{ color: secondaryColor }}>
+                Add Photo
+              </Text>
+            </>
+          )}
+        </TouchableOpacity>
 
         {formError ? (
           <View className="mb-4 rounded-xl bg-rose-500/15 p-3">
@@ -319,6 +388,7 @@ const Home = () => {
                 description: '',
               });
               setFormError('');
+              setSelectedImage(null);
             }}
             className="flex-1 items-center rounded-xl py-3"
             style={{ backgroundColor: isDarkColorScheme ? '#3d2a22' : '#f0e0d8' }}>
