@@ -79,7 +79,7 @@ const DiscoverScreen = () => {
           filteredPets.map((pet) => (
             <PetCard
               key={pet.id}
-              id={pet.id}
+              pet_uuid={pet.id}
               name={pet.name}
               species={pet.species}
               breed={pet.breed}

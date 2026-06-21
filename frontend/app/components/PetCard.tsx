@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from '~/lib/useColorScheme';
 import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
@@ -7,7 +7,7 @@ import * as Style from '../styles/Styles';
 import type { Pet } from '~/app/models/pets';
 
 const PetCard: React.FC<{
-  id: Pet['id'] | string;
+  pet_uuid: string;
   name: Pet['name'];
   species: Pet['species'];
   breed?: Pet['breed'];
@@ -16,7 +16,8 @@ const PetCard: React.FC<{
   weight?: Pet['weight'];
   description?: Pet['description'];
   traits?: Pet['traits'];
-}> = ({ name, species, breed, date_of_birth, gender, weight, description, traits }) => {
+  onDelete?: (pet_uuid: string) => void;
+}> = ({ name, species, breed, date_of_birth, gender, weight, description, traits, pet_uuid, onDelete }) => {
   const { colors, isDarkColorScheme } = useColorScheme();
   const { accentColor } = useAccentColor();
   const accentSet = getAccentSet(accentColor);
@@ -116,6 +117,14 @@ const PetCard: React.FC<{
             </Text>
           )}
         </View>
+        {onDelete ? (
+          <Pressable
+            onPress={() => onDelete(pet_uuid)}
+            className="items-center justify-center rounded-lg"
+            style={({ pressed }) => ({ padding: 8, opacity: pressed ? 0.6 : 1 })}>
+            <Ionicons name="trash" size={18} color="#E11D48" />
+          </Pressable>
+        ) : null}
       </View>
     </View>
   );
