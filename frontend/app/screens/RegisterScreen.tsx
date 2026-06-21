@@ -60,7 +60,7 @@ const RegisterScreen = () => {
           const userRes = await api.get<UserResponse>('/api/v1/private/user');
           setCredentials('', userRes.data);
         } else {
-          const res = await api.post('/auth/exchange', {
+          const res = await api.post('/api/v1/auth/exchange', {
             username: data.username,
             password: data.password,
             device_name: 'Mobile',
