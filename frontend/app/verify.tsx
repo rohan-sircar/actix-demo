@@ -1,20 +1,19 @@
 import { View, Text, TouchableOpacity } from 'react-native';
 import React, { useEffect, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useNavigation } from '@react-navigation/native';
 import api from '~/app/lib/api';
 import { useColorScheme } from '~/lib/useColorScheme';
-import { getAccentSet } from '~/lib/useAccentColor';
+import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
 import * as Style from '~/app/styles/Styles';
-import { DrawerNavigationProp } from '@react-navigation/drawer';
-import { DrawerParamList, navigateWithTitle } from '~/types/navigation';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
+import { BaseAccentGradients } from '~/theme/colors';
 
 const VerifyWebScreen = () => {
-  const navigation = useNavigation<DrawerNavigationProp<DrawerParamList>>();
-  const router = useRouter();
   const { colors, isDarkColorScheme } = useColorScheme();
-  const accentColor = (useColorScheme() as any).accentColor || 'ocean';
+  const { accentColor } = useAccentColor();
   const accentSet = getAccentSet(accentColor);
+  const router = useRouter();
   const [status, setStatus] = useState<'verifying' | 'success' | 'error'>('verifying');
   const [message, setMessage] = useState('Verifying your email...');
 
@@ -44,62 +43,77 @@ const VerifyWebScreen = () => {
     verifyEmail();
   }, [token]);
 
+  const gradientColors = BaseAccentGradients[accentColor];
+
   return (
-    <View className="flex-1 items-center justify-center px-4">
-      <View
-        className={`w-full max-w-[380px] rounded-xl p-6 shadow-lg`}
-        style={Style.cardStyle(isDarkColorScheme, colors, accentSet)}>
-        <View>
-          <Text
-            className={`mb-2 text-center text-xl font-semibold ${Style.getHeadingTextColor(isDarkColorScheme, accentSet)}`}>
-            Verify Email
-          </Text>
-          <Text
-            className={`mb-6 text-center text-sm ${Style.getSecondaryTextColor(isDarkColorScheme, accentSet)}`}>
-            {status === 'verifying' && 'Checking your verification link...'}
-          </Text>
-        </View>
-
-        {status === 'success' ? (
-          <View className="mb-4 rounded-lg bg-emerald-500/20 p-3">
-            <Text className="text-center text-sm text-emerald-500">{message}</Text>
+    <LinearGradient
+      colors={[gradientColors.gradientStart, gradientColors.gradientEnd]}
+      style={{ flex: 1 }}>
+      <View className="flex-1 items-center justify-center px-6">
+        <View className="w-full max-w-[400px]">
+          <View className="mb-8 items-center">
+            <View
+              className="mb-4 items-center justify-center rounded-full"
+              style={{ width: 72, height: 72, backgroundColor: 'rgba(255,255,255,0.2)' }}>
+              <Ionicons name="mail" size={32} color="white" />
+            </View>
+            <Text className="text-3xl font-bold tracking-tight text-white">Verify Email</Text>
           </View>
-        ) : null}
 
-        {status === 'error' ? (
-          <View className="mb-4 rounded-lg bg-rose-500/20 p-3">
-            <Text className="text-center text-sm text-rose-500">{message}</Text>
-          </View>
-        ) : null}
-
-        {status !== 'verifying' ? (
-          <View className="mt-4 gap-3">
-            <TouchableOpacity
-              onPress={() => {
-                if (status === 'success') {
-                  navigateWithTitle(() => navigation.navigate('Account', { screen: 'SignIn' }), 'Sign In');
-                } else {
-                  router.push('/resend-verification');
-                }
-              }}
-              className={`rounded-lg px-4 py-3 items-center ${
-                status === 'success'
-                  ? 'bg-emerald-500'
-                  : isDarkColorScheme
-                    ? 'bg-zinc-700'
-                    : 'bg-zinc-200'
-              }`}>
-              <Text
-                className={`font-medium ${
-                  status === 'success' ? 'text-white' : Style.getHeadingTextColor(isDarkColorScheme, accentSet)
-                }`}>
-                {status === 'success' ? 'Go to Sign In' : 'Try Again'}
+          <View
+            className="rounded-2xl p-6 shadow-xl"
+            style={{
+              backgroundColor: isDarkColorScheme ? 'rgba(35,25,22,0.95)' : 'rgba(255,255,255,0.95)',
+            }}>
+            {status === 'verifying' && (
+              <Text className="text-center text-sm" style={{ color: colors.grey }}>
+                Checking your verification link...
               </Text>
-            </TouchableOpacity>
+            )}
+
+            {status === 'success' ? (
+              <View className="mb-4 rounded-xl bg-emerald-500/15 p-3">
+                <Text className="text-center text-sm font-medium text-emerald-600">{message}</Text>
+              </View>
+            ) : null}
+
+            {status === 'error' ? (
+              <View className="mb-4 rounded-xl bg-rose-500/15 p-3">
+                <Text className="text-center text-sm font-medium text-rose-500">{message}</Text>
+              </View>
+            ) : null}
+
+            {status !== 'verifying' ? (
+              <View className="mt-4 gap-3">
+                {status === 'success' ? (
+                  <TouchableOpacity
+                    onPress={() => router.replace('/screens/LoginScreen')}
+                    className="items-center rounded-xl bg-emerald-500 px-4 py-3">
+                    <Text className="font-semibold text-white">Go to Sign In</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <>
+                    <TouchableOpacity
+                      onPress={() => router.push('/resend-verification')}
+                      className="items-center rounded-xl bg-[#F4644E] px-4 py-3">
+                      <Text className="font-semibold text-white">Resend Email</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => router.back()}
+                      className="items-center rounded-xl px-4 py-3"
+                      style={{ backgroundColor: isDarkColorScheme ? '#3d2a22' : '#f0e0d8' }}>
+                      <Text className="font-medium" style={{ color: colors.text }}>
+                        Go Back
+                      </Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+              </View>
+            ) : null}
           </View>
-        ) : null}
+        </View>
       </View>
-    </View>
+    </LinearGradient>
   );
 };
 

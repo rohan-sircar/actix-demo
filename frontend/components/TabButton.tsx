@@ -23,10 +23,11 @@ export function TabButton({ children, active, onPress, style }: TabButtonProps) 
   return (
     <Pressable
       onPress={onPress}
-      style={[style, hoverStyle]}
-      className="web:web-ripple flex-1 flex-row items-center justify-center py-1"
+      style={[{ height: 70 }, style, hoverStyle]}
+      className="web:web-ripple flex-1 flex-row items-center justify-center"
+      
       {...(Platform.OS === 'web' ? { ...webRippleProps, ...hoverProps } : {})}>
-      <View className="items-center">{children}</View>
+      <View className="items-center py-5">{children}</View>
     </Pressable>
   );
 }

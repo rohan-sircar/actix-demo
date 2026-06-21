@@ -1,5 +1,4 @@
-import { View, Text, TextInput, TouchableOpacity, Platform } from 'react-native';
-import { Button } from '~/components/nativewindui/Button';
+import { View, Text, TextInput, Platform, ScrollView, useWindowDimensions } from 'react-native';
 import { useColorScheme } from '~/lib/useColorScheme';
 import React, { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
@@ -12,6 +11,13 @@ import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
 import GithubButton from '../components/GithubButton';
 import GoogleButton from '../components/GoogleButton';
 import FormButton from '../components/FormButton';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
+import { TouchableOpacity } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { DrawerNavigationProp } from '@react-navigation/drawer';
+import { DrawerParamList, navigateWithTitle } from '~/types/navigation';
+import { BaseAccentGradients } from '~/theme/colors';
 
 const isWeb = Platform.OS === 'web';
 
@@ -19,7 +25,9 @@ const RegisterScreen = () => {
   const { colors, isDarkColorScheme } = useColorScheme();
   const { accentColor } = useAccentColor();
   const accentSet = getAccentSet(accentColor);
+  const { width } = useWindowDimensions();
   const setCredentials = useAuthStore((s) => s.setCredentials);
+  const navigation = useNavigation<DrawerNavigationProp<DrawerParamList>>();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -52,7 +60,7 @@ const RegisterScreen = () => {
           const userRes = await api.get<UserResponse>('/api/v1/private/user');
           setCredentials('', userRes.data);
         } else {
-          const res = await api.post('/auth/exchange', {
+          const res = await api.post('/api/v1/auth/exchange', {
             username: data.username,
             password: data.password,
             device_name: 'Mobile',
@@ -74,127 +82,169 @@ const RegisterScreen = () => {
     }
   };
 
+  const gradientColors = BaseAccentGradients[accentColor];
+  const scale = Math.min(width / 400, 1.2);
+  const iconSize = Math.round(20 * scale);
+  const iconContainerSize = Math.round(56 * scale);
+  const headingFontSize = Math.round(20 * scale);
+
   return (
-    <View className="flex-1 items-center justify-center px-4">
-      <View
-        className={`w-full max-w-[380px] rounded-xl p-6 shadow-lg`}
-        style={Style.cardStyle(isDarkColorScheme, colors, accentSet)}>
-        <View>
-          <Text
-            className={`mb-6 text-center text-xl font-semibold ${
-              isDarkColorScheme ? 'text-zinc-100' : 'text-zinc-800'
-            }`}>
-            Create a new account
-          </Text>
-        </View>
-
-        {success ? (
-          <View className="mb-4 rounded-lg bg-emerald-500/20 p-3">
-            <Text className="text-center text-sm text-emerald-500">
-              Account created successfully!
-            </Text>
-          </View>
-        ) : null}
-
-        {error ? (
-          <View className="mb-4 rounded-lg bg-rose-500/20 p-3">
-            <Text className="text-center text-sm text-rose-500">{error}</Text>
-          </View>
-        ) : null}
-
-        <View className="mb-6 gap-4">
-          <Controller
-            control={control}
-            name="username"
-            render={({ field: { onChange, onBlur, value } }) => (
-              <View>
-                <TextInput
-                  placeholder="Username"
-                  onBlur={onBlur}
-                  onChangeText={onChange}
-                  value={value}
-                  className={`h-12 rounded-lg border px-4 text-base`}
-                  style={Style.inputStyle(isDarkColorScheme, accentSet)}
-                  placeholderTextColor={Style.getPlaceholderColor(isDarkColorScheme, accentSet)}
-                />
-                {errors.username ? (
-                  <Text className="mt-1 text-xs text-rose-500">{errors.username.message}</Text>
-                ) : null}
-              </View>
-            )}
-          />
-
-          <Controller
-            control={control}
-            name="email"
-            render={({ field: { onChange, onBlur, value } }) => (
-              <View>
-                <TextInput
-                  placeholder="Email"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  onBlur={onBlur}
-                  onChangeText={onChange}
-                  value={value}
-                  className={`h-12 rounded-lg border px-4 text-base`}
-                  style={Style.inputStyle(isDarkColorScheme, accentSet)}
-                  placeholderTextColor={Style.getPlaceholderColor(isDarkColorScheme, accentSet)}
-                />
-                {errors.email ? (
-                  <Text className="mt-1 text-xs text-rose-500">{errors.email.message}</Text>
-                ) : null}
-              </View>
-            )}
-          />
-
-          <Controller
-            control={control}
-            name="password"
-            render={({ field: { onChange, onBlur, value } }) => (
-              <View>
-                <TextInput
-                  placeholder="Password"
-                  secureTextEntry
-                  onBlur={onBlur}
-                  onChangeText={onChange}
-                  value={value}
-                  className={`h-12 rounded-lg border px-4 text-base`}
-                  style={Style.inputStyle(isDarkColorScheme, accentSet)}
-                  placeholderTextColor={Style.getPlaceholderColor(isDarkColorScheme, accentSet)}
-                />
-                {errors.password ? (
-                  <Text className="mt-1 text-xs text-rose-500">{errors.password.message}</Text>
-                ) : null}
-              </View>
-            )}
-          />
-        </View>
-
-        <View>
-          <FormButton buttonText="Register" onPress={handleSubmit(onSubmit)} />
-        </View>
-
-        <View className="relative my-6">
-          <View className="absolute inset-0 flex items-center justify-center">
+    <LinearGradient
+      colors={[gradientColors.gradientStart, gradientColors.gradientEnd]}
+      style={{ flex: 1 }}>
+      <ScrollView
+        className="flex-1 px-6"
+        contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
+        keyboardShouldPersistTaps="handled">
+        <View className="mx-auto w-full max-w-md">
+          <View className="mb-6 items-center">
             <View
-              className={`h-[1px] w-full ${isDarkColorScheme ? 'bg-zinc-700' : 'bg-gray-200'}`}
-            />
-          </View>
-          <View className="relative flex flex-row justify-center">
+              className="mb-3 items-center justify-center rounded-full"
+              style={{
+                width: iconContainerSize,
+                height: iconContainerSize,
+                backgroundColor: 'rgba(255,255,255,0.2)',
+              }}>
+              <Ionicons name="paw" size={iconSize} color="white" />
+            </View>
             <Text
-              className={`bg-inherit px-4 text-sm`}
-              style={{ backgroundColor: colors.card, color: colors.foreground }}>
-              or continue with
+              style={{ fontSize: headingFontSize }}
+              className="font-bold tracking-tight text-white">
+              Join PetMatch
             </Text>
+            <Text className="mt-1 text-base text-white/80">Let's set up your profile</Text>
+          </View>
+
+          <View
+            className="rounded-2xl p-6 shadow-xl"
+            style={{
+              backgroundColor: isDarkColorScheme ? 'rgba(35,25,22,0.95)' : 'rgba(255,255,255,0.95)',
+            }}>
+            {success ? (
+              <View className="mb-4 rounded-xl bg-emerald-500/15 p-3">
+                <Text className="text-center text-sm font-medium text-emerald-600">
+                  Account created successfully! Welcome to the pack!
+                </Text>
+              </View>
+            ) : null}
+
+            {error ? (
+              <View className="mb-4 rounded-xl bg-rose-500/15 p-3">
+                <Text className="text-center text-sm font-medium text-rose-500">{error}</Text>
+              </View>
+            ) : null}
+
+            <View className="mb-6 gap-4">
+              <Controller
+                control={control}
+                name="username"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <View>
+                    <TextInput
+                      placeholder="Username"
+                      onBlur={onBlur}
+                      onChangeText={onChange}
+                      value={value}
+                      className="h-12 rounded-xl px-4 text-base"
+                      style={Style.inputStyle(isDarkColorScheme, accentSet)}
+                      placeholderTextColor={Style.getPlaceholderColor(isDarkColorScheme, accentSet)}
+                    />
+                    {errors.username ? (
+                      <Text className="mt-1 text-xs text-rose-500">{errors.username.message}</Text>
+                    ) : null}
+                  </View>
+                )}
+              />
+
+              <Controller
+                control={control}
+                name="email"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <View>
+                    <TextInput
+                      placeholder="Email"
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      onBlur={onBlur}
+                      onChangeText={onChange}
+                      value={value}
+                      className="h-12 rounded-xl px-4 text-base"
+                      style={Style.inputStyle(isDarkColorScheme, accentSet)}
+                      placeholderTextColor={Style.getPlaceholderColor(isDarkColorScheme, accentSet)}
+                    />
+                    {errors.email ? (
+                      <Text className="mt-1 text-xs text-rose-500">{errors.email.message}</Text>
+                    ) : null}
+                  </View>
+                )}
+              />
+
+              <Controller
+                control={control}
+                name="password"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <View>
+                    <TextInput
+                      placeholder="Password"
+                      secureTextEntry
+                      onBlur={onBlur}
+                      onChangeText={onChange}
+                      value={value}
+                      className="h-12 rounded-xl px-4 text-base"
+                      style={Style.inputStyle(isDarkColorScheme, accentSet)}
+                      placeholderTextColor={Style.getPlaceholderColor(isDarkColorScheme, accentSet)}
+                    />
+                    {errors.password ? (
+                      <Text className="mt-1 text-xs text-rose-500">{errors.password.message}</Text>
+                    ) : null}
+                  </View>
+                )}
+              />
+            </View>
+
+            <FormButton buttonText="Create Account" onPress={handleSubmit(onSubmit)} />
+
+            <View className="relative my-6">
+              <View className="absolute inset-0 flex items-center justify-center">
+                <View className="h-[1px] w-full bg-[#E8D0C0]" />
+              </View>
+              <View className="relative flex flex-row justify-center">
+                <Text
+                  className="px-4 text-sm font-medium"
+                  style={{
+                    backgroundColor: isDarkColorScheme
+                      ? 'rgba(35,25,22,0.95)'
+                      : 'rgba(255,255,255,0.95)',
+                    color: colors.grey,
+                  }}>
+                  or continue with
+                </Text>
+              </View>
+            </View>
+
+            <View className="gap-3">
+              <GoogleButton />
+              <GithubButton />
+            </View>
+
+            <View className="mt-5 items-center">
+              <TouchableOpacity
+                onPress={() =>
+                  navigateWithTitle(
+                    () => navigation.navigate('Account', { screen: 'SignIn' }),
+                    'Sign In'
+                  )
+                }>
+                <Text className="text-sm">
+                  <Text className="text-[#8B7368]">Already have an account? </Text>
+                  <Text className="font-semibold text-[#F4644E]">Sign in</Text>
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
-
-        <View className="gap-4">
-          <GoogleButton />
-          <GithubButton />
-        </View>
-      </View>
-    </View>
+      </ScrollView>
+    </LinearGradient>
   );
 };
 

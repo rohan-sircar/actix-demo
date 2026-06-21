@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "my-expo-app",
-    "slug": "my-expo-app",
+    "name": "PetMatch",
+    "slug": "petmatch",
     "version": "1.0.0",
     "newArchEnabled": true,
-    "scheme": "my-expo-app",
+    "scheme": "petmatch",
     "web": {
       "bundler": "metro",
       "output": "static",
@@ -21,22 +21,22 @@
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#F4644E"
     },
     "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
       "jsEngine": "jsc",
-      "bundleIdentifier": "com.myexpoapp.petapp"
+      "bundleIdentifier": "com.petmatch.app"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#F4644E"
       },
       "jsEngine": "hermes",
-      "userInterfaceStyle": "dark",
-      "package": "com.myexpoapp.petapp"
+      "userInterfaceStyle": "automatic",
+      "package": "com.petmatch.app"
     },
     "plugins": ["expo-secure-store"]
   }

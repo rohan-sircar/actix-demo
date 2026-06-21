@@ -17,7 +17,7 @@ interface AccentColorState {
 export const useAccentColor = create<AccentColorState>()(
   persist(
     (set) => ({
-      accentColor: AccentColorType.BLUE,
+      accentColor: AccentColorType.CORAL,
       setAccentColor: (color: AccentColorType) => {
         set({ accentColor: color });
       },
@@ -25,11 +25,23 @@ export const useAccentColor = create<AccentColorState>()(
     {
       name: ACCENT_KEY,
       storage: createJSONStorage(() => AsyncStorage),
+      version: 2,
+      migrate: (_persistedState: any) => {
+        const state = _persistedState as { accentColor?: string };
+        if (
+          state &&
+          state.accentColor &&
+          accentColorTypeKeys.includes(state.accentColor as AccentColorType)
+        ) {
+          return state;
+        }
+        return { accentColor: AccentColorType.CORAL };
+      },
     }
   )
 );
 
 // Helper function to get an accent color set.
 export const getAccentSet = (color: AccentColorType) => {
-  return AccentColors.get(color)!;
+  return AccentColors.get(color) ?? AccentColors.get(AccentColorType.CORAL)!;
 };
