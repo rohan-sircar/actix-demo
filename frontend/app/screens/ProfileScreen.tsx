@@ -11,6 +11,7 @@ import { useColorScheme } from '~/lib/useColorScheme';
 import { useAuthStore, UserResponse } from '~/app/stores/AuthStore';
 import api from '~/app/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import type { Pet } from '~/app/models/pets';
 
 export default function ProfileScreen() {
   const queryClient = useQueryClient();
@@ -27,6 +28,14 @@ export default function ProfileScreen() {
     queryKey: ['user'],
     queryFn: async () => {
       const res = await api.get<UserResponse>('/api/v1/private/user');
+      return res.data;
+    },
+  });
+
+  const { data: pets } = useQuery({
+    queryKey: ['pets-count'],
+    queryFn: async () => {
+      const res = await api.get<Pet[]>('/api/v1/private/user/pets');
       return res.data;
     },
   });
@@ -186,7 +195,7 @@ export default function ProfileScreen() {
         <View
           className="mt-2 flex-row justify-between rounded-xl border-x border-b border-t px-4 py-5"
           style={{ borderColor: colors.grey5 }}>
-          <StatTile title="Pets" value="0" />
+          <StatTile title="Pets" value={String(pets?.length ?? 0)} />
         </View>
       </View>
     </View>
