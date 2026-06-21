@@ -92,6 +92,7 @@ const DiscoverScreen = () => {
               weight={pet.weight ? Number(pet.weight) : undefined}
               description={pet.description}
               traits={pet.traits}
+              onPress={() => {}}
             />
           ))
         ) : (

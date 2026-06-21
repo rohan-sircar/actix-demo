@@ -52,6 +52,12 @@ export type TabParamList = {
   Discover: undefined;
   Profile: undefined;
   Sessions: undefined;
+  PetProfile: { pet_uuid: string };
+};
+
+export type TabStackParamList = {
+  Tabs: undefined;
+  PetProfile: { pet_uuid: string };
 };
 
 export type AuthStackParamList = {

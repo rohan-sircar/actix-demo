@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Pressable } from 'react-native';
+import { View, Text, Pressable, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from '~/lib/useColorScheme';
 import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
@@ -17,7 +17,8 @@ const PetCard: React.FC<{
   description?: Pet['description'];
   traits?: Pet['traits'];
   onDelete?: (pet_uuid: string) => void;
-}> = ({ name, species, breed, date_of_birth, gender, weight, description, traits, pet_uuid, onDelete }) => {
+  onPress?: () => void;
+}> = ({ name, species, breed, date_of_birth, gender, weight, description, traits, pet_uuid, onDelete, onPress }) => {
   const { colors, isDarkColorScheme } = useColorScheme();
   const { accentColor } = useAccentColor();
   const accentSet = getAccentSet(accentColor);
@@ -53,7 +54,9 @@ const PetCard: React.FC<{
   const secondaryColor = colors.grey;
 
   return (
-    <View
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.7}
       className="mb-3 rounded-2xl px-4 py-3"
       style={Style.cardStyle(isDarkColorScheme, colors, accentSet)}>
       <View className="flex-row items-start gap-3">
@@ -119,14 +122,17 @@ const PetCard: React.FC<{
         </View>
         {onDelete ? (
           <Pressable
-            onPress={() => onDelete(pet_uuid)}
+            onPress={(e) => {
+              e?.stopPropagation();
+              onDelete(pet_uuid);
+            }}
             className="items-center justify-center rounded-lg"
             style={({ pressed }) => ({ padding: 8, opacity: pressed ? 0.6 : 1 })}>
             <Ionicons name="trash" size={18} color="#E11D48" />
           </Pressable>
         ) : null}
       </View>
-    </View>
+    </TouchableOpacity>
   );
 };
 

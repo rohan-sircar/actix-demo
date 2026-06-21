@@ -1,5 +1,5 @@
 import { FlashList } from '@shopify/flash-list';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import React, { useCallback, useState } from 'react';
 import {
   View,
@@ -19,8 +19,11 @@ import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
 import type { Pet } from '~/app/models/pets';
 import { Ionicons } from '@expo/vector-icons';
 import * as Style from '~/app/styles/Styles';
+import type { TabParamList } from '~/types/navigation';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 
 const Home = () => {
+  const navigation = useNavigation<BottomTabNavigationProp<TabParamList>>();
   const { colors, isDarkColorScheme } = useColorScheme();
   const { accentColor } = useAccentColor();
   const accentSet = getAccentSet(accentColor);
@@ -389,6 +392,7 @@ const Home = () => {
               description={item.description}
               traits={item.traits}
               onDelete={(uuid) => handleDelete(uuid, item.name)}
+              onPress={() => navigation.navigate('PetProfile', { pet_uuid: item.pet_uuid })}
             />
           )}
           estimatedItemSize={150}

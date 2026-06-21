@@ -1,5 +1,6 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
 import { Icon } from '@roninoss/icons';
 import React from 'react';
@@ -11,20 +12,21 @@ import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
 import ControlsScreen from '../screens/ControlsScreen';
 import DiscoverScreen from '../screens/DiscoverScreen';
 import HomeScreen from '../screens/HomeScreen';
+import PetProfileScreen from '../screens/PetProfileScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import SessionsScreen from '../screens/SessionsScreen';
 import { useAuthStore } from '../stores/AuthStore';
-import { NAVIGATION_CONFIG, TabParamList } from '~/types/navigation';
+import { NAVIGATION_CONFIG, TabParamList, TabStackParamList } from '~/types/navigation';
 import { SettingsIcon } from './SettingsIcon';
 
 const Tab = createBottomTabNavigator<TabParamList>();
+const Stack = createNativeStackNavigator<TabStackParamList>();
 
-export const HomeTabs = () => {
+const TabNavigator = () => {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const { colors } = useColorScheme();
   const { accentColor } = useAccentColor();
   const accentSet = getAccentSet(accentColor);
-  const navigation = useNavigation();
 
   return (
     <Tab.Navigator
@@ -88,6 +90,25 @@ export const HomeTabs = () => {
         />
       )}
     </Tab.Navigator>
+  );
+};
+
+export const HomeTabs = () => {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+
+  return (
+    <Stack.Navigator
+      initialRouteName="Tabs"
+      screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="Tabs" component={TabNavigator} />
+      {isAuthenticated && (
+        <Stack.Screen
+          name="PetProfile"
+          component={PetProfileScreen}
+          options={{ animation: 'slide_from_right' }}
+        />
+      )}
+    </Stack.Navigator>
   );
 };
 
