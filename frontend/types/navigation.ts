@@ -58,6 +58,7 @@ export type FeedStackParamList = {
   HomeScreen: undefined;
   PetProfile: { pet_uuid: string };
   ImageGallery: { pet_uuid: string };
+  EditPet: { pet_uuid: string };
 };
 
 export type TabStackParamList = {

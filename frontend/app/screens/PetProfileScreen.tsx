@@ -210,9 +210,17 @@ export default function PetProfileScreen({ route }: PetProfileScreenProps) {
           </TouchableOpacity>
         </View>
 
-        <Text className="text-2xl font-bold" style={{ color: colors.text }}>
-          {pet.name}
-        </Text>
+        <View className="flex-row items-center justify-between">
+          <Text className="text-2xl font-bold" style={{ color: colors.text }}>
+            {pet.name}
+          </Text>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('EditPet', { pet_uuid })}
+            className="items-center justify-center rounded-full"
+            style={{ width: 36, height: 36, backgroundColor: accentSet.bgSubtle }}>
+            <Ionicons name="pencil" size={18} color={accentSet.base} />
+          </TouchableOpacity>
+        </View>
 
         <Text className="mt-1 text-base font-medium" style={{ color: secondaryColor }}>
           {pet.species}

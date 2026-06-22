@@ -7,6 +7,7 @@ import { TabButton } from '~/components/TabButton';
 import { useColorScheme } from '~/lib/useColorScheme';
 import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
 import DiscoverScreen from '../screens/DiscoverScreen';
+import EditPetScreen from '../screens/EditPetScreen';
 import HomeScreen from '../screens/HomeScreen';
 import ImageGalleryScreen from '../screens/ImageGalleryScreen';
 import PetProfileScreen from '../screens/PetProfileScreen';
@@ -25,6 +26,7 @@ const FeedStackNavigator = () => {
       <FeedStack.Screen name="HomeScreen" component={HomeScreen} />
       <FeedStack.Screen name="PetProfile" component={PetProfileScreen} options={{ animation: 'slide_from_right' }} />
       <FeedStack.Screen name="ImageGallery" component={ImageGalleryScreen} options={{ animation: 'slide_from_right' }} />
+      <FeedStack.Screen name="EditPet" component={EditPetScreen} options={{ animation: 'slide_from_right' }} />
     </FeedStack.Navigator>
   );
 };

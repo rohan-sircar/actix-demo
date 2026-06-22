@@ -69,4 +69,34 @@ api.interceptors.response.use(
   }
 );
 
+export const petApi = {
+  async updatePet(petUuid: string, data: {
+    name?: string;
+    species?: string;
+    breed?: string | null;
+    date_of_birth?: string | null;
+    gender?: string | null;
+    weight?: number | null;
+    color_markings?: string | null;
+    description?: string | null;
+    traits?: string[];
+  }): Promise<{
+    id: number;
+    pet_uuid: string;
+    name: string;
+    species: string;
+    breed?: string | null;
+    date_of_birth?: string | null;
+    gender?: string | null;
+    weight?: number | null;
+    color_markings?: string | null;
+    description?: string | null;
+    traits?: string[];
+    primary_image: { id: number; uuid: string; format: string; is_primary: boolean; sort_order: number; created_at: string } | null;
+  }> {
+    const response = await api.patch(`/api/v1/private/user/pets/${petUuid}`, data);
+    return response.data;
+  },
+};
+
 export default api;
