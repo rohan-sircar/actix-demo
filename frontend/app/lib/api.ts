@@ -11,7 +11,7 @@ export const api = axios.create({
 });
 
 export const petImageApi = {
-  async upload(petUuid: string, fileUri: string, mimeType: string): Promise<{ uuid: string; is_primary: boolean; sort_order: number }> {
+  async upload(petUuid: string, fileUri: string, mimeType: string): Promise<{ id: number; uuid: string; format: string; is_primary: boolean; sort_order: number; created_at: string }> {
     console.log('[petImageApi] Reading file:', fileUri);
     let bytes: Uint8Array;
     const isOnWeb = typeof window !== 'undefined';
@@ -35,7 +35,7 @@ export const petImageApi = {
     return response.data;
   },
 
-  async list(petUuid: string): Promise<Array<{ uuid: string; is_primary: boolean; sort_order: number }>> {
+  async list(petUuid: string): Promise<Array<{ id: number; uuid: string; format: string; is_primary: boolean; sort_order: number; created_at: string }>> {
     const response = await api.get(`/api/v1/private/user/pets/${petUuid}/images`);
     return response.data;
   },
@@ -44,7 +44,7 @@ export const petImageApi = {
     await api.delete(`/api/v1/private/user/pets/${petUuid}/images/${imageUuid}`);
   },
 
-  async setPrimary(petUuid: string, imageUuid: string): Promise<{ uuid: string; is_primary: boolean; sort_order: number }> {
+  async setPrimary(petUuid: string, imageUuid: string): Promise<{ id: number; uuid: string; format: string; is_primary: boolean; sort_order: number; created_at: string }> {
     const response = await api.patch(`/api/v1/private/user/pets/${petUuid}/images/${imageUuid}`, { is_primary: true });
     return response.data;
   },

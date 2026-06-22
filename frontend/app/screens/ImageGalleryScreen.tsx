@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect, useLayoutEffect } from 'react';
 import {
   ActivityIndicator,
   View,
@@ -12,7 +12,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { useMutation } from '@tanstack/react-query';
-import { useRoute } from '@react-navigation/native';
+import { useRoute, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 
@@ -57,9 +57,25 @@ const getImageUrl = (imageUuid: string, variant: 'thumbnail' | 'medium' | 'origi
 export default function ImageGalleryScreen() {
   const route = useRoute<any>();
   const { pet_uuid } = route.params;
+  const navigation = useNavigation();
   const { colors, isDarkColorScheme } = useColorScheme();
   const { accentColor } = useAccentColor();
   const accentSet = getAccentSet(accentColor);
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerShown: true,
+      headerTitle: 'Photos',
+      headerBackVisible: false,
+      headerLeft: () => (
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={{ padding: 8, marginRight: 40 }}>
+          <Ionicons name="arrow-back" size={22} color={colors.text} />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, colors.text]);
 
   const [editMode, setEditMode] = useState(false);
   const [deletingImage, setDeletingImage] = useState<PetImage | null>(null);

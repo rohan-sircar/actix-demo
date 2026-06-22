@@ -12,7 +12,7 @@ import { useColorScheme } from '~/lib/useColorScheme';
 import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
 import * as Style from '~/app/styles/Styles';
 import type { Pet, PetImage } from '~/app/models/pets';
-import { TabStackParamList } from '~/types/navigation';
+import { FeedStackParamList } from '~/types/navigation';
 import { useFocusEffect } from '@react-navigation/native';
 
 const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8800';
@@ -75,7 +75,7 @@ type PetProfileScreenProps = {
 
 export default function PetProfileScreen({ route }: PetProfileScreenProps) {
   const { pet_uuid } = route.params;
-  const navigation = useNavigation<NativeStackNavigationProp<TabStackParamList>>();
+  const navigation = useNavigation<NativeStackNavigationProp<FeedStackParamList>>();
   const queryClient = useQueryClient();
   const { colors, isDarkColorScheme } = useColorScheme();
   const { accentColor } = useAccentColor();
@@ -91,9 +91,18 @@ export default function PetProfileScreen({ route }: PetProfileScreenProps) {
 
   useLayoutEffect(() => {
     navigation.setOptions({
+      headerShown: true,
       headerTitle: pet?.name || 'Pet Profile',
+      headerBackVisible: false,
+      headerLeft: () => (
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={{ padding: 8, marginRight: 40 }}>
+          <Ionicons name="arrow-back" size={22} color={colors.text} />
+        </TouchableOpacity>
+      ),
     });
-  }, [navigation, pet?.name]);
+  }, [navigation, pet?.name, colors.text]);
 
   useFocusEffect(
     useCallback(() => {
@@ -114,7 +123,23 @@ export default function PetProfileScreen({ route }: PetProfileScreenProps) {
         const uri = result.assets[0].uri;
         const mimeType = await detectMimeTypeFromUri(uri, result.assets[0].type);
         console.log('[PetProfile] Uploading image:', uri, mimeType);
-        await petImageApi.upload(pet.pet_uuid, uri, mimeType);
+        const uploaded = await petImageApi.upload(pet.pet_uuid, uri, mimeType);
+        if (uploaded.is_primary) {
+          queryClient.setQueryData(['pet', pet_uuid], (old: Pet | undefined) => {
+            if (!old) return old;
+            return {
+              ...old,
+              primary_image: {
+                id: uploaded.id,
+                uuid: uploaded.uuid,
+                format: uploaded.format,
+                is_primary: uploaded.is_primary,
+                sort_order: uploaded.sort_order,
+                created_at: uploaded.created_at,
+              },
+            };
+          });
+        }
         queryClient.invalidateQueries({ queryKey: ['pet', pet_uuid] });
       } catch (err) {
         console.error('[PetProfile] Image upload failed:', err);

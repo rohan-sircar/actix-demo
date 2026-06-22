@@ -67,7 +67,7 @@ const LoginScreen = () => {
         });
         setCredentials(res.data.token, res.data.user);
       }
-      navigateWithTitle(() => navigation.navigate('Home', { screen: 'Feed' }), 'Home');
+      navigateWithTitle(() => navigation.navigate('Home', { screen: 'PetProfiles' }), 'Home');
     } catch (err: any) {
       if (err.response?.status === 401) {
         setError('Invalid credentials');

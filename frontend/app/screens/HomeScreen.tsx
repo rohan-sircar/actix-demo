@@ -23,8 +23,8 @@ import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
 import type { Pet } from '~/app/models/pets';
 import { Ionicons } from '@expo/vector-icons';
 import * as Style from '~/app/styles/Styles';
-import type { TabParamList } from '~/types/navigation';
-import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import type { FeedStackParamList } from '~/types/navigation';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 const guessMimeTypeFromUri = (uri: string): string => {
   const lower = uri.toLowerCase();
@@ -35,7 +35,7 @@ const guessMimeTypeFromUri = (uri: string): string => {
 };
 
 const Home = () => {
-  const navigation = useNavigation<BottomTabNavigationProp<TabParamList>>();
+  const navigation = useNavigation<NativeStackNavigationProp<FeedStackParamList>>();
   const { colors, isDarkColorScheme } = useColorScheme();
   const { accentColor } = useAccentColor();
   const accentSet = getAccentSet(accentColor);

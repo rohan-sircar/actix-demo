@@ -1,15 +1,11 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { useNavigation } from '@react-navigation/native';
 import { Icon } from '@roninoss/icons';
 import React from 'react';
-import { View } from 'react-native';
-import { LogoutButton } from '~/components/LogoutButton';
 import { TabButton } from '~/components/TabButton';
 import { useColorScheme } from '~/lib/useColorScheme';
 import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
-import ControlsScreen from '../screens/ControlsScreen';
 import DiscoverScreen from '../screens/DiscoverScreen';
 import HomeScreen from '../screens/HomeScreen';
 import ImageGalleryScreen from '../screens/ImageGalleryScreen';
@@ -17,11 +13,21 @@ import PetProfileScreen from '../screens/PetProfileScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import SessionsScreen from '../screens/SessionsScreen';
 import { useAuthStore } from '../stores/AuthStore';
-import { NAVIGATION_CONFIG, TabParamList, TabStackParamList } from '~/types/navigation';
-import { SettingsIcon } from './SettingsIcon';
+import { TabParamList, TabStackParamList, FeedStackParamList } from '~/types/navigation';
 
 const Tab = createBottomTabNavigator<TabParamList>();
 const Stack = createNativeStackNavigator<TabStackParamList>();
+const FeedStack = createNativeStackNavigator<FeedStackParamList>();
+
+const FeedStackNavigator = () => {
+  return (
+    <FeedStack.Navigator screenOptions={{ headerShown: false }}>
+      <FeedStack.Screen name="HomeScreen" component={HomeScreen} />
+      <FeedStack.Screen name="PetProfile" component={PetProfileScreen} options={{ animation: 'slide_from_right' }} />
+      <FeedStack.Screen name="ImageGallery" component={ImageGalleryScreen} options={{ animation: 'slide_from_right' }} />
+    </FeedStack.Navigator>
+  );
+};
 
 const TabNavigator = () => {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -31,7 +37,7 @@ const TabNavigator = () => {
 
   return (
     <Tab.Navigator
-      initialRouteName={isAuthenticated ? 'Feed' : 'Discover'}
+      initialRouteName={isAuthenticated ? 'PetProfiles' : 'Discover'}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: accentSet.base,
@@ -54,11 +60,11 @@ const TabNavigator = () => {
       }}>
       {isAuthenticated && (
         <Tab.Screen
-          name="Feed"
-          component={HomeScreen}
+          name="PetProfiles"
+          component={FeedStackNavigator}
           options={{
             tabBarIcon: ({ color }) => <Icon name={'home'} color={color} />,
-            title: 'Home',
+            title: 'Pets',
           }}
         />
       )}
@@ -95,27 +101,11 @@ const TabNavigator = () => {
 };
 
 export const HomeTabs = () => {
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-
   return (
     <Stack.Navigator
       initialRouteName="Tabs"
       screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Tabs" component={TabNavigator} />
-      {isAuthenticated && (
-        <Stack.Screen
-          name="PetProfile"
-          component={PetProfileScreen}
-          options={{ animation: 'slide_from_right' }}
-        />
-      )}
-      {isAuthenticated && (
-        <Stack.Screen
-          name="ImageGallery"
-          component={ImageGalleryScreen}
-          options={{ animation: 'slide_from_right' }}
-        />
-      )}
     </Stack.Navigator>
   );
 };
