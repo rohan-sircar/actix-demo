@@ -480,11 +480,11 @@ pub fn upload_pet_image(
                     pet_images::uuid.eq(new_image_uuid),
                     pet_images::pet_id.eq(pet.id.as_int()),
                     pet_images::thumbnail_key
-                        .eq(format!("pets/{}/thumbnail.webp", pet_uuid)),
+                        .eq(format!("pets/{}/{}/thumbnail.webp", pet_uuid, new_image_uuid)),
                     pet_images::medium_key
-                        .eq(format!("pets/{}/medium.webp", pet_uuid)),
+                        .eq(format!("pets/{}/{}/medium.webp", pet_uuid, new_image_uuid)),
                     pet_images::original_key
-                        .eq(format!("pets/{}/original.webp", pet_uuid)),
+                        .eq(format!("pets/{}/{}/original.webp", pet_uuid, new_image_uuid)),
                     pet_images::format.eq("webp"),
                     pet_images::is_primary.eq(is_primary),
                     pet_images::sort_order.eq(sort_order),
@@ -561,11 +561,11 @@ pub fn delete_pet_image(
     image_uuid: &uuid::Uuid,
     user_id: &UserId,
     conn: &mut DbConnection,
-) -> Result<(), DomainError> {
+) -> Result<(String, String, String), DomainError> {
     use crate::schema::pet_images::dsl as pet_images;
     use crate::schema::pets::dsl as pets;
 
-    conn.transaction::<_, DomainError, _>(|conn| {
+    let keys = conn.transaction::<_, DomainError, _>(|conn| {
         let pet = pets::pets
             .filter(pets::pet_uuid.eq(pet_uuid))
             .filter(pets::user_id.eq(user_id))
@@ -590,6 +590,10 @@ pub fn delete_pet_image(
                 ))
             })?;
 
+        let thumbnail_key = image.thumbnail_key.clone();
+        let medium_key = image.medium_key.clone();
+        let original_key = image.original_key.clone();
+
         diesel::delete(
             pet_images::pet_images.filter(pet_images::id.eq(image.id.as_int())),
         )
@@ -603,10 +607,10 @@ pub fn delete_pet_image(
         .set(pet_images::sort_order.eq(pet_images::sort_order - 1))
         .execute(conn)?;
 
-        Ok(())
+        Ok((thumbnail_key, medium_key, original_key))
     })?;
 
-    Ok(())
+    Ok(keys)
 }
 
 pub fn set_primary_image(

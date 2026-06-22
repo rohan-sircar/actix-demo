@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import {
   ActivityIndicator,
   View,
@@ -7,12 +7,13 @@ import {
   Alert,
   Modal,
   Pressable,
+  Image as RNImage,
+  ScrollView,
+  Dimensions,
 } from 'react-native';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useNavigation, useRoute } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useMutation } from '@tanstack/react-query';
+import { useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { FlashList } from '@shopify/flash-list';
 import * as ImagePicker from 'expo-image-picker';
 
 import api from '~/app/lib/api';
@@ -20,77 +21,97 @@ import { petImageApi } from '~/app/lib/api';
 import { useColorScheme } from '~/lib/useColorScheme';
 import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
 import type { PetImage } from '~/app/models/pets';
-import { TabStackParamList } from '~/types/navigation';
 import { useFocusEffect } from '@react-navigation/native';
 
-const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8800/api/v1';
+const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8800';
+const MAX_IMAGES = 10;
+const GAP = 12;
+const COLUMNS = 3;
 
-const detectMimeTypeFromUri = async (uri: string, fallback?: string): Promise<string> => {
-  if (fallback) return fallback;
+const detectMimeTypeFromUri = async (uri: string, _fallback?: string): Promise<string> => {
   const lower = uri.toLowerCase();
+  if (lower.startsWith('blob:') || lower.startsWith('data:')) {
+    if (lower.startsWith('data:')) {
+      const match = lower.match(/^data:([^;]+)/);
+      if (match) return match[1];
+    }
+    const res = await fetch(uri);
+    const buf = await res.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47) return 'image/png';
+    if (bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF) return 'image/jpeg';
+    if (bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46) return 'image/gif';
+    const str = String.fromCharCode(...bytes.slice(0, 12));
+    if (str.includes('RIFF') && str.includes('WEBP')) return 'image/webp';
+  }
   if (lower.includes('.png')) return 'image/png';
   if (lower.includes('.webp')) return 'image/webp';
   if (lower.includes('.gif')) return 'image/gif';
-  if (lower.startsWith('blob:')) {
-    const res = await fetch(uri);
-    const blob = await res.blob();
-    return blob.type || 'image/jpeg';
-  }
   return 'image/jpeg';
 };
 
 const getImageUrl = (imageUuid: string, variant: 'thumbnail' | 'medium' | 'original' = 'medium'): string => {
-  return `${API_BASE}/pets/images/${imageUuid}/${variant}`;
-};
-
-type ImageGalleryScreenRoute = {
-  params: { pet_uuid: string };
+  return `${API_BASE}/api/v1/pets/images/${imageUuid}/${variant}`;
 };
 
 export default function ImageGalleryScreen() {
   const route = useRoute<any>();
-  const navigation = useNavigation<NativeStackNavigationProp<TabStackParamList>>();
   const { pet_uuid } = route.params;
-  const queryClient = useQueryClient();
   const { colors, isDarkColorScheme } = useColorScheme();
   const { accentColor } = useAccentColor();
   const accentSet = getAccentSet(accentColor);
 
   const [editMode, setEditMode] = useState(false);
-  const [selectedImage, setSelectedImage] = useState<PetImage | null>(null);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingImage, setDeletingImage] = useState<PetImage | null>(null);
+  const [previewImage, setPreviewImage] = useState<PetImage | null>(null);
+  const [images, setImages] = useState<PetImage[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const { data: images, isLoading } = useQuery({
-    queryKey: ['pet-images', pet_uuid],
-    queryFn: async () => {
+  const imageCount = images.length;
+
+  const fetchImages = async () => {
+    try {
       const res = await api.get<PetImage[]>(`/api/v1/private/user/pets/${pet_uuid}/images`);
-      return res.data.sort((a, b) => a.sort_order - b.sort_order);
-    },
-  });
+      setImages(res.data.sort((a, b) => a.sort_order - b.sort_order));
+    } catch (err) {
+      console.error('[Gallery] Failed to fetch images:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  const screenWidth = Math.min(Dimensions.get('window').width, 600);
+  const padding = 16;
+  const cellSize = (screenWidth - padding * 2 - GAP * (COLUMNS - 1)) / COLUMNS;
 
   const setPrimaryMutation = useMutation({
     mutationFn: (imageUuid: string) => petImageApi.setPrimary(pet_uuid, imageUuid),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pet-images', pet_uuid] });
-      queryClient.invalidateQueries({ queryKey: ['pet', pet_uuid] });
+      fetchImages();
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: (imageUuid: string) => petImageApi.remove(pet_uuid, imageUuid),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pet-images', pet_uuid] });
-      queryClient.invalidateQueries({ queryKey: ['pet', pet_uuid] });
+      fetchImages();
     },
   });
 
+  useEffect(() => {
+    fetchImages();
+  }, [pet_uuid]);
+
   useFocusEffect(
     useCallback(() => {
-      queryClient.invalidateQueries({ queryKey: ['pet-images', pet_uuid] });
-    }, [queryClient, pet_uuid])
+      fetchImages();
+    }, [pet_uuid])
   );
 
   const handlePickImage = async () => {
+    if (imageCount >= MAX_IMAGES) {
+      Alert.alert('Limit Reached', `You can upload up to ${MAX_IMAGES} images.`);
+      return;
+    }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
@@ -102,43 +123,13 @@ export default function ImageGalleryScreen() {
       try {
         const uri = result.assets[0].uri;
         const mimeType = await detectMimeTypeFromUri(uri, result.assets[0].type);
-        console.log('[ImageGallery] Uploading image:', uri, mimeType);
         await petImageApi.upload(pet_uuid, uri, mimeType);
-        queryClient.invalidateQueries({ queryKey: ['pet-images', pet_uuid] });
+        fetchImages();
       } catch (err) {
         console.error('[ImageGallery] Image upload failed:', err);
         Alert.alert('Error', 'Failed to upload image.');
       }
     }
-  };
-
-  const handleSetPrimary = (image: PetImage) => {
-    if (editMode) return;
-    setPrimaryMutation.mutate(image.uuid);
-    setSelectedImage(null);
-  };
-
-  const handleDelete = () => {
-    if (selectedImage) {
-      setShowDeleteConfirm(true);
-    }
-  };
-
-  const confirmDelete = () => {
-    if (selectedImage) {
-      deleteMutation.mutate(selectedImage.uuid);
-      setShowDeleteConfirm(false);
-      setSelectedImage(null);
-    }
-  };
-
-  const handleReorder = (fromIndex: number, toIndex: number) => {
-    if (!images) return;
-    const updated = [...images];
-    const [moved] = updated.splice(fromIndex, 1);
-    updated.splice(toIndex, 0, moved);
-    const reordered = updated.map((img, idx) => ({ ...img, sort_order: idx }));
-    queryClient.setQueryData(['pet-images', pet_uuid], reordered);
   };
 
   if (isLoading) {
@@ -149,95 +140,194 @@ export default function ImageGalleryScreen() {
     );
   }
 
+  const imageRows: PetImage[][] = [];
+  (images ?? []).forEach((img, i) => {
+    const rowIdx = Math.floor(i / COLUMNS);
+    if (!imageRows[rowIdx]) imageRows[rowIdx] = [];
+    imageRows[rowIdx].push(img);
+  });
+
   return (
     <View className="flex-1">
-      <FlashList
-        data={images}
-        renderItem={({ item, index }) => (
+      <ScrollView contentContainerStyle={{ alignItems: 'center', padding, paddingBottom: 40, maxWidth: screenWidth }}>
+        {/* Toolbar */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 12 }}>
           <TouchableOpacity
-            onPress={() => setSelectedImage(selectedImage?.uuid === item.uuid ? null : item)}
-            className="relative m-1.5 h-[100px] w-[calc(33.33%-8px)] overflow-hidden rounded-xl"
-            style={{ borderWidth: item.is_primary && !editMode ? 2 : 0, borderColor: accentSet.base }}>
-            <Ionicons
-              name={getImageUrl(item.uuid).includes('thumbnail') ? 'image' : 'image'}
-              size={24}
-              color="#999"
-            />
-            {item.is_primary && !editMode && (
-              <View className="absolute right-1 top-1 rounded-full px-1.5 py-0.5" style={{ backgroundColor: accentSet.base }}>
-                <Ionicons name="checkmark" size={12} color="#fff" />
-              </View>
-            )}
-            {editMode && (
-              <>
-                <TouchableOpacity
-                  onPress={() => {
-                    setSelectedImage(item);
-                    setShowDeleteConfirm(true);
-                  }}
-                  className="absolute bottom-1 right-1 rounded-full p-1"
-                  style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-                  <Ionicons name="trash" size={14} color="#fff" />
-                </TouchableOpacity>
-                <View className="absolute left-1 top-1 rounded-full bg-black/50 p-1">
-                  <Ionicons name="menu" size={14} color="#fff" />
-                </View>
-              </>
-            )}
+            onPress={() => setEditMode(!editMode)}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 4,
+              backgroundColor: editMode ? accentSet.base : accentSet.bgSubtle,
+              paddingHorizontal: 10,
+              paddingVertical: 6,
+              borderRadius: 6,
+            }}>
+            <Ionicons name={editMode ? 'checkmark' : 'pencil'} size={16} color={editMode ? '#fff' : accentSet.base} />
+            <Text style={{ fontSize: 13, fontWeight: '600', color: editMode ? '#fff' : accentSet.base }}>
+              {editMode ? 'Done' : 'Edit'}
+            </Text>
           </TouchableOpacity>
-        )}
-        keyExtractor={(item) => item.uuid}
-        numColumns={3}
-        estimatedItemSize={110}
-        contentContainerStyle={{ paddingHorizontal: 4, paddingTop: 8, paddingBottom: 30 }}
-        ListHeaderComponent={
-          <View className="px-4 pt-2">
-            <View className="mb-3 flex-row items-center justify-between">
-              <TouchableOpacity
-                onPress={() => setEditMode(!editMode)}
-                className="flex-row items-center gap-1"
-                style={{ backgroundColor: editMode ? accentSet.base : accentSet.bgSubtle, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6 }}>
-                <Ionicons name={editMode ? 'checkmark' : 'shuffle'} size={16} color={editMode ? '#fff' : accentSet.base} />
-                <Text className="text-sm font-semibold" style={{ color: editMode ? '#fff' : accentSet.base }}>
-                  {editMode ? 'Done' : 'Edit'}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={handlePickImage}
-                className="flex-row items-center gap-1"
-                style={{ backgroundColor: accentSet.bgSubtle, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6 }}>
-                <Ionicons name="add" size={16} color={accentSet.base} />
-                <Text className="text-sm font-semibold" style={{ color: accentSet.base }}>
-                  Add
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        }
-      />
+          <TouchableOpacity
+            onPress={handlePickImage}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 4,
+              backgroundColor: accentSet.bgSubtle,
+              paddingHorizontal: 10,
+              paddingVertical: 6,
+              borderRadius: 6,
+            }}>
+            <Ionicons name="add" size={16} color={accentSet.base} />
+            <Text style={{ fontSize: 13, fontWeight: '600', color: accentSet.base }}>
+              Add ({imageCount}/{MAX_IMAGES})
+            </Text>
+          </TouchableOpacity>
+        </View>
 
-      <Modal visible={showDeleteConfirm} transparent animationType="fade">
-        <Pressable className="flex-1 items-center justify-center bg-black/50" onPress={() => setShowDeleteConfirm(false)}>
-          <View className="w-[80%] rounded-2xl p-6" style={{ backgroundColor: colors.card }}>
-            <Text className="mb-2 text-lg font-bold" style={{ color: colors.text }}>
+        {/* Grid */}
+        {imageRows.length === 0 ? (
+          <View style={{ alignItems: 'center', paddingVertical: 60 }}>
+            <Ionicons name="images-outline" size={48} color={colors.grey} />
+            <Text style={{ marginTop: 12, fontSize: 15, fontWeight: '500', color: colors.grey }}>
+              No photos yet
+            </Text>
+            <Text style={{ marginTop: 4, fontSize: 13, color: colors.grey }}>
+              Tap + Add to upload photos
+            </Text>
+          </View>
+        ) : (
+          imageRows.map((row, rowIdx) => (
+            <View key={rowIdx} style={{ flexDirection: 'row', marginBottom: GAP, gap: GAP }}>
+              {row.map((image) => (
+                <TouchableOpacity
+                  key={image.uuid}
+                  onPress={() => {
+                    if (!editMode) {
+                      setPreviewImage(image);
+                    }
+                  }}
+                  activeOpacity={0.7}
+                  style={{
+                    width: cellSize,
+                    height: cellSize,
+                    borderRadius: 12,
+                    overflow: 'hidden',
+                    borderWidth: image.is_primary && !editMode ? 2 : 0,
+                    borderColor: image.is_primary && !editMode ? accentSet.base : 'transparent',
+                    backgroundColor: colors.grey + '33',
+                  }}>
+                  <RNImage
+                    source={{ uri: getImageUrl(image.uuid, 'thumbnail') }}
+                    style={{ width: '100%', height: '100%' }}
+                    resizeMode="cover"
+                  />
+                  {image.is_primary && !editMode && (
+                    <View
+                      style={{
+                        position: 'absolute',
+                        top: 4,
+                        left: 4,
+                        backgroundColor: accentSet.base,
+                        borderRadius: 10,
+                        paddingHorizontal: 6,
+                        paddingVertical: 2,
+                        alignItems: 'center',
+                      }}>
+                      <Ionicons name="checkmark" size={12} color="#fff" />
+                    </View>
+                  )}
+                  {editMode && (
+                    <TouchableOpacity
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        setDeletingImage(image);
+                      }}
+                      style={{
+                        position: 'absolute',
+                        bottom: 4,
+                        right: 4,
+                        backgroundColor: 'rgba(0,0,0,0.6)',
+                        borderRadius: 12,
+                        padding: 4,
+                      }}>
+                      <Ionicons name="trash" size={14} color="#fff" />
+                    </TouchableOpacity>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          ))
+        )}
+      </ScrollView>
+
+      {/* Preview Modal */}
+      <Modal visible={previewImage !== null} transparent animationType="fade">
+        <Pressable className="flex-1 items-center justify-center bg-black/80" onPress={() => setPreviewImage(null)}>
+          <View style={{ width: '85%', maxWidth: 400, borderRadius: 16, overflow: 'hidden', backgroundColor: colors.card }}>
+            <RNImage
+              source={{ uri: previewImage ? getImageUrl(previewImage.uuid, 'medium') : '' }}
+              style={{ width: '100%', aspectRatio: 1 }}
+              resizeMode="cover"
+            />
+            {previewImage && !previewImage.is_primary && !editMode && (
+              <TouchableOpacity
+                onPress={() => {
+                  setPrimaryMutation.mutate(previewImage.uuid);
+                  setPreviewImage(null);
+                }}
+                style={{
+                  alignItems: 'center',
+                  paddingVertical: 14,
+                  backgroundColor: accentSet.base,
+                }}>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: '#fff' }}>
+                  Set as Primary Photo
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal visible={deletingImage !== null} transparent animationType="fade">
+        <Pressable className="flex-1 items-center justify-center bg-black/50" onPress={() => setDeletingImage(null)}>
+          <View style={{ width: '80%', borderRadius: 16, padding: 24, backgroundColor: colors.card }}>
+            <Text style={{ fontSize: 17, fontWeight: '700', color: colors.text, marginBottom: 8 }}>
               Delete Photo?
             </Text>
-            <Text className="mb-6 text-sm" style={{ color: colors.grey }}>
+            <Text style={{ fontSize: 13, color: colors.grey, marginBottom: 20 }}>
               This photo will be permanently removed.
             </Text>
-            <View className="flex-row gap-3">
+            <View style={{ flexDirection: 'row', gap: 12 }}>
               <TouchableOpacity
-                onPress={() => setShowDeleteConfirm(false)}
-                className="flex-1 items-center rounded-xl py-3"
-                style={{ backgroundColor: isDarkColorScheme ? '#3d2a22' : '#f0e0d8' }}>
-                <Text className="font-semibold" style={{ color: colors.text }}>
-                  Cancel
-                </Text>
+                onPress={() => setDeletingImage(null)}
+                style={{
+                  flex: 1,
+                  alignItems: 'center',
+                  borderRadius: 12,
+                  paddingVertical: 12,
+                  backgroundColor: isDarkColorScheme ? '#3d2a22' : '#f0e0d8',
+                }}>
+                <Text style={{ fontWeight: '600', color: colors.text }}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                onPress={confirmDelete}
-                className="flex-1 items-center rounded-xl py-3 bg-rose-500">
-                <Text className="font-semibold text-white">
+                onPress={() => {
+                  if (deletingImage) {
+                    deleteMutation.mutate(deletingImage.uuid);
+                    setDeletingImage(null);
+                  }
+                }}
+                style={{
+                  flex: 1,
+                  alignItems: 'center',
+                  borderRadius: 12,
+                  paddingVertical: 12,
+                  backgroundColor: '#f43f5e',
+                }}>
+                <Text style={{ fontWeight: '600', color: '#fff' }}>
                   {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
                 </Text>
               </TouchableOpacity>

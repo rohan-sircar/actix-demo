@@ -15,19 +15,27 @@ import type { Pet, PetImage } from '~/app/models/pets';
 import { TabStackParamList } from '~/types/navigation';
 import { useFocusEffect } from '@react-navigation/native';
 
-const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8800/api/v1';
+const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8800';
 
-const detectMimeTypeFromUri = async (uri: string, fallback?: string): Promise<string> => {
-  if (fallback) return fallback;
+const detectMimeTypeFromUri = async (uri: string, _fallback?: string): Promise<string> => {
   const lower = uri.toLowerCase();
+  if (lower.startsWith('blob:') || lower.startsWith('data:')) {
+    if (lower.startsWith('data:')) {
+      const match = lower.match(/^data:([^;]+)/);
+      if (match) return match[1];
+    }
+    const res = await fetch(uri);
+    const buf = await res.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47) return 'image/png';
+    if (bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF) return 'image/jpeg';
+    if (bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46) return 'image/gif';
+    const str = String.fromCharCode(...bytes.slice(0, 12));
+    if (str.includes('RIFF') && str.includes('WEBP')) return 'image/webp';
+  }
   if (lower.includes('.png')) return 'image/png';
   if (lower.includes('.webp')) return 'image/webp';
   if (lower.includes('.gif')) return 'image/gif';
-  if (lower.startsWith('blob:')) {
-    const res = await fetch(uri);
-    const blob = await res.blob();
-    return blob.type || 'image/jpeg';
-  }
   return 'image/jpeg';
 };
 
