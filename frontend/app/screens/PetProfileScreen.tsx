@@ -92,12 +92,12 @@ export default function PetProfileScreen({ route }: PetProfileScreenProps) {
   useLayoutEffect(() => {
     navigation.setOptions({
       headerShown: true,
-      headerTitle: pet?.name || 'Pet Profile',
+      headerTitle: 'Pet Profile',
       headerBackVisible: false,
       headerLeft: () => (
         <TouchableOpacity
           onPress={() => navigation.goBack()}
-          style={{ padding: 8, marginRight: 40 }}>
+          style={{ padding: 8 }}>
           <Ionicons name="arrow-back" size={22} color={colors.text} />
         </TouchableOpacity>
       ),
@@ -177,15 +177,16 @@ export default function PetProfileScreen({ route }: PetProfileScreenProps) {
 
   return (
     <ScrollView className="flex-1">
-      <View className="items-center pt-6 pb-4">
+      {/* Profile Header Card */}
+      <View className="items-center pt-6 pb-6">
         <View className="relative">
           {imageUrl ? (
             <RNImage
               source={{ uri: imageUrl }}
               style={{
-                width: 180,
-                height: 180,
-                borderRadius: 90,
+                width: 160,
+                height: 160,
+                borderRadius: 80,
                 marginBottom: 16,
               }}
               resizeMode="cover"
@@ -194,61 +195,77 @@ export default function PetProfileScreen({ route }: PetProfileScreenProps) {
             <View
               className="mb-4 items-center justify-center rounded-full"
               style={{
-                width: 180,
-                height: 180,
+                width: 160,
+                height: 160,
                 backgroundColor: `${accentSet.bgSubtle}90`,
               }}>
-              <Ionicons name={getSpeciesIcon(pet.species)} size={72} color={accentSet.base} />
+              <Ionicons name={getSpeciesIcon(pet.species)} size={64} color={accentSet.base} />
             </View>
           )}
 
-          <TouchableOpacity
-            onPress={handlePickImage}
-            className="absolute -bottom-1 -right-1 items-center justify-center rounded-full"
-            style={{ width: 36, height: 36, backgroundColor: accentSet.base }}>
-            <Ionicons name="add" size={20} color="#fff" />
-          </TouchableOpacity>
         </View>
 
-        <View className="flex-row items-center justify-between">
-          <Text className="text-2xl font-bold" style={{ color: colors.text }}>
-            {pet.name}
-          </Text>
-          <TouchableOpacity
-            onPress={() => navigation.navigate('EditPet', { pet_uuid })}
-            className="items-center justify-center rounded-full"
-            style={{ width: 36, height: 36, backgroundColor: accentSet.bgSubtle }}>
-            <Ionicons name="pencil" size={18} color={accentSet.base} />
-          </TouchableOpacity>
-        </View>
-
-        <Text className="mt-1 text-base font-medium" style={{ color: secondaryColor }}>
+        <Text className="text-3xl font-bold" style={{ color: colors.text }}>
+          {pet.name}
+        </Text>
+        <Text className="mt-1 text-base" style={{ color: secondaryColor }}>
           {pet.species}
           {pet.breed ? ` · ${pet.breed}` : ''}
         </Text>
 
-        <TouchableOpacity
-          onPress={() => navigation.navigate('ImageGallery', { pet_uuid })}
-          className="mt-3 flex-row items-center gap-1.5"
-          style={{ backgroundColor: accentSet.bgSubtle, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 }}>
-          <Ionicons name="images" size={16} color={accentSet.base} />
-          <Text className="text-sm font-semibold" style={{ color: accentSet.base }}>
-            Manage Photos
-          </Text>
-        </TouchableOpacity>
+        {/* Action Buttons */}
+        <View className="mt-5 flex-row w-full px-8">
+          <TouchableOpacity
+            onPress={() => navigation.navigate('EditPet', { pet_uuid })}
+            className="flex-1 items-center justify-center rounded-2xl"
+            style={{ backgroundColor: accentSet.base, paddingVertical: 12, shadowColor: accentSet.base, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 4, elevation: 4 }}>
+            <Ionicons name="pencil" size={18} color="#fff" />
+            <Text className="mt-1 text-sm font-semibold text-white">
+              Edit
+            </Text>
+          </TouchableOpacity>
+          <View className="w-4" />
+          <TouchableOpacity
+            onPress={() => navigation.navigate('ImageGallery', { pet_uuid })}
+            className="flex-1 items-center justify-center rounded-2xl"
+            style={{ backgroundColor: accentSet.bgSubtle, paddingVertical: 12 }}>
+            <Ionicons name="images" size={18} color={accentSet.base} />
+            <Text className="mt-1 text-sm font-semibold" style={{ color: accentSet.base }}>
+              Manage Photos
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
-      <View className="mx-4 gap-4 pb-8">
+      {/* About */}
+      {pet.description && (
+        <View className="mx-4 mb-4">
+          <View
+            className="rounded-2xl px-5 py-4"
+            style={Style.cardStyle(isDarkColorScheme, colors, accentSet)}>
+            <Text className="mb-2 text-sm font-bold uppercase tracking-wider" style={{ color: secondaryColor }}>
+              About
+            </Text>
+            <Text className="text-sm leading-relaxed" style={{ color: colors.text }}>
+              {pet.description}
+            </Text>
+          </View>
+        </View>
+      )}
+
+
+      {/* Details Section */}
+      <View className="mx-4 mb-4">
         <View
-          className="rounded-2xl px-4 py-3"
+          className="rounded-2xl px-5 py-4"
           style={Style.cardStyle(isDarkColorScheme, colors, accentSet)}>
-          <Text className="mb-2 text-sm font-semibold uppercase tracking-wide" style={{ color: secondaryColor }}>
+          <Text className="mb-3 text-sm font-bold uppercase tracking-wider" style={{ color: secondaryColor }}>
             Details
           </Text>
 
           <View className="flex-row flex-wrap gap-2">
             {pet.gender && (
-              <View className="flex-row items-center gap-1.5 rounded-full px-3 py-1.5" style={{ backgroundColor: badgeBg }}>
+              <View className="flex-row items-center gap-1.5 rounded-full px-3.5 py-2" style={{ backgroundColor: badgeBg }}>
                 <Ionicons
                   name={pet.gender.toLowerCase() === 'male' ? 'male' : 'female'}
                   size={16}
@@ -261,7 +278,8 @@ export default function PetProfileScreen({ route }: PetProfileScreenProps) {
             )}
 
             {pet.date_of_birth && (
-              <View className="rounded-full px-3 py-1.5" style={{ backgroundColor: badgeBg }}>
+              <View className="flex-row items-center gap-1.5 rounded-full px-3.5 py-2" style={{ backgroundColor: badgeBg }}>
+                <Ionicons name="calendar" size={16} color={badgeColor} />
                 <Text className="text-sm font-semibold" style={{ color: badgeColor }}>
                   {getAgeFromDob(pet.date_of_birth)} old
                 </Text>
@@ -269,7 +287,8 @@ export default function PetProfileScreen({ route }: PetProfileScreenProps) {
             )}
 
             {pet.weight && (
-              <View className="rounded-full px-3 py-1.5" style={{ backgroundColor: badgeBg }}>
+              <View className="flex-row items-center gap-1.5 rounded-full px-3.5 py-2" style={{ backgroundColor: badgeBg }}>
+                <Ionicons name="scale" size={16} color={badgeColor} />
                 <Text className="text-sm font-semibold" style={{ color: badgeColor }}>
                   {pet.weight} kg
                 </Text>
@@ -277,43 +296,36 @@ export default function PetProfileScreen({ route }: PetProfileScreenProps) {
             )}
           </View>
         </View>
+      </View>
 
-        {pet.color_markings && (
+      {/* Color & Markings */}
+      {pet.color_markings && (
+        <View className="mx-4 mb-4">
           <View
-            className="rounded-2xl px-4 py-3"
+            className="rounded-2xl px-5 py-4"
             style={Style.cardStyle(isDarkColorScheme, colors, accentSet)}>
-            <Text className="mb-1.5 text-sm font-semibold uppercase tracking-wide" style={{ color: secondaryColor }}>
+            <Text className="mb-2 text-sm font-bold uppercase tracking-wider" style={{ color: secondaryColor }}>
               Color & Markings
             </Text>
             <Text className="text-sm leading-relaxed" style={{ color: colors.text }}>
               {pet.color_markings}
             </Text>
           </View>
-        )}
+        </View>
+      )}
 
-        {pet.description && (
+      {/* Traits */}
+      {pet.traits && pet.traits.length > 0 && (
+        <View className="mx-4 mb-8">
           <View
-            className="rounded-2xl px-4 py-3"
+            className="rounded-2xl px-5 py-4"
             style={Style.cardStyle(isDarkColorScheme, colors, accentSet)}>
-            <Text className="mb-1.5 text-sm font-semibold uppercase tracking-wide" style={{ color: secondaryColor }}>
-              About
-            </Text>
-            <Text className="text-sm leading-relaxed" style={{ color: colors.text }}>
-              {pet.description}
-            </Text>
-          </View>
-        )}
-
-        {pet.traits && pet.traits.length > 0 && (
-          <View
-            className="rounded-2xl px-4 py-3"
-            style={Style.cardStyle(isDarkColorScheme, colors, accentSet)}>
-            <Text className="mb-2 text-sm font-semibold uppercase tracking-wide" style={{ color: secondaryColor }}>
+            <Text className="mb-3 text-sm font-bold uppercase tracking-wider" style={{ color: secondaryColor }}>
               Traits
             </Text>
             <View className="flex-row flex-wrap gap-2">
               {pet.traits.map((trait) => (
-                <View key={trait} className="rounded-full px-3 py-1.5" style={{ backgroundColor: badgeBg }}>
+                <View key={trait} className="rounded-full px-3.5 py-2" style={{ backgroundColor: badgeBg }}>
                   <Text className="text-sm font-semibold" style={{ color: badgeColor }}>
                     {trait}
                   </Text>
@@ -321,8 +333,8 @@ export default function PetProfileScreen({ route }: PetProfileScreenProps) {
               ))}
             </View>
           </View>
-        )}
-      </View>
+        </View>
+      )}
     </ScrollView>
   );
 }
