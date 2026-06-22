@@ -1,4 +1,3 @@
-import { FlashList } from '@shopify/flash-list';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import React, { useCallback, useState } from 'react';
 import {
@@ -458,10 +457,19 @@ const Home = () => {
       </View>
 
       {pets && pets.length > 0 ? (
-        <FlashList
-          data={pets}
-          renderItem={({ item }) => (
+        <ScrollView
+          contentContainerStyle={{
+            paddingHorizontal: 16,
+            paddingTop: 8,
+            paddingBottom: 30,
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            gap: 12,
+            justifyContent: 'space-between',
+          }}>
+          {pets.map((item) => (
             <PetCard
+              key={item.pet_uuid}
               pet_uuid={item.pet_uuid}
               name={item.name}
               species={item.species}
@@ -471,13 +479,12 @@ const Home = () => {
               weight={item.weight}
               description={item.description}
               traits={item.traits}
+              primary_image={item.primary_image}
               onDelete={(uuid) => handleDelete(uuid, item.name)}
               onPress={() => navigation.navigate('PetProfile', { pet_uuid: item.pet_uuid })}
             />
-          )}
-          estimatedItemSize={150}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 30 }}
-        />
+          ))}
+        </ScrollView>
       ) : (
         <View className="flex-1 items-center justify-center px-8">
           <View

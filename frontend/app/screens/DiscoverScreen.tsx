@@ -74,7 +74,14 @@ const DiscoverScreen = () => {
 
       <ScrollView
         className="flex-1"
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 30 }}>
+        contentContainerStyle={{
+          paddingHorizontal: 16,
+          paddingBottom: 30,
+          flexDirection: 'row',
+          flexWrap: 'wrap',
+          gap: 12,
+          justifyContent: 'space-between',
+        }}>
         {filteredPets.length > 0 ? (
           filteredPets.map((pet) => (
             <PetCard
