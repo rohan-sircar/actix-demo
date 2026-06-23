@@ -9,8 +9,9 @@ import { Slot, usePathname, useSegments } from 'expo-router';
 import 'expo-dev-client';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect } from 'react';
-import { Platform, SafeAreaView, Text, View } from 'react-native';
+import { Platform, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import '../global.css';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -96,61 +97,64 @@ export default function RootLayout() {
   }
 
   return (
-    <>
-      <StatusBar
-        key={`root-status-bar-${isDarkColorScheme ? 'light' : 'dark'}`}
-        style={isDarkColorScheme ? 'light' : 'dark'}
-      />
-      {!isStandaloneRoute ? (
-        <GestureHandlerRootView style={{ flex: 1 }}>
-          <BottomSheetModalProvider>
-            <ActionSheetProvider>
-              <NavThemeProvider value={NAV_THEME[colorScheme]}>
-                <QueryClientProvider client={queryClient}>
-                  <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
-                    <View className="mx-auto w-full max-w-[800px] flex-1">
-                        <Stack.Navigator>
-                          <Stack.Screen
-                            name="HomeTabs"
-                            component={HomeTabs}
-                            options={{
-                              headerShown: true,
-                              headerTitle: HeaderBranding,
-                              headerRight: HeaderRightContent,
-                            }}
-                          />
-                          <Stack.Screen
-                            name="AuthStack"
-                            component={AuthStack}
-                            options={{
-                              headerShown: false,
-                            }}
-                          />
-                      </Stack.Navigator>
+    <SafeAreaProvider>
+      <>
+        <StatusBar
+          key={`root-status-bar-${isDarkColorScheme ? 'light' : 'dark'}`}
+          style={isDarkColorScheme ? 'light' : 'dark'}
+        />
+        {!isStandaloneRoute ? (
+          <GestureHandlerRootView style={{ flex: 1 }}>
+            <BottomSheetModalProvider>
+              <ActionSheetProvider>
+                <NavThemeProvider value={NAV_THEME[colorScheme]}>
+                  <QueryClientProvider client={queryClient}>
+                    <View className="flex-1" style={{ backgroundColor: colors.background }}>
+                      <View className="mx-auto w-full max-w-[800px] flex-1">
+                          <Stack.Navigator>
+                            <Stack.Screen
+                              name="HomeTabs"
+                              component={HomeTabs}
+                              options={{
+                                headerShown: true,
+                                headerTitle: HeaderBranding,
+                                headerRight: HeaderRightContent,
+                                contentStyle: { paddingBottom: 0 },
+                              }}
+                            />
+                            <Stack.Screen
+                              name="AuthStack"
+                              component={AuthStack}
+                              options={{
+                                headerShown: false,
+                              }}
+                            />
+                        </Stack.Navigator>
+                      </View>
                     </View>
-                  </SafeAreaView>
-                </QueryClientProvider>
-              </NavThemeProvider>
-            </ActionSheetProvider>
-          </BottomSheetModalProvider>
-        </GestureHandlerRootView>
-      ) : (
-        <GestureHandlerRootView style={{ flex: 1 }}>
-          <BottomSheetModalProvider>
-            <ActionSheetProvider>
-              <NavThemeProvider value={NAV_THEME[colorScheme]}>
-                <QueryClientProvider client={queryClient}>
-                  <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
-                    <View className="mx-auto w-full max-w-[800px] flex-1">
-                      <Slot />
+                  </QueryClientProvider>
+                </NavThemeProvider>
+              </ActionSheetProvider>
+            </BottomSheetModalProvider>
+          </GestureHandlerRootView>
+        ) : (
+          <GestureHandlerRootView style={{ flex: 1 }}>
+            <BottomSheetModalProvider>
+              <ActionSheetProvider>
+                <NavThemeProvider value={NAV_THEME[colorScheme]}>
+                  <QueryClientProvider client={queryClient}>
+                    <View className="flex-1" style={{ backgroundColor: colors.background }}>
+                      <View className="mx-auto w-full max-w-[800px] flex-1">
+                        <Slot />
+                      </View>
                     </View>
-                  </SafeAreaView>
-                </QueryClientProvider>
-              </NavThemeProvider>
-            </ActionSheetProvider>
-          </BottomSheetModalProvider>
-        </GestureHandlerRootView>
-      )}
-    </>
+                  </QueryClientProvider>
+                </NavThemeProvider>
+              </ActionSheetProvider>
+            </BottomSheetModalProvider>
+          </GestureHandlerRootView>
+        )}
+      </>
+    </SafeAreaProvider>
   );
 }
