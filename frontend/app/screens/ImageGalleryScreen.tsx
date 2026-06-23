@@ -151,7 +151,7 @@ export default function ImageGalleryScreen() {
       setIsUploading(true);
       try {
         const uri = result.assets[0].uri;
-        const mimeType = await detectMimeTypeFromUri(uri, result.assets[0].type);
+        const mimeType = await detectMimeTypeFromUri(uri, result.assets[0].type ?? undefined);
         await petImageApi.upload(pet_uuid, uri, mimeType);
         fetchImages();
       } catch (err) {

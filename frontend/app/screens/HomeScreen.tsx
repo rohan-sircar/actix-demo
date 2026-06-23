@@ -14,7 +14,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useActionSheet } from '@expo/react-native-action-sheet';
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { petImageApi } from '~/app/lib/api';
 import api from '~/app/lib/api';
 import PetCard from '~/app/components/PetCard';

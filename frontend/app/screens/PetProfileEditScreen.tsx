@@ -130,7 +130,7 @@ export default function PetProfileEditScreen({ route }: PetProfileEditScreenProp
     if (!result.canceled && result.assets[0] && pet) {
       try {
         const uri = result.assets[0].uri;
-        const mimeType = await detectMimeTypeFromUri(uri, result.assets[0].type);
+        const mimeType = await detectMimeTypeFromUri(uri, result.assets[0].type ?? undefined);
         console.log('[PetProfile] Uploading image:', uri, mimeType);
         await petImageApi.upload(pet.pet_uuid, uri, mimeType);
         fetchPet();

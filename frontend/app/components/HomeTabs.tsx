@@ -3,6 +3,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Icon } from '@roninoss/icons';
 import React from 'react';
+import { Platform } from 'react-native';
 import { TabButton } from '~/components/TabButton';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColorScheme } from '~/lib/useColorScheme';
@@ -141,12 +142,6 @@ export const HomeTabs = () => {
   return <TabNavigator />;
 };
 
-const isWebPlatform = () => {
-  try {
-    return typeof window !== 'undefined';
-  } catch {
-    return false;
-  }
-};
+const isWebPlatform = () => Platform.OS === 'web';
 
 export default HomeTabs;
