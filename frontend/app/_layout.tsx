@@ -10,13 +10,13 @@ import { Slot, usePathname, useSegments } from 'expo-router';
 import 'expo-dev-client';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect } from 'react';
-import { Platform, Pressable, SafeAreaView, View } from 'react-native';
+import { Platform, Pressable, SafeAreaView, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import '../global.css';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import ThemeToggle from '~/components/ThemeToggle';
-import { useAccentColor } from '~/lib/useAccentColor';
+import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
 import { useColorScheme, useInitialAndroidBarSync } from '~/lib/useColorScheme';
 import { useResponsiveLayout } from '~/lib/useResponsiveLayout';
 import { NAV_THEME } from '~/theme';
@@ -28,6 +28,24 @@ import { NAVIGATION_CONFIG } from '~/types/navigation';
 import AuthStack from './components/AuthStack';
 import HomeTabs from './components/HomeTabs';
 import { SettingsIcon } from './components/SettingsIcon';
+
+const HeaderBranding = () => {
+  const { colors } = useColorScheme();
+  const { accentColor } = useAccentColor();
+  const accentSet = getAccentSet(accentColor);
+  return (
+    <View className="flex-row items-center gap-2">
+      <View
+        className="items-center justify-center rounded-full"
+        style={{ width: 28, height: 28, backgroundColor: accentSet.bgSubtle }}>
+        <FontAwesome name="paw" size={14} color={accentSet.base} />
+      </View>
+      <Text style={{ color: colors.text, fontSize: 18, fontWeight: 'bold' }}>
+        PetMatch
+      </Text>
+    </View>
+  );
+};
 import ControlsScreen from './screens/ControlsScreen';
 import MenuScreen from './screens/MenuScreen';
 import { useAuthStore } from './stores/AuthStore';
@@ -96,7 +114,7 @@ export default function RootLayout() {
                           name={NAVIGATION_CONFIG.Home.name}
                           component={HomeTabs}
                           options={{
-                            title: NAVIGATION_CONFIG.Home.title,
+                            headerTitle: HeaderBranding,
                           }}
                         />
                         <Drawer.Screen

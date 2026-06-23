@@ -75,33 +75,6 @@ const MenuScreen = () => {
   return (
     <View style={{ backgroundColor: colors.background, flex: 1, paddingTop: insets.top }}>
       <View style={{ flex: 1 }}>
-        {/* Branding (desktop web sidebar) */}
-        {!showBackButton && (
-          <View style={{ padding: 20, paddingBottom: 12 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              <View
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 18,
-                  backgroundColor: accentSet.bgSubtle,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}>
-                <FontAwesome name="paw" size={16} color={accentSet.base} />
-              </View>
-              <Text
-                style={{
-                  color: colors.foreground,
-                  fontSize: 22,
-                  fontWeight: 'bold',
-                }}>
-                PetMatch
-              </Text>
-            </View>
-          </View>
-        )}
-
         {/* Title (sliding drawer) */}
         {showBackButton && (
           <View
