@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect, useLayoutEffect } from 'react';
+import React, { useCallback, useState, useEffect, useLayoutEffect, useRef } from 'react';
 import {
   ActivityIndicator,
   View,
@@ -9,7 +9,6 @@ import {
   Pressable,
   Image as RNImage,
   ScrollView,
-  Dimensions,
 } from 'react-native';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -83,8 +82,14 @@ export default function ImageGalleryScreen() {
   const [previewImage, setPreviewImage] = useState<PetImage | null>(null);
   const [images, setImages] = useState<PetImage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isUploading, setIsUploading] = useState(false);
+  const contentRef = useRef<View>(null);
+  const [layoutWidth, setLayoutWidth] = useState(0);
 
   const imageCount = images.length;
+  const padding = 12;
+  const availableWidth = Math.max(layoutWidth, 300);
+  const cellSize = (availableWidth - padding * 2 - GAP * (COLUMNS - 1)) / COLUMNS;
 
   const fetchImages = async () => {
     try {
@@ -96,9 +101,6 @@ export default function ImageGalleryScreen() {
       setIsLoading(false);
     }
   };
-  const screenWidth = Math.min(Dimensions.get('window').width, 600);
-  const padding = 16;
-  const cellSize = (screenWidth - padding * 2 - GAP * (COLUMNS - 1)) / COLUMNS;
 
   const setPrimaryMutation = useMutation({
     mutationFn: (imageUuid: string) => petImageApi.setPrimary(pet_uuid, imageUuid),
@@ -137,6 +139,7 @@ export default function ImageGalleryScreen() {
     });
 
     if (!result.canceled && result.assets[0]) {
+      setIsUploading(true);
       try {
         const uri = result.assets[0].uri;
         const mimeType = await detectMimeTypeFromUri(uri, result.assets[0].type);
@@ -145,6 +148,8 @@ export default function ImageGalleryScreen() {
       } catch (err) {
         console.error('[ImageGallery] Image upload failed:', err);
         Alert.alert('Error', 'Failed to upload image.');
+      } finally {
+        setIsUploading(false);
       }
     }
   };
@@ -166,7 +171,7 @@ export default function ImageGalleryScreen() {
 
   return (
     <View className="flex-1">
-      <ScrollView contentContainerStyle={{ alignItems: 'center', padding, paddingBottom: 40, maxWidth: screenWidth }}>
+      <ScrollView contentContainerStyle={{ alignItems: 'center', paddingVertical: padding, paddingBottom: 40 }}>
         {/* Toolbar */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 12 }}>
           <TouchableOpacity
@@ -187,6 +192,7 @@ export default function ImageGalleryScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             onPress={handlePickImage}
+            disabled={isUploading}
             style={{
               flexDirection: 'row',
               alignItems: 'center',
@@ -195,16 +201,22 @@ export default function ImageGalleryScreen() {
               paddingHorizontal: 10,
               paddingVertical: 6,
               borderRadius: 6,
+              opacity: isUploading ? 0.5 : 1,
             }}>
-            <Ionicons name="add" size={16} color={accentSet.base} />
+            {isUploading ? (
+              <ActivityIndicator size="small" color={accentSet.base} />
+            ) : (
+              <Ionicons name="add" size={16} color={accentSet.base} />
+            )}
             <Text style={{ fontSize: 13, fontWeight: '600', color: accentSet.base }}>
-              Add ({imageCount}/{MAX_IMAGES})
+              {isUploading ? 'Uploading...' : `Add (${imageCount}/${MAX_IMAGES})`}
             </Text>
           </TouchableOpacity>
         </View>
 
         {/* Grid */}
-        {imageRows.length === 0 ? (
+        <View ref={contentRef} onLayout={(e) => setLayoutWidth(e.nativeEvent.layout.width)} style={{ width: '100%', paddingHorizontal: padding }}>
+          {imageRows.length === 0 ? (
           <View style={{ alignItems: 'center', paddingVertical: 60 }}>
             <Ionicons name="images-outline" size={48} color={colors.grey} />
             <Text style={{ marginTop: 12, fontSize: 15, fontWeight: '500', color: colors.grey }}>
@@ -277,6 +289,7 @@ export default function ImageGalleryScreen() {
             </View>
           ))
         )}
+        </View>
       </ScrollView>
 
       {/* Preview Modal */}
@@ -294,14 +307,19 @@ export default function ImageGalleryScreen() {
                   setPrimaryMutation.mutate(previewImage.uuid);
                   setPreviewImage(null);
                 }}
+                disabled={setPrimaryMutation.isPending}
                 style={{
                   alignItems: 'center',
                   paddingVertical: 14,
-                  backgroundColor: accentSet.base,
+                  backgroundColor: setPrimaryMutation.isPending ? accentSet.base + '88' : accentSet.base,
                 }}>
-                <Text style={{ fontSize: 14, fontWeight: '600', color: '#fff' }}>
-                  Set as Primary Photo
-                </Text>
+                {setPrimaryMutation.isPending ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: '#fff' }}>
+                    Set as Primary Photo
+                  </Text>
+                )}
               </TouchableOpacity>
             )}
           </View>
