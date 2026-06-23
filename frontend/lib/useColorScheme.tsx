@@ -52,13 +52,7 @@ function useColorScheme(): ColorSchemeHook {
 }
 
 function setNavigationBar(colorScheme: 'light' | 'dark', accentSet: AccentColorSet) {
-  return Promise.all([
-    NavigationBar.setButtonStyleAsync(colorScheme === 'dark' ? 'light' : 'dark'),
-    NavigationBar.setPositionAsync('absolute'),
-    NavigationBar.setBackgroundColorAsync(
-      colorScheme === 'dark' ? accentSet.bgSubtle : '#ffffff80'
-    ),
-  ]);
+  return NavigationBar.setButtonStyleAsync(colorScheme === 'dark' ? 'light' : 'dark');
 }
 
 function useInitialAndroidBarSync() {
