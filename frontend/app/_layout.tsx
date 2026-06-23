@@ -17,7 +17,7 @@ import '../global.css';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import ThemeToggle from '~/components/ThemeToggle';
 import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
-import { useColorScheme, useInitialAndroidBarSync } from '~/lib/useColorScheme';
+import { useColorScheme } from '~/lib/useColorScheme';
 import { useResponsiveLayout } from '~/lib/useResponsiveLayout';
 import { NAV_THEME } from '~/theme';
 
@@ -73,7 +73,6 @@ const Stack = createNativeStackNavigator();
 const STANDALONE_ROUTES = ['verify', 'resend-verification'];
 
 export default function RootLayout() {
-  useInitialAndroidBarSync();
   const { colorScheme, isDarkColorScheme, colors } = useColorScheme();
   const queryClient = new QueryClient();
   const { isAuthenticated, isLoading, hydrate } = useAuthStore();

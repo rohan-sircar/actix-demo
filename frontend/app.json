@@ -3,7 +3,6 @@
     "name": "PetMatch",
     "slug": "petmatch",
     "version": "1.0.0",
-    "newArchEnabled": true,
     "scheme": "petmatch",
     "web": {
       "bundler": "metro",
