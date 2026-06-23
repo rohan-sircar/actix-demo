@@ -1,22 +1,18 @@
-import { useNavigation } from '@react-navigation/native';
-import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { Icon } from '@roninoss/icons';
 import React from 'react';
 import { Pressable, View } from 'react-native';
 import { useColorScheme } from '~/lib/useColorScheme';
-import { useAuthStore } from '../stores/AuthStore';
-import { TabParamList } from '~/types/navigation';
+import { useRouter } from 'expo-router';
 
 export const SettingsIcon = () => {
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const { colors } = useColorScheme();
-  const navigation = useNavigation<BottomTabNavigationProp<TabParamList>>();
+  const router = useRouter();
 
   return (
     <Pressable
       className="opacity-80"
       onPress={() => {
-        navigation.navigate('Settings', { screen: 'SettingsScreen' });
+        router.push('/settings');
       }}>
       <View className="opacity-90">
         <Icon name="cog" color={colors.foreground} />

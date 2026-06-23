@@ -1,5 +1,6 @@
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import React, { useCallback, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useCallback, useEffect, useState } from 'react';
+import { useAuthStore } from '../../stores/AuthStore';
 import {
   View,
   Text,
@@ -23,8 +24,6 @@ import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
 import type { Pet } from '~/app/models/pets';
 import { Ionicons } from '@expo/vector-icons';
 import * as Style from '~/app/styles/Styles';
-import type { FeedStackParamList } from '~/types/navigation';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 const guessMimeTypeFromUri = (uri: string): string => {
   const lower = uri.toLowerCase();
@@ -35,7 +34,13 @@ const guessMimeTypeFromUri = (uri: string): string => {
 };
 
 const Home = () => {
-  const navigation = useNavigation<NativeStackNavigationProp<FeedStackParamList>>();
+  const router = useRouter();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  useEffect(() => {
+    if (!isAuthenticated) {
+      router.replace('/login');
+    }
+  }, [isAuthenticated, router]);
   const { colors, isDarkColorScheme } = useColorScheme();
   const { accentColor } = useAccentColor();
   const accentSet = getAccentSet(accentColor);
@@ -481,7 +486,7 @@ const Home = () => {
               traits={item.traits}
               primary_image={item.primary_image}
               onDelete={(uuid) => handleDelete(uuid, item.name)}
-              onPress={() => navigation.navigate('PetProfile', { pet_uuid: item.pet_uuid })}
+              onPress={() => router.push(`/pet-profiles/${item.pet_uuid}`)}
             />
           ))}
         </ScrollView>

@@ -1,11 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useCallback } from 'react';
-import { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useRouter } from 'expo-router';
 
-import Avatar from '../components/Avatar';
-import StatTile from '../components/StatTile';
+import Avatar from '../../components/Avatar';
+import StatTile from '../../components/StatTile';
 import * as Style from '~/app/styles/Styles';
 import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
 import { useColorScheme } from '~/lib/useColorScheme';
@@ -15,6 +14,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Pet } from '~/app/models/pets';
 
 export default function ProfileScreen() {
+  const router = useRouter();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  useEffect(() => {
+    if (!isAuthenticated) {
+      router.replace('/login');
+    }
+  }, [isAuthenticated, router]);
   const queryClient = useQueryClient();
   const { colors, isDarkColorScheme } = useColorScheme();
   const { accentColor } = useAccentColor();

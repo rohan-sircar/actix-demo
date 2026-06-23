@@ -1,5 +1,3 @@
-import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { NavigatorScreenParams } from '@react-navigation/native';
 import { Platform } from 'react-native';
 
 export const NAVIGATION_CONFIG = {
@@ -41,41 +39,6 @@ export type NavigationConfig = {
   icon?: string;
 };
 
-export type TabParamList = {
-  PetProfiles: undefined;
-  Discover: undefined;
-  Profile: undefined;
-  Settings: NavigatorScreenParams<SettingsStackParamList>;
-  Login: undefined;
-  Register: undefined;
-};
-
-export type FeedStackParamList = {
-  HomeScreen: undefined;
-  PetProfile: { pet_uuid: string };
-  ImageGallery: { pet_uuid: string };
-  EditPet: { pet_uuid: string };
-};
-
-export type SettingsStackParamList = {
-  SettingsScreen: undefined;
-  SessionsScreen: undefined;
-};
-
-
-export type AuthStackParamList = {
-  SignIn: undefined;
-  Register: undefined;
-  ForgotPassword: undefined;
-  ResetPassword: { token?: string };
-};
-
-export type RootStackParamList = {
-  [key in NavigationConfigKey]: undefined;
-} & {
-  Profile: { userId: string };
-};
-
 export function getScreenTitle(route: string): string {
   const config = Object.values(NAVIGATION_CONFIG).find((c) => c.name === route);
   return config?.title || route;
@@ -87,3 +50,10 @@ export function navigateWithTitle(navigate: () => void, title?: string) {
   }
   navigate();
 }
+
+// Legacy types - kept for components that still reference them
+export type RootStackParamList = {
+  [key in NavigationConfigKey]: undefined;
+} & {
+  Profile: { userId: string };
+};

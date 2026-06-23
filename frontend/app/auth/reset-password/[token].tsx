@@ -2,43 +2,51 @@ import { View, Text, TextInput, TouchableOpacity } from 'react-native';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import React, { useState } from 'react';
-import { forgotPasswordSchema, ForgotPasswordFormData } from '~/app/lib/schemas';
+import { resetPasswordSchema, ResetPasswordFormData } from '~/app/lib/schemas';
 import api from '~/app/lib/api';
 import { useColorScheme } from '~/lib/useColorScheme';
 import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
-import FormButton from '../components/FormButton';
-import * as Style from '../styles/Styles';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useNavigation } from '@react-navigation/native';
-import { AuthStackParamList, navigateWithTitle } from '~/types/navigation';
+import FormButton from '../../components/FormButton';
+import * as Style from '../../styles/Styles';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { BaseAccentGradients } from '~/theme/colors';
 
-const ForgotPasswordScreen = () => {
-  const navigation = useNavigation<NativeStackNavigationProp<AuthStackParamList>>();
+const ResetPasswordScreen = () => {
+  const router = useRouter();
+  const { token } = useLocalSearchParams<{ token?: string }>();
   const { colors, isDarkColorScheme } = useColorScheme();
   const { accentColor } = useAccentColor();
   const accentSet = getAccentSet(accentColor);
-  const [sent, setSent] = useState(false);
+  const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
+
+  const resetToken = token || '';
 
   const {
     control,
     handleSubmit,
     formState: { errors },
-  } = useForm<ForgotPasswordFormData>({
-    resolver: zodResolver(forgotPasswordSchema),
-    defaultValues: { email: '' },
+  } = useForm<ResetPasswordFormData>({
+    resolver: zodResolver(resetPasswordSchema),
+    defaultValues: { new_password: '', confirm_password: '' },
   });
 
-  const onSubmit = async (data: ForgotPasswordFormData) => {
+  const onSubmit = async (data: ResetPasswordFormData) => {
     setError('');
+    if (!resetToken) {
+      setError('Invalid reset token');
+      return;
+    }
     try {
-      await api.post('/api/v1/auth/password-reset-request', { email: data.email });
-      setSent(true);
+      await api.post('/api/v1/auth/password-reset-complete', {
+        token: resetToken,
+        new_password: data.new_password,
+      });
+      setSuccess(true);
     } catch {
-      setError('Failed to send reset email. Please try again.');
+      setError('Failed to reset password. Please try again.');
     }
   };
 
@@ -54,12 +62,10 @@ const ForgotPasswordScreen = () => {
             <View
               className="mb-4 items-center justify-center rounded-full"
               style={{ width: 72, height: 72, backgroundColor: 'rgba(255,255,255,0.2)' }}>
-              <Ionicons name="lock-closed" size={32} color="white" />
+              <Ionicons name="key" size={32} color="white" />
             </View>
-            <Text className="text-3xl font-bold tracking-tight text-white">Forgot Password?</Text>
-            <Text className="mt-1 text-center text-base text-white/80">
-              No worries, we'll help you reset it
-            </Text>
+            <Text className="text-3xl font-bold tracking-tight text-white">Set New Password</Text>
+            <Text className="mt-1 text-base text-white/80">Almost there, just one more step</Text>
           </View>
 
           <View
@@ -67,10 +73,10 @@ const ForgotPasswordScreen = () => {
             style={{
               backgroundColor: isDarkColorScheme ? 'rgba(35,25,22,0.95)' : 'rgba(255,255,255,0.95)',
             }}>
-            {sent ? (
+            {success ? (
               <View className="mb-4 rounded-xl bg-emerald-500/15 p-3">
                 <Text className="text-center text-sm font-medium text-emerald-600">
-                  Check your email for the reset link!
+                  Password reset successful! You can now sign in.
                 </Text>
               </View>
             ) : null}
@@ -81,20 +87,16 @@ const ForgotPasswordScreen = () => {
               </View>
             ) : null}
 
-            {!sent ? (
+            {!success ? (
               <View className="mb-6 gap-4">
-                <Text className="mb-2 text-center text-sm" style={{ color: colors.grey }}>
-                  Enter your email and we'll send you a reset link
-                </Text>
                 <Controller
                   control={control}
-                  name="email"
+                  name="new_password"
                   render={({ field: { onChange, onBlur, value } }) => (
                     <View>
                       <TextInput
-                        placeholder="Email"
-                        keyboardType="email-address"
-                        autoCapitalize="none"
+                        placeholder="New Password"
+                        secureTextEntry
                         onBlur={onBlur}
                         onChangeText={onChange}
                         value={value}
@@ -105,27 +107,50 @@ const ForgotPasswordScreen = () => {
                           accentSet
                         )}
                       />
-                      {errors.email ? (
-                        <Text className="mt-1 text-xs text-rose-500">{errors.email.message}</Text>
+                      {errors.new_password ? (
+                        <Text className="mt-1 text-xs text-rose-500">
+                          {errors.new_password.message}
+                        </Text>
                       ) : null}
                     </View>
                   )}
                 />
-                <FormButton buttonText="Send Reset Link" onPress={handleSubmit(onSubmit)} />
+
+                <Controller
+                  control={control}
+                  name="confirm_password"
+                  render={({ field: { onChange, onBlur, value } }) => (
+                    <View>
+                      <TextInput
+                        placeholder="Confirm New Password"
+                        secureTextEntry
+                        onBlur={onBlur}
+                        onChangeText={onChange}
+                        value={value}
+                        className="h-12 rounded-xl px-4 text-base"
+                        style={Style.inputStyle(isDarkColorScheme, accentSet)}
+                        placeholderTextColor={Style.getPlaceholderColor(
+                          isDarkColorScheme,
+                          accentSet
+                        )}
+                      />
+                      {errors.confirm_password ? (
+                        <Text className="mt-1 text-xs text-rose-500">
+                          {errors.confirm_password.message}
+                        </Text>
+                      ) : null}
+                    </View>
+                  )}
+                />
+
+                <FormButton buttonText="Reset Password" onPress={handleSubmit(onSubmit)} />
               </View>
             ) : null}
 
             <TouchableOpacity
-              onPress={() =>
-                navigateWithTitle(
-                  () => navigation.navigate('SignIn'),
-                  'Sign In'
-                )
-              }
+              onPress={() => router.replace('/auth/sign-in')}
               className="mt-4 items-center">
-              <Text className="text-sm font-medium text-[#F4644E]">
-                Remember your password? Sign in
-              </Text>
+              <Text className="text-sm font-medium text-[#F4644E]">Back to Sign In</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -134,4 +159,4 @@ const ForgotPasswordScreen = () => {
   );
 };
 
-export default ForgotPasswordScreen;
+export default ResetPasswordScreen;

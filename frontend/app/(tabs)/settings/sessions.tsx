@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '~/app/lib/api';
 import { useColorScheme } from '~/lib/useColorScheme';
 import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
-import * as Style from '../styles/Styles';
+import * as Style from '../../styles/Styles';
 import { Button } from '~/components/nativewindui/Button';
 
 interface SessionInfo {

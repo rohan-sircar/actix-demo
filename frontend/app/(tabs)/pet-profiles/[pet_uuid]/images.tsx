@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect, useLayoutEffect, useRef } from 'react';
+import React, { useCallback, useState, useEffect, useRef } from 'react';
 import {
   ActivityIndicator,
   View,
@@ -11,7 +11,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useRoute, useNavigation } from '@react-navigation/native';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 
@@ -20,7 +20,6 @@ import { petImageApi } from '~/app/lib/api';
 import { useColorScheme } from '~/lib/useColorScheme';
 import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
 import type { PetImage } from '~/app/models/pets';
-import { useFocusEffect } from '@react-navigation/native';
 
 const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8800';
 const MAX_IMAGES = 10;
@@ -54,28 +53,12 @@ const getImageUrl = (imageUuid: string, variant: 'thumbnail' | 'medium' | 'origi
 };
 
 export default function ImageGalleryScreen() {
-  const route = useRoute<any>();
-  const { pet_uuid } = route.params;
-  const navigation = useNavigation();
+  const router = useRouter();
+  const { pet_uuid } = useLocalSearchParams<{ pet_uuid: string }>();
   const queryClient = useQueryClient();
   const { colors, isDarkColorScheme } = useColorScheme();
   const { accentColor } = useAccentColor();
   const accentSet = getAccentSet(accentColor);
-
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      headerShown: true,
-      headerTitle: 'Photos',
-      headerBackVisible: false,
-      headerLeft: () => (
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={{ padding: 8, marginRight: 40 }}>
-          <Ionicons name="arrow-back" size={22} color={colors.text} />
-        </TouchableOpacity>
-      ),
-    });
-  }, [navigation, colors.text]);
 
   const [editMode, setEditMode] = useState(false);
   const [deletingImage, setDeletingImage] = useState<PetImage | null>(null);
@@ -132,16 +115,13 @@ export default function ImageGalleryScreen() {
       return;
     }
     let result;
-    Alert.alert('Debug', 'Calling launchImageLibraryAsync...');
     try {
       const pickerPromise = ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: false,
         quality: 0.8,
       });
-      Alert.alert('Debug', 'Promise returned, awaiting...');
       result = await pickerPromise;
-      Alert.alert('Debug', `Picker resolved`);
     } catch (err: any) {
       Alert.alert('Error', `Picker failed: ${err?.message || err}`);
       return;

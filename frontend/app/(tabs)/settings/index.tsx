@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Alert, Pressable, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { useRouter } from 'expo-router';
 
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Icon } from '@roninoss/icons';
@@ -11,19 +12,22 @@ import SettingsSectionHeader from '~/app/components/SettingsSectionHeader';
 import AccentColorButton from '~/components/AccentColorButton';
 import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
 import { useColorScheme } from '~/lib/useColorScheme';
-import { useAuthStore } from '~/app/stores/AuthStore';
+import { useAuthStore } from '../../stores/AuthStore';
 import { useQuery } from '@tanstack/react-query';
 import api from '~/app/lib/api';
-import type { UserResponse } from '~/app/stores/AuthStore';
-import { navigateWithTitle, TabParamList, SettingsStackParamList } from '~/types/navigation';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { UserResponse } from '../../stores/AuthStore';
 
 export default function SettingsScreen() {
-  const navigation = useNavigation<NativeStackNavigationProp<SettingsStackParamList>>();
+  const router = useRouter();
   const { colors, isDarkColorScheme, toggleColorScheme, colorScheme } = useColorScheme();
   const { accentColor, setAccentColor } = useAccentColor();
   const { isAuthenticated, user, clearCredentials } = useAuthStore();
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      router.replace('/login');
+    }
+  }, [isAuthenticated, router]);
 
   const { data: userData } = useQuery<UserResponse, Error>({
     queryKey: ['user'],
@@ -78,15 +82,11 @@ export default function SettingsScreen() {
   };
 
   const navigateToProfile = () => {
-    navigateWithTitle(() => {
-      (navigation as any).navigate('Profile');
-    }, 'Edit Profile');
+    router.push('/profile');
   };
 
   const navigateToSessions = () => {
-    navigateWithTitle(() => {
-      navigation.navigate('SessionsScreen');
-    }, 'Sessions');
+    router.push('/settings/sessions');
   };
 
   const navigateToMenu = (action: string) => {
@@ -100,15 +100,6 @@ export default function SettingsScreen() {
       className="flex-1 px-4 md:px-8"
       contentContainerStyle={{ paddingTop: 16, paddingBottom: 40 }}
       keyboardShouldPersistTaps="handled">
-      {/* Header */}
-      {/* <View className="flex-row items-center mb-4 mt-2">
-        <Pressable onPress={() => (navigation as any).navigate('Profile')} className="mr-3">
-          <FontAwesome name="arrow-left" size={20} color={colors.text} />
-        </Pressable>
-        <Text style={{ color: colors.text, fontSize: 20, fontWeight: '700' }}>
-          Settings
-        </Text>
-      </View> */}
       {/* Account Info Card */}
       <SettingsCard>
         <View className="flex-row items-center mb-3 mt-2 pt-2">

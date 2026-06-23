@@ -87,7 +87,7 @@ const VerifyWebScreen = () => {
               <View className="mt-4 gap-3">
                 {status === 'success' ? (
                   <TouchableOpacity
-                    onPress={() => router.replace('/screens/LoginScreen')}
+                    onPress={() => router.replace('/auth/sign-in')}
                     className="items-center rounded-xl bg-emerald-500 px-4 py-3">
                     <Text className="font-semibold text-white">Go to Sign In</Text>
                   </TouchableOpacity>

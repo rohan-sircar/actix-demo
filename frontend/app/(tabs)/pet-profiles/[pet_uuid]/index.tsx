@@ -1,10 +1,8 @@
 import React, { useCallback, useEffect, useLayoutEffect, useState } from 'react';
 import { ActivityIndicator, View, Text, Image as RNImage, ScrollView, TouchableOpacity, Modal, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 
 import api from '~/app/lib/api';
 import { petImageApi } from '~/app/lib/api';
@@ -12,8 +10,6 @@ import { useColorScheme } from '~/lib/useColorScheme';
 import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
 import * as Style from '~/app/styles/Styles';
 import type { Pet, PetImage } from '~/app/models/pets';
-import { FeedStackParamList } from '~/types/navigation';
-import { useFocusEffect } from '@react-navigation/native';
 
 const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8800';
 
@@ -69,13 +65,9 @@ const getSpeciesIcon = (sp: string) => {
   return 'paw' as const;
 };
 
-type PetProfileEditScreenProps = {
-  route: { params: { pet_uuid: string } };
-};
-
-export default function PetProfileEditScreen({ route }: PetProfileEditScreenProps) {
-  const { pet_uuid } = route.params;
-  const navigation = useNavigation<NativeStackNavigationProp<FeedStackParamList>>();
+export default function PetProfileEditScreen() {
+  const router = useRouter();
+  const { pet_uuid } = useLocalSearchParams<{ pet_uuid: string }>();
   const { colors, isDarkColorScheme } = useColorScheme();
   const { accentColor } = useAccentColor();
   const accentSet = getAccentSet(accentColor);
@@ -103,21 +95,6 @@ export default function PetProfileEditScreen({ route }: PetProfileEditScreenProp
       fetchPet();
     }, [pet_uuid])
   );
-
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      headerShown: true,
-      headerTitle: 'Pet Profile',
-      headerBackVisible: false,
-      headerLeft: () => (
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={{ padding: 8 }}>
-          <Ionicons name="arrow-back" size={22} color={colors.text} />
-        </TouchableOpacity>
-      ),
-    });
-  }, [navigation, pet?.name, colors.text]);
 
   const handlePickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -214,7 +191,7 @@ export default function PetProfileEditScreen({ route }: PetProfileEditScreenProp
         {/* Action Buttons */}
         <View className="mt-5 flex-row w-full px-8">
           <TouchableOpacity
-            onPress={() => navigation.navigate('EditPet', { pet_uuid })}
+            onPress={() => router.push(`/pet-profiles/${pet_uuid}/edit`)}
             className="flex-1 items-center justify-center rounded-xl"
             style={{ backgroundColor: accentSet.base, paddingVertical: 8, shadowColor: accentSet.base, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 4, elevation: 4 }}>
             <Ionicons name="pencil" size={16} color="#fff" />
@@ -224,7 +201,7 @@ export default function PetProfileEditScreen({ route }: PetProfileEditScreenProp
           </TouchableOpacity>
           <View className="w-3" />
           <TouchableOpacity
-            onPress={() => navigation.navigate('ImageGallery', { pet_uuid })}
+            onPress={() => router.push(`/pet-profiles/${pet_uuid}/images`)}
             className="flex-1 items-center justify-center rounded-xl"
             style={{ backgroundColor: accentSet.bgSubtle, paddingVertical: 8 }}>
             <Ionicons name="images" size={16} color={accentSet.base} />
