@@ -1,7 +1,7 @@
-import React, { useCallback, useLayoutEffect, useState } from 'react';
-import { ActivityIndicator, View, Text, Image as RNImage, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useCallback, useEffect, useLayoutEffect, useState } from 'react';
+import { ActivityIndicator, View, Text, Image as RNImage, ScrollView, TouchableOpacity, Modal, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
@@ -76,18 +76,33 @@ type PetProfileScreenProps = {
 export default function PetProfileScreen({ route }: PetProfileScreenProps) {
   const { pet_uuid } = route.params;
   const navigation = useNavigation<NativeStackNavigationProp<FeedStackParamList>>();
-  const queryClient = useQueryClient();
   const { colors, isDarkColorScheme } = useColorScheme();
   const { accentColor } = useAccentColor();
   const accentSet = getAccentSet(accentColor);
 
-  const { data: pet, isLoading } = useQuery({
-    queryKey: ['pet', pet_uuid],
-    queryFn: async () => {
+  const [pet, setPet] = useState<Pet | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchPet = async () => {
+    try {
       const res = await api.get<Pet>(`/api/v1/private/user/pets/${pet_uuid}`);
-      return res.data;
-    },
-  });
+      setPet(res.data);
+    } catch (err) {
+      console.error('[PetProfile] Failed to fetch pet:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPet();
+  }, [pet_uuid]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchPet();
+    }, [pet_uuid])
+  );
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -104,12 +119,6 @@ export default function PetProfileScreen({ route }: PetProfileScreenProps) {
     });
   }, [navigation, pet?.name, colors.text]);
 
-  useFocusEffect(
-    useCallback(() => {
-      queryClient.invalidateQueries({ queryKey: ['pet', pet_uuid] });
-    }, [queryClient, pet_uuid])
-  );
-
   const handlePickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -123,24 +132,8 @@ export default function PetProfileScreen({ route }: PetProfileScreenProps) {
         const uri = result.assets[0].uri;
         const mimeType = await detectMimeTypeFromUri(uri, result.assets[0].type);
         console.log('[PetProfile] Uploading image:', uri, mimeType);
-        const uploaded = await petImageApi.upload(pet.pet_uuid, uri, mimeType);
-        if (uploaded.is_primary) {
-          queryClient.setQueryData(['pet', pet_uuid], (old: Pet | undefined) => {
-            if (!old) return old;
-            return {
-              ...old,
-              primary_image: {
-                id: uploaded.id,
-                uuid: uploaded.uuid,
-                format: uploaded.format,
-                is_primary: uploaded.is_primary,
-                sort_order: uploaded.sort_order,
-                created_at: uploaded.created_at,
-              },
-            };
-          });
-        }
-        queryClient.invalidateQueries({ queryKey: ['pet', pet_uuid] });
+        await petImageApi.upload(pet.pet_uuid, uri, mimeType);
+        fetchPet();
       } catch (err) {
         console.error('[PetProfile] Image upload failed:', err);
       }
@@ -150,6 +143,7 @@ export default function PetProfileScreen({ route }: PetProfileScreenProps) {
   const badgeBg = `${accentSet.bgSubtle}80`;
   const badgeColor = accentSet.base;
   const secondaryColor = colors.grey;
+  const [previewImage, setPreviewImage] = useState<boolean>(false);
 
   if (isLoading) {
     return (
@@ -173,35 +167,39 @@ export default function PetProfileScreen({ route }: PetProfileScreenProps) {
     );
   }
 
-  const imageUrl = pet.primary_image ? getImageUrl(pet.primary_image.uuid, 'thumbnail') : undefined;
+  const imageUrl = pet.primary_image ? getImageUrl(pet.primary_image.uuid, 'medium') : undefined;
 
   return (
     <ScrollView className="flex-1">
       {/* Profile Header Card */}
       <View className="items-center pt-6 pb-6">
         <View className="relative">
-          {imageUrl ? (
-            <RNImage
-              source={{ uri: imageUrl }}
-              style={{
-                width: 160,
-                height: 160,
-                borderRadius: 80,
-                marginBottom: 16,
-              }}
-              resizeMode="cover"
-            />
-          ) : (
-            <View
-              className="mb-4 items-center justify-center rounded-full"
-              style={{
-                width: 160,
-                height: 160,
-                backgroundColor: `${accentSet.bgSubtle}90`,
-              }}>
-              <Ionicons name={getSpeciesIcon(pet.species)} size={64} color={accentSet.base} />
-            </View>
-          )}
+          <TouchableOpacity
+            onPress={() => pet.primary_image && setPreviewImage(true)}
+            disabled={!pet.primary_image}>
+            {imageUrl ? (
+              <RNImage
+                source={{ uri: imageUrl }}
+                style={{
+                  width: 160,
+                  height: 160,
+                  borderRadius: 80,
+                  marginBottom: 16,
+                }}
+                resizeMode="cover"
+              />
+            ) : (
+              <View
+                className="mb-4 items-center justify-center rounded-full"
+                style={{
+                  width: 160,
+                  height: 160,
+                  backgroundColor: `${accentSet.bgSubtle}90`,
+                }}>
+                <Ionicons name={getSpeciesIcon(pet.species)} size={64} color={accentSet.base} />
+              </View>
+            )}
+          </TouchableOpacity>
 
         </View>
 
@@ -335,6 +333,19 @@ export default function PetProfileScreen({ route }: PetProfileScreenProps) {
           </View>
         </View>
       )}
+
+      {/* Image Preview Modal */}
+      <Modal visible={previewImage} transparent animationType="fade">
+        <Pressable className="flex-1 items-center justify-center bg-black/80" onPress={() => setPreviewImage(false)}>
+          <View style={{ width: '85%', maxWidth: 400, borderRadius: 16, overflow: 'hidden', backgroundColor: colors.card }}>
+            <RNImage
+              source={{ uri: pet.primary_image ? getImageUrl(pet.primary_image.uuid, 'medium') : '' }}
+              style={{ width: '100%', aspectRatio: 1 }}
+              resizeMode="cover"
+            />
+          </View>
+        </Pressable>
+      </Modal>
     </ScrollView>
   );
 }

@@ -11,7 +11,7 @@ import {
   ScrollView,
   Dimensions,
 } from 'react-native';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -58,6 +58,7 @@ export default function ImageGalleryScreen() {
   const route = useRoute<any>();
   const { pet_uuid } = route.params;
   const navigation = useNavigation();
+  const queryClient = useQueryClient();
   const { colors, isDarkColorScheme } = useColorScheme();
   const { accentColor } = useAccentColor();
   const accentSet = getAccentSet(accentColor);
@@ -234,11 +235,11 @@ export default function ImageGalleryScreen() {
                     borderColor: image.is_primary && !editMode ? accentSet.base : 'transparent',
                     backgroundColor: colors.grey + '33',
                   }}>
-                  <RNImage
-                    source={{ uri: getImageUrl(image.uuid, 'thumbnail') }}
-                    style={{ width: '100%', height: '100%' }}
-                    resizeMode="cover"
-                  />
+                    <RNImage
+                      source={{ uri: getImageUrl(image.uuid, 'medium') }}
+                      style={{ width: '100%', height: '100%' }}
+                      resizeMode="cover"
+                    />
                   {image.is_primary && !editMode && (
                     <View
                       style={{
