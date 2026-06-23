@@ -51,11 +51,17 @@ const HeaderRightContent = () => {
   );
 };
 
+const hiddenTabOptions = {
+  tabBarItemStyle: { display: 'none', width: 0, minWidth: 0 } as const,
+  tabBarLabel: undefined,
+};
+
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   const { colors } = useColorScheme();
   const { accentColor } = useAccentColor();
   const accentSet = getAccentSet(accentColor);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
   return (
     <Tabs
@@ -86,6 +92,7 @@ export default function TabsLayout() {
         options={{
           tabBarIcon: ({ color }) => <Icon name={'home'} color={color as string} />,
           title: 'Pets',
+          ...(!isAuthenticated ? hiddenTabOptions : {}),
         }}
       />
       <Tabs.Screen
@@ -100,6 +107,7 @@ export default function TabsLayout() {
         options={{
           title: 'Profile',
           tabBarIcon: ({ color }) => <Icon name="person" color={color as string} />,
+          ...(!isAuthenticated ? hiddenTabOptions : {}),
         }}
       />
       <Tabs.Screen
@@ -107,6 +115,7 @@ export default function TabsLayout() {
         options={{
           title: 'Settings',
           tabBarIcon: ({ color }) => <FontAwesome name="cog" size={22} color={color} />,
+          ...(!isAuthenticated ? hiddenTabOptions : {}),
         }}
       />
       <Tabs.Screen
@@ -114,6 +123,7 @@ export default function TabsLayout() {
         options={{
           tabBarIcon: ({ color }) => <FontAwesome name="sign-in" size={22} color={color} />,
           title: 'Login',
+          ...(isAuthenticated ? hiddenTabOptions : {}),
         }}
       />
       <Tabs.Screen
@@ -121,6 +131,7 @@ export default function TabsLayout() {
         options={{
           tabBarIcon: ({ color }) => <FontAwesome name="user-plus" size={22} color={color} />,
           title: 'Register',
+          ...(isAuthenticated ? hiddenTabOptions : {}),
         }}
       />
     </Tabs>
