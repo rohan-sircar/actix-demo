@@ -267,7 +267,7 @@ export default function ImageGalleryScreen() {
                       <Ionicons name="checkmark" size={12} color="#fff" />
                     </View>
                   )}
-                  {editMode && (
+                  {editMode && !image.is_primary && (
                     <TouchableOpacity
                       onPress={(e) => {
                         e.stopPropagation();
