@@ -25,6 +25,8 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { LogoutButton } from '~/components/LogoutButton';
 import { SystemColors } from '~/theme/colors';
 import { NAVIGATION_CONFIG } from '~/types/navigation';
+import { useNavigationState } from '@react-navigation/native';
+import { useAuthStore } from './stores/AuthStore';
 import AuthStack from './components/AuthStack';
 import HomeTabs from './components/HomeTabs';
 import { SettingsIcon } from './components/SettingsIcon';
@@ -46,9 +48,28 @@ const HeaderBranding = () => {
     </View>
   );
 };
+
+const HeaderRightContent = () => {
+  const { isAuthenticated } = useAuthStore();
+  const isProfile = useNavigationState((state) => {
+    const homeRoute = state?.routes?.[0];
+    const stackRoute = homeRoute?.state?.routes?.[homeRoute.state?.index || 0];
+    const tabRoute = stackRoute?.state?.routes?.[stackRoute.state?.index || 0];
+    return tabRoute?.name === 'Profile';
+  });
+  return (
+    <View className="flex flex-row items-center gap-3 pr-2">
+      <ThemeToggle />
+      {isProfile ? (
+        <SettingsIcon />
+      ) : (
+        isAuthenticated && <LogoutButton />
+      )}
+    </View>
+  );
+};
 import ControlsScreen from './screens/ControlsScreen';
 import MenuScreen from './screens/MenuScreen';
-import { useAuthStore } from './stores/AuthStore';
 
 const Drawer = createDrawerNavigator();
 
@@ -99,13 +120,7 @@ export default function RootLayout() {
                       <Drawer.Navigator
                         drawerContent={() => <MenuScreen />}
                         screenOptions={({ navigation }) => ({
-                          headerRight: () => (
-                            <View className="flex flex-row items-center gap-3 pr-2">
-                              <ThemeToggle />
-                              {isAuthenticated && <SettingsIcon />}
-                              {isAuthenticated && <LogoutButton />}
-                            </View>
-                          ),
+                          headerRight: HeaderRightContent,
                           ...(Platform.OS === 'web' && isDesktop
                             ? desktopDrawerProperties(colors)
                             : mobileDrawerProperties(colors, navigation)),
