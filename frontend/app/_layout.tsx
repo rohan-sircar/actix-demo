@@ -1,16 +1,15 @@
 import { ActionSheetProvider } from '@expo/react-native-action-sheet';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import {
-  createDrawerNavigator,
-  DrawerNavigationOptions,
-  DrawerNavigationProp,
-} from '@react-navigation/drawer';
+  createNativeStackNavigator,
+  NativeStackNavigationOptions,
+} from '@react-navigation/native-stack';
 import { ThemeProvider as NavThemeProvider } from '@react-navigation/native';
 import { Slot, usePathname, useSegments } from 'expo-router';
 import 'expo-dev-client';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect } from 'react';
-import { Platform, Pressable, SafeAreaView, Text, View } from 'react-native';
+import { Platform, SafeAreaView, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import '../global.css';
 
@@ -24,7 +23,6 @@ import { NAV_THEME } from '~/theme';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { LogoutButton } from '~/components/LogoutButton';
 import { SystemColors } from '~/theme/colors';
-import { NAVIGATION_CONFIG } from '~/types/navigation';
 import { useNavigationState } from '@react-navigation/native';
 import { useAuthStore } from './stores/AuthStore';
 import AuthStack from './components/AuthStack';
@@ -68,14 +66,8 @@ const HeaderRightContent = () => {
     </View>
   );
 };
-import ControlsScreen from './screens/ControlsScreen';
-import MenuScreen from './screens/MenuScreen';
 
-const Drawer = createDrawerNavigator();
-
-const SCREEN_OPTIONS = {
-  animation: 'ios_from_right',
-} as const;
+const Stack = createNativeStackNavigator();
 
 const STANDALONE_ROUTES = ['verify', 'resend-verification'];
 
@@ -117,37 +109,24 @@ export default function RootLayout() {
                 <QueryClientProvider client={queryClient}>
                   <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
                     <View className="mx-auto w-full max-w-[800px] flex-1">
-                      <Drawer.Navigator
-                        drawerContent={() => <MenuScreen />}
-                        screenOptions={({ navigation }) => ({
-                          headerRight: HeaderRightContent,
-                          ...(Platform.OS === 'web' && isDesktop
-                            ? desktopDrawerProperties(colors)
-                            : mobileDrawerProperties(colors, navigation)),
-                        })}>
-                        <Drawer.Screen
-                          name={NAVIGATION_CONFIG.Home.name}
-                          component={HomeTabs}
-                          options={{
-                            headerTitle: HeaderBranding,
-                          }}
-                        />
-                        <Drawer.Screen
-                          name={NAVIGATION_CONFIG.Account.name}
-                          component={AuthStack}
-                          options={{
-                            title: NAVIGATION_CONFIG.Account.title,
-                          }}
-                        />
-                        <Drawer.Screen
-                          name={NAVIGATION_CONFIG.Settings.name}
-                          component={ControlsScreen}
-                          options={{
-                            title: NAVIGATION_CONFIG.Settings.title,
-                            headerShown: Platform.OS === 'web' && isDesktop ? false : true,
-                          }}
-                        />
-                      </Drawer.Navigator>
+                        <Stack.Navigator>
+                          <Stack.Screen
+                            name="HomeTabs"
+                            component={HomeTabs}
+                            options={{
+                              headerShown: true,
+                              headerTitle: HeaderBranding,
+                              headerRight: HeaderRightContent,
+                            }}
+                          />
+                          <Stack.Screen
+                            name="AuthStack"
+                            component={AuthStack}
+                            options={{
+                              headerShown: false,
+                            }}
+                          />
+                      </Stack.Navigator>
                     </View>
                   </SafeAreaView>
                 </QueryClientProvider>
@@ -175,31 +154,3 @@ export default function RootLayout() {
     </>
   );
 }
-
-const desktopDrawerProperties = (colors: SystemColors): DrawerNavigationOptions => ({
-  drawerType: 'permanent',
-  drawerStyle: {
-    width: 240,
-    backgroundColor: colors.background,
-  },
-  headerLeft: () => null,
-});
-
-const mobileDrawerProperties = (
-  colors: SystemColors,
-  navigation?: DrawerNavigationProp<any>
-): DrawerNavigationOptions => ({
-  headerTitle: '',
-  headerLeft: () => (
-    <Pressable onPress={() => navigation?.toggleDrawer()} className="ml-4">
-      <FontAwesome name="bars" size={24} color={colors.text} />
-    </Pressable>
-  ),
-  drawerType: 'front',
-  drawerStyle: {
-    backgroundColor: colors.background,
-    width: '80%',
-  },
-  ...SCREEN_OPTIONS,
-});
-

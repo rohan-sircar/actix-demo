@@ -7,8 +7,6 @@ import ResetPasswordScreen from '../screens/ResetPasswordScreen';
 import {
   AUTH_NAVIGATION_CONFIG,
   NAVIGATION_CONFIG,
-  TabParamList,
-  DrawerParamList,
   AuthStackParamList,
 } from '~/types/navigation';
 import { useNavigationState } from '@react-navigation/native';

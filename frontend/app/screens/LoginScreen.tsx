@@ -1,6 +1,7 @@
-import { DrawerNavigationProp } from '@react-navigation/drawer';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, CommonActions } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import React, { useState } from 'react';
+import { navigateWithTitle } from '~/types/navigation';
 import {
   Text,
   TextInput,
@@ -19,7 +20,7 @@ import api from '~/app/lib/api';
 import { useAuthStore, AuthUser, UserResponse } from '~/app/stores/AuthStore';
 import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
 import { useColorScheme } from '~/lib/useColorScheme';
-import { DrawerParamList, navigateWithTitle } from '~/types/navigation';
+import { AuthStackParamList } from '~/types/navigation';
 import FormButton from '../components/FormButton';
 import GithubButton from '../components/GithubButton';
 import GoogleButton from '../components/GoogleButton';
@@ -35,7 +36,7 @@ const LoginScreen = () => {
   const { colors, isDarkColorScheme } = useColorScheme();
   const { accentColor } = useAccentColor();
   const accentSet = getAccentSet(accentColor);
-  const navigation = useNavigation<DrawerNavigationProp<DrawerParamList>>();
+  const navigation = useNavigation<NativeStackNavigationProp<AuthStackParamList>>();
   const setCredentials = useAuthStore((s) => s.setCredentials);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -46,7 +47,7 @@ const LoginScreen = () => {
     formState: { errors },
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { username: '', password: '' },
+    defaultValues: { username: 'testuser1', password: 'password2' },
   });
 
   const onSubmit = async (data: LoginFormData) => {
@@ -60,14 +61,24 @@ const LoginScreen = () => {
         });
         const userRes = await api.get<UserResponse>('/api/v1/private/user');
         setCredentials('', userRes.data);
-      } else {
-        const res = await api.post('/api/v1/auth/exchange', {
-          ...data,
-          device_name: 'Mobile',
-        });
-        setCredentials(res.data.token, res.data.user);
-      }
-      navigateWithTitle(() => navigation.navigate('Home', { screen: 'PetProfiles' }), 'Home');
+       } else {
+         const res = await api.post('/api/v1/auth/exchange', {
+           ...data,
+           device_name: 'Mobile',
+         });
+          setCredentials(res.data.token, res.data.user);
+        }
+        Alert.alert('Debug', `Login successful: ${data.username}`);
+        navigateWithTitle(
+        () =>
+          navigation.dispatch(
+            CommonActions.navigate({
+              name: 'HomeTabs',
+              params: { screen: 'PetProfiles' } as any,
+            })
+          ),
+        'Home'
+      );
     } catch (err: any) {
       if (err.response?.status === 401) {
         setError('Invalid credentials');
@@ -90,11 +101,11 @@ const LoginScreen = () => {
       colors={[gradientColors.gradientStart, gradientColors.gradientEnd]}
       style={{ flex: 1 }}>
       <ScrollView
-        className="flex-1 px-6"
+        className="flex-1 px-6 web:px-12"
         contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
         keyboardShouldPersistTaps="handled">
-        <View className="mx-auto w-full max-w-md">
-          <View className="mb-6 items-center">
+          <View className="mx-auto w-full max-w-md web:max-w-4xl web:flex-row web:items-center web:gap-4 web:px-6">
+          <View className="mb-6 items-center web:mb-0 web:w-1/2 web:items-center web:text-center">
             <View
               className="mb-3 items-center justify-center rounded-full"
               style={{
@@ -113,7 +124,7 @@ const LoginScreen = () => {
           </View>
 
           <View
-            className="rounded-2xl p-6 shadow-xl"
+            className="rounded-2xl p-6 shadow-xl web:w-1/2"
             style={{
               backgroundColor: isDarkColorScheme ? 'rgba(35,25,22,0.95)' : 'rgba(255,255,255,0.95)',
               backdropFilter: 'blur(10px)',
@@ -174,7 +185,7 @@ const LoginScreen = () => {
             <TouchableOpacity
               onPress={() =>
                 navigateWithTitle(
-                  () => navigation.navigate('Account', { screen: 'ForgotPassword' }),
+                  () => navigation.navigate('ForgotPassword'),
                   'Forgot Password'
                 )
               }
@@ -182,22 +193,14 @@ const LoginScreen = () => {
               <Text className="text-sm font-medium text-[#F4644E]">Forgot your password?</Text>
             </TouchableOpacity>
 
-            <View className="relative my-6">
-              <View className="absolute inset-0 flex items-center justify-center">
-                <View className="h-[1px] w-full bg-[#E8D0C0]" />
-              </View>
-              <View className="relative flex flex-row justify-center">
-                <Text
-                  className="px-4 text-sm font-medium"
-                  style={{
-                    backgroundColor: isDarkColorScheme
-                      ? 'rgba(35,25,22,0.95)'
-                      : 'rgba(255,255,255,0.95)',
-                    color: colors.grey,
-                  }}>
-                  or continue with
-                </Text>
-              </View>
+            <View className="my-6 items-center">
+              <Text
+                className="px-4 text-sm font-medium"
+                style={{
+                  color: colors.grey,
+                }}>
+                or continue with
+              </Text>
             </View>
 
             <View className="gap-3">
@@ -209,7 +212,7 @@ const LoginScreen = () => {
               <TouchableOpacity
                 onPress={() =>
                   navigateWithTitle(
-                    () => navigation.navigate('Account', { screen: 'Register' }),
+                    () => navigation.navigate('Register'),
                     'Create Account'
                   )
                 }>

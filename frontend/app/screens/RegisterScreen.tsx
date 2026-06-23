@@ -15,8 +15,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { DrawerNavigationProp } from '@react-navigation/drawer';
-import { DrawerParamList, navigateWithTitle } from '~/types/navigation';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { AuthStackParamList, navigateWithTitle } from '~/types/navigation';
 import { BaseAccentGradients } from '~/theme/colors';
 
 const isWeb = Platform.OS === 'web';
@@ -27,7 +27,7 @@ const RegisterScreen = () => {
   const accentSet = getAccentSet(accentColor);
   const { width } = useWindowDimensions();
   const setCredentials = useAuthStore((s) => s.setCredentials);
-  const navigation = useNavigation<DrawerNavigationProp<DrawerParamList>>();
+  const navigation = useNavigation<NativeStackNavigationProp<AuthStackParamList>>();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -93,11 +93,11 @@ const RegisterScreen = () => {
       colors={[gradientColors.gradientStart, gradientColors.gradientEnd]}
       style={{ flex: 1 }}>
       <ScrollView
-        className="flex-1 px-6"
+        className="flex-1 px-6 web:px-12"
         contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
         keyboardShouldPersistTaps="handled">
-        <View className="mx-auto w-full max-w-md">
-          <View className="mb-6 items-center">
+        <View className="mx-auto w-full max-w-md web:max-w-4xl web:flex-row web:items-center web:gap-4 web:px-6">
+          <View className="mb-6 items-center web:mb-0 web:w-1/2 web:items-center web:text-center">
             <View
               className="mb-3 items-center justify-center rounded-full"
               style={{
@@ -116,7 +116,7 @@ const RegisterScreen = () => {
           </View>
 
           <View
-            className="rounded-2xl p-6 shadow-xl"
+            className="rounded-2xl p-6 shadow-xl web:w-1/2"
             style={{
               backgroundColor: isDarkColorScheme ? 'rgba(35,25,22,0.95)' : 'rgba(255,255,255,0.95)',
             }}>
@@ -204,22 +204,14 @@ const RegisterScreen = () => {
 
             <FormButton buttonText="Create Account" onPress={handleSubmit(onSubmit)} />
 
-            <View className="relative my-6">
-              <View className="absolute inset-0 flex items-center justify-center">
-                <View className="h-[1px] w-full bg-[#E8D0C0]" />
-              </View>
-              <View className="relative flex flex-row justify-center">
-                <Text
-                  className="px-4 text-sm font-medium"
-                  style={{
-                    backgroundColor: isDarkColorScheme
-                      ? 'rgba(35,25,22,0.95)'
-                      : 'rgba(255,255,255,0.95)',
-                    color: colors.grey,
-                  }}>
-                  or continue with
-                </Text>
-              </View>
+            <View className="my-6 items-center">
+              <Text
+                className="px-4 text-sm font-medium"
+                style={{
+                  color: colors.grey,
+                }}>
+                or continue with
+              </Text>
             </View>
 
             <View className="gap-3">
@@ -231,7 +223,7 @@ const RegisterScreen = () => {
               <TouchableOpacity
                 onPress={() =>
                   navigateWithTitle(
-                    () => navigation.navigate('Account', { screen: 'SignIn' }),
+                    () => navigation.navigate('SignIn'),
                     'Sign In'
                   )
                 }>

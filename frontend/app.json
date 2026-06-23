@@ -38,6 +38,6 @@
       "userInterfaceStyle": "automatic",
       "package": "com.petmatch.app"
     },
-    "plugins": ["expo-secure-store"]
+    "plugins": ["expo-secure-store", "expo-image-picker"]
   }
 }

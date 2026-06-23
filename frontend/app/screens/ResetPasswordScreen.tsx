@@ -8,9 +8,9 @@ import { useColorScheme } from '~/lib/useColorScheme';
 import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
 import FormButton from '../components/FormButton';
 import * as Style from '../styles/Styles';
-import { DrawerNavigationProp } from '@react-navigation/drawer';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
-import { DrawerParamList, navigateWithTitle } from '~/types/navigation';
+import { AuthStackParamList, navigateWithTitle } from '~/types/navigation';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { BaseAccentGradients } from '~/theme/colors';
@@ -24,7 +24,7 @@ type ResetPasswordScreenProps = {
 };
 
 const ResetPasswordScreen = ({ route }: ResetPasswordScreenProps) => {
-  const navigation = useNavigation<DrawerNavigationProp<DrawerParamList>>();
+  const navigation = useNavigation<NativeStackNavigationProp<AuthStackParamList>>();
   const { colors, isDarkColorScheme } = useColorScheme();
   const { accentColor } = useAccentColor();
   const accentSet = getAccentSet(accentColor);
@@ -159,7 +159,7 @@ const ResetPasswordScreen = ({ route }: ResetPasswordScreenProps) => {
             <TouchableOpacity
               onPress={() =>
                 navigateWithTitle(
-                  () => navigation.navigate('Account', { screen: 'SignIn' }),
+                  () => navigation.navigate('SignIn'),
                   'Sign In'
                 )
               }

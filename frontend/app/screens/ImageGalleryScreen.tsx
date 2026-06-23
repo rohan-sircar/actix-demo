@@ -131,12 +131,21 @@ export default function ImageGalleryScreen() {
       Alert.alert('Limit Reached', `You can upload up to ${MAX_IMAGES} images.`);
       return;
     }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
+    let result;
+    Alert.alert('Debug', 'Calling launchImageLibraryAsync...');
+    try {
+      const pickerPromise = ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: false,
+        quality: 0.8,
+      });
+      Alert.alert('Debug', 'Promise returned, awaiting...');
+      result = await pickerPromise;
+      Alert.alert('Debug', `Picker resolved`);
+    } catch (err: any) {
+      Alert.alert('Error', `Picker failed: ${err?.message || err}`);
+      return;
+    }
 
     if (!result.canceled && result.assets[0]) {
       setIsUploading(true);

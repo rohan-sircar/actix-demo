@@ -4,21 +4,25 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Icon } from '@roninoss/icons';
 import React from 'react';
 import { TabButton } from '~/components/TabButton';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColorScheme } from '~/lib/useColorScheme';
 import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
 import DiscoverScreen from '../screens/DiscoverScreen';
 import EditPetScreen from '../screens/EditPetScreen';
 import HomeScreen from '../screens/HomeScreen';
 import ImageGalleryScreen from '../screens/ImageGalleryScreen';
+import LoginScreen from '../screens/LoginScreen';
 import PetProfileEditScreen from '../screens/PetProfileEditScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import RegisterScreen from '../screens/RegisterScreen';
+import SettingsScreen from '../screens/SettingsScreen';
 import SessionsScreen from '../screens/SessionsScreen';
 import { useAuthStore } from '../stores/AuthStore';
-import { TabParamList, TabStackParamList, FeedStackParamList } from '~/types/navigation';
+import { TabParamList, FeedStackParamList, SettingsStackParamList } from '~/types/navigation';
 
 const Tab = createBottomTabNavigator<TabParamList>();
-const Stack = createNativeStackNavigator<TabStackParamList>();
 const FeedStack = createNativeStackNavigator<FeedStackParamList>();
+const SettingsStack = createNativeStackNavigator<SettingsStackParamList>();
 
 const FeedStackNavigator = () => {
   return (
@@ -31,15 +35,25 @@ const FeedStackNavigator = () => {
   );
 };
 
+const SettingsStackNavigator = () => {
+  return (
+    <SettingsStack.Navigator screenOptions={{ headerShown: false }}>
+      <SettingsStack.Screen name="SettingsScreen" component={SettingsScreen} />
+      <SettingsStack.Screen name="SessionsScreen" component={SessionsScreen} options={{ animation: 'slide_from_right' }} />
+    </SettingsStack.Navigator>
+  );
+};
+
 const TabNavigator = () => {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const insets = useSafeAreaInsets();
   const { colors } = useColorScheme();
   const { accentColor } = useAccentColor();
   const accentSet = getAccentSet(accentColor);
 
   return (
     <Tab.Navigator
-      initialRouteName={isAuthenticated ? 'PetProfiles' : 'Discover'}
+      initialRouteName={isAuthenticated ? 'PetProfiles' : 'Login'}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: accentSet.base,
@@ -47,9 +61,9 @@ const TabNavigator = () => {
         tabBarStyle: {
           backgroundColor: isWebPlatform() ? 'transparent' : colors.card,
           borderTopWidth: 0,
-          paddingBottom: 8,
-          paddingTop: 8,
-          height: 80,
+          paddingBottom: insets.bottom + 16,
+          paddingTop: isWebPlatform() ? 8 : 0,
+          height: 72 + insets.bottom,
         },
         tabBarButton: (props) => (
           <TabButton
@@ -78,6 +92,26 @@ const TabNavigator = () => {
           title: 'Discover',
         }}
       />
+      {!isAuthenticated && (
+        <Tab.Screen
+          name="Login"
+          component={LoginScreen}
+          options={{
+            tabBarIcon: ({ color }) => <FontAwesome name="sign-in" size={22} color={color} />,
+            title: 'Login',
+          }}
+        />
+      )}
+      {!isAuthenticated && (
+        <Tab.Screen
+          name="Register"
+          component={RegisterScreen}
+          options={{
+            tabBarIcon: ({ color }) => <FontAwesome name="user-plus" size={22} color={color} />,
+            title: 'Register',
+          }}
+        />
+      )}
       {isAuthenticated && (
         <Tab.Screen
           name="Profile"
@@ -88,13 +122,14 @@ const TabNavigator = () => {
           }}
         />
       )}
+
       {isAuthenticated && (
         <Tab.Screen
-          name="Sessions"
-          component={SessionsScreen}
+          name="Settings"
+          component={SettingsStackNavigator}
           options={{
-            title: 'Sessions',
-            tabBarIcon: ({ color }) => <Icon name="monitor" color={color} />,
+            title: 'Settings',
+            tabBarIcon: ({ color }) => <FontAwesome name="cog" size={22} color={color} />,
           }}
         />
       )}
@@ -103,13 +138,7 @@ const TabNavigator = () => {
 };
 
 export const HomeTabs = () => {
-  return (
-    <Stack.Navigator
-      initialRouteName="Tabs"
-      screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="Tabs" component={TabNavigator} />
-    </Stack.Navigator>
-  );
+  return <TabNavigator />;
 };
 
 const isWebPlatform = () => {

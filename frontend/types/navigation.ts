@@ -1,4 +1,3 @@
-import { DrawerNavigationProp } from '@react-navigation/drawer';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { NavigatorScreenParams } from '@react-navigation/native';
 import { Platform } from 'react-native';
@@ -18,11 +17,6 @@ export const NAVIGATION_CONFIG = {
     name: 'Settings',
     title: 'Settings',
     icon: 'cog',
-  },
-  Menu: {
-    name: 'Menu',
-    title: 'Menu',
-    icon: 'bars',
   },
 } as const;
 
@@ -51,7 +45,9 @@ export type TabParamList = {
   PetProfiles: undefined;
   Discover: undefined;
   Profile: undefined;
-  Sessions: undefined;
+  Settings: NavigatorScreenParams<SettingsStackParamList>;
+  Login: undefined;
+  Register: undefined;
 };
 
 export type FeedStackParamList = {
@@ -61,9 +57,11 @@ export type FeedStackParamList = {
   EditPet: { pet_uuid: string };
 };
 
-export type TabStackParamList = {
-  Tabs: NavigatorScreenParams<TabParamList>;
+export type SettingsStackParamList = {
+  SettingsScreen: undefined;
+  SessionsScreen: undefined;
 };
+
 
 export type AuthStackParamList = {
   SignIn: undefined;
@@ -72,29 +70,11 @@ export type AuthStackParamList = {
   ResetPassword: { token?: string };
 };
 
-export type DrawerParamList = {
-  [NAVIGATION_CONFIG.Home.name]: NavigatorScreenParams<TabParamList>;
-  [NAVIGATION_CONFIG.Account.name]: NavigatorScreenParams<AuthStackParamList>;
-  [NAVIGATION_CONFIG.Settings.name]: undefined;
-  [NAVIGATION_CONFIG.Menu.name]: undefined;
-};
-
-export type StackParamList = {
-  [NAVIGATION_CONFIG.Home.name]: NavigatorScreenParams<TabParamList>;
-  [NAVIGATION_CONFIG.Account.name]: NavigatorScreenParams<AuthStackParamList>;
-  [NAVIGATION_CONFIG.Settings.name]: undefined;
-  [NAVIGATION_CONFIG.Menu.name]: undefined;
-};
-
 export type RootStackParamList = {
   [key in NavigationConfigKey]: undefined;
 } & {
   Profile: { userId: string };
 };
-
-export function isDrawerRoute(route: string): route is keyof DrawerParamList {
-  return Object.values(NAVIGATION_CONFIG).some((config) => config.name === route);
-}
 
 export function getScreenTitle(route: string): string {
   const config = Object.values(NAVIGATION_CONFIG).find((c) => c.name === route);
