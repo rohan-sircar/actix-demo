@@ -10,7 +10,7 @@ import DiscoverScreen from '../screens/DiscoverScreen';
 import EditPetScreen from '../screens/EditPetScreen';
 import HomeScreen from '../screens/HomeScreen';
 import ImageGalleryScreen from '../screens/ImageGalleryScreen';
-import PetProfileScreen from '../screens/PetProfileScreen';
+import PetProfileEditScreen from '../screens/PetProfileEditScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import SessionsScreen from '../screens/SessionsScreen';
 import { useAuthStore } from '../stores/AuthStore';
@@ -24,7 +24,7 @@ const FeedStackNavigator = () => {
   return (
     <FeedStack.Navigator screenOptions={{ headerShown: false }}>
       <FeedStack.Screen name="HomeScreen" component={HomeScreen} />
-      <FeedStack.Screen name="PetProfile" component={PetProfileScreen} options={{ animation: 'slide_from_right' }} />
+      <FeedStack.Screen name="PetProfile" component={PetProfileEditScreen} options={{ animation: 'slide_from_right' }} />
       <FeedStack.Screen name="ImageGallery" component={ImageGalleryScreen} options={{ animation: 'slide_from_right' }} />
       <FeedStack.Screen name="EditPet" component={EditPetScreen} options={{ animation: 'slide_from_right' }} />
     </FeedStack.Navigator>

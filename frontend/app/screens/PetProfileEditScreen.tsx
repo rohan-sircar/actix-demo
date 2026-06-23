@@ -69,11 +69,11 @@ const getSpeciesIcon = (sp: string) => {
   return 'paw' as const;
 };
 
-type PetProfileScreenProps = {
+type PetProfileEditScreenProps = {
   route: { params: { pet_uuid: string } };
 };
 
-export default function PetProfileScreen({ route }: PetProfileScreenProps) {
+export default function PetProfileEditScreen({ route }: PetProfileEditScreenProps) {
   const { pet_uuid } = route.params;
   const navigation = useNavigation<NativeStackNavigationProp<FeedStackParamList>>();
   const { colors, isDarkColorScheme } = useColorScheme();
