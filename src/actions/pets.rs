@@ -479,12 +479,18 @@ pub fn upload_pet_image(
                 .values((
                     pet_images::uuid.eq(new_image_uuid),
                     pet_images::pet_id.eq(pet.id.as_int()),
-                    pet_images::thumbnail_key
-                        .eq(format!("pets/{}/{}/thumbnail.webp", pet_uuid, new_image_uuid)),
-                    pet_images::medium_key
-                        .eq(format!("pets/{}/{}/medium.webp", pet_uuid, new_image_uuid)),
-                    pet_images::original_key
-                        .eq(format!("pets/{}/{}/original.webp", pet_uuid, new_image_uuid)),
+                    pet_images::thumbnail_key.eq(format!(
+                        "pets/{}/{}/thumbnail.webp",
+                        pet_uuid, new_image_uuid
+                    )),
+                    pet_images::medium_key.eq(format!(
+                        "pets/{}/{}/medium.webp",
+                        pet_uuid, new_image_uuid
+                    )),
+                    pet_images::original_key.eq(format!(
+                        "pets/{}/{}/original.webp",
+                        pet_uuid, new_image_uuid
+                    )),
                     pet_images::format.eq("webp"),
                     pet_images::is_primary.eq(is_primary),
                     pet_images::sort_order.eq(sort_order),

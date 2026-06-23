@@ -324,9 +324,12 @@ pub async fn upload_pet_image(
     })
     .await??;
 
-    let thumbnail_key = format!("pets/{}/{}/thumbnail.webp", pet_uuid, public_image.uuid);
-    let medium_key = format!("pets/{}/{}/medium.webp", pet_uuid, public_image.uuid);
-    let original_key = format!("pets/{}/{}/original.webp", pet_uuid, public_image.uuid);
+    let thumbnail_key =
+        format!("pets/{}/{}/thumbnail.webp", pet_uuid, public_image.uuid);
+    let medium_key =
+        format!("pets/{}/{}/medium.webp", pet_uuid, public_image.uuid);
+    let original_key =
+        format!("pets/{}/{}/original.webp", pet_uuid, public_image.uuid);
 
     minio_client
         .put_object()
