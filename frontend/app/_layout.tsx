@@ -42,7 +42,7 @@ export default function RootLayout() {
             <ActionSheetProvider>
               <QueryClientProvider client={queryClient}>
                 <View className="flex-1" style={{ backgroundColor: colors.background }}>
-                  <View className="mx-auto w-full max-w-[800px] flex-1">
+                  <View className="mx-auto w-full max-w-[1000px] flex-1">
                     <Slot />
                   </View>
                 </View>

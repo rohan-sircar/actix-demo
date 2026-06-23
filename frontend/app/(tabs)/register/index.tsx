@@ -225,7 +225,7 @@ const RegisterScreen = () => {
 
             <View className="mt-5 items-center">
               <TouchableOpacity
-                onPress={() => router.replace('/auth/sign-in')}>
+                onPress={() => router.replace('/login')}>
                 <Text className="text-sm">
                   <Text className="text-[#8B7368]">Already have an account? </Text>
                   <Text className="font-semibold text-[#F4644E]">Sign in</Text>

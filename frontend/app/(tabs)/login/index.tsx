@@ -199,7 +199,7 @@ const LoginScreen = () => {
 
             <View className="mt-5 items-center">
               <TouchableOpacity
-                onPress={() => router.push('/auth/register')}>
+                onPress={() => router.push('/register')}>
                 <Text className="text-sm">
                   <Text className="text-[#8B7368]">New to PetMatch? </Text>
                   <Text className="font-semibold text-[#F4644E]">Create account</Text>
