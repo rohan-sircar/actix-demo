@@ -36,7 +36,7 @@ const DiscoverScreen = () => {
 
   if (loading) {
     return (
-      <View className="flex-1 items-center justify-center">
+      <View className="flex-1 items-center justify-center" style={{ backgroundColor: colors.background }}>
         <ActivityIndicator size="large" color={accentSet.base} />
         <Text className="mt-4 text-sm font-medium" style={{ color: colors.grey }}>
           Discovering pets near you...
@@ -46,7 +46,7 @@ const DiscoverScreen = () => {
   }
 
   return (
-    <View className="flex-1">
+    <View className="flex-1" style={{ backgroundColor: colors.background }}>
       <View className="px-4 pb-3 pt-4">
         <Text className="text-2xl font-bold" style={{ color: colors.text }}>
           Discover Pets 🎯
@@ -68,7 +68,7 @@ const DiscoverScreen = () => {
                 onPress={() => setSelectedSpecies(filter)}
                 className="rounded-full px-4 py-2"
                 style={{
-                  backgroundColor: isActive ? accentSet.base : accentSet.bgSubtle,
+                  backgroundColor: isActive ? accentSet.base : (isDarkColorScheme ? colors.grey5 : accentSet.bgSubtle),
                 }}>
                 <Text
                   className="text-sm font-semibold"

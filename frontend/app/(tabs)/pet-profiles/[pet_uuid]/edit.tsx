@@ -149,14 +149,14 @@ export default function EditPetScreen() {
 
   if (isLoading) {
     return (
-      <View className="flex-1 items-center justify-center">
+      <View className="flex-1 items-center justify-center" style={{ backgroundColor: colors.background }}>
         <ActivityIndicator size="large" color={accentSet.base} />
       </View>
     );
   }
 
   return (
-    <ScrollView className="flex-1 px-4 pt-2" contentContainerStyle={{ paddingBottom: 30 }} keyboardShouldPersistTaps="handled">
+    <ScrollView className="flex-1 px-4 pt-2" style={{ backgroundColor: colors.background }} contentContainerStyle={{ paddingBottom: 30 }} keyboardShouldPersistTaps="handled">
       <View className="mb-4 rounded-2xl p-5" style={{ backgroundColor: colors.card }}>
         <Text className="mb-4 text-lg font-bold" style={{ color: colors.text }}>
           Edit Pet Details

@@ -132,14 +132,14 @@ export default function SessionsScreen() {
 
   if (isLoading) {
     return (
-      <View className="flex-1 items-center justify-center">
+      <View className="flex-1 items-center justify-center" style={{ backgroundColor: colors.background }}>
         <Text style={{ color: colors.grey }}>Loading sessions...</Text>
       </View>
     );
   }
 
   return (
-    <View className="flex-1 px-4 pb-4 pt-4">
+    <View className="flex-1 px-4 pb-4 pt-4" style={{ backgroundColor: colors.background }}>
       <Text className="mb-4 text-xl font-bold" style={{ color: colors.text }}>
         Active Sessions
       </Text>

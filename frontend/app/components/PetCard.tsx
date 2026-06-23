@@ -42,14 +42,14 @@ const PetCard: React.FC<{
         width: '48%',
         backgroundColor: colors.card,
         borderWidth: 1,
-        borderColor: isDarkColorScheme ? '#2a2a2a' : '#e8e8e8',
+        borderColor: isDarkColorScheme ? colors.grey4 : '#e8e8e8',
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.08,
         shadowRadius: 4,
         elevation: 2,
       }}>
-      <View style={{ height: 200, backgroundColor: `${accentSet.bgSubtle}90` }}>
+      <View style={{ height: 200, backgroundColor: isDarkColorScheme ? colors.grey5 : `${accentSet.bgSubtle}90` }}>
         {imageUrl ? (
           <Image
             source={{ uri: imageUrl }}

@@ -15,14 +15,14 @@ import { usePathname } from 'expo-router';
 const isWebPlatform = () => Platform.OS === 'web';
 
 const HeaderBranding = () => {
-  const { colors } = useColorScheme();
+  const { colors, isDarkColorScheme } = useColorScheme();
   const { accentColor } = useAccentColor();
   const accentSet = getAccentSet(accentColor);
   return (
     <View className="flex-row items-center gap-2">
       <View
         className="items-center justify-center rounded-full"
-        style={{ width: 28, height: 28, backgroundColor: accentSet.bgSubtle }}>
+        style={{ width: 28, height: 28, backgroundColor: isDarkColorScheme ? colors.grey5 : accentSet.bgSubtle }}>
         <FontAwesome name="paw" size={14} color={accentSet.base} />
       </View>
       <Text style={{ color: colors.text, fontSize: 18, fontWeight: 'bold' }}>
@@ -58,7 +58,7 @@ const hiddenTabOptions = {
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
-  const { colors } = useColorScheme();
+  const { colors, isDarkColorScheme } = useColorScheme();
   const { accentColor } = useAccentColor();
   const accentSet = getAccentSet(accentColor);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -67,12 +67,14 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: true,
+        headerStyle: { backgroundColor: colors.background },
+        headerTintColor: colors.text,
         headerTitle: HeaderBranding,
         headerRight: HeaderRightContent,
         tabBarActiveTintColor: accentSet.base,
         tabBarInactiveTintColor: colors.grey as string,
         tabBarStyle: {
-          backgroundColor: isWebPlatform() ? 'transparent' : colors.card,
+          backgroundColor: isWebPlatform() ? 'transparent' : (isDarkColorScheme ? colors.background : colors.card),
           borderTopWidth: 0,
           paddingBottom: insets.bottom + 16,
           paddingTop: isWebPlatform() ? 8 : 0,

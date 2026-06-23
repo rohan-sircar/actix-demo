@@ -117,14 +117,14 @@ export default function PetProfileEditScreen() {
     }
   };
 
-  const badgeBg = `${accentSet.bgSubtle}80`;
+  const badgeBg = isDarkColorScheme ? colors.grey5 : `${accentSet.bgSubtle}80`;
   const badgeColor = accentSet.base;
   const secondaryColor = colors.grey;
   const [previewImage, setPreviewImage] = useState<boolean>(false);
 
   if (isLoading) {
     return (
-      <View className="flex-1 items-center justify-center">
+      <View className="flex-1 items-center justify-center" style={{ backgroundColor: colors.background }}>
         <ActivityIndicator size="large" color={accentSet.base} />
       </View>
     );
@@ -132,7 +132,7 @@ export default function PetProfileEditScreen() {
 
   if (!pet) {
     return (
-      <View className="flex-1 items-center justify-center px-8">
+      <View className="flex-1 items-center justify-center px-8" style={{ backgroundColor: colors.background }}>
         <Ionicons name="alert-circle" size={48} color={colors.grey} />
         <Text className="mt-4 text-lg font-semibold" style={{ color: colors.text }}>
           Pet not found
@@ -147,7 +147,7 @@ export default function PetProfileEditScreen() {
   const imageUrl = pet.primary_image ? getImageUrl(pet.primary_image.uuid, 'medium') : undefined;
 
   return (
-    <ScrollView className="flex-1">
+    <ScrollView className="flex-1" style={{ backgroundColor: colors.background }}>
       {/* Profile Header Card */}
       <View className="items-center pt-6 pb-6">
         <View className="relative">
@@ -171,7 +171,7 @@ export default function PetProfileEditScreen() {
                 style={{
                   width: 160,
                   height: 160,
-                  backgroundColor: `${accentSet.bgSubtle}90`,
+                  backgroundColor: isDarkColorScheme ? colors.grey5 : `${accentSet.bgSubtle}90`,
                 }}>
                 <Ionicons name={getSpeciesIcon(pet.species)} size={64} color={accentSet.base} />
               </View>
@@ -203,7 +203,7 @@ export default function PetProfileEditScreen() {
           <TouchableOpacity
             onPress={() => router.push(`/pet-profiles/${pet_uuid}/images`)}
             className="flex-1 items-center justify-center rounded-xl"
-            style={{ backgroundColor: accentSet.bgSubtle, paddingVertical: 8 }}>
+            style={{ backgroundColor: isDarkColorScheme ? colors.grey5 : accentSet.bgSubtle, paddingVertical: 8 }}>
             <Ionicons name="images" size={16} color={accentSet.base} />
             <Text className="mt-0.5 text-xs font-semibold" style={{ color: accentSet.base }}>
               Manage Photos

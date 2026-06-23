@@ -232,6 +232,7 @@ const Home = () => {
   const renderForm = () => (
     <ScrollView
       className="flex-1 px-4 pt-2"
+      style={{ backgroundColor: colors.background }}
       contentContainerStyle={{ paddingBottom: 30 }}
       keyboardShouldPersistTaps="handled">
       <View className="mb-4 rounded-2xl p-5" style={{ backgroundColor: colors.card }}>
@@ -417,7 +418,7 @@ const Home = () => {
 
   if (isLoading) {
     return (
-      <View className="flex-1 items-center justify-center">
+      <View className="flex-1 items-center justify-center" style={{ backgroundColor: colors.background }}>
         <ActivityIndicator size="large" color={accentSet.base} />
         <Text className="mt-4 text-sm font-medium" style={{ color: secondaryColor }}>
           Fetching your furry friends...
@@ -428,7 +429,7 @@ const Home = () => {
 
   if (queryError && !showAddForm) {
     return (
-      <View className="flex-1 items-center justify-center">
+      <View className="flex-1 items-center justify-center" style={{ backgroundColor: colors.background }}>
         <Text className="text-center text-sm font-medium text-rose-500">
           Failed to load pets. Please try again.
         </Text>
@@ -441,7 +442,7 @@ const Home = () => {
   }
 
   return (
-    <View className="flex-1">
+    <View className="flex-1" style={{ backgroundColor: colors.background }}>
       <View className="px-4 pb-2 pt-4">
         <View className="flex-row items-center justify-between">
           <View>
@@ -455,7 +456,7 @@ const Home = () => {
           <TouchableOpacity
             onPress={() => setShowAddForm(true)}
             className="items-center justify-center rounded-full"
-            style={{ width: 40, height: 40, backgroundColor: accentSet.bgSubtle }}>
+            style={{ width: 40, height: 40, backgroundColor: isDarkColorScheme ? colors.grey5 : accentSet.bgSubtle }}>
             <Ionicons name="add" size={20} color={accentSet.base} />
           </TouchableOpacity>
         </View>
@@ -494,7 +495,7 @@ const Home = () => {
         <View className="flex-1 items-center justify-center px-8">
           <View
             className="mb-4 items-center justify-center rounded-full"
-            style={{ width: 64, height: 64, backgroundColor: accentSet.bgSubtle }}>
+            style={{ width: 64, height: 64, backgroundColor: isDarkColorScheme ? colors.grey5 : accentSet.bgSubtle }}>
             <Ionicons name="paw" size={32} color={accentSet.base} />
           </View>
           <Text className="mb-1 text-center text-base font-semibold" style={{ color: colors.text }}>

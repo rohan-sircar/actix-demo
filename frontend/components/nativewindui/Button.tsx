@@ -9,7 +9,7 @@ import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
 import { useColorScheme } from '~/lib/useColorScheme';
 import { useHover } from '~/lib/useHover';
 import { useWebRipple } from '~/lib/useWebRipple';
-import { COLORS, ANDROID_STATIC_MATERIAL_COLORS } from '~/theme/colors';
+import { COLORS } from '~/theme/colors';
 
 const buttonVariants = cva('flex-row items-center justify-center gap-2 web:web-ripple', {
   variants: {
@@ -87,16 +87,16 @@ function convertToRGBA(rgb: string, opacity: number): string {
 
 const ANDROID_RIPPLE = {
   dark: {
-    primary: { color: convertToRGBA(ANDROID_STATIC_MATERIAL_COLORS.dark.grey3, 0.4), borderless: false },
-    secondary: { color: convertToRGBA(ANDROID_STATIC_MATERIAL_COLORS.dark.grey5, 0.8), borderless: false },
-    plain: { color: convertToRGBA(ANDROID_STATIC_MATERIAL_COLORS.dark.grey5, 0.8), borderless: false },
-    tonal: { color: convertToRGBA(ANDROID_STATIC_MATERIAL_COLORS.dark.grey5, 0.8), borderless: false },
+    primary: { color: convertToRGBA(COLORS.dark.grey3, 0.4), borderless: false },
+    secondary: { color: convertToRGBA(COLORS.dark.grey5, 0.8), borderless: false },
+    plain: { color: convertToRGBA(COLORS.dark.grey5, 0.8), borderless: false },
+    tonal: { color: convertToRGBA(COLORS.dark.grey5, 0.8), borderless: false },
   },
   light: {
-    primary: { color: convertToRGBA(ANDROID_STATIC_MATERIAL_COLORS.light.grey4, 0.4), borderless: false },
-    secondary: { color: convertToRGBA(ANDROID_STATIC_MATERIAL_COLORS.light.grey5, 0.4), borderless: false },
-    plain: { color: convertToRGBA(ANDROID_STATIC_MATERIAL_COLORS.light.grey5, 0.4), borderless: false },
-    tonal: { color: convertToRGBA(ANDROID_STATIC_MATERIAL_COLORS.light.grey6, 0.4), borderless: false },
+    primary: { color: convertToRGBA(COLORS.light.grey4, 0.4), borderless: false },
+    secondary: { color: convertToRGBA(COLORS.light.grey5, 0.4), borderless: false },
+    plain: { color: convertToRGBA(COLORS.light.grey5, 0.4), borderless: false },
+    tonal: { color: convertToRGBA(COLORS.light.grey6, 0.4), borderless: false },
   },
 };
 

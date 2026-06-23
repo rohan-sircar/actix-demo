@@ -28,7 +28,7 @@ const SettingsRow: React.FC<SettingsRowProps> = ({
   destructive,
   style,
 }) => {
-  const { colors } = useColorScheme();
+  const { colors, isDarkColorScheme } = useColorScheme();
   const { accentColor } = useAccentColor();
   const accentSet = getAccentSet(accentColor);
 
@@ -52,7 +52,7 @@ const SettingsRow: React.FC<SettingsRowProps> = ({
           width: 36,
           height: 36,
           borderRadius: 10,
-          backgroundColor: accentSet.bgSubtle,
+          backgroundColor: isDarkColorScheme ? colors.grey5 : accentSet.bgSubtle,
           alignItems: 'center',
           justifyContent: 'center',
           marginRight: 14,

@@ -24,7 +24,7 @@ export default function RootLayout() {
 
   if (isLoading) {
     return (
-      <View className="flex-1 items-center justify-center">
+      <View className="flex-1 items-center justify-center" style={{ backgroundColor: colors.background }}>
         <StatusBar style="light" />
       </View>
     );

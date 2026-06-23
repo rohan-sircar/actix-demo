@@ -70,7 +70,7 @@ export default function ProfileScreen() {
 
   if (isLoading) {
     return (
-      <View className="w-full flex-1 items-center justify-center">
+      <View className="w-full flex-1 items-center justify-center" style={{ backgroundColor: colors.background }}>
         <Text style={{ color: colors.grey }}>Loading profile...</Text>
       </View>
     );
@@ -94,7 +94,7 @@ export default function ProfileScreen() {
   };
 
   return (
-    <View className="w-full flex-1">
+    <View className="w-full flex-1" style={{ backgroundColor: colors.background }}>
       <View className="w-full flex-1 px-4 pb-4 pt-2">
         <View className="mb-4">
           <Text className="mb-4 text-2xl font-bold" style={{ color: colors.text }}>
@@ -171,7 +171,7 @@ export default function ProfileScreen() {
             <TouchableOpacity
               onPress={() => setIsEditing(true)}
               className="items-center rounded-xl px-4 py-3"
-              style={{ backgroundColor: accentSet.bgSubtle }}>
+              style={{ backgroundColor: isDarkColorScheme ? colors.grey5 : accentSet.bgSubtle }}>
               <Text className="font-semibold" style={{ color: accentSet.base }}>
                 Edit Profile
               </Text>
@@ -207,7 +207,7 @@ export default function ProfileScreen() {
 
         <View
           className="mt-2 flex-row justify-between rounded-xl border-x border-b border-t px-4 py-5"
-          style={{ borderColor: colors.grey5 }}>
+          style={{ borderColor: colors.grey5, backgroundColor: colors.card }}>
           <StatTile title="Pets" value={String(pets?.length ?? 0)} />
         </View>
       </View>

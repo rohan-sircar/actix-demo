@@ -1,4 +1,4 @@
-import { AccentColorSet, SystemColors } from '~/theme/colors';
+import { AccentColorSet, COLORS, SystemColors } from '~/theme/colors';
 
 export function cardStyle(
   isDarkColorScheme: boolean,
@@ -18,22 +18,24 @@ export function cardStyle(
 }
 
 export function subCardStyle(isDarkColorScheme: boolean, accentSet: AccentColorSet) {
+  const c = isDarkColorScheme ? COLORS.dark : COLORS.light;
   return {
     marginTop: 16,
-    backgroundColor: isDarkColorScheme ? '#2a1a14' : '#FFF5EE',
+    backgroundColor: c.card,
     padding: 16,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: isDarkColorScheme ? '#3d2a22' : '#F0D5C8',
+    borderColor: c.grey4,
   };
 }
 
 export function inputStyle(isDarkColorScheme: boolean, accentSet: AccentColorSet) {
+  const c = isDarkColorScheme ? COLORS.dark : COLORS.light;
   return {
     borderWidth: 1.5,
-    borderColor: isDarkColorScheme ? '#4a3528' : '#E8D0C0',
-    backgroundColor: isDarkColorScheme ? '#2a1a14' : '#FFFAF5',
-    color: isDarkColorScheme ? '#F5E6DD' : '#2D1A14',
+    borderColor: c.grey4,
+    backgroundColor: c.grey6,
+    color: c.text,
     borderRadius: 12,
   };
 }

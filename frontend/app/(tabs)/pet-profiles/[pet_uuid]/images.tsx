@@ -145,7 +145,7 @@ export default function ImageGalleryScreen() {
 
   if (isLoading) {
     return (
-      <View className="flex-1 items-center justify-center">
+      <View className="flex-1 items-center justify-center" style={{ backgroundColor: colors.background }}>
         <ActivityIndicator size="large" color={accentSet.base} />
       </View>
     );
@@ -159,7 +159,7 @@ export default function ImageGalleryScreen() {
   });
 
   return (
-    <View className="flex-1">
+    <View className="flex-1" style={{ backgroundColor: colors.background }}>
       <ScrollView contentContainerStyle={{ alignItems: 'center', paddingVertical: padding, paddingBottom: 40 }}>
         {/* Toolbar */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 12 }}>
@@ -169,7 +169,7 @@ export default function ImageGalleryScreen() {
               flexDirection: 'row',
               alignItems: 'center',
               gap: 4,
-              backgroundColor: editMode ? accentSet.base : accentSet.bgSubtle,
+              backgroundColor: editMode ? accentSet.base : (isDarkColorScheme ? colors.grey5 : accentSet.bgSubtle),
               paddingHorizontal: 10,
               paddingVertical: 6,
               borderRadius: 6,
@@ -186,7 +186,7 @@ export default function ImageGalleryScreen() {
               flexDirection: 'row',
               alignItems: 'center',
               gap: 4,
-              backgroundColor: accentSet.bgSubtle,
+              backgroundColor: isDarkColorScheme ? colors.grey5 : accentSet.bgSubtle,
               paddingHorizontal: 10,
               paddingVertical: 6,
               borderRadius: 6,

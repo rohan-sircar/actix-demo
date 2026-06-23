@@ -1,4 +1,3 @@
-import { Platform } from 'react-native';
 import Color from 'color';
 import { Map as ImmutableMap } from 'immutable';
 
@@ -20,7 +19,7 @@ export type SystemColors = {
   readonly text: UIColorValue;
 };
 
-const IOS_SYSTEM_COLORS = {
+const COLORS = {
   white: 'rgb(255, 255, 255)',
   black: 'rgb(0, 0, 0)',
   light: {
@@ -39,91 +38,19 @@ const IOS_SYSTEM_COLORS = {
     text: 'rgb(45, 25, 20)',
   },
   dark: {
-    grey6: 'rgb(35, 25, 22)',
-    grey5: 'rgb(50, 35, 30)',
-    grey4: 'rgb(65, 48, 42)',
-    grey3: 'rgb(80, 60, 54)',
-    grey2: 'rgb(120, 95, 85)',
-    grey: 'rgb(160, 140, 130)',
-    background: 'rgb(25, 18, 15)',
-    foreground: 'rgb(250, 235, 230)',
-    root: 'rgb(25, 18, 15)',
-    card: 'rgb(40, 28, 24)',
+    grey6: 'rgb(28, 20, 18)',
+    grey5: 'rgb(42, 30, 26)',
+    grey4: 'rgb(58, 42, 36)',
+    grey3: 'rgb(75, 55, 48)',
+    grey2: 'rgb(110, 85, 75)',
+    grey: 'rgb(155, 135, 125)',
+    background: 'rgb(0, 0, 0)',
+    foreground: 'rgb(245, 230, 225)',
+    root: 'rgb(0, 0, 0)',
+    card: 'rgb(32, 22, 18)',
     destructive: 'rgb(230, 70, 70)',
     primary: 'rgb(250, 120, 100)',
-    text: 'rgb(250, 235, 230)',
-  },
-};
-
-const ANDROID_COLORS = {
-  white: 'rgb(255, 255, 255)',
-  black: 'rgb(0, 0, 0)',
-  light: {
-    grey6: '#494541',
-    grey5: '#79747e',
-    grey4: '#938f99',
-    grey3: '#dadce0',
-    grey2: '#eaeaeb',
-    grey: '#f2f2f2',
-    background: '#ffffff',
-    foreground: '#1c1b1f',
-    root: '#ffffff',
-    card: '#f8f9fa',
-    destructive: '#d93025',
-    primary: '#6750a4',
-    text: '#1c1b1f',
-  },
-  dark: {
-    grey6: '#e6e0e5',
-    grey5: '#ccc4d0',
-    grey4: '#bab0bd',
-    grey3: '#938f99',
-    grey2: '#79747e',
-    grey: '#5f594b',
-    background: '#1c1b1f',
-    foreground: '#e6e0e5',
-    root: '#1c1b1f',
-    card: '#2b2930',
-    destructive: '#ef6457',
-    primary: '#d0bcff',
-    text: '#e6e0e5',
-  },
-};
-
-const COLORS = Platform.OS === 'ios' ? IOS_SYSTEM_COLORS : ANDROID_COLORS;
-
-export const ANDROID_STATIC_MATERIAL_COLORS = {
-  white: 'rgb(255, 255, 255)',
-  black: 'rgb(0, 0, 0)',
-  light: {
-    grey6: 'rgb(73, 69, 65)',
-    grey5: 'rgb(121, 116, 126)',
-    grey4: 'rgb(147, 143, 153)',
-    grey3: 'rgb(218, 220, 224)',
-    grey2: 'rgb(234, 234, 235)',
-    grey: 'rgb(242, 242, 242)',
-    background: 'rgb(255, 255, 255)',
-    foreground: 'rgb(28, 27, 31)',
-    root: 'rgb(255, 255, 255)',
-    card: 'rgb(248, 249, 250)',
-    destructive: 'rgb(217, 48, 37)',
-    primary: 'rgb(103, 80, 164)',
-    text: 'rgb(28, 27, 31)',
-  },
-  dark: {
-    grey6: 'rgb(230, 224, 229)',
-    grey5: 'rgb(204, 196, 208)',
-    grey4: 'rgb(186, 176, 189)',
-    grey3: 'rgb(147, 143, 153)',
-    grey2: 'rgb(121, 116, 126)',
-    grey: 'rgb(95, 89, 75)',
-    background: 'rgb(28, 27, 31)',
-    foreground: 'rgb(230, 224, 229)',
-    root: 'rgb(28, 27, 31)',
-    card: 'rgb(43, 41, 48)',
-    destructive: 'rgb(239, 100, 87)',
-    primary: 'rgb(208, 188, 255)',
-    text: 'rgb(230, 224, 229)',
+    text: 'rgb(245, 230, 225)',
   },
 };
 

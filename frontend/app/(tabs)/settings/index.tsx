@@ -98,6 +98,7 @@ export default function SettingsScreen() {
   return (
     <ScrollView
       className="flex-1 px-4 md:px-8"
+      style={{ backgroundColor: colors.background }}
       contentContainerStyle={{ paddingTop: 16, paddingBottom: 40 }}
       keyboardShouldPersistTaps="handled">
       {/* Account Info Card */}
@@ -108,7 +109,7 @@ export default function SettingsScreen() {
               width: 56,
               height: 56,
               borderRadius: 28,
-              backgroundColor: accentSet.bgSubtle,
+              backgroundColor: isDarkColorScheme ? colors.grey5 : accentSet.bgSubtle,
               alignItems: 'center',
               justifyContent: 'center',
             }}>
