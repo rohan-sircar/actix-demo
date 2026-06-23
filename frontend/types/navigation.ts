@@ -48,10 +48,21 @@ export type NavigationConfig = {
 };
 
 export type TabParamList = {
-  Feed: undefined;
+  PetProfiles: undefined;
   Discover: undefined;
   Profile: undefined;
   Sessions: undefined;
+};
+
+export type FeedStackParamList = {
+  HomeScreen: undefined;
+  PetProfile: { pet_uuid: string };
+  ImageGallery: { pet_uuid: string };
+  EditPet: { pet_uuid: string };
+};
+
+export type TabStackParamList = {
+  Tabs: NavigatorScreenParams<TabParamList>;
 };
 
 export type AuthStackParamList = {

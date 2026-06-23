@@ -38,7 +38,7 @@ export const DrawerContent = (_props: DrawerContentComponentProps) => {
   const navigateTo: NavigationActions = {
     home: () =>
       navigateWithTitle(
-        () => navigation.navigate(NAVIGATION_CONFIG.Home.name, { screen: 'Feed' }),
+        () => navigation.navigate(NAVIGATION_CONFIG.Home.name, { screen: 'PetProfiles' }),
         NAVIGATION_CONFIG.Home.title
       ),
     signIn: () =>

@@ -1,13 +1,15 @@
 import React from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, Pressable, TouchableOpacity, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from '~/lib/useColorScheme';
 import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
 import * as Style from '../styles/Styles';
 import type { Pet } from '~/app/models/pets';
 
+const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8800';
+
 const PetCard: React.FC<{
-  id: Pet['id'] | string;
+  pet_uuid: string;
   name: Pet['name'];
   species: Pet['species'];
   breed?: Pet['breed'];
@@ -16,108 +18,88 @@ const PetCard: React.FC<{
   weight?: Pet['weight'];
   description?: Pet['description'];
   traits?: Pet['traits'];
-}> = ({ name, species, breed, date_of_birth, gender, weight, description, traits }) => {
+  primary_image?: Pet['primary_image'];
+  onDelete?: (pet_uuid: string) => void;
+  onPress?: () => void;
+}> = ({ name, species, breed, description, primary_image, pet_uuid, onDelete, onPress }) => {
   const { colors, isDarkColorScheme } = useColorScheme();
   const { accentColor } = useAccentColor();
   const accentSet = getAccentSet(accentColor);
-
-  const getSpeciesIcon = (sp: string) => {
-    const lower = sp.toLowerCase();
-    if (lower.includes('dog')) return 'paw' as const;
-    if (lower.includes('cat')) return 'paw' as const;
-    if (lower.includes('bird')) return 'planet' as const;
-    if (lower.includes('fish')) return 'water' as const;
-    if (lower.includes('reptile') || lower.includes('snake') || lower.includes('lizard'))
-      return 'leaf' as const;
-    return 'paw' as const;
-  };
-
-  const getAgeFromDob = (dob: string) => {
-    const birth = new Date(dob);
-    const today = new Date();
-    const ageYears = today.getFullYear() - birth.getFullYear();
-    const ageMonths = today.getMonth() - birth.getMonth();
-    if (ageYears > 0) {
-      return `${ageYears}y${ageMonths > 0 ? ` ${ageMonths}m` : ''}`;
-    }
-    const ageDays = Math.floor((today.getTime() - birth.getTime()) / (1000 * 60 * 60 * 24));
-    if (ageDays > 30) {
-      return `${Math.floor(ageDays / 30)}m`;
-    }
-    return `${ageDays}d`;
-  };
-
-  const badgeBg = `${accentSet.bgSubtle}80`;
-  const badgeColor = accentSet.base;
   const secondaryColor = colors.grey;
 
+  const imageUrl = primary_image
+    ? `${API_BASE}/api/v1/pets/images/${primary_image.uuid}/medium`
+    : null;
+
+  const label = breed ? `${species} · ${breed}` : species;
+
   return (
-    <View
-      className="mb-3 rounded-2xl px-4 py-3"
-      style={Style.cardStyle(isDarkColorScheme, colors, accentSet)}>
-      <View className="flex-row items-start gap-3">
-        <View
-          className="items-center justify-center rounded-2xl"
-          style={{
-            backgroundColor: `${accentSet.bgSubtle}90`,
-            width: 52,
-            height: 52,
-          }}>
-          <Ionicons name={getSpeciesIcon(species)} size={24} color={accentSet.base} />
-        </View>
-        <View className="flex-1">
-          <View className="flex-row items-center gap-2">
-            <Text className="text-lg font-bold" style={{ color: colors.text }}>
-              {name}
-            </Text>
-            {gender && (
-              <Ionicons
-                name={gender.toLowerCase() === 'male' ? 'male' : 'female'}
-                size={16}
-                color={gender.toLowerCase() === 'male' ? '#5B8DEF' : '#F472B6'}
-              />
-            )}
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.7}
+      className="rounded-2xl overflow-hidden"
+      style={{
+        width: '48%',
+        backgroundColor: colors.card,
+        borderWidth: 1,
+        borderColor: isDarkColorScheme ? '#2a2a2a' : '#e8e8e8',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 4,
+        elevation: 2,
+      }}>
+      <View style={{ height: 200, backgroundColor: `${accentSet.bgSubtle}90` }}>
+        {imageUrl ? (
+          <Image
+            source={{ uri: imageUrl }}
+            className="h-full w-full"
+            resizeMode="cover"
+            onError={() => {
+              /* fallback to placeholder below */
+            }}
+          />
+        ) : (
+          <View className="h-full w-full items-center justify-center">
+            <Ionicons name="paw" size={40} color={accentSet.base} />
           </View>
-          <Text className="text-sm font-medium" style={{ color: secondaryColor }}>
-            {species}
-            {breed ? ` · ${breed}` : ''}
-          </Text>
-          <View className="mt-1.5 flex-row flex-wrap gap-1.5">
-            {date_of_birth && (
-              <View className="rounded-full px-2.5 py-1" style={{ backgroundColor: badgeBg }}>
-                <Text className="text-xs font-semibold" style={{ color: badgeColor }}>
-                  {getAgeFromDob(date_of_birth)}
-                </Text>
-              </View>
-            )}
-            {weight && (
-              <View className="rounded-full px-2.5 py-1" style={{ backgroundColor: badgeBg }}>
-                <Text className="text-xs font-semibold" style={{ color: badgeColor }}>
-                  {weight}kg
-                </Text>
-              </View>
-            )}
-            {traits?.map((trait) => (
-              <View
-                key={trait}
-                className="rounded-full px-2.5 py-1"
-                style={{ backgroundColor: badgeBg }}>
-                <Text className="text-xs font-semibold" style={{ color: badgeColor }}>
-                  {trait}
-                </Text>
-              </View>
-            ))}
-          </View>
-          {description && (
-            <Text
-              className="mt-2 line-clamp-2 text-sm leading-relaxed"
-              style={{ color: secondaryColor }}>
-              {description}
-            </Text>
-          )}
-        </View>
+        )}
+        {onDelete ? (
+          <Pressable
+            onPress={(e) => {
+              e?.stopPropagation();
+              onDelete(pet_uuid);
+            }}
+            className="absolute top-2 right-2 items-center justify-center rounded-full bg-black/40"
+            style={({ pressed }) => ({
+              width: 30,
+              height: 30,
+              opacity: pressed ? 0.6 : 1,
+            })}>
+            <Ionicons name="trash" size={14} color="#fff" />
+          </Pressable>
+        ) : null}
       </View>
-    </View>
+      <View className="px-3 pb-3 pt-2">
+        <Text
+          className="text-base font-bold"
+          style={{ color: colors.text }}
+          numberOfLines={1}>
+          {name}
+        </Text>
+        <Text className="mt-0.5 text-xs font-medium" style={{ color: secondaryColor }}>
+          {label}
+        </Text>
+        {description ? (
+          <Text
+            className="mt-1 text-xs leading-relaxed"
+            style={{ color: secondaryColor }}
+            numberOfLines={2}>
+            {description}
+          </Text>
+        ) : null}
+      </View>
+    </TouchableOpacity>
   );
 };
 

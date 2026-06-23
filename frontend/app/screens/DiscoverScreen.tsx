@@ -74,12 +74,19 @@ const DiscoverScreen = () => {
 
       <ScrollView
         className="flex-1"
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 30 }}>
+        contentContainerStyle={{
+          paddingHorizontal: 16,
+          paddingBottom: 30,
+          flexDirection: 'row',
+          flexWrap: 'wrap',
+          gap: 12,
+          justifyContent: 'space-between',
+        }}>
         {filteredPets.length > 0 ? (
           filteredPets.map((pet) => (
             <PetCard
               key={pet.id}
-              id={pet.id}
+              pet_uuid={pet.id}
               name={pet.name}
               species={pet.species}
               breed={pet.breed}
@@ -92,6 +99,7 @@ const DiscoverScreen = () => {
               weight={pet.weight ? Number(pet.weight) : undefined}
               description={pet.description}
               traits={pet.traits}
+              onPress={() => {}}
             />
           ))
         ) : (

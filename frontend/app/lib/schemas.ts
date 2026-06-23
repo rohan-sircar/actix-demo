@@ -29,8 +29,20 @@ export const resetPasswordSchema = z
     path: ['confirm_password'],
   });
 
+export const createPetSchema = z.object({
+  name: z.string().min(1, 'Name is required').max(100),
+  species: z.string().min(1, 'Species is required').max(100),
+  breed: z.string().max(100).optional().or(z.literal('')),
+  date_of_birth: z.string().optional().or(z.literal('')),
+  gender: z.enum(['male', 'female', 'unspecified']).optional(),
+  weight: z.string().max(10).optional().or(z.literal('')),
+  color_markings: z.string().max(200).optional().or(z.literal('')),
+  description: z.string().max(2000).optional().or(z.literal('')),
+});
+
 export type LoginFormData = z.infer<typeof loginSchema>;
 export type RegisterFormData = z.infer<typeof registerSchema>;
 export type ForgotPasswordFormData = z.infer<typeof forgotPasswordSchema>;
 export type ResendVerificationFormData = z.infer<typeof resendVerificationSchema>;
 export type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>;
+export type CreatePetFormData = z.infer<typeof createPetSchema>;

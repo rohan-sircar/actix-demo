@@ -41,6 +41,8 @@
     "expo-dev-client": "~5.0.12",
     "expo-dev-launcher": "^5.0.29",
     "expo-device": "~7.0.2",
+    "expo-file-system": "^56.0.8",
+    "expo-image-picker": "~14.0.0",
     "expo-linear-gradient": "~14.0.2",
     "expo-linking": "~7.0.5",
     "expo-navigation-bar": "~4.0.8",

@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import React from 'react';
+import React, { useCallback } from 'react';
 import { useState } from 'react';
 import { Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 
 import Avatar from '../components/Avatar';
 import StatTile from '../components/StatTile';
@@ -11,6 +12,7 @@ import { useColorScheme } from '~/lib/useColorScheme';
 import { useAuthStore, UserResponse } from '~/app/stores/AuthStore';
 import api from '~/app/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import type { Pet } from '~/app/models/pets';
 
 export default function ProfileScreen() {
   const queryClient = useQueryClient();
@@ -30,6 +32,20 @@ export default function ProfileScreen() {
       return res.data;
     },
   });
+
+  const { data: pets, refetch: refetchPets } = useQuery({
+    queryKey: ['pets-count'],
+    queryFn: async () => {
+      const res = await api.get<Pet[]>('/api/v1/private/user/pets');
+      return res.data;
+    },
+  });
+
+  useFocusEffect(
+    useCallback(() => {
+      refetchPets();
+    }, [refetchPets])
+  );
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: {
@@ -186,7 +202,7 @@ export default function ProfileScreen() {
         <View
           className="mt-2 flex-row justify-between rounded-xl border-x border-b border-t px-4 py-5"
           style={{ borderColor: colors.grey5 }}>
-          <StatTile title="Pets" value="0" />
+          <StatTile title="Pets" value={String(pets?.length ?? 0)} />
         </View>
       </View>
     </View>

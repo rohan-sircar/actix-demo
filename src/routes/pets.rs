@@ -324,9 +324,12 @@ pub async fn upload_pet_image(
     })
     .await??;
 
-    let thumbnail_key = format!("pets/{}/thumbnail.webp", pet_uuid);
-    let medium_key = format!("pets/{}/medium.webp", pet_uuid);
-    let original_key = format!("pets/{}/original.webp", pet_uuid);
+    let thumbnail_key =
+        format!("pets/{}/{}/thumbnail.webp", pet_uuid, public_image.uuid);
+    let medium_key =
+        format!("pets/{}/{}/medium.webp", pet_uuid, public_image.uuid);
+    let original_key =
+        format!("pets/{}/{}/original.webp", pet_uuid, public_image.uuid);
 
     minio_client
         .put_object()
@@ -438,7 +441,10 @@ pub async fn delete_pet_image(
         image_uuid,
     } = path.into_inner();
 
-    web::block(move || {
+    let minio_client = app_data.minio.client.clone();
+    let bucket_name = app_data.config.minio.bucket_name.clone();
+
+    let (thumbnail_key, medium_key, original_key) = web::block(move || {
         let pool = &app_data.pool;
         let mut conn = pool.get()?;
         let user_id =
@@ -451,6 +457,15 @@ pub async fn delete_pet_image(
         )
     })
     .await??;
+
+    for key in [&thumbnail_key, &medium_key, &original_key] {
+        let _ = minio_client
+            .delete_object()
+            .bucket(&bucket_name)
+            .key(key)
+            .send()
+            .await;
+    }
 
     Ok(HttpResponse::Ok().finish())
 }
