@@ -215,20 +215,20 @@ export default function PetProfileScreen({ route }: PetProfileScreenProps) {
         <View className="mt-5 flex-row w-full px-8">
           <TouchableOpacity
             onPress={() => navigation.navigate('EditPet', { pet_uuid })}
-            className="flex-1 items-center justify-center rounded-2xl"
-            style={{ backgroundColor: accentSet.base, paddingVertical: 12, shadowColor: accentSet.base, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 4, elevation: 4 }}>
-            <Ionicons name="pencil" size={18} color="#fff" />
-            <Text className="mt-1 text-sm font-semibold text-white">
+            className="flex-1 items-center justify-center rounded-xl"
+            style={{ backgroundColor: accentSet.base, paddingVertical: 8, shadowColor: accentSet.base, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 4, elevation: 4 }}>
+            <Ionicons name="pencil" size={16} color="#fff" />
+            <Text className="mt-0.5 text-xs font-semibold text-white">
               Edit
             </Text>
           </TouchableOpacity>
-          <View className="w-4" />
+          <View className="w-3" />
           <TouchableOpacity
             onPress={() => navigation.navigate('ImageGallery', { pet_uuid })}
-            className="flex-1 items-center justify-center rounded-2xl"
-            style={{ backgroundColor: accentSet.bgSubtle, paddingVertical: 12 }}>
-            <Ionicons name="images" size={18} color={accentSet.base} />
-            <Text className="mt-1 text-sm font-semibold" style={{ color: accentSet.base }}>
+            className="flex-1 items-center justify-center rounded-xl"
+            style={{ backgroundColor: accentSet.bgSubtle, paddingVertical: 8 }}>
+            <Ionicons name="images" size={16} color={accentSet.base} />
+            <Text className="mt-0.5 text-xs font-semibold" style={{ color: accentSet.base }}>
               Manage Photos
             </Text>
           </TouchableOpacity>
