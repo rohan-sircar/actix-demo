@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Pressable, TouchableOpacity, Image } from 'react-native';
+import { Platform, View, Text, Pressable, TouchableOpacity, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from '~/lib/useColorScheme';
 import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
@@ -39,7 +39,7 @@ const PetCard: React.FC<{
       activeOpacity={0.7}
       className="rounded-2xl overflow-hidden"
       style={{
-        width: '48%',
+        width: Platform.OS === 'web' ? '32%' : '48%',
         backgroundColor: colors.card,
         borderWidth: 1,
         borderColor: isDarkColorScheme ? colors.grey4 : '#e8e8e8',
@@ -49,7 +49,7 @@ const PetCard: React.FC<{
         shadowRadius: 4,
         elevation: 2,
       }}>
-      <View style={{ height: 200, backgroundColor: isDarkColorScheme ? colors.grey5 : `${accentSet.bgSubtle}90` }}>
+      <View style={{ height: Platform.OS === 'web' ? 210 : 200, backgroundColor: isDarkColorScheme ? colors.grey5 : `${accentSet.bgSubtle}90` }}>
         {imageUrl ? (
           <Image
             source={{ uri: imageUrl }}

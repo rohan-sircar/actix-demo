@@ -471,7 +471,7 @@ const Home = () => {
             flexDirection: 'row',
             flexWrap: 'wrap',
             gap: 12,
-            justifyContent: 'space-between',
+            justifyContent: 'flex-start',
           }}>
           {pets.map((item) => (
             <PetCard
