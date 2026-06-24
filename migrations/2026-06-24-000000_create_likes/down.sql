@@ -1,0 +1,2 @@
+DROP TABLE likes IF EXISTS;
+DROP TYPE like_direction IF EXISTS;

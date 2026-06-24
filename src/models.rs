@@ -1,4 +1,5 @@
 pub mod defaults;
+pub mod likes;
 pub mod misc;
 pub mod pets;
 pub mod rate_limit;

@@ -6,6 +6,10 @@ pub mod sql_types {
     pub struct JobStatus;
 
     #[derive(diesel::query_builder::QueryId, diesel::sql_types::SqlType)]
+    #[diesel(postgres_type(name = "like_direction"))]
+    pub struct LikeDirection;
+
+    #[derive(diesel::query_builder::QueryId, diesel::sql_types::SqlType)]
     #[diesel(postgres_type(name = "oauth_provider_type"))]
     pub struct OauthProviderType;
 
@@ -41,6 +45,21 @@ diesel::table! {
         status -> JobStatus,
         status_message -> Nullable<Varchar>,
         created_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use super::sql_types::LikeDirection;
+
+    likes (id) {
+        id -> Int4,
+        user_id -> Int4,
+        pet_owner_id -> Int4,
+        pet_id -> Int4,
+        direction -> LikeDirection,
+        is_match -> Bool,
+        created_at -> Timestamptz,
     }
 }
 
@@ -173,6 +192,8 @@ diesel::table! {
 
 diesel::joinable!(email_verification_tokens -> users (user_id));
 diesel::joinable!(jobs -> users (started_by));
+diesel::joinable!(likes -> pets (pet_id));
+diesel::joinable!(likes -> users (user_id));
 diesel::joinable!(password_reset_tokens -> users (user_id));
 diesel::joinable!(pet_images -> pets (pet_id));
 diesel::joinable!(pet_personality_traits -> personality_traits (trait_id));
@@ -185,6 +206,7 @@ diesel::joinable!(users_roles -> users (user_id));
 diesel::allow_tables_to_appear_in_same_query!(
     email_verification_tokens,
     jobs,
+    likes,
     password_reset_tokens,
     personality_traits,
     pet_images,
