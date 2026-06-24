@@ -91,10 +91,13 @@ pub struct Pagination {
     pub q: Option<String>,
 }
 
-fn default_page() -> PaginationPage {
+pub fn default_offset() -> PaginationOffset {
+    PaginationOffset(0)
+}
+pub fn default_page() -> PaginationPage {
     PaginationPage(0)
 }
-fn default_limit() -> PaginationLimit {
+pub fn default_limit() -> PaginationLimit {
     PaginationLimit(20)
 }
 

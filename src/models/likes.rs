@@ -6,26 +6,27 @@ use derive_more::{Display, Into};
 use diesel_derive_enum::DbEnum;
 use std::str::FromStr;
 
-use super::users::UserId;
 use super::pets::{PetId, PetUuid};
+use super::users::UserId;
 
 /// Like direction enum backed by PostgreSQL enum type
 #[derive(
-    DbEnum,
-    Debug,
-    Clone,
-    Deserialize,
-    Serialize,
-    PartialEq,
-    Eq,
-    ToSchema,
-    Display,
+    DbEnum, Debug, Clone, Deserialize, Serialize, PartialEq, Eq, ToSchema,
 )]
 #[serde(rename_all = "lowercase")]
 #[ExistingTypePath = "crate::schema::sql_types::LikeDirection"]
 pub enum LikeDirection {
     Like,
     Dislike,
+}
+
+impl std::fmt::Display for LikeDirection {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LikeDirection::Like => write!(f, "like"),
+            LikeDirection::Dislike => write!(f, "dislike"),
+        }
+    }
 }
 
 impl FromStr for LikeDirection {
@@ -163,7 +164,7 @@ impl From<(&Like, &PetUuid)> for LikeResponse {
     fn from((like, pet_uuid): (&Like, &PetUuid)) -> Self {
         Self {
             id: like.id,
-            pet_uuid: pet_uuid.clone(),
+            pet_uuid: *pet_uuid,
             direction: like.direction.clone(),
             is_match: like.is_match,
             created_at: like.created_at,
@@ -177,7 +178,10 @@ mod test {
 
     #[test]
     fn like_direction_from_str_valid() {
-        assert_eq!(LikeDirection::from_str("like").unwrap(), LikeDirection::Like);
+        assert_eq!(
+            LikeDirection::from_str("like").unwrap(),
+            LikeDirection::Like
+        );
         assert_eq!(
             LikeDirection::from_str("dislike").unwrap(),
             LikeDirection::Dislike
@@ -192,10 +196,7 @@ mod test {
     #[test]
     fn like_direction_display() {
         assert_eq!(format!("{}", LikeDirection::Like), "like");
-        assert_eq!(
-            format!("{}", LikeDirection::Dislike),
-            "dislike"
-        );
+        assert_eq!(format!("{}", LikeDirection::Dislike), "dislike");
     }
 
     #[test]
@@ -225,7 +226,8 @@ mod test {
         let user_id = UserId::try_from(1u32).unwrap();
         let pet_owner_id = UserId::try_from(2u32).unwrap();
         let pet_id = PetId::try_from(3u32).unwrap();
-        let new_like = NewLike::new(user_id, pet_owner_id, pet_id, LikeDirection::Like);
+        let new_like =
+            NewLike::new(user_id, pet_owner_id, pet_id, LikeDirection::Like);
         assert_eq!(new_like.user_id, 1);
         assert_eq!(new_like.pet_owner_id, 2);
         assert_eq!(new_like.pet_id, 3);

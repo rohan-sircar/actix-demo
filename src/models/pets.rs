@@ -3,7 +3,7 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 use validators::prelude::*;
 
-use crate::schema::pet_personality_traits;
+use crate::{models::users::UserUuid, schema::pet_personality_traits};
 use derive_more::{Display, Into};
 use diesel_derive_enum::DbEnum;
 use std::str::FromStr;
@@ -517,7 +517,16 @@ impl UpdatePet {
     }
 }
 
-/// Public-facing pet view (without owner info)
+/// Public-facing pet owner info
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct PublicPetOwner {
+    pub user_uuid: UserUuid,
+    pub display_name: Option<String>,
+    pub avatar_url: Option<String>,
+    pub pets_owned: u32,
+}
+
+/// Public-facing pet view (with owner info)
 #[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct PublicPet {
     pub id: PetId,
@@ -532,6 +541,7 @@ pub struct PublicPet {
     pub description: Option<PetDescription>,
     pub traits: Vec<PetTrait>,
     pub primary_image: Option<PublicPetImage>,
+    pub owner: PublicPetOwner,
 }
 
 impl PublicPet {
@@ -539,6 +549,7 @@ impl PublicPet {
         pet: &Pet,
         traits: Vec<PetTrait>,
         primary_image: Option<&PetImage>,
+        owner: PublicPetOwner,
     ) -> Self {
         PublicPet {
             id: pet.id,
@@ -553,6 +564,7 @@ impl PublicPet {
             description: pet.description.clone(),
             traits,
             primary_image: primary_image.map(PublicPetImage::from),
+            owner,
         }
     }
 }
@@ -840,7 +852,20 @@ mod test {
             },
         ];
 
-        let public = PublicPet::new(&pet, traits, None);
+        let public = PublicPet::new(
+            &pet,
+            traits,
+            None,
+            PublicPetOwner {
+                user_uuid: crate::models::users::UserUuid::try_from(
+                    "550e8400-e29b-41d4-a716-446655440000".to_string(),
+                )
+                .unwrap(),
+                display_name: None,
+                avatar_url: None,
+                pets_owned: 0,
+            },
+        );
         assert_eq!(public.id, PetId(1));
         assert_eq!(public.name.inner(), "Buddy");
         assert_eq!(public.species.inner(), "dog");

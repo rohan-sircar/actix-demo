@@ -396,6 +396,27 @@ pub fn configure_app(
                                     web::get().to(routes::users::get_user),
                                 ),
                         ),
+                    )
+                    // discover endpoints
+                    .route(
+                        "/discover/next",
+                        web::get().to(routes::discover::discover_next),
+                    )
+                    .route(
+                        "/discover/pets",
+                        web::get().to(routes::discover::discover_pets),
+                    )
+                    .route(
+                        "/likes",
+                        web::post().to(routes::discover::create_like),
+                    )
+                    .route(
+                        "/messages",
+                        web::post().to(routes::discover::stub_messages),
+                    )
+                    .route(
+                        "/reports",
+                        web::post().to(routes::discover::stub_reports),
                     ),
             )
             // public api
@@ -499,6 +520,11 @@ pub fn configure_app(
         routes::auth::exchange,
         routes::healthcheck::healthcheck,
         routes::misc::build_info_req,
+        routes::discover::discover_next,
+        routes::discover::discover_pets,
+        routes::discover::create_like,
+        routes::discover::stub_messages,
+        routes::discover::stub_reports,
     ),
     components(
         schemas(
@@ -544,6 +570,7 @@ pub fn configure_app(
             models::pets::CreatePet,
             models::pets::UpdatePet,
             models::pets::PublicPet,
+            models::pets::PublicPetOwner,
             models::pets::PetTrait,
             models::pets::PersonalityTrait,
             models::pets::PetGender,
@@ -552,6 +579,10 @@ pub fn configure_app(
             models::pets::PublicPetImage,
             models::pets::PetImageVariant,
             models::pets::UploadPetImageRequest,
+            models::likes::LikeDirection,
+            models::likes::LikeId,
+            models::likes::CreateLike,
+            models::likes::LikeResponse,
         ),
     ),
     tags(
@@ -561,6 +592,8 @@ pub fn configure_app(
         (name = "oauth", description = "OAuth 2.0 endpoints"),
         (name = "command", description = "Background job execution"),
         (name = "public", description = "Public endpoints"),
+        (name = "discover", description = "Discovery and swipe endpoints"),
+        (name = "likes", description = "Likes and matches endpoints"),
     ),
 )]
 pub struct ApiDoc;

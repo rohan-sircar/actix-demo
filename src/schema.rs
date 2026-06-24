@@ -149,6 +149,7 @@ diesel::table! {
         social_twitter -> Nullable<Varchar>,
         created_at -> Timestamptz,
         updated_at -> Timestamptz,
+        avatar_url -> Nullable<Text>,
     }
 }
 
@@ -193,7 +194,6 @@ diesel::table! {
 diesel::joinable!(email_verification_tokens -> users (user_id));
 diesel::joinable!(jobs -> users (started_by));
 diesel::joinable!(likes -> pets (pet_id));
-diesel::joinable!(likes -> users (user_id));
 diesel::joinable!(password_reset_tokens -> users (user_id));
 diesel::joinable!(pet_images -> pets (pet_id));
 diesel::joinable!(pet_personality_traits -> personality_traits (trait_id));

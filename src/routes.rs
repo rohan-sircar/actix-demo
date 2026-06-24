@@ -1,5 +1,7 @@
 pub mod auth;
+pub mod chat;
 pub mod command;
+pub mod discover;
 pub mod healthcheck;
 pub mod misc;
 pub mod oauth;

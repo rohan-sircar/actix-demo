@@ -603,4 +603,70 @@ mod pet_profiles_api {
         let body: Vec<serde_json::Value> = resp.json().await.unwrap();
         assert!(body.is_empty());
     }
+
+    #[actix_rt::test]
+    async fn public_pet_returns_owner_info() {
+        let ctx = TestContext::new(None).await;
+
+        let token = register_and_login(&ctx, "ownerinfo_user", "test123").await;
+
+        // Create a profile for the user
+        let profile_resp = ctx
+            .test_server
+            .post("/api/v1/private/user/profile")
+            .with_token(&token)
+            .append_header((CONTENT_TYPE, "application/json"))
+            .send_json(&serde_json::json!({
+                "display_name": "Test Owner"
+            }))
+            .await
+            .unwrap();
+        assert_eq!(profile_resp.status(), StatusCode::CREATED);
+
+        // Create a pet
+        let mut create_resp = ctx
+            .test_server
+            .post("/api/v1/private/user/pets")
+            .with_token(&token)
+            .append_header((CONTENT_TYPE, "application/json"))
+            .send_json(&serde_json::json!({
+                "name": "Buddy",
+                "species": "dog"
+            }))
+            .await
+            .unwrap();
+        let pet = create_resp.json::<serde_json::Value>().await.unwrap();
+        let pet_uuid = pet["pet_uuid"].as_str().unwrap();
+
+        // Fetch the public pet
+        let mut resp = ctx
+            .test_server
+            .get(&format!("/api/v1/pets/{}", pet_uuid))
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body: serde_json::Value = resp.json().await.unwrap();
+
+        // Verify owner info is present
+        assert!(
+            body["owner"].is_object(),
+            "owner should be an object, got: {}",
+            body["owner"]
+        );
+        let owner = &body["owner"];
+        assert!(
+            owner["user_uuid"].as_str().is_some(),
+            "owner should have user_uuid"
+        );
+        assert!(
+            owner["pets_owned"].as_u64().is_some(),
+            "owner should have pets_owned"
+        );
+        assert_eq!(
+            owner["pets_owned"].as_u64(),
+            Some(1),
+            "owner should have 1 pet"
+        );
+    }
 }

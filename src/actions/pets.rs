@@ -4,7 +4,7 @@ use diesel::prelude::*;
 use crate::errors::DomainError;
 use crate::models::pets::{
     CreatePet, ImageId, NewPetTrait, PersonalityTrait, Pet, PetImage, PetTrait,
-    PetUuid, PublicPet, PublicPetImage, TraitId, UpdatePet,
+    PetUuid, PublicPet, PublicPetImage, PublicPetOwner, TraitId, UpdatePet,
 };
 use crate::models::users::UserId;
 use crate::types::DbConnection;
@@ -109,7 +109,8 @@ pub fn create_pet(
 
     let primary_image = fetch_primary_image(pet_id, conn)?;
 
-    Ok(PublicPet::new(&pet, traits, primary_image.as_ref()))
+    let owner = minimal_owner(&pet.user_id, conn);
+    Ok(PublicPet::new(&pet, traits, primary_image.as_ref(), owner))
 }
 
 pub fn get_pet(
@@ -131,7 +132,13 @@ pub fn get_pet(
             let traits =
                 traits.get(&pet.id.as_int()).cloned().unwrap_or_default();
             let primary_image = fetch_primary_image(pet.id.as_int(), conn)?;
-            Ok(Some(PublicPet::new(&pet, traits, primary_image.as_ref())))
+            let owner = minimal_owner(&pet.user_id, conn);
+            Ok(Some(PublicPet::new(
+                &pet,
+                traits,
+                primary_image.as_ref(),
+                owner,
+            )))
         }
         None => Ok(None),
     }
@@ -192,7 +199,13 @@ pub fn list_pets(
             .cloned()
             .unwrap_or_default();
         let primary_image = fetch_primary_image(pet.id.as_int(), conn)?;
-        result.push(PublicPet::new(&pet, traits, primary_image.as_ref()));
+        let owner = minimal_owner(&pet.user_id, conn);
+        result.push(PublicPet::new(
+            &pet,
+            traits,
+            primary_image.as_ref(),
+            owner,
+        ));
     }
 
     Ok(result)
@@ -329,7 +342,8 @@ pub fn update_pet(
 
     let primary_image = fetch_primary_image(pet_id, conn)?;
 
-    Ok(PublicPet::new(&pet, traits, primary_image.as_ref()))
+    let owner = minimal_owner(&pet.user_id, conn);
+    Ok(PublicPet::new(&pet, traits, primary_image.as_ref(), owner))
 }
 
 pub fn delete_pet(
@@ -399,7 +413,74 @@ pub fn get_public_pet(
 
     let primary_image = fetch_primary_image(pet.id.as_int(), conn)?;
 
-    Ok(PublicPet::new(&pet, traits, primary_image.as_ref()))
+    let owner = fetch_owner_info(pet.user_id, conn)
+        .unwrap_or_else(|| minimal_owner(&pet.user_id, conn));
+
+    Ok(PublicPet::new(&pet, traits, primary_image.as_ref(), owner))
+}
+
+fn fetch_owner_info(
+    user_id: crate::models::users::UserId,
+    conn: &mut DbConnection,
+) -> Option<PublicPetOwner> {
+    use crate::models::users::UserUuid;
+    use crate::schema::profiles::dsl as profiles;
+    use crate::schema::users::dsl as users;
+
+    // Fetch profile info
+    let (user_uuid_opt, display_name, avatar_url) = users::users
+        .inner_join(profiles::profiles)
+        .filter(users::id.eq(user_id))
+        .select((
+            users::user_uuid,
+            profiles::display_name,
+            profiles::avatar_url,
+        ))
+        .first::<(uuid::Uuid, Option<String>, Option<String>)>(conn)
+        .ok()?;
+
+    // Count pets
+    use crate::schema::pets::dsl as pets;
+    let pets_owned: i64 = pets::pets
+        .filter(pets::user_id.eq(user_id))
+        .count()
+        .get_result(conn)
+        .ok()?;
+
+    Some(PublicPetOwner {
+        user_uuid: UserUuid::try_from(user_uuid_opt.to_string()).ok()?,
+        display_name,
+        avatar_url,
+        pets_owned: pets_owned as u32,
+    })
+}
+
+pub(crate) fn minimal_owner(
+    user_id: &crate::models::users::UserId,
+    conn: &mut DbConnection,
+) -> PublicPetOwner {
+    use crate::models::users::UserUuid;
+    use crate::schema::users::dsl as users;
+
+    let user_uuid = users::users
+        .select(users::user_uuid)
+        .filter(users::id.eq(user_id))
+        .first::<uuid::Uuid>(conn)
+        .unwrap_or_else(|_| uuid::Uuid::nil());
+
+    PublicPetOwner {
+        user_uuid: UserUuid::try_from(user_uuid.to_string()).unwrap_or_else(
+            |_| {
+                UserUuid::try_from(
+                    "00000000-0000-0000-0000-000000000000".to_string(),
+                )
+                .unwrap()
+            },
+        ),
+        display_name: None,
+        avatar_url: None,
+        pets_owned: 0,
+    }
 }
 
 fn fetch_primary_image(
