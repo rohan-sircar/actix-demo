@@ -8,15 +8,13 @@ import { useColorScheme } from '~/lib/useColorScheme';
 import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
 import FormButton from '../components/FormButton';
 import * as Style from '../styles/Styles';
-import { DrawerNavigationProp } from '@react-navigation/drawer';
-import { useNavigation } from '@react-navigation/native';
-import { DrawerParamList, navigateWithTitle } from '~/types/navigation';
+import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { BaseAccentGradients } from '~/theme/colors';
 
 const ForgotPasswordScreen = () => {
-  const navigation = useNavigation<DrawerNavigationProp<DrawerParamList>>();
+  const router = useRouter();
   const { colors, isDarkColorScheme } = useColorScheme();
   const { accentColor } = useAccentColor();
   const accentSet = getAccentSet(accentColor);
@@ -116,12 +114,7 @@ const ForgotPasswordScreen = () => {
             ) : null}
 
             <TouchableOpacity
-              onPress={() =>
-                navigateWithTitle(
-                  () => navigation.navigate('Account', { screen: 'SignIn' }),
-                  'Sign In'
-                )
-              }
+              onPress={() => router.replace('/auth/sign-in')}
               className="mt-4 items-center">
               <Text className="text-sm font-medium text-[#F4644E]">
                 Remember your password? Sign in

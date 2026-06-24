@@ -1,4 +1,3 @@
-import { Platform } from 'react-native';
 import Color from 'color';
 import { Map as ImmutableMap } from 'immutable';
 
@@ -20,7 +19,7 @@ export type SystemColors = {
   readonly text: UIColorValue;
 };
 
-const IOS_SYSTEM_COLORS = {
+const COLORS = {
   white: 'rgb(255, 255, 255)',
   black: 'rgb(0, 0, 0)',
   light: {
@@ -39,58 +38,21 @@ const IOS_SYSTEM_COLORS = {
     text: 'rgb(45, 25, 20)',
   },
   dark: {
-    grey6: 'rgb(35, 25, 22)',
-    grey5: 'rgb(50, 35, 30)',
-    grey4: 'rgb(65, 48, 42)',
-    grey3: 'rgb(80, 60, 54)',
-    grey2: 'rgb(120, 95, 85)',
-    grey: 'rgb(160, 140, 130)',
-    background: 'rgb(25, 18, 15)',
-    foreground: 'rgb(250, 235, 230)',
-    root: 'rgb(25, 18, 15)',
-    card: 'rgb(40, 28, 24)',
+    grey6: 'rgb(28, 20, 18)',
+    grey5: 'rgb(42, 30, 26)',
+    grey4: 'rgb(58, 42, 36)',
+    grey3: 'rgb(75, 55, 48)',
+    grey2: 'rgb(110, 85, 75)',
+    grey: 'rgb(155, 135, 125)',
+    background: 'rgb(0, 0, 0)',
+    foreground: 'rgb(245, 230, 225)',
+    root: 'rgb(0, 0, 0)',
+    card: 'rgb(32, 22, 18)',
     destructive: 'rgb(230, 70, 70)',
     primary: 'rgb(250, 120, 100)',
-    text: 'rgb(250, 235, 230)',
-  },
-};
-
-const ANDROID_COLORS = {
-  white: 'rgb(255, 255, 255)',
-  black: 'rgb(0, 0, 0)',
-  light: {
-    grey6: 'rgb(255, 240, 232)',
-    grey5: 'rgb(245, 225, 215)',
-    grey4: 'rgb(230, 205, 195)',
-    grey3: 'rgb(210, 185, 175)',
-    grey2: 'rgb(120, 100, 90)',
-    grey: 'rgb(45, 25, 20)',
-    background: 'rgb(255, 247, 240)',
-    foreground: 'rgb(45, 25, 20)',
-    root: 'rgb(255, 247, 240)',
-    card: 'rgb(255, 255, 255)',
-    destructive: 'rgb(200, 40, 40)',
-    primary: 'rgb(234, 80, 60)',
-    text: 'rgb(45, 25, 20)',
-  },
-  dark: {
-    grey6: 'rgb(30, 22, 18)',
-    grey5: 'rgb(45, 32, 28)',
-    grey4: 'rgb(58, 42, 36)',
-    grey3: 'rgb(70, 52, 46)',
-    grey2: 'rgb(140, 120, 110)',
-    grey: 'rgb(200, 180, 170)',
-    background: 'rgb(20, 14, 12)',
-    foreground: 'rgb(245, 230, 225)',
-    root: 'rgb(20, 14, 12)',
-    card: 'rgb(30, 22, 18)',
-    destructive: 'rgb(210, 50, 50)',
-    primary: 'rgb(240, 100, 80)',
     text: 'rgb(245, 230, 225)',
   },
 };
-
-const COLORS = Platform.OS === 'ios' ? IOS_SYSTEM_COLORS : ANDROID_COLORS;
 
 export type AccentColorSet = {
   readonly base: string;

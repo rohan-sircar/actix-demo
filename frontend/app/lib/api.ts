@@ -1,5 +1,6 @@
 import axios from 'axios';
 import * as FileSystem from 'expo-file-system/legacy';
+import { Platform } from 'react-native';
 import { useAuthStore } from '~/app/stores/AuthStore';
 
 const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8800/api/v1';
@@ -7,18 +8,17 @@ const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8800/api/v
 export const api = axios.create({
   baseURL: API_BASE,
   headers: { 'Content-Type': 'application/json' },
-  ...(typeof window !== 'undefined' ? { withCredentials: true } : {}),
+  ...(Platform.OS === 'web' ? { withCredentials: true } : {}),
 });
 
 export const petImageApi = {
   async upload(petUuid: string, fileUri: string, mimeType: string): Promise<{ id: number; uuid: string; format: string; is_primary: boolean; sort_order: number; created_at: string }> {
     console.log('[petImageApi] Reading file:', fileUri);
     let bytes: Uint8Array;
-    const isOnWeb = typeof window !== 'undefined';
     if (fileUri.startsWith('data:')) {
       const base64 = fileUri.split(',')[1];
       bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
-    } else if (isOnWeb) {
+    } else if (Platform.OS === 'web') {
       const response = await fetch(fileUri);
       const blob = await response.blob();
       bytes = new Uint8Array(await blob.arrayBuffer());

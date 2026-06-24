@@ -3,7 +3,6 @@
     "name": "PetMatch",
     "slug": "petmatch",
     "version": "1.0.0",
-    "newArchEnabled": true,
     "scheme": "petmatch",
     "web": {
       "bundler": "metro",
@@ -23,10 +22,11 @@
       "resizeMode": "contain",
       "backgroundColor": "#F4644E"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
-      "jsEngine": "jsc",
       "bundleIdentifier": "com.petmatch.app"
     },
     "android": {
@@ -38,6 +38,13 @@
       "userInterfaceStyle": "automatic",
       "package": "com.petmatch.app"
     },
-    "plugins": ["expo-secure-store"]
+    "plugins": [
+      "expo-secure-store",
+      "expo-image-picker",
+      "expo-router",
+      "@react-native-community/datetimepicker",
+      "expo-web-browser",
+      "expo-font"
+    ]
   }
 }

@@ -61,6 +61,7 @@ const GoogleButton = () => {
   return (
     <Button
       className="h-12 w-full flex-row items-center justify-center gap-3 rounded-xl border-2 border-[#E8D0C0]"
+      androidRootClassName="rounded-xl"
       hoverColor={isDarkColorScheme ? '#3d2a22' : '#FFF0E8'}
       defaultColor={colors.card}
       onPress={handlePress}

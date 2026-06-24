@@ -1,5 +1,6 @@
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import React, { useCallback, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useCallback, useEffect, useState } from 'react';
+import { useAuthStore } from '../../stores/AuthStore';
 import {
   View,
   Text,
@@ -23,8 +24,6 @@ import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
 import type { Pet } from '~/app/models/pets';
 import { Ionicons } from '@expo/vector-icons';
 import * as Style from '~/app/styles/Styles';
-import type { FeedStackParamList } from '~/types/navigation';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 const guessMimeTypeFromUri = (uri: string): string => {
   const lower = uri.toLowerCase();
@@ -35,7 +34,13 @@ const guessMimeTypeFromUri = (uri: string): string => {
 };
 
 const Home = () => {
-  const navigation = useNavigation<NativeStackNavigationProp<FeedStackParamList>>();
+  const router = useRouter();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  useEffect(() => {
+    if (!isAuthenticated) {
+      router.replace('/login');
+    }
+  }, [isAuthenticated, router]);
   const { colors, isDarkColorScheme } = useColorScheme();
   const { accentColor } = useAccentColor();
   const accentSet = getAccentSet(accentColor);
@@ -227,6 +232,7 @@ const Home = () => {
   const renderForm = () => (
     <ScrollView
       className="flex-1 px-4 pt-2"
+      style={{ backgroundColor: colors.background }}
       contentContainerStyle={{ paddingBottom: 30 }}
       keyboardShouldPersistTaps="handled">
       <View className="mb-4 rounded-2xl p-5" style={{ backgroundColor: colors.card }}>
@@ -412,7 +418,7 @@ const Home = () => {
 
   if (isLoading) {
     return (
-      <View className="flex-1 items-center justify-center">
+      <View className="flex-1 items-center justify-center" style={{ backgroundColor: colors.background }}>
         <ActivityIndicator size="large" color={accentSet.base} />
         <Text className="mt-4 text-sm font-medium" style={{ color: secondaryColor }}>
           Fetching your furry friends...
@@ -423,7 +429,7 @@ const Home = () => {
 
   if (queryError && !showAddForm) {
     return (
-      <View className="flex-1 items-center justify-center">
+      <View className="flex-1 items-center justify-center" style={{ backgroundColor: colors.background }}>
         <Text className="text-center text-sm font-medium text-rose-500">
           Failed to load pets. Please try again.
         </Text>
@@ -436,7 +442,7 @@ const Home = () => {
   }
 
   return (
-    <View className="flex-1">
+    <View className="flex-1" style={{ backgroundColor: colors.background }}>
       <View className="px-4 pb-2 pt-4">
         <View className="flex-row items-center justify-between">
           <View>
@@ -450,7 +456,7 @@ const Home = () => {
           <TouchableOpacity
             onPress={() => setShowAddForm(true)}
             className="items-center justify-center rounded-full"
-            style={{ width: 40, height: 40, backgroundColor: accentSet.bgSubtle }}>
+            style={{ width: 40, height: 40, backgroundColor: isDarkColorScheme ? colors.grey5 : accentSet.bgSubtle }}>
             <Ionicons name="add" size={20} color={accentSet.base} />
           </TouchableOpacity>
         </View>
@@ -465,7 +471,7 @@ const Home = () => {
             flexDirection: 'row',
             flexWrap: 'wrap',
             gap: 12,
-            justifyContent: 'space-between',
+            justifyContent: 'flex-start',
           }}>
           {pets.map((item) => (
             <PetCard
@@ -481,7 +487,7 @@ const Home = () => {
               traits={item.traits}
               primary_image={item.primary_image}
               onDelete={(uuid) => handleDelete(uuid, item.name)}
-              onPress={() => navigation.navigate('PetProfile', { pet_uuid: item.pet_uuid })}
+              onPress={() => router.push(`/pet-profiles/${item.pet_uuid}`)}
             />
           ))}
         </ScrollView>
@@ -489,7 +495,7 @@ const Home = () => {
         <View className="flex-1 items-center justify-center px-8">
           <View
             className="mb-4 items-center justify-center rounded-full"
-            style={{ width: 64, height: 64, backgroundColor: accentSet.bgSubtle }}>
+            style={{ width: 64, height: 64, backgroundColor: isDarkColorScheme ? colors.grey5 : accentSet.bgSubtle }}>
             <Ionicons name="paw" size={32} color={accentSet.base} />
           </View>
           <Text className="mb-1 text-center text-base font-semibold" style={{ color: colors.text }}>

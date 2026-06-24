@@ -1,6 +1,3 @@
-import { DrawerNavigationProp } from '@react-navigation/drawer';
-import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { NavigatorScreenParams } from '@react-navigation/native';
 import { Platform } from 'react-native';
 
 export const NAVIGATION_CONFIG = {
@@ -18,11 +15,6 @@ export const NAVIGATION_CONFIG = {
     name: 'Settings',
     title: 'Settings',
     icon: 'cog',
-  },
-  Menu: {
-    name: 'Menu',
-    title: 'Menu',
-    icon: 'bars',
   },
 } as const;
 
@@ -47,55 +39,6 @@ export type NavigationConfig = {
   icon?: string;
 };
 
-export type TabParamList = {
-  PetProfiles: undefined;
-  Discover: undefined;
-  Profile: undefined;
-  Sessions: undefined;
-};
-
-export type FeedStackParamList = {
-  HomeScreen: undefined;
-  PetProfile: { pet_uuid: string };
-  ImageGallery: { pet_uuid: string };
-  EditPet: { pet_uuid: string };
-};
-
-export type TabStackParamList = {
-  Tabs: NavigatorScreenParams<TabParamList>;
-};
-
-export type AuthStackParamList = {
-  SignIn: undefined;
-  Register: undefined;
-  ForgotPassword: undefined;
-  ResetPassword: { token?: string };
-};
-
-export type DrawerParamList = {
-  [NAVIGATION_CONFIG.Home.name]: NavigatorScreenParams<TabParamList>;
-  [NAVIGATION_CONFIG.Account.name]: NavigatorScreenParams<AuthStackParamList>;
-  [NAVIGATION_CONFIG.Settings.name]: undefined;
-  [NAVIGATION_CONFIG.Menu.name]: undefined;
-};
-
-export type StackParamList = {
-  [NAVIGATION_CONFIG.Home.name]: NavigatorScreenParams<TabParamList>;
-  [NAVIGATION_CONFIG.Account.name]: NavigatorScreenParams<AuthStackParamList>;
-  [NAVIGATION_CONFIG.Settings.name]: undefined;
-  [NAVIGATION_CONFIG.Menu.name]: undefined;
-};
-
-export type RootStackParamList = {
-  [key in NavigationConfigKey]: undefined;
-} & {
-  Profile: { userId: string };
-};
-
-export function isDrawerRoute(route: string): route is keyof DrawerParamList {
-  return Object.values(NAVIGATION_CONFIG).some((config) => config.name === route);
-}
-
 export function getScreenTitle(route: string): string {
   const config = Object.values(NAVIGATION_CONFIG).find((c) => c.name === route);
   return config?.title || route;
@@ -107,3 +50,10 @@ export function navigateWithTitle(navigate: () => void, title?: string) {
   }
   navigate();
 }
+
+// Legacy types - kept for components that still reference them
+export type RootStackParamList = {
+  [key in NavigationConfigKey]: undefined;
+} & {
+  Profile: { userId: string };
+};

@@ -1,6 +1,7 @@
 import React from 'react';
 import { ScrollViewStyleReset } from 'expo-router/html';
 
+
 export default function Root({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
@@ -18,6 +19,7 @@ export default function Root({ children }: { children: React.ReactNode }) {
           href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap"
           rel="stylesheet"
         />
+        <script src="http://192.168.1.116:8097"></script>
         <style dangerouslySetInnerHTML={{ __html: responsiveBackground }} />
       </head>
       <body>{children}</body>

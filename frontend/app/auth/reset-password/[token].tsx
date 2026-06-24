@@ -6,32 +6,23 @@ import { resetPasswordSchema, ResetPasswordFormData } from '~/app/lib/schemas';
 import api from '~/app/lib/api';
 import { useColorScheme } from '~/lib/useColorScheme';
 import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
-import FormButton from '../components/FormButton';
-import * as Style from '../styles/Styles';
-import { DrawerNavigationProp } from '@react-navigation/drawer';
-import { useNavigation } from '@react-navigation/native';
-import { DrawerParamList, navigateWithTitle } from '~/types/navigation';
+import FormButton from '../../components/FormButton';
+import * as Style from '../../styles/Styles';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { BaseAccentGradients } from '~/theme/colors';
 
-type ResetPasswordScreenProps = {
-  route: {
-    params: {
-      token?: string;
-    };
-  };
-};
-
-const ResetPasswordScreen = ({ route }: ResetPasswordScreenProps) => {
-  const navigation = useNavigation<DrawerNavigationProp<DrawerParamList>>();
+const ResetPasswordScreen = () => {
+  const router = useRouter();
+  const { token } = useLocalSearchParams<{ token?: string }>();
   const { colors, isDarkColorScheme } = useColorScheme();
   const { accentColor } = useAccentColor();
   const accentSet = getAccentSet(accentColor);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
 
-  const token = route?.params?.token || '';
+  const resetToken = token || '';
 
   const {
     control,
@@ -44,13 +35,13 @@ const ResetPasswordScreen = ({ route }: ResetPasswordScreenProps) => {
 
   const onSubmit = async (data: ResetPasswordFormData) => {
     setError('');
-    if (!token) {
+    if (!resetToken) {
       setError('Invalid reset token');
       return;
     }
     try {
       await api.post('/api/v1/auth/password-reset-complete', {
-        token,
+        token: resetToken,
         new_password: data.new_password,
       });
       setSuccess(true);
@@ -157,12 +148,7 @@ const ResetPasswordScreen = ({ route }: ResetPasswordScreenProps) => {
             ) : null}
 
             <TouchableOpacity
-              onPress={() =>
-                navigateWithTitle(
-                  () => navigation.navigate('Account', { screen: 'SignIn' }),
-                  'Sign In'
-                )
-              }
+              onPress={() => router.replace('/auth/sign-in')}
               className="mt-4 items-center">
               <Text className="text-sm font-medium text-[#F4644E]">Back to Sign In</Text>
             </TouchableOpacity>

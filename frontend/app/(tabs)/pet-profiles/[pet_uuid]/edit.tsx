@@ -10,8 +10,7 @@ import {
 } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 
 import api from '~/app/lib/api';
 import { petApi } from '~/app/lib/api';
@@ -19,15 +18,10 @@ import { useColorScheme } from '~/lib/useColorScheme';
 import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
 import type { Pet } from '~/app/models/pets';
 import * as Style from '~/app/styles/Styles';
-import type { FeedStackParamList } from '~/types/navigation';
 
-type EditPetScreenProps = {
-  route: { params: { pet_uuid: string } };
-};
-
-export default function EditPetScreen({ route }: EditPetScreenProps) {
-  const { pet_uuid } = route.params;
-  const navigation = useNavigation<NativeStackNavigationProp<FeedStackParamList>>();
+export default function EditPetScreen() {
+  const router = useRouter();
+  const { pet_uuid } = useLocalSearchParams<{ pet_uuid: string }>();
   const queryClient = useQueryClient();
   const { colors, isDarkColorScheme } = useColorScheme();
   const { accentColor } = useAccentColor();
@@ -58,7 +52,7 @@ export default function EditPetScreen({ route }: EditPetScreenProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pet', pet_uuid] });
       queryClient.invalidateQueries({ queryKey: ['pets'] });
-      navigation.goBack();
+      router.back();
     },
     onError: (error: any) => {
       const message = error.response?.data?.message || 'Failed to update pet. Please try again.';
@@ -155,14 +149,14 @@ export default function EditPetScreen({ route }: EditPetScreenProps) {
 
   if (isLoading) {
     return (
-      <View className="flex-1 items-center justify-center">
+      <View className="flex-1 items-center justify-center" style={{ backgroundColor: colors.background }}>
         <ActivityIndicator size="large" color={accentSet.base} />
       </View>
     );
   }
 
   return (
-    <ScrollView className="flex-1 px-4 pt-2" contentContainerStyle={{ paddingBottom: 30 }} keyboardShouldPersistTaps="handled">
+    <ScrollView className="flex-1 px-4 pt-2" style={{ backgroundColor: colors.background }} contentContainerStyle={{ paddingBottom: 30 }} keyboardShouldPersistTaps="handled">
       <View className="mb-4 rounded-2xl p-5" style={{ backgroundColor: colors.card }}>
         <Text className="mb-4 text-lg font-bold" style={{ color: colors.text }}>
           Edit Pet Details
@@ -303,7 +297,7 @@ export default function EditPetScreen({ route }: EditPetScreenProps) {
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={() => navigation.goBack()}
+            onPress={() => router.back()}
             className="flex-1 items-center rounded-xl py-3"
             style={{ backgroundColor: isDarkColorScheme ? '#3d2a22' : '#f0e0d8' }}>
             <Text className="font-semibold" style={{ color: colors.text }}>

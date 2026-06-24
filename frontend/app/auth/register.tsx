@@ -1,78 +1,79 @@
-import { DrawerNavigationProp } from '@react-navigation/drawer';
-import { useNavigation } from '@react-navigation/native';
+import { View, Text, TextInput, Platform, ScrollView, useWindowDimensions } from 'react-native';
+import { useColorScheme } from '~/lib/useColorScheme';
 import React, { useState } from 'react';
-import {
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-  Alert,
-  Platform,
-  Image,
-  ScrollView,
-  useWindowDimensions,
-} from 'react-native';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { loginSchema, LoginFormData } from '~/app/lib/schemas';
+import { registerSchema, RegisterFormData } from '~/app/lib/schemas';
 import api from '~/app/lib/api';
-import { useAuthStore, AuthUser, UserResponse } from '~/app/stores/AuthStore';
+import { useAuthStore, UserResponse } from '~/app/stores/AuthStore';
+import * as Style from '../styles/Styles';
 import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
-import { useColorScheme } from '~/lib/useColorScheme';
-import { DrawerParamList, navigateWithTitle } from '~/types/navigation';
-import FormButton from '../components/FormButton';
 import GithubButton from '../components/GithubButton';
 import GoogleButton from '../components/GoogleButton';
-import * as Style from '../styles/Styles';
+import FormButton from '../components/FormButton';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { TouchableOpacity } from 'react-native';
+import { useRouter } from 'expo-router';
 import { BaseAccentGradients } from '~/theme/colors';
 
 const isWeb = Platform.OS === 'web';
 
-const LoginScreen = () => {
-  const { width } = useWindowDimensions();
+const RegisterScreen = () => {
+  const router = useRouter();
   const { colors, isDarkColorScheme } = useColorScheme();
   const { accentColor } = useAccentColor();
   const accentSet = getAccentSet(accentColor);
-  const navigation = useNavigation<DrawerNavigationProp<DrawerParamList>>();
+  const { width } = useWindowDimensions();
   const setCredentials = useAuthStore((s) => s.setCredentials);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
 
   const {
     control,
     handleSubmit,
     formState: { errors },
-  } = useForm<LoginFormData>({
-    resolver: zodResolver(loginSchema),
-    defaultValues: { username: '', password: '' },
+  } = useForm<RegisterFormData>({
+    resolver: zodResolver(registerSchema),
+    defaultValues: { username: '', email: '', password: '' },
   });
 
-  const onSubmit = async (data: LoginFormData) => {
+  const onSubmit = async (data: RegisterFormData) => {
     setLoading(true);
     setError('');
     try {
-      if (isWeb) {
-        await api.post('/api/v1/auth/login', {
-          ...data,
-          device_name: 'Web',
-        });
-        const userRes = await api.get<UserResponse>('/api/v1/private/user');
-        setCredentials('', userRes.data);
-      } else {
-        const res = await api.post('/api/v1/auth/exchange', {
-          ...data,
-          device_name: 'Mobile',
-        });
-        setCredentials(res.data.token, res.data.user);
+      await api.post('/api/v1/auth/registration', {
+        username: data.username,
+        email: data.email,
+        password: data.password,
+      });
+      try {
+        if (isWeb) {
+          await api.post('/api/v1/auth/login', {
+            username: data.username,
+            password: data.password,
+            device_name: 'Web',
+          });
+          const userRes = await api.get<UserResponse>('/api/v1/private/user');
+          setCredentials('', userRes.data);
+        } else {
+          const res = await api.post('/api/v1/auth/exchange', {
+            username: data.username,
+            password: data.password,
+            device_name: 'Mobile',
+          });
+          setCredentials(res.data.token, res.data.user);
+        }
+        setSuccess(true);
+      } catch {
+        setError('Registration successful but login failed. Please sign in manually.');
       }
-      navigateWithTitle(() => navigation.navigate('Home', { screen: 'PetProfiles' }), 'Home');
     } catch (err: any) {
-      if (err.response?.status === 401) {
-        setError('Invalid credentials');
+      if (err.response?.data?.message) {
+        setError(err.response.data.message);
       } else {
-        setError('Login failed. Please try again.');
+        setError('Registration failed. Please try again.');
       }
     } finally {
       setLoading(false);
@@ -90,11 +91,11 @@ const LoginScreen = () => {
       colors={[gradientColors.gradientStart, gradientColors.gradientEnd]}
       style={{ flex: 1 }}>
       <ScrollView
-        className="flex-1 px-6"
+        className="flex-1 px-6 web:px-12"
         contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
         keyboardShouldPersistTaps="handled">
-        <View className="mx-auto w-full max-w-md">
-          <View className="mb-6 items-center">
+        <View className="mx-auto w-full max-w-md web:max-w-4xl web:flex-row web:items-center web:gap-4 web:px-6">
+          <View className="mb-6 items-center web:mb-0 web:w-1/2 web:items-center web:text-center">
             <View
               className="mb-3 items-center justify-center rounded-full"
               style={{
@@ -107,17 +108,24 @@ const LoginScreen = () => {
             <Text
               style={{ fontSize: headingFontSize }}
               className="font-bold tracking-tight text-white">
-              Welcome back!
+              Join PetMatch
             </Text>
-            <Text className="mt-1 text-base text-white/80">Let the tails wag again</Text>
+            <Text className="mt-1 text-base text-white/80">Let's set up your profile</Text>
           </View>
 
           <View
-            className="rounded-2xl p-6 shadow-xl"
+            className="rounded-2xl p-6 shadow-xl web:w-1/2"
             style={{
               backgroundColor: isDarkColorScheme ? 'rgba(35,25,22,0.95)' : 'rgba(255,255,255,0.95)',
-              backdropFilter: 'blur(10px)',
             }}>
+            {success ? (
+              <View className="mb-4 rounded-xl bg-emerald-500/15 p-3">
+                <Text className="text-center text-sm font-medium text-emerald-600">
+                  Account created successfully! Welcome to the pack!
+                </Text>
+              </View>
+            ) : null}
+
             {error ? (
               <View className="mb-4 rounded-xl bg-rose-500/15 p-3">
                 <Text className="text-center text-sm font-medium text-rose-500">{error}</Text>
@@ -148,6 +156,29 @@ const LoginScreen = () => {
 
               <Controller
                 control={control}
+                name="email"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <View>
+                    <TextInput
+                      placeholder="Email"
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      onBlur={onBlur}
+                      onChangeText={onChange}
+                      value={value}
+                      className="h-12 rounded-xl px-4 text-base"
+                      style={Style.inputStyle(isDarkColorScheme, accentSet)}
+                      placeholderTextColor={Style.getPlaceholderColor(isDarkColorScheme, accentSet)}
+                    />
+                    {errors.email ? (
+                      <Text className="mt-1 text-xs text-rose-500">{errors.email.message}</Text>
+                    ) : null}
+                  </View>
+                )}
+              />
+
+              <Controller
+                control={control}
                 name="password"
                 render={({ field: { onChange, onBlur, value } }) => (
                   <View>
@@ -169,35 +200,16 @@ const LoginScreen = () => {
               />
             </View>
 
-            <FormButton buttonText="Sign In" onPress={handleSubmit(onSubmit)} />
+            <FormButton buttonText="Create Account" onPress={handleSubmit(onSubmit)} />
 
-            <TouchableOpacity
-              onPress={() =>
-                navigateWithTitle(
-                  () => navigation.navigate('Account', { screen: 'ForgotPassword' }),
-                  'Forgot Password'
-                )
-              }
-              className="mt-4 items-center">
-              <Text className="text-sm font-medium text-[#F4644E]">Forgot your password?</Text>
-            </TouchableOpacity>
-
-            <View className="relative my-6">
-              <View className="absolute inset-0 flex items-center justify-center">
-                <View className="h-[1px] w-full bg-[#E8D0C0]" />
-              </View>
-              <View className="relative flex flex-row justify-center">
-                <Text
-                  className="px-4 text-sm font-medium"
-                  style={{
-                    backgroundColor: isDarkColorScheme
-                      ? 'rgba(35,25,22,0.95)'
-                      : 'rgba(255,255,255,0.95)',
-                    color: colors.grey,
-                  }}>
-                  or continue with
-                </Text>
-              </View>
+            <View className="my-6 items-center">
+              <Text
+                className="px-4 text-sm font-medium"
+                style={{
+                  color: colors.grey,
+                }}>
+                or continue with
+              </Text>
             </View>
 
             <View className="gap-3">
@@ -207,15 +219,10 @@ const LoginScreen = () => {
 
             <View className="mt-5 items-center">
               <TouchableOpacity
-                onPress={() =>
-                  navigateWithTitle(
-                    () => navigation.navigate('Account', { screen: 'Register' }),
-                    'Create Account'
-                  )
-                }>
+                onPress={() => router.replace('/auth/sign-in')}>
                 <Text className="text-sm">
-                  <Text className="text-[#8B7368]">New to PetMatch? </Text>
-                  <Text className="font-semibold text-[#F4644E]">Create account</Text>
+                  <Text className="text-[#8B7368]">Already have an account? </Text>
+                  <Text className="font-semibold text-[#F4644E]">Sign in</Text>
                 </Text>
               </TouchableOpacity>
             </View>
@@ -226,4 +233,4 @@ const LoginScreen = () => {
   );
 };
 
-export default LoginScreen;
+export default RegisterScreen;
