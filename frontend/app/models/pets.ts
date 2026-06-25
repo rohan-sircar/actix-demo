@@ -60,6 +60,15 @@ export interface PaginatedResponse<T> {
   total_count: number;
 }
 
+export interface UserProfile {
+  display_name: string | null;
+  bio: string | null;
+  location: string | null;
+  website_url: string | null;
+  social_github: string | null;
+  social_twitter: string | null;
+}
+
 export interface DiscoverQuery {
   species?: string;
   gender?: string;

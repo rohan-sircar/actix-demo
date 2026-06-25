@@ -118,4 +118,11 @@ export const likesApi = {
   },
 };
 
+export const profileApi = {
+  async get(): Promise<import('~/app/models/pets').UserProfile> {
+    const response = await api.get('/api/v1/private/user/profile');
+    return response.data;
+  },
+};
+
 export default api;
