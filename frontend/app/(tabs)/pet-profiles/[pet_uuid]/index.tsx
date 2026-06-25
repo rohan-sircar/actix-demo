@@ -209,6 +209,16 @@ export default function PetProfileEditScreen() {
               Manage Photos
             </Text>
           </TouchableOpacity>
+          <View className="w-3" />
+          <TouchableOpacity
+            onPress={() => router.push(`/pet-view/${pet_uuid}`)}
+            className="flex-1 items-center justify-center rounded-xl"
+            style={{ backgroundColor: isDarkColorScheme ? colors.grey5 : accentSet.bgSubtle, paddingVertical: 8 }}>
+            <Ionicons name="eye" size={16} color={accentSet.base} />
+            <Text className="mt-0.5 text-xs font-semibold" style={{ color: accentSet.base }}>
+              Public Profile
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
 

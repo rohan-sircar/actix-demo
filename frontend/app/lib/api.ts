@@ -99,4 +99,23 @@ export const petApi = {
   },
 };
 
+export const discoverApi = {
+  async next(): Promise<import('~/app/models/pets').PublicPet | null> {
+    const response = await api.get('/api/v1/private/discover/next');
+    return response.data;
+  },
+
+  async list(query: import('~/app/models/pets').DiscoverQuery): Promise<import('~/app/models/pets').PaginatedResponse<import('~/app/models/pets').PublicPet>> {
+    const response = await api.get('/api/v1/private/discover/pets', { params: query });
+    return response.data;
+  },
+};
+
+export const likesApi = {
+  async create(petUuid: string, direction: 'like' | 'dislike'): Promise<import('~/app/models/pets').LikeRecord> {
+    const response = await api.post('/api/v1/private/likes', { pet_uuid: petUuid, direction });
+    return response.data;
+  },
+};
+
 export default api;

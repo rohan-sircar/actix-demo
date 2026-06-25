@@ -18,7 +18,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { petImageApi } from '~/app/lib/api';
 import api from '~/app/lib/api';
-import PetCard from '~/app/components/PetCard';
+import PrivatePetCard from '~/app/components/PrivatePetCard';
 import { useColorScheme } from '~/lib/useColorScheme';
 import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
 import type { Pet } from '~/app/models/pets';
@@ -474,20 +474,14 @@ const Home = () => {
             justifyContent: 'flex-start',
           }}>
           {pets.map((item) => (
-            <PetCard
+            <PrivatePetCard
               key={item.pet_uuid}
               pet_uuid={item.pet_uuid}
               name={item.name}
               species={item.species}
               breed={item.breed}
-              date_of_birth={item.date_of_birth}
-              gender={item.gender}
-              weight={item.weight}
-              description={item.description}
-              traits={item.traits}
               primary_image={item.primary_image}
               onDelete={(uuid) => handleDelete(uuid, item.name)}
-              onPress={() => router.push(`/pet-profiles/${item.pet_uuid}`)}
             />
           ))}
         </ScrollView>
