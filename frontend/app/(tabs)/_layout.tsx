@@ -98,6 +98,14 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="swipe"
+        options={{
+          tabBarIcon: ({ color }) => <FontAwesome name="heart" size={22} color={color} />,
+          title: 'Swipe',
+          ...(!isAuthenticated ? hiddenTabOptions : {}),
+        }}
+      />
+      <Tabs.Screen
         name="discover"
         options={{
           tabBarIcon: ({ color }) => <FontAwesome name="compass" size={22} color={color} />,

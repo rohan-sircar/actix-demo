@@ -36,12 +36,14 @@ const AvatarComponent: React.FC<AvatarProps> = ({ userId, style, size = 36 }) =>
     width: size,
   };
 
+  const user = USERS[userId];
+
   return (
     <View style={style}>
-      {USERS[userId]?.avatar ? (
-        <Image source={USERS[userId].avatar} style={[styles.avatar, SIZING]} />
+      {user?.avatar ? (
+        <Image source={user.avatar} style={[styles.avatar, SIZING]} />
       ) : (
-        <View style={[styles.avatar, SIZING, { backgroundColor: USERS[userId].color }]}>
+        <View style={[styles.avatar, SIZING, { backgroundColor: user?.color || '#ccc' }]}>
           <Ionicons
             name="person-circle-outline"
             size={(size * 2) / 3}
