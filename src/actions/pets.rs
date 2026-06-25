@@ -132,7 +132,8 @@ pub fn get_pet(
             let traits =
                 traits.get(&pet.id.as_int()).cloned().unwrap_or_default();
             let primary_image = fetch_primary_image(pet.id.as_int(), conn)?;
-            let owner = minimal_owner(&pet.user_id, conn);
+            let owner = fetch_owner_info(pet.user_id, conn)
+                .unwrap_or_else(|| minimal_owner(&pet.user_id, conn));
             Ok(Some(PublicPet::new(
                 &pet,
                 traits,
