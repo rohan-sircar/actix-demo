@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Platform, View, ActivityIndicator, Text, StyleSheet } from 'react-native';
+import { Platform, View, ActivityIndicator, Text, StyleSheet, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
-import api from '~/app/lib/api';
+import api, { likesApi } from '~/app/lib/api';
 import { useColorScheme } from '~/lib/useColorScheme';
 import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
 import type { PublicPet, PetImage } from '~/app/models/pets';
@@ -102,6 +102,23 @@ export default function PetPhotoGalleryScreen() {
 
   const onFullProfile = () => router.push(`/pet-view/profile/${pet_uuid}`);
 
+  const onLike = async () => {
+    try {
+      await likesApi.create(pet_uuid, 'like');
+      Alert.alert('Liked!', `${pet?.name} has been liked.`);
+    } catch (err) {
+      console.error('[Gallery] Like failed:', err);
+    }
+  };
+
+  const onDislike = async () => {
+    try {
+      await likesApi.create(pet_uuid, 'dislike');
+    } catch (err) {
+      console.error('[Gallery] Dislike failed:', err);
+    }
+  };
+
   if (isWeb) {
     return (
       <WebGallery
@@ -109,7 +126,10 @@ export default function PetPhotoGalleryScreen() {
         images={images}
         colors={colors}
         accentSet={accentSet}
+        isDarkColorScheme={isDarkColorScheme}
         onFullProfile={onFullProfile}
+        onLike={onLike}
+        onDislike={onDislike}
       />
     );
   }
@@ -122,6 +142,8 @@ export default function PetPhotoGalleryScreen() {
       accentSet={accentSet}
       isDarkColorScheme={isDarkColorScheme}
       onFullProfile={onFullProfile}
+      onLike={onLike}
+      onDislike={onDislike}
     />
   );
 }

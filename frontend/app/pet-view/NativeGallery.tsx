@@ -1,17 +1,15 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
-  Modal,
-  Pressable,
   Image as RNImage,
   ScrollView as ScrollViewNative,
-  Dimensions,
+  StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { PublicPet, PetImage } from '~/app/models/pets';
-import { getImageUrl, getAgeFromDob } from './gallery-utils';
+import { getImageUrl, getAgeFromDob, getSpeciesIcon } from './gallery-utils';
 
 interface Props {
   pet: PublicPet;
@@ -20,126 +18,333 @@ interface Props {
   accentSet: { base: string; bgSubtle?: string };
   isDarkColorScheme: boolean;
   onFullProfile: () => void;
+  onLike: () => void;
+  onDislike: () => void;
 }
 
-export function NativeGallery({ pet, images, colors, accentSet, isDarkColorScheme, onFullProfile }: Props) {
-  const scrollRef = useRef<ScrollViewNative>(null);
-  const [currentPage, setCurrentPage] = useState(0);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const screenWidth = Dimensions.get('window').width;
+const TABS = ['All', 'Dogs', 'Cats', 'Birds'];
 
-  const handleMomentumEnd = useCallback((e: any) => {
-    const contentOffsetX = e.nativeEvent.contentOffset.x;
-    const page = Math.round(contentOffsetX / screenWidth);
-    setCurrentPage(page);
-  }, [screenWidth]);
+export function NativeGallery({ pet, images, colors, accentSet, isDarkColorScheme, onFullProfile, onLike, onDislike }: Props) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [activeTab, setActiveTab] = useState('All');
 
   const fallbackImages: PetImage[] = pet.primary_image
     ? [{ id: 0, uuid: pet.primary_image.uuid, format: 'jpeg' as const, is_primary: true, sort_order: 0, created_at: '' }]
     : [];
   const allImages = images.length > 0 ? images : fallbackImages;
 
+  const goToPrev = useCallback(() => {
+    setCurrentIndex((i) => (i === 0 ? allImages.length - 1 : i - 1));
+  }, [allImages.length]);
+
+  const goToNext = useCallback(() => {
+    setCurrentIndex((i) => (i === allImages.length - 1 ? 0 : i + 1));
+  }, [allImages.length]);
+
+  const ageStr = pet.date_of_birth ? getAgeFromDob(pet.date_of_birth) : null;
+
+  const pills: { icon: string; label: string }[] = [];
+  pills.push({ icon: getSpeciesIcon(pet.species), label: `${pet.species}${pet.breed ? ` · ${pet.breed}` : ''}` });
+  if (pet.gender) {
+    pills.push({ icon: pet.gender.toLowerCase() === 'male' ? 'male' : 'female', label: pet.gender });
+  }
+  if (ageStr) {
+    pills.push({ icon: 'calendar', label: `${ageStr} old` });
+  }
+  if (pet.traits) {
+    for (const t of pet.traits.slice(0, 3)) {
+      pills.push({ icon: 'star', label: t });
+    }
+  }
+
+  const currentImage = allImages[currentIndex];
+
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
-      {/* Gallery area */}
-      <View style={{ flex: 1 }}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Top bar */}
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.topBarButton}>
+          <Ionicons name="filter" size={24} color="#fff" />
+        </TouchableOpacity>
         <ScrollViewNative
-          ref={scrollRef}
           horizontal
-          pagingEnabled
           showsHorizontalScrollIndicator={false}
-          onMomentumScrollEnd={handleMomentumEnd}
-          style={{ flex: 1 }}
-          contentContainerStyle={{ flex: 0 }}
+          contentContainerStyle={styles.tabRow}
         >
-          {allImages.map((image) => (
+          {TABS.map((tab) => (
             <TouchableOpacity
-              key={image.uuid}
-              onPress={() => setPreviewUrl(getImageUrl(image.uuid, 'original'))}
-              activeOpacity={0.9}
-              style={{ width: screenWidth, height: '100%' }}
+              key={tab}
+              onPress={() => setActiveTab(tab)}
+              style={[
+                styles.tabButton,
+                activeTab === tab ? styles.tabActive : styles.tabInactive,
+              ]}
             >
-              <RNImage
-                source={{ uri: getImageUrl(image.uuid, 'medium') }}
-                style={{ width: screenWidth, height: '100%' }}
-                resizeMode="cover"
-              />
+              <Text style={[styles.tabText, activeTab === tab ? styles.tabTextActive : styles.tabTextInactive]}>
+                {tab}
+              </Text>
             </TouchableOpacity>
           ))}
         </ScrollViewNative>
+        <TouchableOpacity style={styles.topBarButton}>
+          <Ionicons name="flash" size={24} color="#fff" />
+        </TouchableOpacity>
+      </View>
 
-        {/* Page dots */}
+      {/* Photo */}
+      <View style={styles.photoArea}>
+        {currentImage && (
+          <RNImage
+            source={{ uri: getImageUrl(currentImage.uuid, 'medium') }}
+            style={styles.photo}
+            resizeMode="cover"
+          />
+        )}
+
+        {/* Left tap zone */}
+        <TouchableOpacity
+          style={styles.tapZoneLeft}
+          activeOpacity={1}
+          onPress={goToPrev}
+        />
+
+        {/* Right tap zone */}
+        <TouchableOpacity
+          style={styles.tapZoneRight}
+          activeOpacity={1}
+          onPress={goToNext}
+        />
+
+        {/* Page dots - top center */}
         {allImages.length > 1 && (
-          <View style={{ position: 'absolute', bottom: 16, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+          <View style={styles.dotsContainer}>
             {allImages.map((_, idx) => (
               <View
                 key={idx}
                 style={{
-                  width: idx === currentPage ? 8 : 6,
-                  height: idx === currentPage ? 8 : 6,
-                  borderRadius: 4,
-                  marginHorizontal: 3,
-                  backgroundColor: idx === currentPage ? accentSet.base : `${colors.grey}80`,
+                  width: idx === currentIndex ? 20 : 6,
+                  height: 4,
+                  borderRadius: 2,
+                  marginHorizontal: 2,
+                  backgroundColor: idx === currentIndex ? '#fff' : 'rgba(255,255,255,0.4)',
                 }}
               />
             ))}
           </View>
         )}
-      </View>
 
-      {/* Info section */}
-      <View style={{ paddingHorizontal: 16, paddingBottom: 24, paddingTop: 16 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <Text style={{ fontSize: 24, fontWeight: 'bold', marginRight: 8, color: colors.text }}>
-            {pet.name}
-          </Text>
-          {pet.date_of_birth && (
-            <Text style={{ fontSize: 12, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, color: colors.grey, backgroundColor: isDarkColorScheme ? 'rgba(128,128,128,0.2)' : 'rgba(128,128,128,0.15)' }}>
-              {getAgeFromDob(pet.date_of_birth)}
-            </Text>
-          )}
-        </View>
-        <Text style={{ fontSize: 16, marginTop: 2, color: colors.grey }}>
-          {pet.species}
-          {pet.breed ? ` · ${pet.breed}` : ''}
-        </Text>
-
-        <TouchableOpacity
-          onPress={onFullProfile}
-          style={{
-            marginTop: 16,
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderRadius: 16,
-            paddingVertical: 14,
-            backgroundColor: accentSet.base,
-            shadowColor: accentSet.base,
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.3,
-            shadowRadius: 4,
-            elevation: 4,
-          }}
-        >
-          <Ionicons name="information-circle" size={20} color="#fff" />
-          <Text style={{ marginLeft: 8, fontSize: 16, fontWeight: '600', color: '#fff' }}>
-            Full Profile
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Preview modal */}
-      <Modal visible={previewUrl !== null} transparent animationType="fade">
-        <Pressable style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.9)' }} onPress={() => setPreviewUrl(null)}>
-          <View style={{ width: '90%', aspectRatio: 1, borderRadius: 12, overflow: 'hidden' }}>
-            <RNImage
-              source={{ uri: previewUrl || '' }}
-              style={{ width: '100%', height: '100%' }}
-              resizeMode="contain"
-            />
+        {/* Info overlay */}
+        <View style={styles.infoOverlay}>
+          {/* Trait pills */}
+          <View style={styles.pillsContainer}>
+            {pills.map((pill, idx) => (
+              <View key={idx} style={styles.pill}>
+                <Ionicons name={pill.icon as any} size={14} color="#fff" />
+                <Text style={styles.pillText}>{pill.label}</Text>
+              </View>
+            ))}
           </View>
-        </Pressable>
-      </Modal>
+
+          {/* Name + age */}
+          <View style={styles.nameRow}>
+            <Text style={styles.nameText}>
+              {pet.name}
+            </Text>
+            {ageStr && (
+              <Text style={styles.ageText}>
+                {ageStr}
+              </Text>
+            )}
+            <TouchableOpacity style={styles.arrowButton}>
+              <Ionicons name="arrow-up" size={20} color="#fff" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Action buttons */}
+          <View style={styles.actionRow}>
+            <TouchableOpacity style={[styles.actionButton, styles.actionSmall]} onPress={() => {}}>
+              <Ionicons name="refresh" size={22} color="#aaa" />
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.actionButton, styles.actionMedium]} onPress={onDislike}>
+              <Ionicons name="close" size={30} color="#ff4458" />
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.actionButton, styles.actionSmall]} onPress={() => {}}>
+              <Ionicons name="star" size={22} color="#2196f3" />
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.actionButton, styles.actionMedium]} onPress={onLike}>
+              <Ionicons name="heart" size={30} color="#4ade80" />
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.actionButton, styles.actionSmall]} onPress={onFullProfile}>
+              <Ionicons name="send" size={22} color="#3b82f6" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  topBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 48,
+    paddingBottom: 8,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+  },
+  topBarButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  tabRow: {
+    flex: 1,
+    flexDirection: 'row',
+    gap: 8,
+    marginHorizontal: 12,
+  },
+  tabButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  tabActive: {
+    backgroundColor: 'rgba(255,255,255,0.95)',
+  },
+  tabInactive: {
+    backgroundColor: 'rgba(0,0,0,0.3)',
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  tabTextActive: {
+    color: '#000',
+  },
+  tabTextInactive: {
+    color: 'rgba(255,255,255,0.7)',
+  },
+  photoArea: {
+    flex: 1,
+  },
+  photo: {
+    width: '100%',
+    height: '100%',
+  },
+  tapZoneLeft: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: '50%',
+    height: '100%',
+    zIndex: 5,
+  },
+  tapZoneRight: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: '50%',
+    height: '100%',
+    zIndex: 5,
+  },
+  dotsContainer: {
+    position: 'absolute',
+    top: 100,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 6,
+  },
+  infoOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    zIndex: 6,
+  },
+  pillsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 12,
+  },
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+    gap: 4,
+  },
+  pillText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  nameText: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  ageText: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: '#fff',
+    marginLeft: 8,
+  },
+  arrowButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 16,
+    paddingBottom: 8,
+  },
+  actionButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 50,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+  },
+  actionSmall: {
+    width: 48,
+    height: 48,
+  },
+  actionMedium: {
+    width: 60,
+    height: 60,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+});
