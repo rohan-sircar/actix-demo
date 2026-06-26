@@ -1,3 +1,5 @@
+import type { PetTrait } from '~/app/models/pets';
+
 export interface MockPet {
   id: string;
   name: string;
@@ -7,7 +9,7 @@ export interface MockPet {
   weight?: string;
   distance: string;
   description: string;
-  traits: string[];
+  traits: PetTrait[];
   gender: 'male' | 'female';
   imageUrl?: string;
 }
@@ -22,7 +24,7 @@ const MOCK_PETS: MockPet[] = [
     weight: '28',
     distance: '0.5 mi',
     description: 'Friendly and loves long walks in the park. Great with kids and other dogs!',
-    traits: ['Friendly', 'Active', 'Trained'],
+    traits: [{ id: 1, name: 'Friendly' }, { id: 2, name: 'Active' }, { id: 3, name: 'Trained' }],
     gender: 'female',
   },
   {
@@ -34,7 +36,7 @@ const MOCK_PETS: MockPet[] = [
     weight: '12',
     distance: '1.2 mi',
     description: 'Playful pup who loves belly rubs and chasing balls.',
-    traits: ['Playful', 'Cuddly'],
+    traits: [{ id: 4, name: 'Playful' }, { id: 5, name: 'Cuddly' }],
     gender: 'male',
   },
   {
@@ -45,7 +47,7 @@ const MOCK_PETS: MockPet[] = [
     age: '3y 1m',
     distance: '0.8 mi',
     description: 'Elegant and affectionate. Loves window watching and sunny spots.',
-    traits: ['Gentle', 'Independent', 'Vocal'],
+    traits: [{ id: 6, name: 'Gentle' }, { id: 7, name: 'Independent' }, { id: 8, name: 'Vocal' }],
     gender: 'female',
   },
   {
@@ -57,7 +59,7 @@ const MOCK_PETS: MockPet[] = [
     weight: '30',
     distance: '2.0 mi',
     description: 'Loyal companion who excels at fetch. Looking for playdate buddies!',
-    traits: ['Loyal', 'Swimmer', 'Foodie'],
+    traits: [{ id: 9, name: 'Loyal' }, { id: 10, name: 'Swimmer' }, { id: 11, name: 'Foodie' }],
     gender: 'male',
   },
   {
@@ -68,7 +70,7 @@ const MOCK_PETS: MockPet[] = [
     age: '1y 2m',
     distance: '0.3 mi',
     description: 'Adventurous kitty who loves exploring and climbing cat trees.',
-    traits: ['Curious', 'Energetic', 'Affectionate'],
+    traits: [{ id: 12, name: 'Curious' }, { id: 13, name: 'Energetic' }, { id: 14, name: 'Affectionate' }],
     gender: 'male',
   },
   {
@@ -80,7 +82,7 @@ const MOCK_PETS: MockPet[] = [
     weight: '13',
     distance: '1.5 mi',
     description: 'Sploot enthusiast with the biggest smile. Loves hikes and treats.',
-    traits: ['Cheerful', 'Hiker', 'Snack Lover'],
+    traits: [{ id: 15, name: 'Cheerful' }, { id: 16, name: 'Hiker' }, { id: 17, name: 'Snack Lover' }],
     gender: 'female',
   },
   {
@@ -92,7 +94,7 @@ const MOCK_PETS: MockPet[] = [
     weight: '8',
     distance: '3.1 mi',
     description: 'Gentle giant who enjoys lounging and gentle play sessions.',
-    traits: ['Gentle', 'Fluffy', 'Calm'],
+    traits: [{ id: 18, name: 'Gentle' }, { id: 19, name: 'Fluffy' }, { id: 20, name: 'Calm' }],
     gender: 'male',
   },
   {
@@ -103,7 +105,7 @@ const MOCK_PETS: MockPet[] = [
     age: '1y 5m',
     distance: '0.7 mi',
     description: 'Smart and stylish! Loves agility courses and grooming sessions.',
-    traits: ['Smart', 'Elegant', 'Athletic'],
+    traits: [{ id: 21, name: 'Smart' }, { id: 22, name: 'Elegant' }, { id: 23, name: 'Athletic' }],
     gender: 'female',
   },
   {
@@ -114,7 +116,7 @@ const MOCK_PETS: MockPet[] = [
     age: '2y 9m',
     distance: '1.8 mi',
     description: 'Mysterious and calm. Enjoys quiet afternoons and laser pointers.',
-    traits: ['Calm', 'Mysterious', 'Laser Chaser'],
+    traits: [{ id: 24, name: 'Calm' }, { id: 25, name: 'Mysterious' }, { id: 26, name: 'Laser Chaser' }],
     gender: 'male',
   },
   {
@@ -126,7 +128,7 @@ const MOCK_PETS: MockPet[] = [
     weight: '14',
     distance: '2.5 mi',
     description: 'Nose for adventure! Loves sniffing walks and meeting new friends.',
-    traits: ['Adventurous', 'Sociable', 'Sniffer'],
+    traits: [{ id: 27, name: 'Adventurous' }, { id: 28, name: 'Sociable' }, { id: 29, name: 'Sniffer' }],
     gender: 'female',
   },
 ];

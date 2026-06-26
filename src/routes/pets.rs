@@ -699,13 +699,23 @@ pub async fn get_pet_image_variant(
         .bucket(&app_data.config.minio.bucket_name)
         .key(&object_key)
         .send()
-        .await
-        .map_err(|err| {
-            DomainError::new_internal_error(format!(
+        .await;
+
+    let object = match object {
+        Ok(obj) => obj,
+        Err(err) => {
+            let err_str = err.to_string();
+            if err_str.contains("NoSuchKey") || err_str.contains("NotFound") || err_str.contains("404") {
+                return Err(DomainError::new_entity_does_not_exist_error(
+                    format!("Image not found: {}", object_key),
+                ));
+            }
+            return Err(DomainError::new_internal_error(format!(
                 "Failed to get object: {}",
                 err
-            ))
-        })?;
+            )));
+        }
+    };
 
     let reader = object.body.into_async_read();
     let stream = tokio_util::io::ReaderStream::new(reader);

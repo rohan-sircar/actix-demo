@@ -1,3 +1,8 @@
+export interface PetTrait {
+  id: number;
+  name: string;
+}
+
 export interface PetImage {
   id: number;
   uuid: string;
@@ -18,7 +23,7 @@ export interface Pet {
   weight?: number | null;
   color_markings?: string | null;
   description?: string | null;
-  traits?: string[];
+  traits?: PetTrait[];
   primary_image: PetImage | null;
 }
 
@@ -40,7 +45,7 @@ export interface PublicPet {
   weight?: number | null;
   color_markings?: string | null;
   description?: string | null;
-  traits?: string[];
+  traits?: PetTrait[];
   primary_image: PetImage | null;
   owner: OwnerInfo;
 }

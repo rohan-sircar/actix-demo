@@ -79,7 +79,7 @@ export const petApi = {
     weight?: number | null;
     color_markings?: string | null;
     description?: string | null;
-    traits?: string[];
+    traits?: Array<{ id: number; name: string }>;
   }): Promise<{
     id: number;
     pet_uuid: string;
@@ -91,7 +91,7 @@ export const petApi = {
     weight?: number | null;
     color_markings?: string | null;
     description?: string | null;
-    traits?: string[];
+    traits?: Array<{ id: number; name: string }>;
     primary_image: { id: number; uuid: string; format: string; is_primary: boolean; sort_order: number; created_at: string } | null;
   }> {
     const response = await api.patch(`/api/v1/private/user/pets/${petUuid}`, data);

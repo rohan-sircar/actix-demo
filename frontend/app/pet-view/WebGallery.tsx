@@ -45,7 +45,7 @@ export function WebGallery({ pet, images, colors, accentSet, isDarkColorScheme, 
   }
   if (pet.traits) {
     for (const t of pet.traits.slice(0, 3)) {
-      pills.push({ icon: 'star', label: t });
+      pills.push({ icon: 'star', label: t.name });
     }
   }
 
@@ -84,8 +84,8 @@ export function WebGallery({ pet, images, colors, accentSet, isDarkColorScheme, 
       </div>
 
       {/* Photo area - fills remaining space */}
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, position: 'relative' }}>
-        <div style={{ position: 'relative', maxWidth: '100%', maxHeight: '100%' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 16, position: 'relative', minHeight: 0 }}>
+        <div style={{ position: 'relative', width: '100%', maxWidth: 430, maxHeight: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           {currentImage && (
             <img
               src={getImageUrl(currentImage.uuid, 'medium')}

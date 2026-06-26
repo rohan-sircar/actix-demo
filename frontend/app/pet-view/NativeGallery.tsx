@@ -53,7 +53,7 @@ export function NativeGallery({ pet, images, colors, accentSet, isDarkColorSchem
   }
   if (pet.traits) {
     for (const t of pet.traits.slice(0, 3)) {
-      pills.push({ icon: 'star', label: t });
+      pills.push({ icon: 'star', label: t.name });
     }
   }
 

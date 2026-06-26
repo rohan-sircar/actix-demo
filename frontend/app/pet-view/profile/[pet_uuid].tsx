@@ -268,9 +268,9 @@ export default function PetFullProfileScreen() {
             </Text>
             <View className="flex-row flex-wrap gap-2">
               {pet.traits.map((trait) => (
-                <View key={trait} className="rounded-full px-3.5 py-2" style={{ backgroundColor: badgeBg }}>
+                <View key={trait.id} className="rounded-full px-3.5 py-2" style={{ backgroundColor: badgeBg }}>
                   <Text className="text-sm font-semibold" style={{ color: badgeColor }}>
-                    {trait}
+                    {trait.name}
                   </Text>
                 </View>
               ))}
