@@ -66,7 +66,7 @@ export default function PetPhotoGalleryScreen() {
 
   const fetchPet = async () => {
     try {
-      const res = await petApi.getPublic(pet_uuid);
+      const res = await petApi.getPet(pet_uuid);
       setPet(res);
     } catch (err) {
       console.error('[Gallery] Failed to fetch pet:', err);

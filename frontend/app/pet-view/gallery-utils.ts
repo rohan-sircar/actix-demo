@@ -1,10 +1,7 @@
 import type { PetImage } from '~/app/models/pets';
+import { getImageUrl } from '~/app/lib/api';
 
-const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8800';
-
-export const getImageUrl = (imageUuid: string, variant: 'thumbnail' | 'medium' | 'original' = 'medium'): string => {
-  return `${API_BASE}/api/v1/pets/images/${imageUuid}/${variant}`;
-};
+export { getImageUrl };
 
 export const getAgeFromDob = (dob: string) => {
   const birth = new Date(dob);

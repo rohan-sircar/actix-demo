@@ -4,14 +4,11 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 
-import api from '~/app/lib/api';
-import { petImageApi } from '~/app/lib/api';
+import api, { petImageApi, getImageUrl } from '~/app/lib/api';
 import { useColorScheme } from '~/lib/useColorScheme';
 import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
 import * as Style from '~/app/styles/Styles';
 import type { Pet, PetImage } from '~/app/models/pets';
-
-const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8800';
 
 const detectMimeTypeFromUri = async (uri: string, _fallback?: string): Promise<string> => {
   const lower = uri.toLowerCase();
@@ -33,10 +30,6 @@ const detectMimeTypeFromUri = async (uri: string, _fallback?: string): Promise<s
   if (lower.includes('.webp')) return 'image/webp';
   if (lower.includes('.gif')) return 'image/gif';
   return 'image/jpeg';
-};
-
-const getImageUrl = (imageUuid: string, variant: 'thumbnail' | 'medium' | 'original' = 'thumbnail'): string => {
-  return `${API_BASE}/api/v1/pets/images/${imageUuid}/${variant}`;
 };
 
 const getAgeFromDob = (dob: string) => {

@@ -69,14 +69,21 @@ api.interceptors.response.use(
   }
 );
 
+export const getImageUrl = (imageUuid: string, variant: 'thumbnail' | 'medium' | 'original' = 'medium'): string => {
+  const token = useAuthStore.getState().token;
+  const baseUrl = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8800';
+  const url = `${baseUrl}/api/v1/private/pets/images/${imageUuid}/${variant}`;
+  return token ? `${url}?token=${token}` : url;
+};
+
 export const petApi = {
-  async getPublic(petUuid: string): Promise<import('~/app/models/pets').PublicPet> {
-    const response = await api.get(`/api/v1/pets/${petUuid}`);
+  async getPet(petUuid: string): Promise<import('~/app/models/pets').PublicPet> {
+    const response = await api.get(`/api/v1/private/pets/${petUuid}`);
     return response.data;
   },
 
   async getImages(petUuid: string): Promise<import('~/app/models/pets').PetImage[]> {
-    const response = await api.get(`/api/v1/pets/${petUuid}/images`);
+    const response = await api.get(`/api/v1/private/pets/${petUuid}/images`);
     return response.data;
   },
 

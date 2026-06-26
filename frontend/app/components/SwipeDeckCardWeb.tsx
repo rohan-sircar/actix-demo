@@ -2,6 +2,7 @@ import React, { useCallback, useRef, useState, useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import type { PublicPet } from '~/app/models/pets';
 import { getSpeciesIcon, getAgeFromDob } from '~/app/pet-view/gallery-utils';
+import { getImageUrl } from '~/app/lib/api';
 
 const SWIPE_THRESHOLD = 100;
 const STAMP_THRESHOLD = 75;
@@ -187,7 +188,7 @@ export function SwipeDeckCardWeb({
   };
 
   const imageUrl = pet.primary_image
-    ? `http://localhost:8800/api/v1/pets/images/${pet.primary_image.uuid}/medium`
+    ? getImageUrl(pet.primary_image.uuid, 'medium')
     : undefined;
 
   return (

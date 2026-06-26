@@ -5,8 +5,7 @@ import { useColorScheme } from '~/lib/useColorScheme';
 import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
 import * as Style from '../styles/Styles';
 import type { Pet } from '~/app/models/pets';
-
-const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8800';
+import { getImageUrl } from '~/app/lib/api';
 
 const PetCard: React.FC<{
   pet_uuid: string;
@@ -28,7 +27,7 @@ const PetCard: React.FC<{
   const secondaryColor = colors.grey;
 
   const imageUrl = primary_image
-    ? `${API_BASE}/api/v1/pets/images/${primary_image.uuid}/medium`
+    ? getImageUrl(primary_image.uuid, 'medium')
     : null;
 
   const label = breed ? `${species} · ${breed}` : species;

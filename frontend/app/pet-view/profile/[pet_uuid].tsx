@@ -14,16 +14,10 @@ import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useMutation } from '@tanstack/react-query';
 
-import { petApi, likesApi } from '~/app/lib/api';
+import { petApi, likesApi, getImageUrl } from '~/app/lib/api';
 import { useColorScheme } from '~/lib/useColorScheme';
 import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
 import type { PublicPet, PetImage } from '~/app/models/pets';
-
-const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8800';
-
-const getImageUrl = (imageUuid: string, variant: 'thumbnail' | 'medium' | 'original' = 'medium'): string => {
-  return `${API_BASE}/api/v1/pets/images/${imageUuid}/${variant}`;
-};
 
 const getAgeFromDob = (dob: string) => {
   const birth = new Date(dob);
@@ -64,7 +58,7 @@ export default function PetFullProfileScreen() {
 
   const fetchPet = async () => {
     try {
-      const res = await petApi.getPublic(pet_uuid);
+      const res = await petApi.getPet(pet_uuid);
       setPet(res);
     } catch (err) {
       console.error('[Profile] Failed to fetch pet:', err);

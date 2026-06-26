@@ -22,6 +22,7 @@ import Animated, {
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import type { PublicPet } from '~/app/models/pets';
 import { getSpeciesIcon, getAgeFromDob } from '~/app/pet-view/gallery-utils';
+import { getImageUrl } from '~/app/lib/api';
 
 const SWIPE_THRESHOLD = 100;
 const STAMP_THRESHOLD = 75;
@@ -81,7 +82,7 @@ export function SwipeDeckCard({
   const gradient = getGradientForPet(pet.id);
 
   const imageUrl = pet.primary_image
-    ? `http://localhost:8800/api/v1/pets/images/${pet.primary_image.uuid}/medium`
+    ? getImageUrl(pet.primary_image.uuid, 'medium')
     : undefined;
 
   const pills: { icon: string; label: string }[] = [];

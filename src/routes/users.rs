@@ -498,7 +498,7 @@ pub async fn delete_my_account(
 
 #[utoipa::path(
     get,
-    path = "/api/v1/profiles/{user_id}",
+    path = "/api/v1/private/profiles/{user_id}",
     tag = "users",
     params(
         ("user_id" = String, Path, description = "User UUID"),
@@ -506,14 +506,18 @@ pub async fn delete_my_account(
     responses(
         (status = 200, description = "Public profile found", body = PublicProfile),
         (status = 404, description = "Profile not found", body = ErrorResponseString),
+        (status = 401, description = "Missing auth", body = ErrorResponseString),
     ),
 )]
 /// Get a user's public profile.
+#[protect("RoleEnum::RoleUser", ty = RoleEnum)]
 #[tracing::instrument(level = "info", skip_all, fields(user_uuid))]
 pub async fn get_public_profile(
+    req: HttpRequest,
     app_data: web::Data<AppData>,
     user_id: web::Path<String>,
 ) -> Result<HttpResponse, DomainError> {
+    let _user_uuid = crate::utils::extract_user_uuid_from_header(req.headers())?;
     let uuid = UserUuid::from_str(&user_id.into_inner()).map_err(|err| {
         DomainError::new_bad_input_error(format!("Invalid UserUuid: {err}"))
     })?;

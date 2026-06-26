@@ -417,30 +417,13 @@ pub fn configure_app(
                     .route(
                         "/reports",
                         web::post().to(routes::discover::stub_reports),
-                    ),
-            )
-            // public api
-            .service(
-                web::scope("/api/v1")
-                    .wrap(api_rate_limiter(
-                        &app_data.config.rate_limit.api_public,
-                    ))
-                    .route(
-                        "/build-info",
-                        web::get().to(routes::misc::build_info_req),
                     )
-                    .route(
-                        "/metrics/cmd",
-                        web::get().to(routes::command::handle_get_job_metrics),
-                    )
-                    .route(
-                        "/avatars/{user_id}",
-                        web::get().to(routes::users::get_user_avatar),
-                    )
+                    // user profile endpoints (moved from public)
                     .route(
                         "/profiles/{user_id}",
                         web::get().to(routes::users::get_public_profile),
                     )
+                    // pet endpoints (moved from public)
                     .route(
                         "/pets/traits",
                         web::get().to(routes::pets::get_traits),
@@ -460,14 +443,25 @@ pub fn configure_app(
                     .route(
                         "/pets/images/{image_uuid}/{variant}",
                         web::get().to(routes::pets::get_pet_image_variant),
+                    ),
+            )
+            // public api
+            .service(
+                web::scope("/api/v1")
+                    .wrap(api_rate_limiter(
+                        &app_data.config.rate_limit.api_public,
+                    ))
+                    .route(
+                        "/build-info",
+                        web::get().to(routes::misc::build_info_req),
                     )
-                    .service(
-                        web::scope("/users")
-                            .route("", web::get().to(routes::users::get_users))
-                            .route(
-                                "/{user_id}",
-                                web::get().to(routes::users::get_user),
-                            ),
+                    .route(
+                        "/metrics/cmd",
+                        web::get().to(routes::command::handle_get_job_metrics),
+                    )
+                    .route(
+                        "/avatars/{user_id}",
+                        web::get().to(routes::users::get_user_avatar),
                     ),
             );
     })
