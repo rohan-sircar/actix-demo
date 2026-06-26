@@ -57,6 +57,7 @@ dependencies = [
  "bcrypt",
  "build-info",
  "build-info-build",
+ "bytes",
  "bytestring",
  "cached",
  "chrono",

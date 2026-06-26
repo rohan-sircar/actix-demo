@@ -139,6 +139,26 @@ Sequential phases only. Each phase has a verifiable deliverable at the end.
 
 ---
 
+## Phase 4H: Seed Data [COMPLETE]
+- [x] 4H.1 Create `examples/seed.rs` — CLI example that connects to PostgreSQL via `ACTIX_DEMO_DATABASE_URL` and inserts seed data using Diesel
+- [x] 4H.2 **Users:** Create accounts with bcrypt-hashed passwords:
+  - `swiper` (password: `password123`) — user who will be swiping/discovering
+  - `petowner1` (password: `password123`) — owns 6+ pets
+  - `petowner2` (password: `password123`) — owns 6+ pets
+  - All assigned `role_user` role
+  - Idempotent: skip if username already exists
+- [x] 4H.3 **Profiles:** Create profiles for all users with display_name, bio, location
+- [x] 4H.4 **Pets:** Create ~12 pets owned by petowner1/petowner2:
+  - Mix of species: dogs (Golden Retriever, French Bulldog, Corgi, Labrador), cats (Siamese, Maine Coon, Orange Tabby), birds
+  - Various genders, ages (DOB), breeds, weights
+  - Assign personality traits from existing `personality_traits` table (playful, calm, energetic, etc.)
+  - Pet images: Upload from `examples/seed_images/{pet_name}/` to MinIO, create `pet_images` records
+- [x] 4H.5 **Verify:** Run seed, then test `GET /discover/next` returns a pet for the `swiper` user
+
+**Phase 4H deliverable:** `cargo run --bin seed` creates users, profiles, and pets. After seeding, logging in as `swiper` and calling `GET /discover/next` returns a random pet from petowner1/petowner2 that swiper hasn't interacted with.
+
+---
+
 ## Notes
 - Mock images: since mock data has no real image URLs, use `View` with gradient backgrounds (e.g., warm tones for dogs, cool tones for cats) or generate placeholder SVGs. This avoids broken image links during development. Phase 4F replaces this with real pet images.
 - The `NativeGallery` component's layout structure (top bar → photo area with tap zones → dots → info overlay) should be reused as-is inside `SwipeDeckCard`. The only addition is the `GestureDetector` wrapper and swipe animation logic.
