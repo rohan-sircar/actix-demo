@@ -70,6 +70,16 @@ api.interceptors.response.use(
 );
 
 export const petApi = {
+  async getPublic(petUuid: string): Promise<import('~/app/models/pets').PublicPet> {
+    const response = await api.get(`/api/v1/pets/${petUuid}`);
+    return response.data;
+  },
+
+  async getImages(petUuid: string): Promise<import('~/app/models/pets').PetImage[]> {
+    const response = await api.get(`/api/v1/pets/${petUuid}/images`);
+    return response.data;
+  },
+
   async updatePet(petUuid: string, data: {
     name?: string;
     species?: string;

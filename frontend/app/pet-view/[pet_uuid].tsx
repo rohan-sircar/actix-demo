@@ -3,7 +3,7 @@ import { Platform, View, ActivityIndicator, Text, StyleSheet, Alert } from 'reac
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
-import api, { likesApi } from '~/app/lib/api';
+import { petApi, likesApi } from '~/app/lib/api';
 import { useColorScheme } from '~/lib/useColorScheme';
 import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
 import type { PublicPet, PetImage } from '~/app/models/pets';
@@ -66,8 +66,8 @@ export default function PetPhotoGalleryScreen() {
 
   const fetchPet = async () => {
     try {
-      const res = await api.get<PublicPet>(`/api/v1/private/user/pets/${pet_uuid}`);
-      setPet(res.data);
+      const res = await petApi.getPublic(pet_uuid);
+      setPet(res);
     } catch (err) {
       console.error('[Gallery] Failed to fetch pet:', err);
     }
@@ -75,8 +75,8 @@ export default function PetPhotoGalleryScreen() {
 
   const fetchImages = async () => {
     try {
-      const res = await api.get<PetImage[]>(`/api/v1/private/user/pets/${pet_uuid}/images`);
-      setImages(res.data.sort((a, b) => a.sort_order - b.sort_order));
+      const res = await petApi.getImages(pet_uuid);
+      setImages(res.sort((a, b) => a.sort_order - b.sort_order));
     } catch (err) {
       console.error('[Gallery] Failed to fetch images:', err);
     }

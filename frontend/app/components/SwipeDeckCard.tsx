@@ -6,6 +6,7 @@ import {
   ScrollView as ScrollViewNative,
   StyleSheet,
   Platform,
+  Image as RNImage,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
@@ -19,8 +20,8 @@ import Animated, {
   withDelay,
 } from 'react-native-reanimated';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
-import type { MockPet } from '~/data/pets';
-import { getSpeciesIcon } from '~/app/pet-view/gallery-utils';
+import type { PublicPet } from '~/app/models/pets';
+import { getSpeciesIcon, getAgeFromDob } from '~/app/pet-view/gallery-utils';
 
 const SWIPE_THRESHOLD = 100;
 const STAMP_THRESHOLD = 75;
@@ -40,7 +41,7 @@ const GRADIENTS = [
 ];
 
 interface Props {
-  pet: MockPet;
+  pet: PublicPet;
   colors: { background: string; text: string; grey: string; grey4?: string; card?: string; grey5?: string };
   accentSet: { base: string; bgSubtle?: string };
   isDarkColorScheme: boolean;
@@ -76,8 +77,12 @@ export function SwipeDeckCard({
 }: Props) {
   const [activeTab, setActiveTab] = useState('All');
 
-  const ageStr = pet.age || '';
-  const gradient = getGradientForPet(parseInt(pet.id));
+  const ageStr = pet.date_of_birth ? getAgeFromDob(pet.date_of_birth) : '';
+  const gradient = getGradientForPet(pet.id);
+
+  const imageUrl = pet.primary_image
+    ? `http://localhost:8800/api/v1/pets/images/${pet.primary_image.uuid}/medium`
+    : undefined;
 
   const pills: { icon: string; label: string }[] = [];
   pills.push({ icon: getSpeciesIcon(pet.species), label: `${pet.species}${pet.breed ? ` · ${pet.breed}` : ''}` });
@@ -211,14 +216,22 @@ export function SwipeDeckCard({
       </View>
 
       <View style={styles.photoArea}>
-        <View style={[styles.gradientBackground, { backgroundColor: gradient[0] }]}>
-          <View style={[styles.gradientOverlay, { backgroundColor: gradient[1] }]} />
-          <View style={styles.petEmojiContainer}>
-            <Text style={styles.petEmoji}>
-              {pet.species.toLowerCase().includes('dog') ? '🐕' : pet.species.toLowerCase().includes('cat') ? '🐈' : '🐾'}
-            </Text>
+        {imageUrl ? (
+          <RNImage
+            source={{ uri: imageUrl }}
+            style={[styles.gradientBackground, { backgroundColor: gradient[0] }]}
+            resizeMethod="resize"
+          />
+        ) : (
+          <View style={[styles.gradientBackground, { backgroundColor: gradient[0] }]}>
+            <View style={[styles.gradientOverlay, { backgroundColor: gradient[1] }]} />
+            <View style={styles.petEmojiContainer}>
+              <Text style={styles.petEmoji}>
+                {pet.species.toLowerCase().includes('dog') ? '🐕' : pet.species.toLowerCase().includes('cat') ? '🐈' : '🐾'}
+              </Text>
+            </View>
           </View>
-        </View>
+        )}
 
         <View style={styles.dotsContainer}>
           <View
@@ -233,6 +246,17 @@ export function SwipeDeckCard({
         </View>
 
         <View style={styles.infoOverlay}>
+          {pet.owner && (
+            <View style={styles.ownerRow}>
+              <View style={styles.ownerAvatar}>
+                <Ionicons name="person" size={18} color="#fff" />
+              </View>
+              <Text style={styles.ownerName}>
+                {pet.owner.display_name || 'Unknown'}
+              </Text>
+            </View>
+          )}
+
           <View style={styles.pillsContainer}>
             {pills.map((pill, idx) => (
               <View key={idx} style={styles.pill}>
@@ -390,8 +414,26 @@ const styles = StyleSheet.create({
     right: 0,
     paddingVertical: 20,
     paddingHorizontal: 16,
-    backgroundColor: 'rgba(0,0,0,0.5)',
     zIndex: 6,
+  },
+  ownerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  ownerAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+  ownerName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
   },
   pillsContainer: {
     flexDirection: 'row',

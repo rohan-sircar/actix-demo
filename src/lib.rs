@@ -450,6 +450,10 @@ pub fn configure_app(
                         web::get().to(routes::pets::get_public_pet),
                     )
                     .route(
+                        "/pets/{pet_uuid}/images",
+                        web::get().to(routes::pets::get_pet_images),
+                    )
+                    .route(
                         "/pets/images/{image_uuid}",
                         web::get().to(routes::pets::get_public_pet_image),
                     )
@@ -496,6 +500,7 @@ pub fn configure_app(
         routes::users::delete_my_account,
         routes::pets::get_traits,
         routes::pets::get_public_pet,
+        routes::pets::get_pet_images,
         routes::pets::create_pet,
         routes::pets::list_pets,
         routes::pets::get_pet,

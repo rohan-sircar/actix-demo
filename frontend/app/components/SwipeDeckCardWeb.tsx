@@ -1,7 +1,7 @@
 import React, { useCallback, useRef, useState, useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import type { MockPet } from '~/data/pets';
-import { getSpeciesIcon } from '~/app/pet-view/gallery-utils';
+import type { PublicPet } from '~/app/models/pets';
+import { getSpeciesIcon, getAgeFromDob } from '~/app/pet-view/gallery-utils';
 
 const SWIPE_THRESHOLD = 100;
 const STAMP_THRESHOLD = 75;
@@ -21,7 +21,7 @@ const GRADIENTS = [
 ];
 
 interface Props {
-  pet: MockPet;
+  pet: PublicPet;
   colors: { background: string; text: string; grey: string; grey4?: string; card?: string; grey5?: string };
   accentSet: { base: string; bgSubtle?: string };
   isDarkColorScheme: boolean;
@@ -57,8 +57,8 @@ export function SwipeDeckCardWeb({
   const cardRef = useRef<HTMLDivElement>(null);
   const dragStart = useRef({ x: 0, y: 0 });
 
-  const ageStr = pet.age || '';
-  const gradient = getGradientForPet(parseInt(pet.id));
+  const ageStr = pet.date_of_birth ? getAgeFromDob(pet.date_of_birth) : '';
+  const gradient = getGradientForPet(pet.id);
 
   const pills: { icon: string; label: string }[] = [];
   pills.push({ icon: getSpeciesIcon(pet.species), label: `${pet.species}${pet.breed ? ` · ${pet.breed}` : ''}` });
@@ -186,6 +186,10 @@ export function SwipeDeckCardWeb({
     ...shadowStyle,
   };
 
+  const imageUrl = pet.primary_image
+    ? `http://localhost:8800/api/v1/pets/images/${pet.primary_image.uuid}/medium`
+    : undefined;
+
   return (
     <div style={containerStyle}
       onMouseDown={handleMouseDown}
@@ -234,15 +238,24 @@ export function SwipeDeckCardWeb({
 
         {/* Photo area */}
         <div style={{ flex: 1, position: 'relative' }}>
-          {/* Gradient background */}
-          <div style={{ width: '100%', height: '100%', backgroundColor: gradient[0] }}>
-            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity: 0.5, backgroundColor: gradient[1] }} />
-            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <span style={{ fontSize: 120 }}>
-                {pet.species.toLowerCase().includes('dog') ? '🐕' : pet.species.toLowerCase().includes('cat') ? '🐈' : '🐾'}
-              </span>
+          {imageUrl ? (
+            <img
+              src={imageUrl}
+              alt={pet.name}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+          ) : (
+            <div style={{ width: '100%', height: '100%', backgroundColor: '#e2e8f0' }}>
+              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ fontSize: 120 }}>
+                  {pet.species.toLowerCase().includes('dog') ? '🐕' : pet.species.toLowerCase().includes('cat') ? '🐈' : '🐾'}
+                </span>
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* Gradient overlay */}
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'linear-gradient(to bottom, transparent 50%, rgba(0,0,0,0.6))' }} />
 
           {/* Page dots */}
           <div style={{ position: 'absolute', top: 100, left: 0, right: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 6 }}>
@@ -250,7 +263,19 @@ export function SwipeDeckCardWeb({
           </div>
 
           {/* Info overlay */}
-          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '20px 16px', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 6 }}>
+          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '20px 16px', zIndex: 6 }}>
+            {/* Owner info */}
+            {pet.owner && (
+              <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: 8 }}>
+                  <Ionicons name="person" size={18} color="#fff" />
+                </div>
+                <span style={{ fontSize: 14, fontWeight: 600, color: '#fff' }}>
+                  {pet.owner.display_name || 'Unknown'}
+                </span>
+              </div>
+            )}
+
             {/* Trait pills */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
               {pills.map((pill, idx) => (

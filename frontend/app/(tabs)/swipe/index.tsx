@@ -4,7 +4,6 @@ import { Platform, View } from 'react-native';
 import { useAuthStore } from '../../stores/AuthStore';
 import { useColorScheme } from '~/lib/useColorScheme';
 import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
-import MOCK_PETS from '~/data/pets';
 import { SwipeDeck } from '~/app/components/SwipeDeck';
 import { SwipeDeckWeb } from '~/app/components/SwipeDeckWeb';
 
@@ -29,7 +28,6 @@ const SwipeScreen = () => {
     return (
       <div style={{ backgroundColor: colors.background, height: '100vh', display: 'flex', flexDirection: 'column' }}>
         <SwipeDeckWeb
-          pets={MOCK_PETS}
           colors={colors}
           accentSet={accentSet}
           isDarkColorScheme={isDarkColorScheme}
@@ -41,7 +39,6 @@ const SwipeScreen = () => {
   return (
     <View style={{ backgroundColor: colors.background, flex: 1 }}>
       <SwipeDeck
-        pets={MOCK_PETS}
         colors={colors}
         accentSet={accentSet}
         isDarkColorScheme={isDarkColorScheme}

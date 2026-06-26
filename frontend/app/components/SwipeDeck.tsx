@@ -1,48 +1,133 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import type { MockPet } from '~/data/pets';
+import type { PublicPet } from '~/app/models/pets';
+import { discoverApi, likesApi } from '~/app/lib/api';
 import { SwipeDeckCard } from './SwipeDeckCard';
 
 interface Props {
-  pets: MockPet[];
   colors: { background: string; text: string; grey: string; grey4?: string; card?: string; grey5?: string };
   accentSet: { base: string; bgSubtle?: string };
   isDarkColorScheme: boolean;
 }
 
 const STACK_DEPTH = 3;
+const MAX_PETS = 50;
 
-export function SwipeDeck({ pets, colors, accentSet, isDarkColorScheme }: Props) {
+export function SwipeDeck({ colors, accentSet, isDarkColorScheme }: Props) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [deck, setDeck] = useState<MockPet[]>([...pets]);
+  const [deck, setDeck] = useState<PublicPet[]>([]);
+  const [loading, setLoading] = useState(true);
+  const fetchCountRef = useRef(0);
 
-  const handleLike = useCallback(() => {
+  const fetchNextPet = useCallback(async () => {
+    try {
+      const pet = await discoverApi.next();
+      if (pet) {
+        setDeck((prev) => {
+          const exists = prev.some((p) => p.pet_uuid === pet.pet_uuid);
+          if (exists) return prev;
+          const next = [...prev, pet];
+          if (next.length > MAX_PETS) {
+            return next.slice(1);
+          }
+          return next;
+        });
+      }
+    } catch (err) {
+      console.error('Failed to fetch next pet:', err);
+      if ((err as any)?.response?.status === 404) {
+        setLoading(false);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    const initialFetch = async () => {
+      try {
+        setLoading(true);
+        const pets: PublicPet[] = [];
+        for (let i = 0; i < STACK_DEPTH && i < MAX_PETS; i++) {
+          const pet = await discoverApi.next();
+          if (pet) {
+            pets.push(pet);
+            fetchCountRef.current++;
+          } else {
+            break;
+          }
+        }
+        setDeck(pets);
+      } catch (err) {
+        console.error('Failed to initial fetch pets:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    initialFetch();
+  }, []);
+
+  const handleLike = useCallback(async () => {
+    const pet = deck[0];
+    if (!pet) return;
+
+    try {
+      await likesApi.create(pet.pet_uuid, 'like');
+    } catch (err) {
+      console.error('Failed to record like:', err);
+    }
+
     setDeck((prev) => {
       if (prev.length <= 1) return [];
       return prev.slice(1);
     });
-  }, []);
+    fetchCountRef.current += 1;
+    if (fetchCountRef.current < MAX_PETS) {
+      fetchNextPet();
+    }
+  }, [deck, fetchNextPet]);
 
-  const handleDislike = useCallback(() => {
+  const handleDislike = useCallback(async () => {
+    const pet = deck[0];
+    if (!pet) return;
+
+    try {
+      await likesApi.create(pet.pet_uuid, 'dislike');
+    } catch (err) {
+      console.error('Failed to record dislike:', err);
+    }
+
     setDeck((prev) => {
       if (prev.length <= 1) return [];
       return prev.slice(1);
     });
-  }, []);
+    fetchCountRef.current += 1;
+    if (fetchCountRef.current < MAX_PETS) {
+      fetchNextPet();
+    }
+  }, [deck, fetchNextPet]);
 
   const handleFullProfile = useCallback(() => {
     const pet = deck[0];
     if (pet) {
-      router.push(`/pet-view/profile/${pet.id}`);
+      router.push(`/pet-view/profile/${pet.pet_uuid}`);
     }
   }, [deck, router]);
 
   const handleReset = useCallback(() => {
-    setDeck([...pets]);
-  }, [pets]);
+    setDeck([]);
+    fetchCountRef.current = 0;
+  }, []);
+
+  if (loading) {
+    return (
+      <View style={[styles.emptyContainer, { backgroundColor: colors.background, paddingTop: insets.top + 32, paddingBottom: insets.bottom + 32 }]}>
+        <Text style={[styles.emptyEmoji]}>🐾</Text>
+        <Text style={[styles.emptySubtitle, { color: colors.grey }]}>Loading pets...</Text>
+      </View>
+    );
+  }
 
   if (deck.length === 0) {
     return (
@@ -54,9 +139,6 @@ export function SwipeDeck({ pets, colors, accentSet, isDarkColorScheme }: Props)
         <Text style={[styles.emptySubtitle, { color: colors.grey }]}>
           You've seen all the pets in your area
         </Text>
-        <TouchableOpacity style={[styles.resetButton, { backgroundColor: accentSet.base }]} onPress={handleReset}>
-          <Text style={styles.resetButtonText}>Start Over</Text>
-        </TouchableOpacity>
       </View>
     );
   }
@@ -70,7 +152,7 @@ export function SwipeDeck({ pets, colors, accentSet, isDarkColorScheme }: Props)
         const isTop = index === 0;
         return (
           <SwipeDeckCard
-            key={pet.id}
+            key={pet.pet_uuid}
             pet={pet}
             colors={colors}
             accentSet={accentSet}
@@ -112,15 +194,5 @@ const styles = StyleSheet.create({
     fontSize: 15,
     textAlign: 'center',
     marginBottom: 32,
-  },
-  resetButton: {
-    paddingHorizontal: 32,
-    paddingVertical: 14,
-    borderRadius: 24,
-  },
-  resetButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
   },
 });

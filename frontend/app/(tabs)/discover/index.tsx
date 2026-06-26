@@ -5,7 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../stores/AuthStore';
 import { useColorScheme } from '~/lib/useColorScheme';
 import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
-import MOCK_PETS, { type MockPet } from '~/data/pets';
+import type { PublicPet } from '~/app/models/pets';
+import { discoverApi } from '~/app/lib/api';
 import PetCard from '~/app/components/PetCard';
 
 const SPECIES_FILTERS = ['All', 'Dog', 'Cat'];
@@ -23,16 +24,31 @@ const DiscoverScreen = () => {
   const accentSet = getAccentSet(accentColor);
   const [selectedSpecies, setSelectedSpecies] = useState('All');
   const [loading, setLoading] = useState(true);
+  const [pets, setPets] = useState<PublicPet[]>([]);
 
-  React.useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 600);
-    return () => clearTimeout(timer);
-  }, []);
+  useEffect(() => {
+    const fetchPets = async () => {
+      try {
+        setLoading(true);
+        const query: any = { limit: 50 };
+        if (selectedSpecies !== 'All') {
+          query.species = selectedSpecies;
+        }
+        const response = await discoverApi.list(query);
+        setPets(response.pets);
+      } catch (err) {
+        console.error('Failed to fetch pets:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchPets();
+  }, [selectedSpecies]);
 
   const filteredPets = useMemo(() => {
-    if (selectedSpecies === 'All') return MOCK_PETS;
-    return MOCK_PETS.filter((pet) => pet.species === selectedSpecies);
-  }, [selectedSpecies]);
+    if (selectedSpecies === 'All') return pets;
+    return pets.filter((pet) => pet.species === selectedSpecies);
+  }, [selectedSpecies, pets]);
 
   if (loading) {
     return (
@@ -94,21 +110,18 @@ const DiscoverScreen = () => {
         {filteredPets.length > 0 ? (
           filteredPets.map((pet) => (
             <PetCard
-              key={pet.id}
-              pet_uuid={pet.id}
+              key={pet.pet_uuid}
+              pet_uuid={pet.pet_uuid}
               name={pet.name}
               species={pet.species}
               breed={pet.breed}
-              date_of_birth={
-                new Date(Date.now() - Math.random() * 10 * 365 * 24 * 60 * 60 * 1000)
-                  .toISOString()
-                  .split('T')[0]
-              }
+              date_of_birth={pet.date_of_birth}
               gender={pet.gender}
-              weight={pet.weight ? Number(pet.weight) : undefined}
+              weight={pet.weight}
               description={pet.description}
               traits={pet.traits}
-              onPress={() => router.push(`/pet-view/${pet.id}`)}
+              primary_image={pet.primary_image}
+              onPress={() => router.push(`/pet-view/${pet.pet_uuid}`)}
             />
           ))
         ) : (

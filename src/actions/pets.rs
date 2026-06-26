@@ -609,7 +609,7 @@ pub fn upload_pet_image(
     ))
 }
 
-pub fn list_pet_images(
+pub fn list_own_pet_images(
     pet_uuid: &PetUuid,
     user_id: &UserId,
     conn: &mut DbConnection,
@@ -620,6 +620,39 @@ pub fn list_pet_images(
     let pet = pets::pets
         .filter(pets::pet_uuid.eq(pet_uuid))
         .filter(pets::user_id.eq(user_id))
+        .first::<Pet>(conn)
+        .optional()?;
+
+    let pet = match pet {
+        Some(p) => p,
+        None => {
+            return Err(DomainError::new_entity_does_not_exist_error(format!(
+                "Pet {} not found",
+                pet_uuid
+            )))
+        }
+    };
+
+    let images = pet_images::pet_images
+        .filter(pet_images::pet_id.eq(pet.id.as_int()))
+        .order(pet_images::sort_order.asc())
+        .load::<PetImage>(conn)?;
+
+    Ok(images
+        .into_iter()
+        .map(|img| PublicPetImage::from(&img))
+        .collect())
+}
+
+pub fn list_others_pets_images(
+    pet_uuid: &PetUuid,
+    conn: &mut DbConnection,
+) -> Result<Vec<PublicPetImage>, DomainError> {
+    use crate::schema::pet_images::dsl as pet_images;
+    use crate::schema::pets::dsl as pets;
+
+    let pet = pets::pets
+        .filter(pets::pet_uuid.eq(pet_uuid))
         .first::<Pet>(conn)
         .optional()?;
 

@@ -77,6 +77,38 @@ pub async fn get_public_pet(
 }
 
 #[utoipa::path(
+    get,
+    path = "/api/v1/pets/{pet_uuid}/images",
+    tag = "pets",
+    params(
+        ("pet_uuid" = crate::models::pets::PetUuid, Path, description = "Pet UUID"),
+    ),
+    responses(
+        (status = 200, description = "List of pet images", body = Vec<crate::models::pets::PublicPetImage>),
+        (status = 401, description = "Missing auth", body = DomainError),
+        (status = 404, description = "Pet not found", body = DomainError),
+    ),
+)]
+#[tracing::instrument(level = "info", skip_all, fields(pet_uuid))]
+pub async fn get_pet_images(
+    req: HttpRequest,
+    app_data: web::Data<AppData>,
+    pet_uuid: web::Path<crate::models::pets::PetUuid>,
+) -> Result<HttpResponse, DomainError> {
+    let _user_uuid = crate::utils::extract_user_uuid_from_header(req.headers())?;
+    let pet_uuid = pet_uuid.into_inner();
+
+    let images = web::block(move || {
+        let pool = &app_data.pool;
+        let mut conn = pool.get()?;
+        crate::actions::pets::list_others_pets_images(&pet_uuid, &mut conn)
+    })
+    .await??;
+
+    Ok(HttpResponse::Ok().json(images))
+}
+
+#[utoipa::path(
     post,
     path = "/api/v1/private/user/pets",
     tag = "pets",
@@ -407,7 +439,7 @@ pub async fn list_pet_images(
         let mut conn = pool.get()?;
         let user_id =
             crate::actions::users::get_user_id_by_uuid(&user_uuid, &mut conn)?;
-        crate::actions::pets::list_pet_images(&pet_uuid, &user_id, &mut conn)
+        crate::actions::pets::list_own_pet_images(&pet_uuid, &user_id, &mut conn)
     })
     .await??;
 

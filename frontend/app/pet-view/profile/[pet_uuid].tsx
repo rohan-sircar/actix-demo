@@ -14,8 +14,7 @@ import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useMutation } from '@tanstack/react-query';
 
-import api from '~/app/lib/api';
-import { likesApi } from '~/app/lib/api';
+import { petApi, likesApi } from '~/app/lib/api';
 import { useColorScheme } from '~/lib/useColorScheme';
 import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
 import type { PublicPet, PetImage } from '~/app/models/pets';
@@ -65,8 +64,8 @@ export default function PetFullProfileScreen() {
 
   const fetchPet = async () => {
     try {
-      const res = await api.get<PublicPet>(`/api/v1/private/user/pets/${pet_uuid}`);
-      setPet(res.data);
+      const res = await petApi.getPublic(pet_uuid);
+      setPet(res);
     } catch (err) {
       console.error('[Profile] Failed to fetch pet:', err);
     } finally {
