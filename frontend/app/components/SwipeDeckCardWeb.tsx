@@ -1,8 +1,8 @@
 import React, { useCallback, useRef, useState, useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import type { PublicPet } from '~/app/models/pets';
+import type { PublicPet, PetImage } from '~/app/models/pets';
 import { getSpeciesIcon, getAgeFromDob } from '~/app/pet-view/gallery-utils';
-import { getImageUrl } from '~/app/lib/api';
+import { getImageUrl, petApi } from '~/app/lib/api';
 
 const SWIPE_THRESHOLD = 100;
 const STAMP_THRESHOLD = 75;
@@ -55,8 +55,39 @@ export function SwipeDeckCardWeb({
   const [isFlying, setIsFlying] = useState<'like' | 'dislike' | null>(null);
   const [entryScale, setEntryScale] = useState(0.95);
   const [entryOpacity, setEntryOpacity] = useState(0);
+  const [images, setImages] = useState<PetImage[]>([]);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const cardRef = useRef<HTMLDivElement>(null);
   const dragStart = useRef({ x: 0, y: 0 });
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchImages = async () => {
+      try {
+        const res = await petApi.getImages(pet.pet_uuid);
+        if (!cancelled) {
+          const sorted = res.sort((a, b) => a.sort_order - b.sort_order);
+          setImages(sorted);
+          const primaryIdx = sorted.findIndex((img) => img.is_primary);
+          setCurrentImageIndex(primaryIdx >= 0 ? primaryIdx : 0);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          console.error(`[SwipeDeckCardWeb] Failed to fetch images for ${pet.pet_uuid}:`, err);
+        }
+      }
+    };
+    fetchImages();
+    return () => { cancelled = true; };
+  }, [pet.pet_uuid]);
+
+  const goToPrevImage = useCallback(() => {
+    setCurrentImageIndex((i) => (i === 0 ? images.length - 1 : i - 1));
+  }, [images.length]);
+
+  const goToNextImage = useCallback(() => {
+    setCurrentImageIndex((i) => (i === images.length - 1 ? 0 : i + 1));
+  }, [images.length]);
 
   const ageStr = pet.date_of_birth ? getAgeFromDob(pet.date_of_birth) : '';
   const gradient = getGradientForPet(pet.id);
@@ -122,7 +153,7 @@ export function SwipeDeckCardWeb({
     setTranslateY(dy * 0.3);
   }, [isDragging]);
 
-  const handleMouseUp = useCallback(() => {
+  const handleMouseUp = useCallback((e: React.MouseEvent) => {
     if (!isDragging) return;
     setIsDragging(false);
 
@@ -133,8 +164,19 @@ export function SwipeDeckCardWeb({
     } else {
       setTranslateX(0);
       setTranslateY(0);
+      // Detect click (minimal drag) on left/right side for image navigation
+      if (Math.abs(translateX) < 15 && images.length > 1 && cardRef.current) {
+        const rect = cardRef.current.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const width = rect.width;
+        if (x < width * 0.35) {
+          goToPrevImage();
+        } else if (x > width * 0.65) {
+          goToNextImage();
+        }
+      }
     }
-  }, [isDragging, translateX, handleLike, handleDislike]);
+  }, [isDragging, translateX, handleLike, handleDislike, images.length, goToPrevImage, goToNextImage]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -188,8 +230,9 @@ export function SwipeDeckCardWeb({
     ...shadowStyle,
   };
 
-  const imageUrl = pet.primary_image
-    ? getImageUrl(pet.primary_image.uuid, 'medium')
+  const currentImage = images[currentImageIndex] ?? pet.primary_image;
+  const imageUrl = currentImage
+    ? getImageUrl(currentImage.uuid, 'medium')
     : undefined;
 
   return (
@@ -261,7 +304,19 @@ export function SwipeDeckCardWeb({
 
           {/* Page dots */}
           <div style={{ position: 'absolute', top: 100, left: 0, right: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 6 }}>
-            <div style={{ width: 20, height: 4, borderRadius: 2, marginLeft: 2, marginRight: 2, backgroundColor: '#fff' }} />
+            {images.map((_, idx) => (
+              <div
+                key={idx}
+                style={{
+                  width: idx === currentImageIndex ? 20 : 6,
+                  height: 4,
+                  borderRadius: 2,
+                  marginLeft: 2,
+                  marginRight: 2,
+                  backgroundColor: idx === currentImageIndex ? '#fff' : 'rgba(255,255,255,0.4)',
+                }}
+              />
+            ))}
           </div>
 
           {/* Info overlay */}

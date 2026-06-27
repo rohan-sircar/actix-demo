@@ -2,9 +2,9 @@ use diesel::prelude::*;
 
 use crate::errors::DomainError;
 use crate::models::likes::{
-    CreateLike, Like, LikeDirection, LikeResponse, NewLike,
+    CreateLike, Like, LikeDirection, LikeResponse, LikeWithPet, NewLike,
 };
-use crate::models::pets::PetId;
+use crate::models::pets::{PetId, PetUuid};
 use crate::models::users::UserId;
 use crate::types::DbConnection;
 
@@ -86,4 +86,100 @@ pub fn create_like(
 
         Ok(LikeResponse::from((&like, &pet_uuid)))
     })
+}
+
+/// Returns likes the user has sent (pets the user liked/disliked).
+pub fn list_likes_sent(
+    user_id: &UserId,
+    conn: &mut DbConnection,
+) -> Result<Vec<LikeWithPet>, DomainError> {
+    use crate::schema::likes::dsl as likes;
+
+    let like_rows: Vec<Like> = likes::likes
+        .filter(likes::user_id.eq(*user_id).and(likes::direction.eq(LikeDirection::Like)))
+        .order(likes::created_at.desc())
+        .load(conn)?;
+
+    like_rows
+        .into_iter()
+        .map(|like| {
+            let pet = fetch_pet_with_image(&like.pet_id, conn);
+            match pet {
+                Ok((pet_uuid, pet_name, species, image_uuid)) => Ok(LikeWithPet {
+                    pet_uuid,
+                    pet_name,
+                    species,
+                    primary_image_uuid: image_uuid.map(|u| u.to_string()),
+                    is_match: like.is_match,
+                    created_at: like.created_at,
+                }),
+                Err(_) => Err(DomainError::new_internal_error(
+                    format!("Pet not found for like id {}", like.id),
+                )),
+            }
+        })
+        .collect()
+}
+
+/// Returns likes the user has received (other users who liked this user's pets).
+pub fn list_likes_received(
+    user_id: &UserId,
+    conn: &mut DbConnection,
+) -> Result<Vec<LikeWithPet>, DomainError> {
+    use crate::schema::likes::dsl as likes;
+
+    let like_rows: Vec<Like> = likes::likes
+        .filter(likes::pet_owner_id.eq(*user_id).and(likes::direction.eq(LikeDirection::Like)))
+        .order(likes::created_at.desc())
+        .load(conn)?;
+
+    like_rows
+        .into_iter()
+        .map(|like| {
+            let pet = fetch_pet_with_image(&like.pet_id, conn);
+            match pet {
+                Ok((pet_uuid, pet_name, species, image_uuid)) => Ok(LikeWithPet {
+                    pet_uuid,
+                    pet_name,
+                    species,
+                    primary_image_uuid: image_uuid.map(|u| u.to_string()),
+                    is_match: like.is_match,
+                    created_at: like.created_at,
+                }),
+                Err(_) => Err(DomainError::new_internal_error(
+                    format!("Pet not found for like id {}", like.id),
+                )),
+            }
+        })
+        .collect()
+}
+
+fn fetch_pet_with_image(
+    pet_id: &PetId,
+    conn: &mut DbConnection,
+) -> Result<(PetUuid, String, String, Option<uuid::Uuid>), DomainError> {
+    use crate::schema::pets::dsl as pets;
+
+    let (pet_uuid_raw, pet_name, species): (uuid::Uuid, String, String) = pets::pets
+        .select((pets::pet_uuid, pets::name, pets::species))
+        .filter(pets::id.eq(*pet_id))
+        .first(conn)
+        .map_err(DomainError::from)?;
+
+    let pet_uuid: PetUuid = PetUuid::try_from(
+        pet_uuid_raw.to_string(),
+    ).map_err(|e: String| DomainError::new_internal_error(format!("Invalid pet UUID: {}", e)))?;
+
+    let image_uuid: Option<uuid::Uuid> = {
+        use crate::schema::pet_images::dsl as pet_images;
+        let result: Result<uuid::Uuid, _> = pet_images::pet_images
+            .select(pet_images::uuid)
+            .filter(
+                pet_images::pet_id.eq(*pet_id).and(pet_images::is_primary.eq(true)),
+            )
+            .first(conn);
+        result.ok()
+    };
+
+    Ok((pet_uuid, pet_name, species, image_uuid))
 }

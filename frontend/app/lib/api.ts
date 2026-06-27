@@ -133,6 +133,16 @@ export const likesApi = {
     const response = await api.post('/api/v1/private/likes', { pet_uuid: petUuid, direction });
     return response.data;
   },
+
+  async listSent(): Promise<import('~/app/models/pets').LikeWithPet[]> {
+    const response = await api.get('/api/v1/private/likes/sent');
+    return response.data;
+  },
+
+  async listReceived(): Promise<import('~/app/models/pets').LikeWithPet[]> {
+    const response = await api.get('/api/v1/private/likes/received');
+    return response.data;
+  },
 };
 
 export const profileApi = {

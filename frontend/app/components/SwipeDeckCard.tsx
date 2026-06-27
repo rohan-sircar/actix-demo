@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Platform,
   Image as RNImage,
+  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
@@ -20,9 +21,9 @@ import Animated, {
   withDelay,
 } from 'react-native-reanimated';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
-import type { PublicPet } from '~/app/models/pets';
+import type { PublicPet, PetImage } from '~/app/models/pets';
 import { getSpeciesIcon, getAgeFromDob } from '~/app/pet-view/gallery-utils';
-import { getImageUrl } from '~/app/lib/api';
+import { getImageUrl, petApi } from '~/app/lib/api';
 
 const SWIPE_THRESHOLD = 100;
 const STAMP_THRESHOLD = 75;
@@ -77,12 +78,47 @@ export function SwipeDeckCard({
   stackIndex,
 }: Props) {
   const [activeTab, setActiveTab] = useState('All');
+  const [images, setImages] = useState<PetImage[]>([]);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const imagesLengthRef = useRef(0);
+  imagesLengthRef.current = images.length;
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchImages = async () => {
+      try {
+        const res = await petApi.getImages(pet.pet_uuid);
+        if (!cancelled) {
+          const sorted = res.sort((a, b) => a.sort_order - b.sort_order);
+          setImages(sorted);
+          // Find index of primary image
+          const primaryIdx = sorted.findIndex((img) => img.is_primary);
+          setCurrentImageIndex(primaryIdx >= 0 ? primaryIdx : 0);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          console.error(`[SwipeDeckCard] Failed to fetch images for ${pet.pet_uuid}:`, err);
+        }
+      }
+    };
+    fetchImages();
+    return () => { cancelled = true; };
+  }, [pet.pet_uuid]);
+
+  const goToPrevImage = useCallback(() => {
+    setCurrentImageIndex((i) => (i === 0 ? images.length - 1 : i - 1));
+  }, [images.length]);
+
+  const goToNextImage = useCallback(() => {
+    setCurrentImageIndex((i) => (i === images.length - 1 ? 0 : i + 1));
+  }, [images.length]);
 
   const ageStr = pet.date_of_birth ? getAgeFromDob(pet.date_of_birth) : '';
   const gradient = getGradientForPet(pet.id);
 
-  const imageUrl = pet.primary_image
-    ? getImageUrl(pet.primary_image.uuid, 'medium')
+  const currentImage = images[currentImageIndex] ?? pet.primary_image;
+  const imageUrl = currentImage
+    ? getImageUrl(currentImage.uuid, 'medium')
     : undefined;
 
   const pills: { icon: string; label: string }[] = [];
@@ -120,6 +156,7 @@ export function SwipeDeckCard({
   }, []);
 
   const panGesture = Gesture.Pan()
+    .minDistance(5)
     .onUpdate((e) => {
       if (isTopCard) {
         translationX.value = e.translationX;
@@ -130,6 +167,19 @@ export function SwipeDeckCard({
       if (!isTopCard || isAnimating.value) return;
       const tx = e.translationX;
       const vx = e.velocityX;
+      const absTx = Math.abs(tx);
+      // Detect tap: minimal movement (< 15px) on left/right side
+      if (absTx < 15 && imagesLengthRef.current > 1) {
+        const screenWidth = Dimensions.get('window').width;
+        if (e.absoluteX < screenWidth * 0.35) {
+          runOnJS(goToPrevImage)();
+        } else if (e.absoluteX > screenWidth * 0.65) {
+          runOnJS(goToNextImage)();
+        }
+        translationX.value = withSpring(0);
+        translationY.value = withSpring(0);
+        return;
+      }
       if (tx > SWIPE_THRESHOLD || (tx > 50 && vx > 1000)) {
         isAnimating.value = true;
         translationX.value = withSequence(
@@ -235,15 +285,18 @@ export function SwipeDeckCard({
         )}
 
         <View style={styles.dotsContainer}>
-          <View
-            style={{
-              width: 20,
-              height: 4,
-              borderRadius: 2,
-              marginHorizontal: 2,
-              backgroundColor: '#fff',
-            }}
-          />
+          {images.map((_, idx) => (
+            <View
+              key={idx}
+              style={{
+                width: idx === currentImageIndex ? 20 : 6,
+                height: 4,
+                borderRadius: 2,
+                marginHorizontal: 2,
+                backgroundColor: idx === currentImageIndex ? '#fff' : 'rgba(255,255,255,0.4)',
+              }}
+            />
+          ))}
         </View>
 
         <View style={styles.infoOverlay}>

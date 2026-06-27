@@ -56,19 +56,6 @@ const PrivatePetCard: React.FC<{
           </View>
         )}
         <View className="absolute top-2 right-2 flex-row gap-2">
-          <Pressable
-            onPress={(e) => {
-              e?.stopPropagation();
-              router.push(`/pet-profiles/${pet_uuid}`);
-            }}
-            className="items-center justify-center rounded-full bg-black/40"
-            style={({ pressed }) => ({
-              width: 30,
-              height: 30,
-              opacity: pressed ? 0.6 : 1,
-            })}>
-            <Ionicons name="create-outline" size={14} color="#fff" />
-          </Pressable>
           {onDelete ? (
             <Pressable
               onPress={(e) => {

@@ -411,6 +411,14 @@ pub fn configure_app(
                         web::post().to(routes::discover::create_like),
                     )
                     .route(
+                        "/likes/sent",
+                        web::get().to(routes::discover::list_likes_sent),
+                    )
+                    .route(
+                        "/likes/received",
+                        web::get().to(routes::discover::list_likes_received),
+                    )
+                    .route(
                         "/messages",
                         web::post().to(routes::discover::stub_messages),
                     )
@@ -522,6 +530,8 @@ pub fn configure_app(
         routes::discover::discover_next,
         routes::discover::discover_pets,
         routes::discover::create_like,
+        routes::discover::list_likes_sent,
+        routes::discover::list_likes_received,
         routes::discover::stub_messages,
         routes::discover::stub_reports,
     ),

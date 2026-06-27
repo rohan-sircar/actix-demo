@@ -172,6 +172,17 @@ impl From<(&Like, &PetUuid)> for LikeResponse {
     }
 }
 
+/// Response model for a like with full pet and owner data
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct LikeWithPet {
+    pub pet_uuid: PetUuid,
+    pub pet_name: String,
+    pub species: String,
+    pub primary_image_uuid: Option<String>,
+    pub is_match: bool,
+    pub created_at: chrono::NaiveDateTime,
+}
+
 #[cfg(test)]
 mod test {
     use super::*;

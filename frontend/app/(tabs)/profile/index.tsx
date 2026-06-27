@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Image, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 
 import Avatar from '../../components/Avatar';
@@ -9,9 +9,9 @@ import * as Style from '~/app/styles/Styles';
 import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
 import { useColorScheme } from '~/lib/useColorScheme';
 import { useAuthStore, UserResponse } from '~/app/stores/AuthStore';
-import api, { profileApi } from '~/app/lib/api';
+import api, { getImageUrl, likesApi, profileApi } from '~/app/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { Pet, UserProfile as UserProfileType } from '~/app/models/pets';
+import type { LikeWithPet, Pet, UserProfile as UserProfileType } from '~/app/models/pets';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -53,6 +53,16 @@ export default function ProfileScreen() {
       const res = await api.get<Pet[]>('/api/v1/private/user/pets');
       return res.data;
     },
+  });
+
+  const { data: likesSent } = useQuery({
+    queryKey: ['likes-sent'],
+    queryFn: () => likesApi.listSent(),
+  });
+
+  const { data: likesReceived } = useQuery({
+    queryKey: ['likes-received'],
+    queryFn: () => likesApi.listReceived(),
   });
 
   useFocusEffect(
@@ -106,7 +116,7 @@ export default function ProfileScreen() {
 
   return (
     <View className="w-full flex-1" style={{ backgroundColor: colors.background }}>
-      <View className="w-full flex-1 px-4 pb-4 pt-2">
+      <ScrollView className="w-full" showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 16, paddingBottom: 80 }}>
         <View className="mb-4">
           <Text className="mb-4 text-2xl font-bold" style={{ color: colors.text }}>
             My Profile
@@ -190,50 +200,134 @@ export default function ProfileScreen() {
           )}
         </View>
 
-        {(profile.bio || profile.location || profile.website_url) && (
-          <View className="mb-4 rounded-2xl px-5 py-4" style={{ backgroundColor: colors.card, borderWidth: 1, borderColor: isDarkColorScheme ? colors.grey4 : '#e8e8e8', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 3 }}>
-            {profile.bio && (
-              <>
-                <Text className="mb-2 text-xs font-bold uppercase tracking-wider" style={{ color: accentSet.base }}>
-                  About Me
-                </Text>
-                <Text className="text-sm leading-relaxed" style={{ color: colors.grey }}>
-                  {profile.bio}
-                </Text>
-              </>
-            )}
-            {(profile.location || profile.website_url) && (
-              <View className="mt-3 flex-row flex-wrap gap-2">
-                {profile.location && (
-                  <View className="flex-row items-center gap-1.5 rounded-full bg-black/10 px-3.5 py-2" style={{ backgroundColor: isDarkColorScheme ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }}>
-                    <Ionicons name="location" size={15} color={accentSet.base} />
-                    <Text className="text-sm font-medium" style={{ color: colors.text }}>
-                      {profile.location}
+        {/* Row 1: About Me + Stats */}
+        <View className="flex-row flex-wrap gap-4" style={{ width: '100%' }}>
+          {(profile.bio || profile.location || profile.website_url) && (
+            <View style={{ width: '48%', borderRadius: 16, backgroundColor: colors.card, borderWidth: 1, borderColor: isDarkColorScheme ? colors.grey4 : '#e8e8e8', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 3 }}>
+              <View className="px-5 py-4">
+                {profile.bio && (
+                  <>
+                    <Text className="mb-2 text-xs font-bold uppercase tracking-wider" style={{ color: accentSet.base }}>
+                      About Me
                     </Text>
-                  </View>
+                    <Text className="text-sm leading-relaxed" style={{ color: colors.grey }}>
+                      {profile.bio}
+                    </Text>
+                  </>
                 )}
-                {profile.website_url && (
-                  <View className="flex-row items-center gap-1.5 rounded-full bg-black/10 px-3.5 py-2" style={{ backgroundColor: isDarkColorScheme ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }}>
-                    <Ionicons name="globe" size={15} color={accentSet.base} />
-                    <Text className="text-sm font-medium" style={{ color: colors.text }}>
-                      {profile.website_url}
-                    </Text>
+                {(profile.location || profile.website_url) && (
+                  <View className="mt-3 flex-row flex-wrap gap-2">
+                    {profile.location && (
+                      <View className="flex-row items-center gap-1.5 rounded-full bg-black/10 px-3.5 py-2" style={{ backgroundColor: isDarkColorScheme ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }}>
+                        <Ionicons name="location" size={15} color={accentSet.base} />
+                        <Text className="text-sm font-medium" style={{ color: colors.text }}>
+                          {profile.location}
+                        </Text>
+                      </View>
+                    )}
+                    {profile.website_url && (
+                      <View className="flex-row items-center gap-1.5 rounded-full bg-black/10 px-3.5 py-2" style={{ backgroundColor: isDarkColorScheme ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }}>
+                        <Ionicons name="globe" size={15} color={accentSet.base} />
+                        <Text className="text-sm font-medium" style={{ color: colors.text }}>
+                          {profile.website_url}
+                        </Text>
+                      </View>
+                    )}
                   </View>
                 )}
               </View>
-            )}
-          </View>
-        )}
+            </View>
+          )}
 
-        <View className="mt-2 rounded-2xl px-5 py-5" style={{ backgroundColor: colors.card, borderWidth: 1, borderColor: isDarkColorScheme ? colors.grey4 : '#e8e8e8', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 3 }}>
-          <Text className="mb-3 text-xs font-bold uppercase tracking-wider text-center" style={{ color: accentSet.base }}>
-            My Stats
-          </Text>
-          <View className="flex-row justify-center">
-            <StatTile title="Pets" value={String(pets?.length ?? 0)} />
+          <View style={{ width: profile.bio || profile.location || profile.website_url ? '48%' : '100%', borderRadius: 16, backgroundColor: colors.card, borderWidth: 1, borderColor: isDarkColorScheme ? colors.grey4 : '#e8e8e8', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 3 }}>
+            <View className="px-5 py-5">
+              <Text className="mb-3 text-xs font-bold uppercase tracking-wider text-center" style={{ color: accentSet.base }}>
+                My Stats
+              </Text>
+              <View className="flex-row justify-center">
+                <StatTile title="Pets" value={String(pets?.length ?? 0)} />
+              </View>
+            </View>
           </View>
         </View>
-      </View>
+
+        {/* Row 2: Likes Sent + Likes Received */}
+        {(likesSent && likesReceived) ? (
+          <View className="mt-4 flex-row flex-wrap gap-4" style={{ width: '100%' }}>
+            <View style={{ width: '48%', backgroundColor: colors.card, borderWidth: 1, borderColor: isDarkColorScheme ? colors.grey4 : '#e8e8e8', borderRadius: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 3 }}>
+              <View className="px-4 py-3 border-b" style={{ borderColor: isDarkColorScheme ? colors.grey4 : '#e8e8e8' }}>
+                <Text className="text-sm font-bold uppercase tracking-wider" style={{ color: accentSet.base }}>Likes Sent</Text>
+                <Text className="text-xs mt-0.5" style={{ color: colors.grey }}>{likesSent?.length ?? 0} pets</Text>
+              </View>
+              <View className="px-3 py-2 gap-2">
+                {likesSent?.length === 0 ? (
+                  <Text className="text-xs text-center py-4" style={{ color: colors.grey }}>No likes sent yet</Text>
+                ) : null}
+                {likesSent?.map((like) => (
+                  <TouchableOpacity
+                    key={like.pet_uuid}
+                    onPress={() => router.push(`/pet-view/${like.pet_uuid}`)}
+                    className="flex-row items-center gap-3 rounded-xl px-3 py-2"
+                    style={{ backgroundColor: isDarkColorScheme ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }}>
+                    {like.primary_image_uuid ? (
+                      <Image source={{ uri: getImageUrl(like.primary_image_uuid, 'thumbnail') }} style={{ width: 40, height: 40, borderRadius: 10 }} resizeMode="cover" />
+                    ) : (
+                      <View style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: accentSet.bgSubtle || '#f0e0d8', justifyContent: 'center', alignItems: 'center' }}>
+                        <Ionicons name="paw" size={18} color={accentSet.base} />
+                      </View>
+                    )}
+                    <View className="flex-1">
+                      <Text className="text-sm font-semibold" style={{ color: colors.text }}>{like.pet_name}</Text>
+                      <Text className="text-xs" style={{ color: colors.grey }}>{like.species}</Text>
+                    </View>
+                    {like.is_match ? (
+                      <View style={{ backgroundColor: '#4ade80', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 }}>
+                        <Text style={{ color: '#fff', fontSize: 10, fontWeight: 700 }}>MATCH</Text>
+                      </View>
+                    ) : null}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            <View style={{ width: '48%', backgroundColor: colors.card, borderWidth: 1, borderColor: isDarkColorScheme ? colors.grey4 : '#e8e8e8', borderRadius: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 3 }}>
+              <View className="px-4 py-3 border-b" style={{ borderColor: isDarkColorScheme ? colors.grey4 : '#e8e8e8' }}>
+                <Text className="text-sm font-bold uppercase tracking-wider" style={{ color: accentSet.base }}>Likes Received</Text>
+                <Text className="text-xs mt-0.5" style={{ color: colors.grey }}>{likesReceived?.length ?? 0} pets</Text>
+              </View>
+              <View className="px-3 py-2 gap-2">
+                {likesReceived?.length === 0 ? (
+                  <Text className="text-xs text-center py-4" style={{ color: colors.grey }}>No likes received yet</Text>
+                ) : null}
+                {likesReceived?.map((like) => (
+                  <TouchableOpacity
+                    key={like.pet_uuid}
+                    onPress={() => router.push(`/pet-view/${like.pet_uuid}`)}
+                    className="flex-row items-center gap-3 rounded-xl px-3 py-2"
+                    style={{ backgroundColor: isDarkColorScheme ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }}>
+                    {like.primary_image_uuid ? (
+                      <Image source={{ uri: getImageUrl(like.primary_image_uuid, 'thumbnail') }} style={{ width: 40, height: 40, borderRadius: 10 }} resizeMode="cover" />
+                    ) : (
+                      <View style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: accentSet.bgSubtle || '#f0e0d8', justifyContent: 'center', alignItems: 'center' }}>
+                        <Ionicons name="paw" size={18} color={accentSet.base} />
+                      </View>
+                    )}
+                    <View className="flex-1">
+                      <Text className="text-sm font-semibold" style={{ color: colors.text }}>{like.pet_name}</Text>
+                      <Text className="text-xs" style={{ color: colors.grey }}>{like.species}</Text>
+                    </View>
+                    {like.is_match ? (
+                      <View style={{ backgroundColor: '#4ade80', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 }}>
+                        <Text style={{ color: '#fff', fontSize: 10, fontWeight: 700 }}>MATCH</Text>
+                      </View>
+                    ) : null}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          </View>
+        ) : null}
+      </ScrollView>
     </View>
   );
 }

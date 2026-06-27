@@ -143,6 +143,66 @@ pub async fn create_like(
     Ok(HttpResponse::Created().json(like_response))
 }
 
+/// Returns the list of pets the user has liked (outgoing likes).
+#[utoipa::path(
+    get,
+    path = "/api/v1/private/likes/sent",
+    tag = "likes",
+    responses(
+        (status = 200, description = "List of sent likes", body = Vec<crate::models::likes::LikeWithPet>),
+        (status = 401, description = "Missing auth", body = DomainError),
+    ),
+)]
+#[protect("RoleEnum::RoleUser", ty = RoleEnum)]
+#[tracing::instrument(level = "info", skip_all)]
+pub async fn list_likes_sent(
+    req: HttpRequest,
+    app_data: web::Data<AppData>,
+) -> Result<HttpResponse, DomainError> {
+    let user_uuid = crate::utils::extract_user_uuid_from_header(req.headers())?;
+
+    let result = web::block(move || {
+        let pool = &app_data.pool;
+        let mut conn = pool.get()?;
+        let user_id =
+            crate::actions::users::get_user_id_by_uuid(&user_uuid, &mut conn)?;
+        crate::actions::likes::list_likes_sent(&user_id, &mut conn)
+    })
+    .await??;
+
+    Ok(HttpResponse::Ok().json(result))
+}
+
+/// Returns the list of pets whose owners were liked by others (incoming likes).
+#[utoipa::path(
+    get,
+    path = "/api/v1/private/likes/received",
+    tag = "likes",
+    responses(
+        (status = 200, description = "List of received likes", body = Vec<crate::models::likes::LikeWithPet>),
+        (status = 401, description = "Missing auth", body = DomainError),
+    ),
+)]
+#[protect("RoleEnum::RoleUser", ty = RoleEnum)]
+#[tracing::instrument(level = "info", skip_all)]
+pub async fn list_likes_received(
+    req: HttpRequest,
+    app_data: web::Data<AppData>,
+) -> Result<HttpResponse, DomainError> {
+    let user_uuid = crate::utils::extract_user_uuid_from_header(req.headers())?;
+
+    let result = web::block(move || {
+        let pool = &app_data.pool;
+        let mut conn = pool.get()?;
+        let user_id =
+            crate::actions::users::get_user_id_by_uuid(&user_uuid, &mut conn)?;
+        crate::actions::likes::list_likes_received(&user_id, &mut conn)
+    })
+    .await??;
+
+    Ok(HttpResponse::Ok().json(result))
+}
+
 /// Returns a stub response for messages.
 #[utoipa::path(
     post,

@@ -60,6 +60,15 @@ export interface LikeRecord {
   created_at: string;
 }
 
+export interface LikeWithPet {
+  pet_uuid: string;
+  pet_name: string;
+  species: string;
+  primary_image_uuid: string | null;
+  is_match: boolean;
+  created_at: string;
+}
+
 export interface PaginatedResponse<T> {
   pets: T[];
   total_count: number;
