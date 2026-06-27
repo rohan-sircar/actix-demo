@@ -136,7 +136,7 @@ export default function PetFullProfileScreen() {
           <TouchableOpacity onPress={() => setPreviewImage(heroUrl)} activeOpacity={0.9}>
             <RNImage
               source={{ uri: heroUrl }}
-              style={{ width: '100%', aspectRatio: 1 }}
+              style={{ width: '100%', aspectRatio: 1, maxHeight: 400 }}
               resizeMode="cover"
             />
           </TouchableOpacity>
@@ -145,6 +145,7 @@ export default function PetFullProfileScreen() {
             style={{
               width: '100%',
               aspectRatio: 1,
+              maxHeight: 400,
               backgroundColor: isDarkColorScheme ? colors.grey5 : `${accentSet.bgSubtle}90`,
               alignItems: 'center',
               justifyContent: 'center',

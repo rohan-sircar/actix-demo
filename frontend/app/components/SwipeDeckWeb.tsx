@@ -51,11 +51,15 @@ export function SwipeDeckWeb({ colors, accentSet, isDarkColorScheme }: Props) {
       try {
         setLoading(true);
         const pets: PublicPet[] = [];
+        const seen = new Set<string>();
         for (let i = 0; i < STACK_DEPTH && i < MAX_PETS; i++) {
           const pet = await discoverApi.next();
-          if (pet) {
+          if (pet && !seen.has(pet.pet_uuid)) {
+            seen.add(pet.pet_uuid);
             pets.push(pet);
             fetchCountRef.current++;
+          } else if (pet) {
+            i--; // retry if duplicate
           } else {
             break;
           }
