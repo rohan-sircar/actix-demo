@@ -10,8 +10,8 @@ interface Props {
   accentSet: { base: string; bgSubtle?: string };
   isDarkColorScheme: boolean;
   onFullProfile: () => void;
-  onLike: () => void;
-  onDislike: () => void;
+  onLike?: () => void;
+  onDislike?: () => void;
 }
 
 const TABS = ['All', 'Dogs', 'Cats', 'Birds'];
@@ -54,34 +54,36 @@ export function WebGallery({ pet, images, colors, accentSet, isDarkColorScheme, 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: colors.background }}>
       {/* Top navbar */}
-      <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', gap: 12, backgroundColor: isDarkColorScheme ? 'rgba(0,0,0,0.3)' : colors.card || '#fff', borderBottom: `1px solid ${colors.grey4 || 'rgba(128,128,128,0.15)'}` }}>
-        <button style={{ width: 36, height: 36, borderRadius: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(128,128,128,0.15)', border: 'none', cursor: 'pointer' }}>
-          <Ionicons name="filter" size={20} color={colors.text} />
-        </button>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'row', gap: 6, overflowX: 'auto' }}>
-          {TABS.map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              style={{
-                padding: '6px 14px',
-                borderRadius: 20,
-                border: 'none',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                backgroundColor: activeTab === tab ? accentSet.base : 'rgba(128,128,128,0.15)',
-              }}
-            >
-              <span style={{ fontSize: 13, fontWeight: 600, color: activeTab === tab ? '#fff' : colors.text }}>
-                {tab}
-              </span>
-            </button>
-          ))}
+      {onLike && onDislike ? (
+        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', gap: 12, backgroundColor: isDarkColorScheme ? 'rgba(0,0,0,0.3)' : colors.card || '#fff', borderBottom: `1px solid ${colors.grey4 || 'rgba(128,128,128,0.15)'}` }}>
+          <button style={{ width: 36, height: 36, borderRadius: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(128,128,128,0.15)', border: 'none', cursor: 'pointer' }}>
+            <Ionicons name="filter" size={20} color={colors.text} />
+          </button>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'row', gap: 6, overflowX: 'auto' }}>
+            {TABS.map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: 20,
+                  border: 'none',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  backgroundColor: activeTab === tab ? accentSet.base : 'rgba(128,128,128,0.15)',
+                }}
+              >
+                <span style={{ fontSize: 13, fontWeight: 600, color: activeTab === tab ? '#fff' : colors.text }}>
+                  {tab}
+                </span>
+              </button>
+            ))}
+          </div>
+          <button style={{ width: 36, height: 36, borderRadius: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(128,128,128,0.15)', border: 'none', cursor: 'pointer' }}>
+            <Ionicons name="flash" size={20} color={colors.text} />
+          </button>
         </div>
-        <button style={{ width: 36, height: 36, borderRadius: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(128,128,128,0.15)', border: 'none', cursor: 'pointer' }}>
-          <Ionicons name="flash" size={20} color={colors.text} />
-        </button>
-      </div>
+      ) : null}
 
       {/* Photo area - fills remaining space */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 16, position: 'relative', minHeight: 0 }}>
@@ -149,23 +151,25 @@ export function WebGallery({ pet, images, colors, accentSet, isDarkColorScheme, 
         </div>
 
         {/* Action buttons */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14 }}>
-          <button style={{ width: 44, height: 44, borderRadius: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(128,128,128,0.1)', border: 'none', cursor: 'pointer' }}>
-            <Ionicons name="refresh" size={20} color="#aaa" />
-          </button>
-          <button onClick={onDislike} style={{ width: 54, height: 54, borderRadius: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,68,88,0.1)', border: 'none', cursor: 'pointer' }}>
-            <Ionicons name="close" size={28} color="#ff4458" />
-          </button>
-          <button style={{ width: 44, height: 44, borderRadius: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(33,150,243,0.1)', border: 'none', cursor: 'pointer' }}>
-            <Ionicons name="star" size={20} color="#2196f3" />
-          </button>
-          <button onClick={onLike} style={{ width: 54, height: 54, borderRadius: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(74,222,128,0.1)', border: 'none', cursor: 'pointer' }}>
-            <Ionicons name="heart" size={28} color="#4ade80" />
-          </button>
-          <button onClick={onFullProfile} style={{ width: 44, height: 44, borderRadius: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(59,130,246,0.1)', border: 'none', cursor: 'pointer' }}>
-            <Ionicons name="send" size={20} color="#3b82f6" />
-          </button>
-        </div>
+        {onLike && onDislike ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14 }}>
+            <button style={{ width: 44, height: 44, borderRadius: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(128,128,128,0.1)', border: 'none', cursor: 'pointer' }}>
+              <Ionicons name="refresh" size={20} color="#aaa" />
+            </button>
+            <button onClick={onDislike} style={{ width: 54, height: 54, borderRadius: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,68,88,0.1)', border: 'none', cursor: 'pointer' }}>
+              <Ionicons name="close" size={28} color="#ff4458" />
+            </button>
+            <button style={{ width: 44, height: 44, borderRadius: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(33,150,243,0.1)', border: 'none', cursor: 'pointer' }}>
+              <Ionicons name="star" size={20} color="#2196f3" />
+            </button>
+            <button onClick={onLike} style={{ width: 54, height: 54, borderRadius: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(74,222,128,0.1)', border: 'none', cursor: 'pointer' }}>
+              <Ionicons name="heart" size={28} color="#4ade80" />
+            </button>
+            <button onClick={onFullProfile} style={{ width: 44, height: 44, borderRadius: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(59,130,246,0.1)', border: 'none', cursor: 'pointer' }}>
+              <Ionicons name="send" size={20} color="#3b82f6" />
+            </button>
+          </div>
+        ) : null}
       </div>
     </div>
   );

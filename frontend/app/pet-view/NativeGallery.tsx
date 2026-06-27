@@ -18,8 +18,8 @@ interface Props {
   accentSet: { base: string; bgSubtle?: string };
   isDarkColorScheme: boolean;
   onFullProfile: () => void;
-  onLike: () => void;
-  onDislike: () => void;
+  onLike?: () => void;
+  onDislike?: () => void;
 }
 
 const TABS = ['All', 'Dogs', 'Cats', 'Birds'];
@@ -62,34 +62,36 @@ export function NativeGallery({ pet, images, colors, accentSet, isDarkColorSchem
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Top bar */}
-      <View style={styles.topBar}>
-        <TouchableOpacity style={styles.topBarButton}>
-          <Ionicons name="filter" size={24} color="#fff" />
-        </TouchableOpacity>
-        <ScrollViewNative
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.tabRow}
-        >
-          {TABS.map((tab) => (
-            <TouchableOpacity
-              key={tab}
-              onPress={() => setActiveTab(tab)}
-              style={[
-                styles.tabButton,
-                activeTab === tab ? styles.tabActive : styles.tabInactive,
-              ]}
-            >
-              <Text style={[styles.tabText, activeTab === tab ? styles.tabTextActive : styles.tabTextInactive]}>
-                {tab}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollViewNative>
-        <TouchableOpacity style={styles.topBarButton}>
-          <Ionicons name="flash" size={24} color="#fff" />
-        </TouchableOpacity>
-      </View>
+      {onLike && onDislike ? (
+        <View style={styles.topBar}>
+          <TouchableOpacity style={styles.topBarButton}>
+            <Ionicons name="filter" size={24} color="#fff" />
+          </TouchableOpacity>
+          <ScrollViewNative
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.tabRow}
+          >
+            {TABS.map((tab) => (
+              <TouchableOpacity
+                key={tab}
+                onPress={() => setActiveTab(tab)}
+                style={[
+                  styles.tabButton,
+                  activeTab === tab ? styles.tabActive : styles.tabInactive,
+                ]}
+              >
+                <Text style={[styles.tabText, activeTab === tab ? styles.tabTextActive : styles.tabTextInactive]}>
+                  {tab}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollViewNative>
+          <TouchableOpacity style={styles.topBarButton}>
+            <Ionicons name="flash" size={24} color="#fff" />
+          </TouchableOpacity>
+        </View>
+      ) : null}
 
       {/* Photo */}
       <View style={styles.photoArea}>
@@ -161,23 +163,25 @@ export function NativeGallery({ pet, images, colors, accentSet, isDarkColorSchem
           </View>
 
           {/* Action buttons */}
-          <View style={styles.actionRow}>
-            <TouchableOpacity style={[styles.actionButton, styles.actionSmall]} onPress={() => {}}>
-              <Ionicons name="refresh" size={22} color="#aaa" />
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.actionButton, styles.actionMedium]} onPress={onDislike}>
-              <Ionicons name="close" size={30} color="#ff4458" />
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.actionButton, styles.actionSmall]} onPress={() => {}}>
-              <Ionicons name="star" size={22} color="#2196f3" />
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.actionButton, styles.actionMedium]} onPress={onLike}>
-              <Ionicons name="heart" size={30} color="#4ade80" />
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.actionButton, styles.actionSmall]} onPress={onFullProfile}>
-              <Ionicons name="send" size={22} color="#3b82f6" />
-            </TouchableOpacity>
-          </View>
+          {onLike && onDislike ? (
+            <View style={styles.actionRow}>
+              <TouchableOpacity style={[styles.actionButton, styles.actionSmall]} onPress={() => {}}>
+                <Ionicons name="refresh" size={22} color="#aaa" />
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.actionButton, styles.actionMedium]} onPress={onDislike}>
+                <Ionicons name="close" size={30} color="#ff4458" />
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.actionButton, styles.actionSmall]} onPress={() => {}}>
+                <Ionicons name="star" size={22} color="#2196f3" />
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.actionButton, styles.actionMedium]} onPress={onLike}>
+                <Ionicons name="heart" size={30} color="#4ade80" />
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.actionButton, styles.actionSmall]} onPress={onFullProfile}>
+                <Ionicons name="send" size={22} color="#3b82f6" />
+              </TouchableOpacity>
+            </View>
+          ) : null}
         </View>
       </View>
     </View>

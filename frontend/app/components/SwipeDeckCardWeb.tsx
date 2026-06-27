@@ -176,6 +176,7 @@ export function SwipeDeckCardWeb({
     left: 0,
     right: 0,
     bottom: 0,
+    maxHeight: 'calc(100vh - 120px)',
     overflow: 'hidden',
     borderRadius: 16,
     transform: cardTransform,
@@ -238,7 +239,7 @@ export function SwipeDeckCardWeb({
         </div>
 
         {/* Photo area */}
-        <div style={{ flex: 1, position: 'relative' }}>
+        <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
           {imageUrl ? (
             <img
               src={imageUrl}

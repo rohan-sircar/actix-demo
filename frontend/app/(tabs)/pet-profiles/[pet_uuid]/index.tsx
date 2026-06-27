@@ -204,7 +204,7 @@ export default function PetProfileEditScreen() {
           </TouchableOpacity>
           <View className="w-3" />
           <TouchableOpacity
-            onPress={() => router.push(`/pet-view/${pet_uuid}`)}
+            onPress={() => router.push(`/pet-view-preview/${pet_uuid}`)}
             className="flex-1 items-center justify-center rounded-xl"
             style={{ backgroundColor: isDarkColorScheme ? colors.grey5 : accentSet.bgSubtle, paddingVertical: 8 }}>
             <Ionicons name="eye" size={16} color={accentSet.base} />

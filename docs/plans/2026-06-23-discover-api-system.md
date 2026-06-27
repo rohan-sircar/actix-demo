@@ -99,6 +99,34 @@ Sequential phases only — no parallel agents. Each phase has a verifiable deliv
 
 ---
 
+## Phase 7: Likes Page [PENDING]
+- [ ] 7.1 Create `src/routes/likes.rs` with `GET /likes` — returns paginated list of outgoing likes (pets the user liked) and incoming likes (pets whose owners liked the user's pets). Response shape: `{ outgoing: Vec<LikeWithPet>, incoming: Vec<LikeWithPet> }` → `ref:explore-session-1`
+- [ ] 7.2 Create `src/actions/likes.rs::list_user_likes` — query likes table for `user_id = current_user`, LEFT JOIN with pets to get pet data, LEFT JOIN with users (on `pet_owner_id`) to get owner data for incoming likes
+- [ ] 7.3 Create `src/models/likes.rs::LikeWithPet` — newtype wrapper combining `Like` + `PublicPet` + `OwnerInfo` for response serialization
+- [ ] 7.4 Register route in `src/lib.rs` under `/api/v1/private/likes/` with `#[protect("RoleEnum::RoleUser")]`
+- [ ] 7.5 Add TypeScript types to `frontend/app/models/pets.ts`: `LikeWithPet`, `LikesResponse` → `ref:explore-session-1`
+- [ ] 7.6 Add API function to `frontend/app/lib/api.ts`: `likesApi.list()` → `ref:explore-session-1`
+- [ ] 7.7 Create `frontend/app/(tabs)/likes/index.tsx` — tab screen with two sections/tabs: "Your Likes" (scrollable grid of liked pets) and "Likes Received" (scrollable grid of pets that liked yours, with a "Match" badge indicator where `is_match=true`)
+- [ ] 7.8 Wire action buttons on each card: "View Profile" → `/pet-view/profile/{pet_uuid}`, "Message" → stub for now
+
+**Phase 7 deliverable:** Likes tab shows two sections — outgoing likes the user has made, and incoming likes from other users. Cards display pet photo, name, species, and a green "Match" badge when `is_match=true`. Tapping a card navigates to the pet's full profile page.
+
+---
+
+## Phase 8: Matches Page [PENDING]
+- [ ] 8.1 Create `src/routes/matches.rs` with `GET /matches` — returns paginated list of mutual matches (likes where `is_match=true`). Response shape: `Vec<MatchWithPet>` → `ref:explore-session-1`
+- [ ] 8.2 Create `src/actions/matches.rs::list_matches` — query likes table filtered by `user_id = current_user AND is_match = true`, JOIN with pets and users to get full data
+- [ ] 8.3 Create `src/models/matches.rs::MatchWithPet` — newtype combining like data + pet + owner info
+- [ ] 8.4 Register route in `src/lib.rs` under `/api/v1/private/matches/` with `#[protect("RoleEnum::RoleUser")]`
+- [ ] 8.5 Add TypeScript types to `frontend/app/models/pets.ts`: `MatchWithPet`, `PaginatedMatchResponse` → `ref:explore-session-1`
+- [ ] 8.6 Add API function to `frontend/app/lib/api.ts`: `matchesApi.list()` → `ref:explore-session-1`
+- [ ] 8.7 Create `frontend/app/(tabs)/matches/index.tsx` — tab screen showing grid of matched pets with their photos, names, and a "Message" button (stub)
+- [ ] 8.8 Update `frontend/app/(tabs)/_layout.tsx` — add "Matches" tab to bottom nav (between Swipe and Discover), use `heart` or `fire` icon, authenticated-only → `ref:explore-session-1`
+
+**Phase 8 deliverable:** Matches tab shows a grid of all mutual matches. Each card displays the pet's photo, name, species, and a "Message" button. Tapping the card navigates to the pet's full profile. Empty state shows "No matches yet" when the user has no mutual likes.
+
+---
+
 ## Notes
 - 2026-06-24: All research completed in single explore delegation. Backend follows existing patterns (actix_web, diesel, utoipa, cookie auth). Frontend follows existing patterns (expo-router, axios, reanimated, Tailwind).
 - 2026-06-24: The `likes` table uses `pet_owner_id` (FK to users) rather than just tracking per-pet — this enables the match logic where two owners can match by liking each other's pets.
