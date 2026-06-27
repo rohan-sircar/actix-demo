@@ -145,7 +145,7 @@ export function SwipeDeckCardWeb({
     e.preventDefault();
   }, [isTopCard, isFlying]);
 
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+  const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!isDragging) return;
     const dx = e.clientX - dragStart.current.x;
     const dy = e.clientY - dragStart.current.y;
@@ -153,7 +153,7 @@ export function SwipeDeckCardWeb({
     setTranslateY(dy * 0.3);
   }, [isDragging]);
 
-  const handleMouseUp = useCallback((e: React.MouseEvent) => {
+  const handleMouseUp = useCallback((e: MouseEvent) => {
     if (!isDragging) return;
     setIsDragging(false);
 
@@ -177,6 +177,17 @@ export function SwipeDeckCardWeb({
       }
     }
   }, [isDragging, translateX, handleLike, handleDislike, images.length, goToPrevImage, goToNextImage]);
+
+  // Attach move/up handlers to document so drag works when cursor leaves the card
+  useEffect(() => {
+    if (!isDragging) return;
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, handleMouseMove, handleMouseUp]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -238,15 +249,6 @@ export function SwipeDeckCardWeb({
   return (
     <div style={containerStyle}
       onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={() => {
-        if (isDragging && !isFlying) {
-          setIsDragging(false);
-          setTranslateX(0);
-          setTranslateY(0);
-        }
-      }}
       ref={cardRef}
     >
       {/* Card content */}
