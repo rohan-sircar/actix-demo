@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { petApi, likesApi } from '~/app/lib/api';
 import { useColorScheme } from '~/lib/useColorScheme';
 import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
+import { useAuthStore } from '~/app/stores/AuthStore';
 import type { PublicPet, PetImage } from '~/app/models/pets';
 import { WebGallery } from './WebGallery';
 import { NativeGallery } from './NativeGallery';
@@ -60,10 +61,13 @@ export default function PetPhotoGalleryScreen() {
   const { accentColor } = useAccentColor();
   const accentSet = getAccentSet(accentColor);
 
+  const { user } = useAuthStore();
   const [pet, setPet] = useState<PublicPet | null>(null);
   const [images, setImages] = useState<PetImage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [interaction, setInteraction] = useState<{ interacted: boolean; direction: string | null } | null>(null);
+
+  const isOwnPet = pet?.owner.user_uuid === user?.user_uuid;
 
   const fetchPet = async () => {
     try {
@@ -113,23 +117,29 @@ export default function PetPhotoGalleryScreen() {
   const onFullProfile = () => router.push(`/pet-view/profile/${pet_uuid}`);
 
   const onLike = async () => {
-    if (interaction?.interacted) return;
+    if (interaction?.interacted || isOwnPet) return;
     try {
       await likesApi.create(pet_uuid, 'like');
       setInteraction({ interacted: true, direction: 'like' });
       Alert.alert('Liked!', `${pet?.name} has been liked.`);
-    } catch (err) {
+    } catch (err: any) {
       console.error('[Gallery] Like failed:', err);
+      if (err?.response?.status === 409) {
+        Alert.alert('Cannot Like', 'You cannot like your own pet.');
+      }
     }
   };
 
   const onDislike = async () => {
-    if (interaction?.interacted) return;
+    if (interaction?.interacted || isOwnPet) return;
     try {
       await likesApi.create(pet_uuid, 'dislike');
       setInteraction({ interacted: true, direction: 'dislike' });
-    } catch (err) {
+    } catch (err: any) {
       console.error('[Gallery] Dislike failed:', err);
+      if (err?.response?.status === 409) {
+        Alert.alert('Cannot Dislike', 'You cannot dislike your own pet.');
+      }
     }
   };
 
@@ -145,6 +155,7 @@ export default function PetPhotoGalleryScreen() {
         onLike={onLike}
         onDislike={onDislike}
         interactionState={interaction || undefined}
+        isOwnPet={isOwnPet}
       />
     );
   }
@@ -160,6 +171,7 @@ export default function PetPhotoGalleryScreen() {
       onLike={onLike}
       onDislike={onDislike}
       interactionState={interaction || undefined}
+      isOwnPet={isOwnPet}
     />
   );
 }

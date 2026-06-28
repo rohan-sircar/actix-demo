@@ -60,6 +60,12 @@ export interface LikeRecord {
   created_at: string;
 }
 
+export interface LikerInfo {
+  user_uuid: string;
+  display_name: string | null;
+  avatar_url: string | null;
+}
+
 export interface LikeWithPet {
   pet_uuid: string;
   pet_name: string;
@@ -68,6 +74,7 @@ export interface LikeWithPet {
   is_match: boolean;
   matched_at: string | null;
   created_at: string;
+  liker: LikerInfo | null;
 }
 
 export interface PaginatedResponse<T> {

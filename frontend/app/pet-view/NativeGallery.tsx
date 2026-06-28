@@ -21,11 +21,12 @@ interface Props {
   onLike?: () => void;
   onDislike?: () => void;
   interactionState?: { interacted: boolean; direction: string | null };
+  isOwnPet?: boolean;
 }
 
 const TABS = ['All', 'Dogs', 'Cats', 'Birds'];
 
-export function NativeGallery({ pet, images, colors, accentSet, isDarkColorScheme, onFullProfile, onLike, onDislike, interactionState }: Props) {
+export function NativeGallery({ pet, images, colors, accentSet, isDarkColorScheme, onFullProfile, onLike, onDislike, interactionState, isOwnPet }: Props) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [activeTab, setActiveTab] = useState('All');
 
@@ -170,16 +171,16 @@ export function NativeGallery({ pet, images, colors, accentSet, isDarkColorSchem
                 <Ionicons name="refresh" size={22} color="#aaa" />
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.actionButton, styles.actionMedium, interactionState?.interacted ? { opacity: 0.5 } : {}]}
-                onPress={!interactionState?.interacted ? onDislike : undefined}>
+                style={[styles.actionButton, styles.actionMedium, (interactionState?.interacted || isOwnPet) ? { opacity: 0.5 } : {}]}
+                onPress={!interactionState?.interacted && !isOwnPet ? onDislike : undefined}>
                 <Ionicons name={interactionState?.interacted && interactionState.direction === 'dislike' ? 'close-circle' : 'close'} size={30} color="#ff4458" />
               </TouchableOpacity>
               <TouchableOpacity style={[styles.actionButton, styles.actionSmall]} onPress={() => {}}>
                 <Ionicons name="star" size={22} color="#2196f3" />
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.actionButton, styles.actionMedium, interactionState?.interacted ? { opacity: 0.5 } : {}]}
-                onPress={!interactionState?.interacted ? onLike : undefined}>
+                style={[styles.actionButton, styles.actionMedium, (interactionState?.interacted || isOwnPet) ? { opacity: 0.5 } : {}]}
+                onPress={!interactionState?.interacted && !isOwnPet ? onLike : undefined}>
                 <Ionicons name="heart" size={30} color="#4ade80" />
               </TouchableOpacity>
               <TouchableOpacity style={[styles.actionButton, styles.actionSmall]} onPress={onFullProfile}>

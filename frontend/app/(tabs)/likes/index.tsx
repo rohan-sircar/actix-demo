@@ -19,25 +19,46 @@ function LikeItem({ like, colors, isDarkColorScheme, accentSet }: {
 }) {
   const router = useRouter();
 
+  const displayName = like.liker?.display_name || 'Unknown';
+  const hasLiker = !!like.liker;
+
   return (
     <TouchableOpacity
       onPress={() => router.push(`/pet-view/${like.pet_uuid}`)}
-      className="flex-row items-center gap-3 rounded-xl px-3 py-2"
+      className="flex-row items-center rounded-xl px-4 py-3"
       style={{ backgroundColor: isDarkColorScheme ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }}>
       {like.primary_image_uuid ? (
-        <Image source={{ uri: getImageUrl(like.primary_image_uuid, 'thumbnail') }} style={{ width: 48, height: 48, borderRadius: 12 }} resizeMode="cover" />
+        <Image source={{ uri: getImageUrl(like.primary_image_uuid, 'thumbnail') }} style={{ width: 56, height: 56, borderRadius: 14 }} resizeMode="cover" />
       ) : (
-        <View style={{ width: 48, height: 48, borderRadius: 12, backgroundColor: accentSet.bgSubtle || '#f0e0d8', justifyContent: 'center', alignItems: 'center' }}>
-          <Ionicons name="paw" size={20} color={accentSet.base} />
+        <View style={{ width: 56, height: 56, borderRadius: 14, backgroundColor: accentSet.bgSubtle || '#f0e0d8', justifyContent: 'center', alignItems: 'center' }}>
+          <Ionicons name="paw" size={24} color={accentSet.base} />
         </View>
       )}
-      <View className="flex-1">
-        <Text className="text-sm font-semibold" style={{ color: colors.text }}>{like.pet_name}</Text>
+      <View className="flex-1 ml-3">
+        <Text className="text-base font-semibold" style={{ color: colors.text }}>{like.pet_name}</Text>
         <Text className="text-xs" style={{ color: colors.grey }}>{like.species}</Text>
       </View>
+      {hasLiker && (
+        <TouchableOpacity
+          onPress={(e) => {
+            e.stopPropagation();
+            router.push(`/likes/user-profile/${like.liker!.user_uuid}`);
+          }}
+          className="flex-row items-center gap-2 pr-3">
+          {like.liker!.avatar_url ? (
+            <Image source={{ uri: getImageUrl(like.liker!.avatar_url, 'thumbnail') }} style={{ width: 28, height: 28, borderRadius: 14 }} resizeMode="cover" />
+          ) : (
+            <Ionicons name="person-circle" size={28} color={colors.grey} />
+          )}
+          <View>
+            <Text className="text-xs" style={{ color: colors.grey }}>Liked by</Text>
+            <Text className="text-sm font-semibold" style={{ color: accentSet.base }}>{displayName}</Text>
+          </View>
+        </TouchableOpacity>
+      )}
       {like.is_match ? (
-        <View style={{ backgroundColor: '#4ade80', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 }}>
-          <Text style={{ color: '#fff', fontSize: 10, fontWeight: 700 }}>MATCH</Text>
+        <View style={{ backgroundColor: '#4ade80', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 }}>
+          <Text style={{ color: '#fff', fontSize: 11, fontWeight: 700 }}>MATCH</Text>
         </View>
       ) : null}
     </TouchableOpacity>

@@ -6,7 +6,7 @@ use derive_more::{Display, Into};
 use diesel_derive_enum::DbEnum;
 use std::str::FromStr;
 
-use super::pets::{PetId, PetUuid};
+use super::pets::{PetId, PetUuid, PublicPetOwner};
 use super::users::UserId;
 
 /// Like direction enum backed by PostgreSQL enum type
@@ -183,6 +183,7 @@ pub struct LikeWithPet {
     pub is_match: bool,
     pub matched_at: Option<chrono::NaiveDateTime>,
     pub created_at: chrono::NaiveDateTime,
+    pub liker: Option<PublicPetOwner>,
 }
 
 /// Response model for checking if user has already interacted with a pet

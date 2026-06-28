@@ -420,6 +420,43 @@ pub fn get_public_pet(
     Ok(PublicPet::new(&pet, traits, primary_image.as_ref(), owner))
 }
 
+/// Lists all public pets owned by a specific user.
+pub fn list_public_pets_by_user(
+    user_uuid: &crate::models::users::UserUuid,
+    conn: &mut DbConnection,
+) -> Result<Vec<PublicPet>, DomainError> {
+    conn.transaction(|conn| {
+        use crate::schema::pets::dsl as pets;
+
+        let user_pets: Vec<Pet> = pets::pets
+            .filter(pets::user_id.eq(
+                crate::actions::users::get_user_id_by_uuid(user_uuid, conn)?,
+            ))
+            .order(pets::created_at.desc())
+            .load(conn)?;
+
+        if user_pets.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let pet_ids: Vec<i32> = user_pets.iter().map(|p| p.id.as_int()).collect();
+        let all_traits = fetch_all_traits_for_pets(&pet_ids, conn)?;
+        let primary_images: std::collections::HashMap<i32, Option<PetImage>> =
+            fetch_primary_images(&pet_ids, conn)?;
+
+        let mut result = Vec::with_capacity(user_pets.len());
+        for pet in &user_pets {
+            let traits = all_traits.get(&pet.id.as_int()).cloned().unwrap_or_default();
+            let primary_image = primary_images.get(&pet.id.as_int()).cloned().unwrap_or(None);
+            let owner = fetch_owner_info(pet.user_id, conn)
+                .unwrap_or_else(|| minimal_owner(&pet.user_id, conn));
+            result.push(PublicPet::new(pet, traits, primary_image.as_ref(), owner));
+        }
+
+        Ok(result)
+    })
+}
+
 fn fetch_owner_info(
     user_id: crate::models::users::UserId,
     conn: &mut DbConnection,
@@ -497,6 +534,25 @@ fn fetch_primary_image(
         .optional()?;
 
     Ok(image)
+}
+
+fn fetch_primary_images(
+    pet_ids: &[i32],
+    conn: &mut DbConnection,
+) -> Result<std::collections::HashMap<i32, Option<PetImage>>, DomainError> {
+    use crate::schema::pet_images::dsl as pet_images;
+
+    let images: Vec<PetImage> = pet_images::pet_images
+        .filter(pet_images::pet_id.eq_any(pet_ids))
+        .filter(pet_images::is_primary.eq(true))
+        .load(conn)?;
+
+    let mut map = std::collections::HashMap::with_capacity(pet_ids.len());
+    for pet_id in pet_ids {
+        map.insert(*pet_id, images.iter().find(|img| img.pet_id == *pet_id).cloned());
+    }
+
+    Ok(map)
 }
 
 pub fn upload_pet_image(

@@ -162,4 +162,15 @@ export const profileApi = {
   },
 };
 
+export const usersApi = {
+  async listPublicPets(userUuid: string): Promise<import('~/app/models/pets').PublicPet[]> {
+    const response = await api.get(`/api/v1/private/users/${userUuid}/pets`);
+    return response.data;
+  },
+  async getPublicProfile(userUuid: string): Promise<import('~/app/models/pets').UserProfile> {
+    const response = await api.get(`/api/v1/private/profiles/${userUuid}`);
+    return response.data;
+  },
+};
+
 export default api;

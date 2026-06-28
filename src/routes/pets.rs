@@ -773,3 +773,29 @@ pub async fn get_pet_image_variant(
         .content_type(content_type)
         .streaming(stream))
 }
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/private/users/{user_uuid}/pets",
+    tag = "pets",
+    params(
+        ("user_uuid" = crate::models::users::UserUuid, Path, description = "User UUID"),
+    ),
+    responses(
+        (status = 200, description = "List of user's public pets", body = Vec<PublicPet>),
+        (status = 404, description = "User not found", body = DomainError),
+    ),
+)]
+pub async fn list_user_pets(
+    app_data: web::Data<AppData>,
+    user_uuid: web::Path<crate::models::users::UserUuid>,
+) -> Result<HttpResponse, DomainError> {
+    let pets = web::block(move || {
+        let pool = &app_data.pool;
+        let mut conn = pool.get()?;
+        crate::actions::pets::list_public_pets_by_user(&user_uuid, &mut conn)
+    })
+    .await??;
+
+    Ok(HttpResponse::Ok().json(pets))
+}

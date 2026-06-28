@@ -29,6 +29,13 @@ pub fn create_like(
             .filter(pets::pet_uuid.eq(&pet_uuid))
             .first(conn)?;
 
+        // Prevent liking your own pet
+        if pet_owner_id == *user_id {
+            return Err(DomainError::new_conflict_error(
+                "You cannot like your own pet".to_string(),
+            ));
+        }
+
         // Check if the user already liked/disliked this pet
         let existing: Result<Like, _> = likes::likes
             .filter(likes::user_id.eq(*user_id).and(likes::pet_id.eq(pet_id)))
@@ -116,6 +123,7 @@ pub fn list_likes_sent(
                     is_match: like.is_match,
                     matched_at: like.matched_at,
                     created_at: like.created_at,
+                    liker: None,
                 }),
                 Err(_) => Err(DomainError::new_internal_error(
                     format!("Pet not found for like id {}", like.id),
@@ -142,21 +150,61 @@ pub fn list_likes_received(
         .map(|like| {
             let pet = fetch_pet_with_image(&like.pet_id, conn);
             match pet {
-                Ok((pet_uuid, pet_name, species, image_uuid)) => Ok(LikeWithPet {
-                    pet_uuid,
-                    pet_name,
-                    species,
-                    primary_image_uuid: image_uuid.map(|u| u.to_string()),
-                    is_match: like.is_match,
-                    matched_at: like.matched_at,
-                    created_at: like.created_at,
-                }),
+                Ok((pet_uuid, pet_name, species, image_uuid)) => {
+                    let liker = fetch_liker_info(&like.user_id, conn).ok();
+                    Ok(LikeWithPet {
+                        pet_uuid,
+                        pet_name,
+                        species,
+                        primary_image_uuid: image_uuid.map(|u| u.to_string()),
+                        is_match: like.is_match,
+                        matched_at: like.matched_at,
+                        created_at: like.created_at,
+                        liker,
+                    })
+                }
                 Err(_) => Err(DomainError::new_internal_error(
                     format!("Pet not found for like id {}", like.id),
                 )),
             }
         })
         .collect()
+}
+
+/// Fetches the liker's user info (user_uuid, display_name, avatar_url, pets_owned).
+fn fetch_liker_info(
+    user_id: &UserId,
+    conn: &mut DbConnection,
+) -> Result<crate::models::pets::PublicPetOwner, DomainError> {
+    use crate::schema::pets::dsl as pets;
+    use crate::schema::profiles::dsl as profiles;
+    use crate::schema::users::dsl as users;
+
+    let (user_uuid_opt, display_name, avatar_url) = users::users
+        .inner_join(profiles::profiles)
+        .filter(users::id.eq(*user_id))
+        .select((
+            users::user_uuid,
+            profiles::display_name,
+            profiles::avatar_url,
+        ))
+        .first::<(uuid::Uuid, Option<String>, Option<String>)>(conn)
+        .map_err(DomainError::from)?;
+
+    let pets_owned: i64 = pets::pets
+        .filter(pets::user_id.eq(*user_id))
+        .count()
+        .get_result(conn)
+        .map_err(DomainError::from)?;
+
+    Ok(crate::models::pets::PublicPetOwner {
+        user_uuid: crate::models::users::UserUuid::try_from(
+            user_uuid_opt.to_string(),
+        ).map_err(|e: String| DomainError::new_internal_error(format!("Invalid user UUID: {}", e)))?,
+        display_name,
+        avatar_url,
+        pets_owned: pets_owned as u32,
+    })
 }
 
 /// Checks if a user has already interacted with a specific pet (liked/disliked).
@@ -211,6 +259,7 @@ pub fn list_matches(
                     is_match: like.is_match,
                     matched_at: like.matched_at,
                     created_at: like.created_at,
+                    liker: None,
                 }),
                 Err(_) => Err(DomainError::new_internal_error(
                     format!("Pet not found for like id {}", like.id),

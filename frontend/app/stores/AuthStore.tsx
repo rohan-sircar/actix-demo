@@ -8,6 +8,7 @@ const isWeb = Platform.OS === 'web';
 
 export interface AuthUser {
   id: number;
+  user_uuid: string;
   username: string;
   email: string;
 }
@@ -22,6 +23,7 @@ export interface ProfileData {
 
 export interface UserResponse {
   id: number;
+  user_uuid: string;
   username: string;
   email: string;
   profile?: ProfileData;

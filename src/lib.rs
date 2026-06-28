@@ -459,6 +459,10 @@ pub fn configure_app(
                     .route(
                         "/pets/images/{image_uuid}/{variant}",
                         web::get().to(routes::pets::get_pet_image_variant),
+                    )
+                    .route(
+                        "/users/{user_uuid}/pets",
+                        web::get().to(routes::pets::list_user_pets),
                     ),
             )
             // public api
@@ -522,6 +526,7 @@ pub fn configure_app(
         routes::pets::set_primary_pet_image,
         routes::pets::get_public_pet_image,
         routes::pets::get_pet_image_variant,
+        routes::pets::list_user_pets,
         routes::command::handle_run_command,
         routes::command::handle_get_job,
         routes::command::handle_get_job_metrics,
