@@ -66,6 +66,7 @@ export interface LikeWithPet {
   species: string;
   primary_image_uuid: string | null;
   is_match: boolean;
+  matched_at: string | null;
   created_at: string;
 }
 

@@ -60,6 +60,7 @@ diesel::table! {
         direction -> LikeDirection,
         is_match -> Bool,
         created_at -> Timestamptz,
+        matched_at -> Nullable<Timestamptz>,
     }
 }
 

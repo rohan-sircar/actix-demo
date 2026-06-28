@@ -20,11 +20,12 @@ interface Props {
   onFullProfile: () => void;
   onLike?: () => void;
   onDislike?: () => void;
+  interactionState?: { interacted: boolean; direction: string | null };
 }
 
 const TABS = ['All', 'Dogs', 'Cats', 'Birds'];
 
-export function NativeGallery({ pet, images, colors, accentSet, isDarkColorScheme, onFullProfile, onLike, onDislike }: Props) {
+export function NativeGallery({ pet, images, colors, accentSet, isDarkColorScheme, onFullProfile, onLike, onDislike, interactionState }: Props) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [activeTab, setActiveTab] = useState('All');
 
@@ -168,13 +169,17 @@ export function NativeGallery({ pet, images, colors, accentSet, isDarkColorSchem
               <TouchableOpacity style={[styles.actionButton, styles.actionSmall]} onPress={() => {}}>
                 <Ionicons name="refresh" size={22} color="#aaa" />
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.actionButton, styles.actionMedium]} onPress={onDislike}>
-                <Ionicons name="close" size={30} color="#ff4458" />
+              <TouchableOpacity
+                style={[styles.actionButton, styles.actionMedium, interactionState?.interacted ? { opacity: 0.5 } : {}]}
+                onPress={!interactionState?.interacted ? onDislike : undefined}>
+                <Ionicons name={interactionState?.interacted && interactionState.direction === 'dislike' ? 'close-circle' : 'close'} size={30} color="#ff4458" />
               </TouchableOpacity>
               <TouchableOpacity style={[styles.actionButton, styles.actionSmall]} onPress={() => {}}>
                 <Ionicons name="star" size={22} color="#2196f3" />
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.actionButton, styles.actionMedium]} onPress={onLike}>
+              <TouchableOpacity
+                style={[styles.actionButton, styles.actionMedium, interactionState?.interacted ? { opacity: 0.5 } : {}]}
+                onPress={!interactionState?.interacted ? onLike : undefined}>
                 <Ionicons name="heart" size={30} color="#4ade80" />
               </TouchableOpacity>
               <TouchableOpacity style={[styles.actionButton, styles.actionSmall]} onPress={onFullProfile}>

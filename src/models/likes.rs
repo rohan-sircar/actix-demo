@@ -122,6 +122,7 @@ pub struct Like {
     pub direction: LikeDirection,
     pub is_match: bool,
     pub created_at: chrono::NaiveDateTime,
+    pub matched_at: Option<chrono::NaiveDateTime>,
 }
 
 /// Partial insert model for likes (skip auto-generated id and created_at)
@@ -180,7 +181,16 @@ pub struct LikeWithPet {
     pub species: String,
     pub primary_image_uuid: Option<String>,
     pub is_match: bool,
+    pub matched_at: Option<chrono::NaiveDateTime>,
     pub created_at: chrono::NaiveDateTime,
+}
+
+/// Response model for checking if user has already interacted with a pet
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct PetInteractionResponse {
+    pub interacted: bool,
+    pub direction: Option<LikeDirection>,
+    pub is_match: bool,
 }
 
 #[cfg(test)]
@@ -253,6 +263,7 @@ mod test {
             pet_id: PetId::try_from(3u32).unwrap(),
             direction: LikeDirection::Like,
             is_match: true,
+            matched_at: None,
             created_at: chrono::NaiveDateTime::default(),
         };
         let pet_uuid = PetUuid::try_from(

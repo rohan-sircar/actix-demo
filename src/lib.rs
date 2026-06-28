@@ -419,6 +419,14 @@ pub fn configure_app(
                         web::get().to(routes::discover::list_likes_received),
                     )
                     .route(
+                        "/matches",
+                        web::get().to(routes::discover::list_matches),
+                    )
+                    .route(
+                        "/likes/check/{pet_uuid}",
+                        web::get().to(routes::discover::check_pet_interaction),
+                    )
+                    .route(
                         "/messages",
                         web::post().to(routes::discover::stub_messages),
                     )
@@ -532,6 +540,8 @@ pub fn configure_app(
         routes::discover::create_like,
         routes::discover::list_likes_sent,
         routes::discover::list_likes_received,
+        routes::discover::list_matches,
+        routes::discover::check_pet_interaction,
         routes::discover::stub_messages,
         routes::discover::stub_reports,
     ),

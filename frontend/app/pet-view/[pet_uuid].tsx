@@ -63,6 +63,7 @@ export default function PetPhotoGalleryScreen() {
   const [pet, setPet] = useState<PublicPet | null>(null);
   const [images, setImages] = useState<PetImage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [interaction, setInteraction] = useState<{ interacted: boolean; direction: string | null } | null>(null);
 
   const fetchPet = async () => {
     try {
@@ -82,13 +83,22 @@ export default function PetPhotoGalleryScreen() {
     }
   };
 
+  const fetchInteraction = async () => {
+    try {
+      const res = await likesApi.checkInteraction(pet_uuid);
+      setInteraction({ interacted: res.interacted, direction: res.direction });
+    } catch (err) {
+      console.error('[Gallery] Failed to fetch interaction:', err);
+    }
+  };
+
   useEffect(() => {
-    Promise.all([fetchPet(), fetchImages()]).finally(() => setIsLoading(false));
+    Promise.all([fetchPet(), fetchImages(), fetchInteraction()]).finally(() => setIsLoading(false));
   }, [pet_uuid]);
 
   useFocusEffect(
     useCallback(() => {
-      Promise.all([fetchPet(), fetchImages()]).finally(() => setIsLoading(false));
+      Promise.all([fetchPet(), fetchImages(), fetchInteraction()]).finally(() => setIsLoading(false));
     }, [pet_uuid])
   );
 
@@ -103,8 +113,10 @@ export default function PetPhotoGalleryScreen() {
   const onFullProfile = () => router.push(`/pet-view/profile/${pet_uuid}`);
 
   const onLike = async () => {
+    if (interaction?.interacted) return;
     try {
       await likesApi.create(pet_uuid, 'like');
+      setInteraction({ interacted: true, direction: 'like' });
       Alert.alert('Liked!', `${pet?.name} has been liked.`);
     } catch (err) {
       console.error('[Gallery] Like failed:', err);
@@ -112,8 +124,10 @@ export default function PetPhotoGalleryScreen() {
   };
 
   const onDislike = async () => {
+    if (interaction?.interacted) return;
     try {
       await likesApi.create(pet_uuid, 'dislike');
+      setInteraction({ interacted: true, direction: 'dislike' });
     } catch (err) {
       console.error('[Gallery] Dislike failed:', err);
     }
@@ -130,6 +144,7 @@ export default function PetPhotoGalleryScreen() {
         onFullProfile={onFullProfile}
         onLike={onLike}
         onDislike={onDislike}
+        interactionState={interaction || undefined}
       />
     );
   }
@@ -144,6 +159,7 @@ export default function PetPhotoGalleryScreen() {
       onFullProfile={onFullProfile}
       onLike={onLike}
       onDislike={onDislike}
+      interactionState={interaction || undefined}
     />
   );
 }

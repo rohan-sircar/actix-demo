@@ -12,11 +12,12 @@ interface Props {
   onFullProfile: () => void;
   onLike?: () => void;
   onDislike?: () => void;
+  interactionState?: { interacted: boolean; direction: string | null };
 }
 
 const TABS = ['All', 'Dogs', 'Cats', 'Birds'];
 
-export function WebGallery({ pet, images, colors, accentSet, isDarkColorScheme, onFullProfile, onLike, onDislike }: Props) {
+export function WebGallery({ pet, images, colors, accentSet, isDarkColorScheme, onFullProfile, onLike, onDislike, interactionState }: Props) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [activeTab, setActiveTab] = useState('All');
 
@@ -156,14 +157,18 @@ export function WebGallery({ pet, images, colors, accentSet, isDarkColorScheme, 
             <button style={{ width: 44, height: 44, borderRadius: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(128,128,128,0.1)', border: 'none', cursor: 'pointer' }}>
               <Ionicons name="refresh" size={20} color="#aaa" />
             </button>
-            <button onClick={onDislike} style={{ width: 54, height: 54, borderRadius: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,68,88,0.1)', border: 'none', cursor: 'pointer' }}>
-              <Ionicons name="close" size={28} color="#ff4458" />
+            <button
+              onClick={!interactionState?.interacted ? onDislike : undefined}
+              style={{ width: 54, height: 54, borderRadius: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: interactionState?.interacted && interactionState.direction === 'dislike' ? 'rgba(255,68,88,0.3)' : 'rgba(255,68,88,0.1)', border: 'none', cursor: interactionState?.interacted ? 'default' : 'pointer', opacity: interactionState?.interacted ? 0.5 : 1 }}>
+              <Ionicons name={interactionState?.interacted && interactionState.direction === 'dislike' ? 'close-circle' : 'close'} size={28} color="#ff4458" />
             </button>
             <button style={{ width: 44, height: 44, borderRadius: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(33,150,243,0.1)', border: 'none', cursor: 'pointer' }}>
               <Ionicons name="star" size={20} color="#2196f3" />
             </button>
-            <button onClick={onLike} style={{ width: 54, height: 54, borderRadius: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(74,222,128,0.1)', border: 'none', cursor: 'pointer' }}>
-              <Ionicons name="heart" size={28} color="#4ade80" />
+            <button
+              onClick={!interactionState?.interacted ? onLike : undefined}
+              style={{ width: 54, height: 54, borderRadius: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: interactionState?.interacted && interactionState.direction === 'like' ? 'rgba(74,222,128,0.3)' : 'rgba(74,222,128,0.1)', border: 'none', cursor: interactionState?.interacted ? 'default' : 'pointer', opacity: interactionState?.interacted ? 0.5 : 1 }}>
+              <Ionicons name={interactionState?.interacted && interactionState.direction === 'like' ? 'heart' : 'heart'} size={28} color={interactionState?.interacted && interactionState.direction === 'like' ? '#4ade80' : '#4ade80'} />
             </button>
             <button onClick={onFullProfile} style={{ width: 44, height: 44, borderRadius: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(59,130,246,0.1)', border: 'none', cursor: 'pointer' }}>
               <Ionicons name="send" size={20} color="#3b82f6" />

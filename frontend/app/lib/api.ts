@@ -143,6 +143,16 @@ export const likesApi = {
     const response = await api.get('/api/v1/private/likes/received');
     return response.data;
   },
+
+  async listMatches(): Promise<import('~/app/models/pets').LikeWithPet[]> {
+    const response = await api.get('/api/v1/private/matches');
+    return response.data;
+  },
+
+  async checkInteraction(petUuid: string): Promise<{ interacted: boolean; direction: 'like' | 'dislike' | null; is_match: boolean }> {
+    const response = await api.get(`/api/v1/private/likes/check/${petUuid}`);
+    return response.data;
+  },
 };
 
 export const profileApi = {

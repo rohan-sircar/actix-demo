@@ -2,7 +2,7 @@ use actix_web::{web, HttpRequest, HttpResponse};
 use actix_web_grants::protect;
 use serde::Deserialize;
 
-use crate::models::likes::CreateLike;
+use crate::models::likes::{CreateLike, PetInteractionResponse};
 use crate::models::misc::{PaginationLimit, PaginationOffset};
 use crate::models::pets::{PetGender, PetSpecies};
 use crate::models::roles::RoleEnum;
@@ -221,6 +221,77 @@ pub async fn stub_messages(
     Ok(HttpResponse::Ok().json(serde_json::json!({
         "status": "stub"
     })))
+}
+
+/// Returns the list of mutual matches for the current user.
+#[utoipa::path(
+    get,
+    path = "/api/v1/private/matches",
+    tag = "matches",
+    responses(
+        (status = 200, description = "List of mutual matches", body = Vec<crate::models::likes::LikeWithPet>),
+        (status = 401, description = "Missing auth", body = DomainError),
+    ),
+)]
+#[protect("RoleEnum::RoleUser", ty = RoleEnum)]
+#[tracing::instrument(level = "info", skip_all)]
+pub async fn list_matches(
+    req: HttpRequest,
+    app_data: web::Data<AppData>,
+) -> Result<HttpResponse, DomainError> {
+    let user_uuid = crate::utils::extract_user_uuid_from_header(req.headers())?;
+
+    let result = web::block(move || {
+        let pool = &app_data.pool;
+        let mut conn = pool.get()?;
+        let user_id =
+            crate::actions::users::get_user_id_by_uuid(&user_uuid, &mut conn)?;
+        crate::actions::likes::list_matches(&user_id, &mut conn)
+    })
+    .await??;
+
+    Ok(HttpResponse::Ok().json(result))
+}
+
+/// Checks if the current user has already interacted with a specific pet.
+#[utoipa::path(
+    get,
+    path = "/api/v1/private/likes/check/{pet_uuid}",
+    tag = "likes",
+    responses(
+        (status = 200, description = "Interaction status", body = PetInteractionResponse),
+        (status = 401, description = "Missing auth", body = DomainError),
+        (status = 404, description = "Pet not found", body = DomainError),
+    ),
+)]
+#[protect("RoleEnum::RoleUser", ty = RoleEnum)]
+#[tracing::instrument(level = "info", skip_all)]
+pub async fn check_pet_interaction(
+    req: HttpRequest,
+    app_data: web::Data<AppData>,
+    path: web::Path<String>,
+) -> Result<HttpResponse, DomainError> {
+    let user_uuid = crate::utils::extract_user_uuid_from_header(req.headers())?;
+    let pet_uuid_str = path.into_inner();
+
+    let result = web::block(move || -> Result<PetInteractionResponse, DomainError> {
+        let pool = &app_data.pool;
+        let mut conn = pool.get()?;
+        let user_id =
+            crate::actions::users::get_user_id_by_uuid(&user_uuid, &mut conn)?;
+        let pet_uuid = crate::models::pets::PetUuid::try_from(pet_uuid_str)
+            .map_err(|e| DomainError::new_internal_error(format!("Invalid pet UUID: {}", e)))?;
+        let interaction = crate::actions::likes::get_pet_interaction(&user_id, &pet_uuid, &mut conn)?;
+
+        Ok(PetInteractionResponse {
+            interacted: interaction.is_some(),
+            direction: interaction.clone().map(|(dir, _)| dir),
+            is_match: interaction.map(|(_, m)| m).unwrap_or(false),
+        })
+    })
+    .await??;
+
+    Ok(HttpResponse::Ok().json(result))
 }
 
 /// Returns a stub response for reports.
