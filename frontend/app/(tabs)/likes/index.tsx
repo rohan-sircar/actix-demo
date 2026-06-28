@@ -56,11 +56,6 @@ function LikeItem({ like, colors, isDarkColorScheme, accentSet }: {
           </View>
         </TouchableOpacity>
       )}
-      {like.is_match ? (
-        <View style={{ backgroundColor: '#4ade80', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 }}>
-          <Text style={{ color: '#fff', fontSize: 11, fontWeight: 700 }}>MATCH</Text>
-        </View>
-      ) : null}
     </TouchableOpacity>
   );
 }

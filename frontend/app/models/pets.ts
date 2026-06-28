@@ -56,7 +56,6 @@ export interface LikeRecord {
   pet_owner_uuid: string;
   pet_uuid: string;
   direction: 'like' | 'dislike';
-  is_match: boolean;
   created_at: string;
 }
 
@@ -88,8 +87,6 @@ export interface LikeWithPet {
   pet_name: string;
   species: string;
   primary_image_uuid: string | null;
-  is_match: boolean;
-  matched_at: string | null;
   created_at: string;
   liker: LikerInfo | null;
 }

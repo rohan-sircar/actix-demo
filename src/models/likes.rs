@@ -121,9 +121,7 @@ pub struct Like {
     pub pet_owner_id: UserId,
     pub pet_id: PetId,
     pub direction: LikeDirection,
-    pub is_match: bool,
     pub created_at: chrono::NaiveDateTime,
-    pub matched_at: Option<chrono::NaiveDateTime>,
 }
 
 /// Partial insert model for likes (skip auto-generated id and created_at)
@@ -158,7 +156,6 @@ pub struct LikeResponse {
     pub id: LikeId,
     pub pet_uuid: PetUuid,
     pub direction: LikeDirection,
-    pub is_match: bool,
     pub created_at: chrono::NaiveDateTime,
 }
 
@@ -168,7 +165,6 @@ impl From<(&Like, &PetUuid)> for LikeResponse {
             id: like.id,
             pet_uuid: *pet_uuid,
             direction: like.direction.clone(),
-            is_match: like.is_match,
             created_at: like.created_at,
         }
     }
@@ -181,8 +177,6 @@ pub struct LikeWithPet {
     pub pet_name: PetName,
     pub species: PetSpecies,
     pub primary_image_uuid: Option<String>,
-    pub is_match: bool,
-    pub matched_at: Option<chrono::NaiveDateTime>,
     pub created_at: chrono::NaiveDateTime,
     pub liker: Option<PublicPetOwner>,
 }
@@ -192,7 +186,6 @@ pub struct LikeWithPet {
 pub struct PetInteractionResponse {
     pub interacted: bool,
     pub direction: Option<LikeDirection>,
-    pub is_match: bool,
 }
 
 /// Minimal pet info for match display
@@ -219,6 +212,37 @@ pub struct MatchWithPets {
     pub other_user_uuid: crate::models::users::UserUuid,
     pub is_match: bool,
     pub matched_at: Option<chrono::NaiveDateTime>,
+}
+
+/// Queryable model for a match record
+#[derive(Debug, Clone, Queryable, Serialize, ToSchema)]
+#[diesel(table_name = crate::schema::matches)]
+pub struct Match {
+    pub id: LikeId,
+    pub like_id_a: LikeId,
+    pub like_id_b: LikeId,
+    pub matched_at: chrono::NaiveDateTime,
+}
+
+/// Insertable model for creating a match
+#[derive(Debug, Clone, Insertable)]
+#[diesel(table_name = crate::schema::matches)]
+pub struct NewMatch {
+    pub like_id_a: i32,
+    pub like_id_b: i32,
+    pub matched_at: chrono::NaiveDateTime,
+}
+
+impl NewMatch {
+    pub fn new(like_id_a: LikeId, like_id_b: LikeId) -> Self {
+        use chrono::Utc;
+        let ts = Utc::now().naive_utc();
+        Self {
+            like_id_a: like_id_a.as_int(),
+            like_id_b: like_id_b.as_int(),
+            matched_at: ts,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -290,8 +314,6 @@ mod test {
             pet_owner_id: UserId::try_from(2u32).unwrap(),
             pet_id: PetId::try_from(3u32).unwrap(),
             direction: LikeDirection::Like,
-            is_match: true,
-            matched_at: None,
             created_at: chrono::NaiveDateTime::default(),
         };
         let pet_uuid = PetUuid::try_from(
@@ -300,7 +322,6 @@ mod test {
         .unwrap();
         let response = LikeResponse::from((&like, &pet_uuid));
         assert_eq!(response.id.as_uint(), 1);
-        assert!(response.is_match);
         assert_eq!(response.direction, LikeDirection::Like);
     }
 }

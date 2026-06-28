@@ -1,25 +1,25 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Image, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { useColorScheme } from '~/lib/useColorScheme';
-import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
 import { getImageUrl, likesApi } from '~/app/lib/api';
 import { useQuery } from '@tanstack/react-query';
 import type { MatchWithPets } from '~/app/models/pets';
+import MatchPetCard from '~/app/components/MatchPetCard';
 
-function MatchCard({ match, colors, isDarkColorScheme, accentSet }: {
+function MatchRow({ match, colors, isDarkColorScheme }: {
   match: MatchWithPets;
   colors: any;
   isDarkColorScheme: boolean;
-  accentSet: any;
 }) {
   const router = useRouter();
 
   return (
     <TouchableOpacity
       onPress={() => router.push(`/likes/user-profile/${match.other_user_uuid}`)}
+      activeOpacity={0.8}
       style={{
         borderRadius: 16,
         backgroundColor: colors.card,
@@ -27,12 +27,12 @@ function MatchCard({ match, colors, isDarkColorScheme, accentSet }: {
         borderColor: isDarkColorScheme ? colors.grey4 : '#e8e8e8',
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
+        shadowOpacity: 0.08,
         shadowRadius: 4,
-        elevation: 3,
+        elevation: 2,
         overflow: 'hidden',
       }}>
-      <View className="px-4 pt-4 pb-2">
+      <View className="px-4 pt-4 pb-3">
         <View className="flex-row items-center gap-2">
           {match.other_owner_avatar_url ? (
             <Image source={{ uri: getImageUrl(match.other_owner_avatar_url, 'thumbnail') }} style={{ width: 28, height: 28, borderRadius: 14 }} resizeMode="cover" />
@@ -45,59 +45,30 @@ function MatchCard({ match, colors, isDarkColorScheme, accentSet }: {
         </View>
       </View>
 
-      <View className="flex-row items-center justify-center gap-3 px-4 py-2">
-        <TouchableOpacity
+      <View className="flex-row items-center gap-3 px-4 pb-4">
+        <MatchPetCard
+          pet={match.liked_by_other_pet}
           onPress={(e) => {
-            e.stopPropagation();
+            (e as any)?.stopPropagation?.();
             router.push(`/pet-view/${match.liked_by_other_pet.pet_uuid}`);
           }}
-          style={{ flex: 1, alignItems: 'center' }}>
-          {match.liked_by_other_pet.primary_image_uuid ? (
-            <Image source={{ uri: getImageUrl(match.liked_by_other_pet.primary_image_uuid, 'medium') }} style={{ width: '100%', height: 120, borderRadius: 12 }} resizeMode="cover" />
-          ) : (
-            <View style={{ width: '100%', height: 120, backgroundColor: accentSet.bgSubtle || '#f0e0d8', justifyContent: 'center', alignItems: 'center', borderRadius: 12 }}>
-              <Ionicons name="paw" size={28} color={accentSet.base} />
-            </View>
-          )}
-          <Text className="text-sm font-bold mt-1" style={{ color: colors.text }}>
-            {match.liked_by_other_pet.pet_name}
-          </Text>
-          <Text className="text-xs" style={{ color: colors.grey }}>
-            {match.liked_by_other_pet.species}
-          </Text>
-        </TouchableOpacity>
+        />
 
         <Ionicons name="heart" size={24} color="#ef4444" />
 
-        <TouchableOpacity
+        <MatchPetCard
+          pet={match.liked_pet}
           onPress={(e) => {
-            e.stopPropagation();
+            (e as any)?.stopPropagation?.();
             router.push(`/pet-view/${match.liked_pet.pet_uuid}`);
           }}
-          style={{ flex: 1, alignItems: 'center' }}>
-          {match.liked_pet.primary_image_uuid ? (
-            <Image source={{ uri: getImageUrl(match.liked_pet.primary_image_uuid, 'medium') }} style={{ width: '100%', height: 120, borderRadius: 12 }} resizeMode="cover" />
-          ) : (
-            <View style={{ width: '100%', height: 120, backgroundColor: accentSet.bgSubtle || '#f0e0d8', justifyContent: 'center', alignItems: 'center', borderRadius: 12 }}>
-              <Ionicons name="paw" size={28} color={accentSet.base} />
-            </View>
-          )}
-          <Text className="text-sm font-bold mt-1" style={{ color: colors.text }}>
-            {match.liked_pet.pet_name}
-          </Text>
-          <Text className="text-xs" style={{ color: colors.grey }}>
-            {match.liked_pet.species}
-          </Text>
-        </TouchableOpacity>
+        />
       </View>
 
-      <View className="px-4 pb-3">
+      <View className="px-4 pb-4">
         <TouchableOpacity
-          onPress={(e) => {
-            e.stopPropagation();
-            router.push(`/likes/user-profile/${match.other_user_uuid}`);
-          }}
-          style={{ backgroundColor: accentSet.base, borderRadius: 8, paddingVertical: 8, alignItems: 'center' }}>
+          onPress={() => router.push(`/likes/user-profile/${match.other_user_uuid}`)}
+          style={{ backgroundColor: '#ef4444', borderRadius: 8, paddingVertical: 10, alignItems: 'center' }}>
           <Text style={{ color: '#fff', fontSize: 13, fontWeight: 600 }}>View Profile</Text>
         </TouchableOpacity>
       </View>
@@ -107,8 +78,6 @@ function MatchCard({ match, colors, isDarkColorScheme, accentSet }: {
 
 export default function MatchesScreen() {
   const { colors, isDarkColorScheme } = useColorScheme();
-  const { accentColor } = useAccentColor();
-  const accentSet = getAccentSet(accentColor);
 
   const { data: matches } = useQuery({
     queryKey: ['matches-with-pets'],
@@ -138,9 +107,11 @@ export default function MatchesScreen() {
             </Text>
           </View>
         ) : (
-          <View className="gap-4">
+          <View className="items-center gap-4">
             {matches?.map((match) => (
-              <MatchCard key={match.liked_pet.pet_uuid} match={match} colors={colors} isDarkColorScheme={isDarkColorScheme} accentSet={accentSet} />
+              <View key={match.liked_pet.pet_uuid} style={{ width: Platform.OS === 'web' ? '75%' : '100%' }}>
+                <MatchRow match={match} colors={colors} isDarkColorScheme={isDarkColorScheme} />
+              </View>
             ))}
           </View>
         )}

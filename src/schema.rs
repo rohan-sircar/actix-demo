@@ -58,9 +58,16 @@ diesel::table! {
         pet_owner_id -> Int4,
         pet_id -> Int4,
         direction -> LikeDirection,
-        is_match -> Bool,
         created_at -> Timestamptz,
-        matched_at -> Nullable<Timestamptz>,
+    }
+}
+
+diesel::table! {
+    matches (id) {
+        id -> Int4,
+        like_id_a -> Int4,
+        like_id_b -> Int4,
+        matched_at -> Timestamptz,
     }
 }
 
@@ -208,6 +215,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     email_verification_tokens,
     jobs,
     likes,
+    matches,
     password_reset_tokens,
     personality_traits,
     pet_images,

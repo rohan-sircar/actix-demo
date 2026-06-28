@@ -97,7 +97,6 @@ mod discover {
             assert_eq!(liked_likes.len(), 1);
             let like = &liked_likes[0];
             assert_eq!(like.direction, LikeDirection::Like);
-            assert!(!like.is_match);
 
             #[derive(diesel::deserialize::QueryableByName, Debug)]
             struct IndexInfo {
@@ -126,11 +125,7 @@ mod discover {
                 "Missing idx_likes_user_pet_unique, found: {:?}",
                 index_names
             );
-            assert!(
-                index_names.iter().any(|n| n.contains("idx_likes_is_match")),
-                "Missing idx_likes_is_match, found: {:?}",
-                index_names
-            );
+
 
             #[derive(diesel::deserialize::QueryableByName, Debug)]
             struct FkInfo {
@@ -370,7 +365,6 @@ mod discover {
         assert_eq!(resp.status(), StatusCode::CREATED);
         let body: serde_json::Value = resp.json().await.unwrap();
         assert_eq!(body["direction"], "like");
-        assert_eq!(body["is_match"], false);
     }
 
     #[actix_rt::test]
@@ -417,7 +411,7 @@ mod discover {
             .await
             .unwrap();
 
-        let mut resp = ctx
+        let resp = ctx
             .test_server
             .post("/api/v1/private/likes")
             .with_token(&token2)
@@ -430,8 +424,15 @@ mod discover {
             .unwrap();
 
         assert_eq!(resp.status(), StatusCode::CREATED);
-        let body: serde_json::Value = resp.json().await.unwrap();
-        assert_eq!(body["is_match"], true);
+
+        // Verify the match was recorded in the matches table
+        use actix_demo::schema::matches as matches_schema;
+        use diesel::{QueryDsl, RunQueryDsl};
+        let match_count: i64 = matches_schema::table
+            .count()
+            .get_result(&mut ctx.app_data.pool.get().unwrap())
+            .unwrap();
+        assert_eq!(match_count, 1);
     }
 
     #[actix_rt::test]

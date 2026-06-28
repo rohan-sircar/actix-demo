@@ -294,8 +294,7 @@ pub async fn check_pet_interaction(
 
             Ok(PetInteractionResponse {
                 interacted: interaction.is_some(),
-                direction: interaction.clone().map(|(dir, _)| dir),
-                is_match: interaction.map(|(_, m)| m).unwrap_or(false),
+                direction: interaction.clone(),
             })
         })
         .await??;

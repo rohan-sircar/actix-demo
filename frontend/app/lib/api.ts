@@ -149,7 +149,7 @@ export const likesApi = {
     return response.data;
   },
 
-  async checkInteraction(petUuid: string): Promise<{ interacted: boolean; direction: 'like' | 'dislike' | null; is_match: boolean }> {
+  async checkInteraction(petUuid: string): Promise<{ interacted: boolean; direction: 'like' | 'dislike' | null }> {
     const response = await api.get(`/api/v1/private/likes/check/${petUuid}`);
     return response.data;
   },

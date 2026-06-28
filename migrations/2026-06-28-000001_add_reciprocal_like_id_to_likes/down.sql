@@ -1,0 +1,5 @@
+ALTER TABLE likes ADD COLUMN is_match BOOLEAN DEFAULT false;
+ALTER TABLE likes ADD COLUMN matched_at TIMESTAMPTZ;
+ALTER TABLE likes ADD COLUMN reciprocal_like_id INTEGER REFERENCES likes(id);
+
+DROP TABLE matches;
