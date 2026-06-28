@@ -521,7 +521,7 @@ impl UpdatePet {
 #[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct PublicPetOwner {
     pub user_uuid: UserUuid,
-    pub display_name: Option<String>,
+    pub display_name: Option<crate::models::users::DisplayName>,
     pub avatar_url: Option<String>,
     pub pets_owned: u32,
 }
@@ -597,6 +597,56 @@ impl ImageId {
     }
 }
 
+/// Newtype for pet image UUID
+#[derive(
+    Debug,
+    Clone,
+    Eq,
+    Hash,
+    PartialEq,
+    Deserialize,
+    Display,
+    Into,
+    Serialize,
+    DieselNewType,
+    Copy,
+    ToSchema,
+)]
+pub struct PetImageUuid(Uuid);
+
+impl PetImageUuid {
+    pub fn new(value: Uuid) -> Self {
+        PetImageUuid(value)
+    }
+
+    pub fn as_uuid(&self) -> Uuid {
+        self.0
+    }
+}
+
+impl From<PetImageUuid> for String {
+    fn from(s: PetImageUuid) -> String {
+        s.0.to_string()
+    }
+}
+
+impl FromStr for PetImageUuid {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Uuid::parse_str(s)
+            .map(PetImageUuid)
+            .map_err(|e| format!("invalid UUID format: {}", e))
+    }
+}
+
+impl TryFrom<String> for PetImageUuid {
+    type Error = String;
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        value.parse::<PetImageUuid>()
+    }
+}
+
 impl From<ImageId> for u32 {
     fn from(s: ImageId) -> u32 {
         s.0.try_into().unwrap()
@@ -656,7 +706,7 @@ impl PetImageVariant {
 #[diesel(table_name = pet_images)]
 pub struct PetImage {
     pub id: ImageId,
-    pub uuid: Uuid,
+    pub uuid: PetImageUuid,
     pub pet_id: i32,
     pub thumbnail_key: String,
     pub medium_key: String,
@@ -671,7 +721,7 @@ pub struct PetImage {
 #[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct PublicPetImage {
     pub id: ImageId,
-    pub uuid: Uuid,
+    pub uuid: PetImageUuid,
     pub format: String,
     pub is_primary: bool,
     pub sort_order: i32,

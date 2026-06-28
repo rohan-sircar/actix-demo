@@ -4,7 +4,7 @@ use crate::errors::DomainError;
 use crate::models::likes::{
     CreateLike, Like, LikeDirection, LikeResponse, LikeWithPet, NewLike,
 };
-use crate::models::pets::{PetId, PetUuid};
+use crate::models::pets::{PetId, PetImageUuid, PetName, PetSpecies, PetUuid};
 use crate::models::users::UserId;
 use crate::types::DbConnection;
 
@@ -200,7 +200,11 @@ fn fetch_liker_info(
             profiles::display_name,
             profiles::avatar_url,
         ))
-        .first::<(uuid::Uuid, Option<String>, Option<String>)>(conn)
+        .first::<(
+            uuid::Uuid,
+            Option<crate::models::users::DisplayName>,
+            Option<String>,
+        )>(conn)
         .map_err(DomainError::from)?;
 
     let pets_owned: i64 = pets::pets
@@ -313,24 +317,19 @@ pub fn list_matches_with_pets(
 fn fetch_pet_with_image(
     pet_id: &PetId,
     conn: &mut DbConnection,
-) -> Result<(PetUuid, String, String, Option<uuid::Uuid>), DomainError> {
+) -> Result<(PetUuid, PetName, PetSpecies, Option<PetImageUuid>), DomainError> {
     use crate::schema::pets::dsl as pets;
 
-    let (pet_uuid_raw, pet_name, species): (uuid::Uuid, String, String) =
+    let (pet_uuid, pet_name, species): (PetUuid, PetName, PetSpecies) =
         pets::pets
             .select((pets::pet_uuid, pets::name, pets::species))
             .filter(pets::id.eq(*pet_id))
             .first(conn)
             .map_err(DomainError::from)?;
 
-    let pet_uuid: PetUuid = PetUuid::try_from(pet_uuid_raw.to_string())
-        .map_err(|e: String| {
-            DomainError::new_internal_error(format!("Invalid pet UUID: {}", e))
-        })?;
-
-    let image_uuid: Option<uuid::Uuid> = {
+    let image_uuid: Option<PetImageUuid> = {
         use crate::schema::pet_images::dsl as pet_images;
-        let result: Result<uuid::Uuid, _> = pet_images::pet_images
+        let result: Result<PetImageUuid, _> = pet_images::pet_images
             .select(pet_images::uuid)
             .filter(
                 pet_images::pet_id

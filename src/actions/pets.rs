@@ -486,7 +486,11 @@ fn fetch_owner_info(
             profiles::display_name,
             profiles::avatar_url,
         ))
-        .first::<(uuid::Uuid, Option<String>, Option<String>)>(conn)
+        .first::<(
+            uuid::Uuid,
+            Option<crate::models::users::DisplayName>,
+            Option<String>,
+        )>(conn)
         .ok()?;
 
     // Count pets
@@ -668,7 +672,7 @@ pub fn upload_pet_image(
                     e
                 ))
             })?,
-            uuid: new_image_uuid,
+            uuid: crate::models::pets::PetImageUuid::new(new_image_uuid),
             format: "webp".to_string(),
             is_primary,
             sort_order,

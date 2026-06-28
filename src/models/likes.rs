@@ -6,7 +6,8 @@ use derive_more::{Display, Into};
 use diesel_derive_enum::DbEnum;
 use std::str::FromStr;
 
-use super::pets::{PetId, PetUuid, PublicPetOwner};
+use super::pets::{PetId, PetName, PetSpecies, PetUuid, PublicPetOwner};
+use super::users::DisplayName;
 use super::users::UserId;
 
 /// Like direction enum backed by PostgreSQL enum type
@@ -177,8 +178,8 @@ impl From<(&Like, &PetUuid)> for LikeResponse {
 #[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct LikeWithPet {
     pub pet_uuid: PetUuid,
-    pub pet_name: String,
-    pub species: String,
+    pub pet_name: PetName,
+    pub species: PetSpecies,
     pub primary_image_uuid: Option<String>,
     pub is_match: bool,
     pub matched_at: Option<chrono::NaiveDateTime>,
@@ -198,8 +199,8 @@ pub struct PetInteractionResponse {
 #[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct MatchPetInfo {
     pub pet_uuid: PetUuid,
-    pub pet_name: String,
-    pub species: String,
+    pub pet_name: PetName,
+    pub species: PetSpecies,
     pub primary_image_uuid: Option<String>,
 }
 
@@ -211,7 +212,7 @@ pub struct MatchWithPets {
     /// The pet the other person liked (current user's pet)
     pub liked_by_other_pet: MatchPetInfo,
     /// Display name of the other user
-    pub other_owner_name: Option<String>,
+    pub other_owner_name: Option<DisplayName>,
     /// Avatar URL of the other user
     pub other_owner_avatar_url: Option<String>,
     /// UUID of the other user

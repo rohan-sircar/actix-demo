@@ -513,7 +513,7 @@ pub async fn delete_my_account(
 #[protect("RoleEnum::RoleUser", ty = RoleEnum)]
 #[tracing::instrument(level = "info", skip_all, fields(user_uuid))]
 pub async fn get_public_profile(
-    req: HttpRequest,
+    _req: HttpRequest,
     app_data: web::Data<AppData>,
     user_id: web::Path<String>,
 ) -> Result<HttpResponse, DomainError> {
