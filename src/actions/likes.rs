@@ -106,7 +106,11 @@ pub fn list_likes_sent(
     use crate::schema::likes::dsl as likes;
 
     let like_rows: Vec<Like> = likes::likes
-        .filter(likes::user_id.eq(*user_id).and(likes::direction.eq(LikeDirection::Like)))
+        .filter(
+            likes::user_id
+                .eq(*user_id)
+                .and(likes::direction.eq(LikeDirection::Like)),
+        )
         .order(likes::matched_at.desc())
         .load(conn)?;
 
@@ -115,19 +119,22 @@ pub fn list_likes_sent(
         .map(|like| {
             let pet = fetch_pet_with_image(&like.pet_id, conn);
             match pet {
-                Ok((pet_uuid, pet_name, species, image_uuid)) => Ok(LikeWithPet {
-                    pet_uuid,
-                    pet_name,
-                    species,
-                    primary_image_uuid: image_uuid.map(|u| u.to_string()),
-                    is_match: like.is_match,
-                    matched_at: like.matched_at,
-                    created_at: like.created_at,
-                    liker: None,
-                }),
-                Err(_) => Err(DomainError::new_internal_error(
-                    format!("Pet not found for like id {}", like.id),
-                )),
+                Ok((pet_uuid, pet_name, species, image_uuid)) => {
+                    Ok(LikeWithPet {
+                        pet_uuid,
+                        pet_name,
+                        species,
+                        primary_image_uuid: image_uuid.map(|u| u.to_string()),
+                        is_match: like.is_match,
+                        matched_at: like.matched_at,
+                        created_at: like.created_at,
+                        liker: None,
+                    })
+                }
+                Err(_) => Err(DomainError::new_internal_error(format!(
+                    "Pet not found for like id {}",
+                    like.id
+                ))),
             }
         })
         .collect()
@@ -141,7 +148,11 @@ pub fn list_likes_received(
     use crate::schema::likes::dsl as likes;
 
     let like_rows: Vec<Like> = likes::likes
-        .filter(likes::pet_owner_id.eq(*user_id).and(likes::direction.eq(LikeDirection::Like)))
+        .filter(
+            likes::pet_owner_id
+                .eq(*user_id)
+                .and(likes::direction.eq(LikeDirection::Like)),
+        )
         .order(likes::created_at.desc())
         .load(conn)?;
 
@@ -163,9 +174,10 @@ pub fn list_likes_received(
                         liker,
                     })
                 }
-                Err(_) => Err(DomainError::new_internal_error(
-                    format!("Pet not found for like id {}", like.id),
-                )),
+                Err(_) => Err(DomainError::new_internal_error(format!(
+                    "Pet not found for like id {}",
+                    like.id
+                ))),
             }
         })
         .collect()
@@ -200,7 +212,10 @@ fn fetch_liker_info(
     Ok(crate::models::pets::PublicPetOwner {
         user_uuid: crate::models::users::UserUuid::try_from(
             user_uuid_opt.to_string(),
-        ).map_err(|e: String| DomainError::new_internal_error(format!("Invalid user UUID: {}", e)))?,
+        )
+        .map_err(|e: String| {
+            DomainError::new_internal_error(format!("Invalid user UUID: {}", e))
+        })?,
         display_name,
         avatar_url,
         pets_owned: pets_owned as u32,
@@ -230,16 +245,17 @@ pub fn get_pet_interaction(
     Ok(interaction.map(|like| (like.direction, like.is_match)))
 }
 
-/// Returns mutual matches (both sides liked) for the current user.
-pub fn list_matches(
+/// Returns mutual matches with both pets involved for the current user.
+pub fn list_matches_with_pets(
     user_id: &UserId,
     conn: &mut DbConnection,
-) -> Result<Vec<LikeWithPet>, DomainError> {
+) -> Result<Vec<crate::models::likes::MatchWithPets>, DomainError> {
     use crate::schema::likes::dsl as likes;
 
     let like_rows: Vec<Like> = likes::likes
         .filter(
-            likes::user_id.eq(*user_id)
+            likes::user_id
+                .eq(*user_id)
                 .and(likes::direction.eq(LikeDirection::Like))
                 .and(likes::is_match.eq(true)),
         )
@@ -249,22 +265,47 @@ pub fn list_matches(
     like_rows
         .into_iter()
         .map(|like| {
-            let pet = fetch_pet_with_image(&like.pet_id, conn);
-            match pet {
-                Ok((pet_uuid, pet_name, species, image_uuid)) => Ok(LikeWithPet {
-                    pet_uuid,
-                    pet_name,
-                    species,
-                    primary_image_uuid: image_uuid.map(|u| u.to_string()),
-                    is_match: like.is_match,
-                    matched_at: like.matched_at,
-                    created_at: like.created_at,
-                    liker: None,
-                }),
-                Err(_) => Err(DomainError::new_internal_error(
-                    format!("Pet not found for like id {}", like.id),
-                )),
-            }
+            let other_user_id = like.pet_owner_id;
+            let their_pet = fetch_pet_with_image(&like.pet_id, conn)?;
+            let their_pet_info = crate::models::likes::MatchPetInfo {
+                pet_uuid: their_pet.0,
+                pet_name: their_pet.1,
+                species: their_pet.2,
+                primary_image_uuid: their_pet.3.map(|u| u.to_string()),
+            };
+
+            // Find the reciprocal like (other user liked one of current user's pets)
+            use crate::schema::pets::dsl as pets;
+            let my_pet_id: PetId = likes::likes
+                .inner_join(pets::pets)
+                .filter(
+                    likes::user_id
+                        .eq(other_user_id)
+                        .and(pets::user_id.eq(*user_id))
+                        .and(likes::direction.eq(LikeDirection::Like)),
+                )
+                .select(pets::id)
+                .first(conn)?;
+
+            let my_pet = fetch_pet_with_image(&my_pet_id, conn)?;
+            let my_pet_info = crate::models::likes::MatchPetInfo {
+                pet_uuid: my_pet.0,
+                pet_name: my_pet.1,
+                species: my_pet.2,
+                primary_image_uuid: my_pet.3.map(|u| u.to_string()),
+            };
+
+            let other_owner = fetch_liker_info(&other_user_id, conn)?;
+
+            Ok(crate::models::likes::MatchWithPets {
+                liked_pet: their_pet_info,
+                liked_by_other_pet: my_pet_info,
+                other_owner_name: other_owner.display_name,
+                other_owner_avatar_url: other_owner.avatar_url,
+                other_user_uuid: other_owner.user_uuid,
+                is_match: like.is_match,
+                matched_at: like.matched_at,
+            })
         })
         .collect()
 }
@@ -275,22 +316,26 @@ fn fetch_pet_with_image(
 ) -> Result<(PetUuid, String, String, Option<uuid::Uuid>), DomainError> {
     use crate::schema::pets::dsl as pets;
 
-    let (pet_uuid_raw, pet_name, species): (uuid::Uuid, String, String) = pets::pets
-        .select((pets::pet_uuid, pets::name, pets::species))
-        .filter(pets::id.eq(*pet_id))
-        .first(conn)
-        .map_err(DomainError::from)?;
+    let (pet_uuid_raw, pet_name, species): (uuid::Uuid, String, String) =
+        pets::pets
+            .select((pets::pet_uuid, pets::name, pets::species))
+            .filter(pets::id.eq(*pet_id))
+            .first(conn)
+            .map_err(DomainError::from)?;
 
-    let pet_uuid: PetUuid = PetUuid::try_from(
-        pet_uuid_raw.to_string(),
-    ).map_err(|e: String| DomainError::new_internal_error(format!("Invalid pet UUID: {}", e)))?;
+    let pet_uuid: PetUuid = PetUuid::try_from(pet_uuid_raw.to_string())
+        .map_err(|e: String| {
+            DomainError::new_internal_error(format!("Invalid pet UUID: {}", e))
+        })?;
 
     let image_uuid: Option<uuid::Uuid> = {
         use crate::schema::pet_images::dsl as pet_images;
         let result: Result<uuid::Uuid, _> = pet_images::pet_images
             .select(pet_images::uuid)
             .filter(
-                pet_images::pet_id.eq(*pet_id).and(pet_images::is_primary.eq(true)),
+                pet_images::pet_id
+                    .eq(*pet_id)
+                    .and(pet_images::is_primary.eq(true)),
             )
             .first(conn);
         result.ok()

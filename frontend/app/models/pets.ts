@@ -66,6 +66,23 @@ export interface LikerInfo {
   avatar_url: string | null;
 }
 
+export interface MatchPetInfo {
+  pet_uuid: string;
+  pet_name: string;
+  species: string;
+  primary_image_uuid: string | null;
+}
+
+export interface MatchWithPets {
+  liked_pet: MatchPetInfo;
+  liked_by_other_pet: MatchPetInfo;
+  other_owner_name: string | null;
+  other_owner_avatar_url: string | null;
+  other_user_uuid: string;
+  is_match: boolean;
+  matched_at: string | null;
+}
+
 export interface LikeWithPet {
   pet_uuid: string;
   pet_name: string;

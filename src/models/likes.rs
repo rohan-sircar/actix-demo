@@ -194,6 +194,32 @@ pub struct PetInteractionResponse {
     pub is_match: bool,
 }
 
+/// Minimal pet info for match display
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct MatchPetInfo {
+    pub pet_uuid: PetUuid,
+    pub pet_name: String,
+    pub species: String,
+    pub primary_image_uuid: Option<String>,
+}
+
+/// Response model for a mutual match with both pets involved
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct MatchWithPets {
+    /// The pet the current user liked (other person's pet)
+    pub liked_pet: MatchPetInfo,
+    /// The pet the other person liked (current user's pet)
+    pub liked_by_other_pet: MatchPetInfo,
+    /// Display name of the other user
+    pub other_owner_name: Option<String>,
+    /// Avatar URL of the other user
+    pub other_owner_avatar_url: Option<String>,
+    /// UUID of the other user
+    pub other_user_uuid: crate::models::users::UserUuid,
+    pub is_match: bool,
+    pub matched_at: Option<chrono::NaiveDateTime>,
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -273,7 +299,7 @@ mod test {
         .unwrap();
         let response = LikeResponse::from((&like, &pet_uuid));
         assert_eq!(response.id.as_uint(), 1);
-        assert_eq!(response.is_match, true);
+        assert!(response.is_match);
         assert_eq!(response.direction, LikeDirection::Like);
     }
 }

@@ -517,7 +517,6 @@ pub async fn get_public_profile(
     app_data: web::Data<AppData>,
     user_id: web::Path<String>,
 ) -> Result<HttpResponse, DomainError> {
-    let _user_uuid = crate::utils::extract_user_uuid_from_header(req.headers())?;
     let uuid = UserUuid::from_str(&user_id.into_inner()).map_err(|err| {
         DomainError::new_bad_input_error(format!("Invalid UserUuid: {err}"))
     })?;

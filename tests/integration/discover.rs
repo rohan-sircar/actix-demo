@@ -1,3 +1,4 @@
+#[allow(clippy::module_inception)]
 mod discover {
     use actix_web::http::header::CONTENT_TYPE;
     use actix_web::http::StatusCode;
@@ -96,7 +97,7 @@ mod discover {
             assert_eq!(liked_likes.len(), 1);
             let like = &liked_likes[0];
             assert_eq!(like.direction, LikeDirection::Like);
-            assert_eq!(like.is_match, false);
+            assert!(!like.is_match);
 
             #[derive(diesel::deserialize::QueryableByName, Debug)]
             struct IndexInfo {

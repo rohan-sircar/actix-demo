@@ -641,7 +641,7 @@ mod pet_profiles_api {
         // Fetch the public pet
         let mut resp = ctx
             .test_server
-            .get(&format!("/api/v1/pets/{}", pet_uuid))
+            .get(format!("/api/v1/pets/{}", pet_uuid))
             .send()
             .await
             .unwrap();

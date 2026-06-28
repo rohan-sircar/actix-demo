@@ -144,8 +144,8 @@ export const likesApi = {
     return response.data;
   },
 
-  async listMatches(): Promise<import('~/app/models/pets').LikeWithPet[]> {
-    const response = await api.get('/api/v1/private/matches');
+  async listMatchesWithPets(): Promise<import('~/app/models/pets').MatchWithPets[]> {
+    const response = await api.get('/api/v1/private/matches-with-pets');
     return response.data;
   },
 

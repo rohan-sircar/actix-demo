@@ -40,7 +40,8 @@ pub async fn get_traits(
     req: HttpRequest,
     app_data: web::Data<AppData>,
 ) -> Result<HttpResponse, DomainError> {
-    let _user_uuid = crate::utils::extract_user_uuid_from_header(req.headers())?;
+    let _user_uuid =
+        crate::utils::extract_user_uuid_from_header(req.headers())?;
 
     let traits = web::block(move || {
         let pool = &app_data.pool;
@@ -72,7 +73,8 @@ pub async fn get_public_pet(
     app_data: web::Data<AppData>,
     pet_uuid: web::Path<crate::models::pets::PetUuid>,
 ) -> Result<HttpResponse, DomainError> {
-    let _user_uuid = crate::utils::extract_user_uuid_from_header(req.headers())?;
+    let _user_uuid =
+        crate::utils::extract_user_uuid_from_header(req.headers())?;
     let pet_uuid = pet_uuid.into_inner();
 
     let pet = web::block(move || {
@@ -104,7 +106,8 @@ pub async fn get_pet_images(
     app_data: web::Data<AppData>,
     pet_uuid: web::Path<crate::models::pets::PetUuid>,
 ) -> Result<HttpResponse, DomainError> {
-    let _user_uuid = crate::utils::extract_user_uuid_from_header(req.headers())?;
+    let _user_uuid =
+        crate::utils::extract_user_uuid_from_header(req.headers())?;
     let pet_uuid = pet_uuid.into_inner();
 
     let images = web::block(move || {
@@ -448,7 +451,9 @@ pub async fn list_pet_images(
         let mut conn = pool.get()?;
         let user_id =
             crate::actions::users::get_user_id_by_uuid(&user_uuid, &mut conn)?;
-        crate::actions::pets::list_own_pet_images(&pet_uuid, &user_id, &mut conn)
+        crate::actions::pets::list_own_pet_images(
+            &pet_uuid, &user_id, &mut conn,
+        )
     })
     .await??;
 
@@ -584,7 +589,8 @@ pub async fn get_public_pet_image(
     app_data: web::Data<AppData>,
     image_uuid: web::Path<uuid::Uuid>,
 ) -> Result<HttpResponse, DomainError> {
-    let _user_uuid = crate::utils::extract_user_uuid_from_header(req.headers())?;
+    let _user_uuid =
+        crate::utils::extract_user_uuid_from_header(req.headers())?;
     let image_uuid = image_uuid.into_inner();
 
     let image = web::block(move || -> Result<Option<crate::models::pets::PetImage>, crate::errors::DomainError> {
@@ -638,7 +644,8 @@ pub async fn get_pet_image_variant(
     app_data: web::Data<AppData>,
     path: web::Path<PublicImageVariantPath>,
 ) -> Result<HttpResponse, DomainError> {
-    let _user_uuid = crate::utils::extract_user_uuid_from_header(req.headers())?;
+    let _user_uuid =
+        crate::utils::extract_user_uuid_from_header(req.headers())?;
     let PublicImageVariantPath {
         image_uuid,
         variant,
@@ -754,7 +761,10 @@ pub async fn get_pet_image_variant(
         Ok(obj) => obj,
         Err(err) => {
             let err_str = err.to_string();
-            if err_str.contains("NoSuchKey") || err_str.contains("NotFound") || err_str.contains("404") {
+            if err_str.contains("NoSuchKey")
+                || err_str.contains("NotFound")
+                || err_str.contains("404")
+            {
                 return Err(DomainError::new_entity_does_not_exist_error(
                     format!("Image not found: {}", object_key),
                 ));

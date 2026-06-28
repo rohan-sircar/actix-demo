@@ -1,5 +1,5 @@
-use diesel::prelude::*;
 use diesel::pg::PgConnection;
+use diesel::prelude::*;
 use dotenvy::dotenv;
 
 fn main() {

@@ -223,19 +223,19 @@ pub async fn stub_messages(
     })))
 }
 
-/// Returns the list of mutual matches for the current user.
+/// Returns the list of mutual matches with both pets involved for the current user.
 #[utoipa::path(
     get,
-    path = "/api/v1/private/matches",
+    path = "/api/v1/private/matches-with-pets",
     tag = "matches",
     responses(
-        (status = 200, description = "List of mutual matches", body = Vec<crate::models::likes::LikeWithPet>),
+        (status = 200, description = "List of mutual matches with both pets", body = Vec<crate::models::likes::MatchWithPets>),
         (status = 401, description = "Missing auth", body = DomainError),
     ),
 )]
 #[protect("RoleEnum::RoleUser", ty = RoleEnum)]
 #[tracing::instrument(level = "info", skip_all)]
-pub async fn list_matches(
+pub async fn list_matches_with_pets(
     req: HttpRequest,
     app_data: web::Data<AppData>,
 ) -> Result<HttpResponse, DomainError> {
@@ -246,7 +246,7 @@ pub async fn list_matches(
         let mut conn = pool.get()?;
         let user_id =
             crate::actions::users::get_user_id_by_uuid(&user_uuid, &mut conn)?;
-        crate::actions::likes::list_matches(&user_id, &mut conn)
+        crate::actions::likes::list_matches_with_pets(&user_id, &mut conn)
     })
     .await??;
 
@@ -274,22 +274,31 @@ pub async fn check_pet_interaction(
     let user_uuid = crate::utils::extract_user_uuid_from_header(req.headers())?;
     let pet_uuid_str = path.into_inner();
 
-    let result = web::block(move || -> Result<PetInteractionResponse, DomainError> {
-        let pool = &app_data.pool;
-        let mut conn = pool.get()?;
-        let user_id =
-            crate::actions::users::get_user_id_by_uuid(&user_uuid, &mut conn)?;
-        let pet_uuid = crate::models::pets::PetUuid::try_from(pet_uuid_str)
-            .map_err(|e| DomainError::new_internal_error(format!("Invalid pet UUID: {}", e)))?;
-        let interaction = crate::actions::likes::get_pet_interaction(&user_id, &pet_uuid, &mut conn)?;
+    let result =
+        web::block(move || -> Result<PetInteractionResponse, DomainError> {
+            let pool = &app_data.pool;
+            let mut conn = pool.get()?;
+            let user_id = crate::actions::users::get_user_id_by_uuid(
+                &user_uuid, &mut conn,
+            )?;
+            let pet_uuid = crate::models::pets::PetUuid::try_from(pet_uuid_str)
+                .map_err(|e| {
+                    DomainError::new_internal_error(format!(
+                        "Invalid pet UUID: {}",
+                        e
+                    ))
+                })?;
+            let interaction = crate::actions::likes::get_pet_interaction(
+                &user_id, &pet_uuid, &mut conn,
+            )?;
 
-        Ok(PetInteractionResponse {
-            interacted: interaction.is_some(),
-            direction: interaction.clone().map(|(dir, _)| dir),
-            is_match: interaction.map(|(_, m)| m).unwrap_or(false),
+            Ok(PetInteractionResponse {
+                interacted: interaction.is_some(),
+                direction: interaction.clone().map(|(dir, _)| dir),
+                is_match: interaction.map(|(_, m)| m).unwrap_or(false),
+            })
         })
-    })
-    .await??;
+        .await??;
 
     Ok(HttpResponse::Ok().json(result))
 }
