@@ -135,11 +135,11 @@ fn fetch_traits_for_pet(
     pet_id: &PetId,
     conn: &mut DbConnection,
 ) -> Result<Vec<PetTrait>, DomainError> {
-    use crate::models::pets::TraitId;
+    use crate::models::pets::{PetTrait, TraitId, TraitName};
     use crate::schema::personality_traits::dsl as personality_traits;
     use crate::schema::pet_personality_traits::dsl as pet_personality_traits;
 
-    let results: Vec<(TraitId, String)> =
+    let results: Vec<(TraitId, TraitName)> =
         pet_personality_traits::pet_personality_traits
             .inner_join(personality_traits::personality_traits)
             .filter(pet_personality_traits::pet_id.eq(*pet_id))

@@ -3,8 +3,9 @@ use diesel::prelude::*;
 
 use crate::errors::DomainError;
 use crate::models::pets::{
-    CreatePet, ImageId, NewPetTrait, PersonalityTrait, Pet, PetImage, PetTrait,
-    PetUuid, PublicPet, PublicPetImage, PublicPetOwner, TraitId, UpdatePet,
+    CreatePet, ImageId, NewPetTrait, PersonalityTrait, Pet, PetId, PetImage,
+    PetTrait, PetUuid, PublicPet, PublicPetImage, PublicPetOwner, TraitId,
+    TraitName, UpdatePet,
 };
 use crate::models::users::UserId;
 use crate::types::DbConnection;
@@ -12,9 +13,9 @@ use crate::types::DbPool;
 use crate::utils::images::resize_and_encode_webp;
 
 fn fetch_all_traits_for_pets(
-    pet_ids: &[i32],
+    pet_ids: &[PetId],
     conn: &mut DbConnection,
-) -> Result<std::collections::HashMap<i32, Vec<PetTrait>>, DomainError> {
+) -> Result<std::collections::HashMap<PetId, Vec<PetTrait>>, DomainError> {
     use crate::schema::personality_traits::dsl as personality_traits;
     use crate::schema::pet_personality_traits::dsl as pet_personality_traits;
 
@@ -26,7 +27,7 @@ fn fetch_all_traits_for_pets(
             personality_traits::id,
             personality_traits::name,
         ))
-        .load::<(i32, TraitId, String)>(conn)?;
+        .load::<(PetId, TraitId, TraitName)>(conn)?;
 
     let mut map = std::collections::HashMap::new();
     for (pet_id, trait_id, name) in results {
@@ -64,7 +65,7 @@ pub fn create_pet(
                     pets::description.eq(&create.description),
                 ))
                 .returning(pets::id)
-                .get_result::<i32>(conn)?;
+                .get_result::<PetId>(conn)?;
 
             if !trait_names.is_empty() {
                 use crate::schema::personality_traits::dsl as personality_traits;
@@ -75,8 +76,8 @@ pub fn create_pet(
                 for trait_name in &trait_names {
                     let trait_id = personality_traits::personality_traits
                         .select(personality_traits::id)
-                        .filter(personality_traits::name.eq(trait_name))
-                        .first::<i32>(conn)
+                        .filter(personality_traits::name.eq(trait_name.inner()))
+                        .first::<TraitId>(conn)
                         .optional()?;
 
                     if let Some(trait_id) = trait_id {
@@ -87,7 +88,7 @@ pub fn create_pet(
                     } else {
                         tracing::warn!(
                             "Trait '{}' not found in personality_traits, skipping",
-                            trait_name
+                            trait_name.inner()
                         );
                     }
                 }
@@ -128,10 +129,9 @@ pub fn get_pet(
 
     match pet {
         Some(pet) => {
-            let traits = fetch_all_traits_for_pets(&[pet.id.as_int()], conn)?;
-            let traits =
-                traits.get(&pet.id.as_int()).cloned().unwrap_or_default();
-            let primary_image = fetch_primary_image(pet.id.as_int(), conn)?;
+            let traits = fetch_all_traits_for_pets(&[pet.id], conn)?;
+            let traits = traits.get(&pet.id).cloned().unwrap_or_default();
+            let primary_image = fetch_primary_image(pet.id, conn)?;
             let owner = fetch_owner_info(pet.user_id, conn)
                 .unwrap_or_else(|| minimal_owner(&pet.user_id, conn));
             Ok(Some(PublicPet::new(
@@ -189,17 +189,13 @@ pub fn list_pets(
         return Ok(Vec::new());
     }
 
-    let pet_ids: Vec<i32> =
-        filtered_pets.iter().map(|p| p.id.as_int()).collect();
+    let pet_ids: Vec<PetId> = filtered_pets.iter().map(|p| p.id).collect();
     let traits_map = fetch_all_traits_for_pets(&pet_ids, conn)?;
 
     let mut result = Vec::new();
     for pet in filtered_pets {
-        let traits = traits_map
-            .get(&pet.id.as_int())
-            .cloned()
-            .unwrap_or_default();
-        let primary_image = fetch_primary_image(pet.id.as_int(), conn)?;
+        let traits = traits_map.get(&pet.id).cloned().unwrap_or_default();
+        let primary_image = fetch_primary_image(pet.id, conn)?;
         let owner = minimal_owner(&pet.user_id, conn);
         result.push(PublicPet::new(
             &pet,
@@ -295,7 +291,7 @@ pub fn update_pet(
 
                 diesel::delete(
                     pet_personality_traits::pet_personality_traits
-                        .filter(pet_personality_traits::pet_id.eq(pet.id.as_int())),
+                        .filter(pet_personality_traits::pet_id.eq(pet.id)),
                 )
                 .execute(conn)?;
 
@@ -307,19 +303,19 @@ pub fn update_pet(
                     for trait_name in trait_names {
                         let trait_id = personality_traits::personality_traits
                             .select(personality_traits::id)
-                            .filter(personality_traits::name.eq(trait_name))
-                            .first::<i32>(conn)
+                            .filter(personality_traits::name.eq(trait_name.inner()))
+                            .first::<TraitId>(conn)
                             .optional()?;
 
                         if let Some(trait_id) = trait_id {
                             inserted_traits.push(NewPetTrait {
-                                pet_id: pet.id.as_int(),
+                                pet_id: pet.id,
                                 trait_id,
                             });
                         } else {
                             tracing::warn!(
                                 "Trait '{}' not found in personality_traits, skipping",
-                                trait_name
+                                trait_name.inner()
                             );
                         }
                     }
@@ -334,7 +330,7 @@ pub fn update_pet(
                 }
             }
 
-            Ok(pet.id.as_int())
+            Ok(pet.id)
         })?;
 
     let pet = pets::pets.filter(pets::id.eq(pet_id)).first::<Pet>(conn)?;
@@ -409,10 +405,10 @@ pub fn get_public_pet(
         }
     };
 
-    let traits = fetch_all_traits_for_pets(&[pet.id.as_int()], conn)?;
-    let traits = traits.get(&pet.id.as_int()).cloned().unwrap_or_default();
+    let traits = fetch_all_traits_for_pets(&[pet.id], conn)?;
+    let traits = traits.get(&pet.id).cloned().unwrap_or_default();
 
-    let primary_image = fetch_primary_image(pet.id.as_int(), conn)?;
+    let primary_image = fetch_primary_image(pet.id, conn)?;
 
     let owner = fetch_owner_info(pet.user_id, conn)
         .unwrap_or_else(|| minimal_owner(&pet.user_id, conn));
@@ -439,22 +435,16 @@ pub fn list_public_pets_by_user(
             return Ok(Vec::new());
         }
 
-        let pet_ids: Vec<i32> =
-            user_pets.iter().map(|p| p.id.as_int()).collect();
+        let pet_ids: Vec<PetId> = user_pets.iter().map(|p| p.id).collect();
         let all_traits = fetch_all_traits_for_pets(&pet_ids, conn)?;
-        let primary_images: std::collections::HashMap<i32, Option<PetImage>> =
+        let primary_images: std::collections::HashMap<PetId, Option<PetImage>> =
             fetch_primary_images(&pet_ids, conn)?;
 
         let mut result = Vec::with_capacity(user_pets.len());
         for pet in &user_pets {
-            let traits = all_traits
-                .get(&pet.id.as_int())
-                .cloned()
-                .unwrap_or_default();
-            let primary_image = primary_images
-                .get(&pet.id.as_int())
-                .cloned()
-                .unwrap_or(None);
+            let traits = all_traits.get(&pet.id).cloned().unwrap_or_default();
+            let primary_image =
+                primary_images.get(&pet.id).cloned().unwrap_or(None);
             let owner = fetch_owner_info(pet.user_id, conn)
                 .unwrap_or_else(|| minimal_owner(&pet.user_id, conn));
             result.push(PublicPet::new(
@@ -538,7 +528,7 @@ pub(crate) fn minimal_owner(
 }
 
 fn fetch_primary_image(
-    pet_id: i32,
+    pet_id: PetId,
     conn: &mut DbConnection,
 ) -> Result<Option<PetImage>, DomainError> {
     use crate::schema::pet_images::dsl as pet_images;
@@ -553,9 +543,9 @@ fn fetch_primary_image(
 }
 
 fn fetch_primary_images(
-    pet_ids: &[i32],
+    pet_ids: &[PetId],
     conn: &mut DbConnection,
-) -> Result<std::collections::HashMap<i32, Option<PetImage>>, DomainError> {
+) -> Result<std::collections::HashMap<PetId, Option<PetImage>>, DomainError> {
     use crate::schema::pet_images::dsl as pet_images;
 
     let images: Vec<PetImage> = pet_images::pet_images
@@ -615,7 +605,7 @@ pub fn upload_pet_image(
                 })?;
 
             let is_first_image: i64 = pet_images::pet_images
-                .filter(pet_images::pet_id.eq(pet.id.as_int()))
+                .filter(pet_images::pet_id.eq(pet.id))
                 .count()
                 .get_result(conn)?;
 
@@ -623,7 +613,7 @@ pub fn upload_pet_image(
                 0
             } else {
                 pet_images::pet_images
-                    .filter(pet_images::pet_id.eq(pet.id.as_int()))
+                    .filter(pet_images::pet_id.eq(pet.id))
                     .select(pet_images::sort_order)
                     .order(pet_images::sort_order.desc())
                     .first::<i32>(conn)?
@@ -635,7 +625,7 @@ pub fn upload_pet_image(
             let id: i32 = diesel::insert_into(pet_images::pet_images)
                 .values((
                     pet_images::uuid.eq(new_image_uuid),
-                    pet_images::pet_id.eq(pet.id.as_int()),
+                    pet_images::pet_id.eq(pet.id),
                     pet_images::thumbnail_key.eq(format!(
                         "pets/{}/{}/thumbnail.webp",
                         pet_uuid, new_image_uuid
@@ -709,7 +699,7 @@ pub fn list_own_pet_images(
     };
 
     let images = pet_images::pet_images
-        .filter(pet_images::pet_id.eq(pet.id.as_int()))
+        .filter(pet_images::pet_id.eq(pet.id))
         .order(pet_images::sort_order.asc())
         .load::<PetImage>(conn)?;
 
@@ -742,7 +732,7 @@ pub fn list_others_pets_images(
     };
 
     let images = pet_images::pet_images
-        .filter(pet_images::pet_id.eq(pet.id.as_int()))
+        .filter(pet_images::pet_id.eq(pet.id))
         .order(pet_images::sort_order.asc())
         .load::<PetImage>(conn)?;
 
@@ -775,7 +765,7 @@ pub fn delete_pet_image(
             })?;
 
         let image = pet_images::pet_images
-            .filter(pet_images::pet_id.eq(pet.id.as_int()))
+            .filter(pet_images::pet_id.eq(pet.id))
             .filter(pet_images::uuid.eq(*image_uuid))
             .first::<PetImage>(conn)
             .optional()?
@@ -791,13 +781,13 @@ pub fn delete_pet_image(
         let original_key = image.original_key.clone();
 
         diesel::delete(
-            pet_images::pet_images.filter(pet_images::id.eq(image.id.as_int())),
+            pet_images::pet_images.filter(pet_images::id.eq(image.id)),
         )
         .execute(conn)?;
 
         diesel::update(
             pet_images::pet_images
-                .filter(pet_images::pet_id.eq(pet.id.as_int()))
+                .filter(pet_images::pet_id.eq(pet.id))
                 .filter(pet_images::sort_order.gt(image.sort_order)),
         )
         .set(pet_images::sort_order.eq(pet_images::sort_order - 1))
@@ -832,7 +822,7 @@ pub fn set_primary_image(
             })?;
 
         let image = pet_images::pet_images
-            .filter(pet_images::pet_id.eq(pet.id.as_int()))
+            .filter(pet_images::pet_id.eq(pet.id))
             .filter(pet_images::uuid.eq(*image_uuid))
             .first::<PetImage>(conn)
             .optional()?
@@ -844,20 +834,19 @@ pub fn set_primary_image(
             })?;
 
         diesel::update(
-            pet_images::pet_images
-                .filter(pet_images::pet_id.eq(pet.id.as_int())),
+            pet_images::pet_images.filter(pet_images::pet_id.eq(pet.id)),
         )
         .set(pet_images::is_primary.eq(false))
         .execute(conn)?;
 
         diesel::update(
-            pet_images::pet_images.filter(pet_images::id.eq(image.id.as_int())),
+            pet_images::pet_images.filter(pet_images::id.eq(image.id)),
         )
         .set(pet_images::is_primary.eq(true))
         .execute(conn)?;
 
         let updated_image = pet_images::pet_images
-            .filter(pet_images::id.eq(image.id.as_int()))
+            .filter(pet_images::id.eq(image.id))
             .first::<PetImage>(conn)?;
 
         Ok(PublicPetImage::from(&updated_image))

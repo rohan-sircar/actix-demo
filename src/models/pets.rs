@@ -171,6 +171,21 @@ impl TryFrom<u32> for TraitId {
     }
 }
 
+/// Validator for personality trait name
+#[derive(Validator, Debug, Clone, DieselNewType, PartialEq, Eq, ToSchema)]
+#[validator(line(char_length(min = 2, max = 100)))]
+pub struct TraitName(String);
+
+impl TraitName {
+    pub fn new(value: String) -> Result<Self, String> {
+        Self::parse_string(&value).map_err(|e| e.to_string())
+    }
+
+    pub fn inner(&self) -> &str {
+        &self.0
+    }
+}
+
 /// Validator for pet name
 #[derive(Validator, Debug, Clone, DieselNewType, PartialEq, Eq, ToSchema)]
 #[validator(line(char_length(min = 2, max = 100)))]
@@ -310,15 +325,15 @@ pub struct CreatePet {
     pub color_markings: Option<PetColorMarkings>,
     pub description: Option<PetDescription>,
     #[serde(default)]
-    pub traits: Vec<String>,
+    pub traits: Vec<TraitName>,
 }
 
 /// Diesel insertable model for pet_personality_traits junction
 #[derive(Debug, Clone, Insertable)]
 #[diesel(table_name = pet_personality_traits)]
 pub struct NewPetTrait {
-    pub pet_id: i32,
-    pub trait_id: i32,
+    pub pet_id: PetId,
+    pub trait_id: TraitId,
 }
 
 /// Queryable model for personality trait
@@ -326,7 +341,7 @@ pub struct NewPetTrait {
 #[diesel(table_name = personality_traits)]
 pub struct PersonalityTrait {
     pub id: TraitId,
-    pub name: String,
+    pub name: TraitName,
     pub created_at: chrono::NaiveDateTime,
 }
 
@@ -334,7 +349,7 @@ pub struct PersonalityTrait {
 #[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct PetTrait {
     pub id: TraitId,
-    pub name: String,
+    pub name: TraitName,
 }
 
 /// Queryable model for a pet with all fields
@@ -367,7 +382,7 @@ pub struct UpdatePet {
     pub weight: Option<Option<PetWeight>>,
     pub color_markings: Option<Option<PetColorMarkings>>,
     pub description: Option<Option<PetDescription>>,
-    pub traits: Option<Vec<String>>,
+    pub traits: Option<Vec<TraitName>>,
     #[serde(skip, default)]
     pub _sent_fields: std::collections::HashSet<String>,
 }
@@ -485,7 +500,9 @@ impl<'de> Deserialize<'de> for UpdatePet {
                             traits = Some(
                                 arr.iter()
                                     .filter_map(|v| {
-                                        v.as_str().map(String::from)
+                                        v.as_str().and_then(|s| {
+                                            TraitName::new(s.to_string()).ok()
+                                        })
                                     })
                                     .collect(),
                             );
@@ -707,7 +724,7 @@ impl PetImageVariant {
 pub struct PetImage {
     pub id: ImageId,
     pub uuid: PetImageUuid,
-    pub pet_id: i32,
+    pub pet_id: PetId,
     pub thumbnail_key: String,
     pub medium_key: String,
     pub original_key: String,
@@ -775,7 +792,13 @@ mod test {
         assert!(pet.date_of_birth.is_some());
         assert!(pet.gender.is_some());
         assert_eq!(pet.weight, Some(PetWeight(30.5)));
-        assert_eq!(pet.traits, vec!["playful", "loyal"]);
+        assert_eq!(
+            pet.traits,
+            vec![
+                TraitName::new("playful".to_string()).unwrap(),
+                TraitName::new("loyal".to_string()).unwrap(),
+            ]
+        );
     }
 
     #[test]
@@ -836,7 +859,10 @@ mod test {
         assert!(update.should_update("traits"));
         assert_eq!(
             update.traits,
-            Some(vec!["calm".to_string(), "independent".to_string()])
+            Some(vec![
+                TraitName::new("calm".to_string()).unwrap(),
+                TraitName::new("independent".to_string()).unwrap(),
+            ])
         );
     }
 
@@ -894,11 +920,11 @@ mod test {
         let traits = vec![
             PetTrait {
                 id: TraitId::try_from(1u32).unwrap(),
-                name: "playful".to_string(),
+                name: TraitName::new("playful".to_string()).unwrap(),
             },
             PetTrait {
                 id: TraitId::try_from(2u32).unwrap(),
-                name: "loyal".to_string(),
+                name: TraitName::new("loyal".to_string()).unwrap(),
             },
         ];
 

@@ -2,8 +2,8 @@ use diesel::prelude::*;
 
 use crate::errors::DomainError;
 use crate::models::likes::{
-    CreateLike, Like, LikeDirection, LikeResponse, LikeWithPet, MatchPetInfo,
-    NewLike, NewMatch, PetInteractionResponse,
+    CreateLike, Like, LikeDirection, LikeId, LikeResponse, LikeWithPet,
+    MatchPetInfo, NewLike, NewMatch, PetInteractionResponse,
 };
 use crate::models::pets::{PetId, PetImageUuid, PetName, PetSpecies, PetUuid};
 use crate::models::users::UserId;
@@ -53,7 +53,7 @@ pub fn create_like(
         // Insert the new like
         let new_like =
             NewLike::new(*user_id, pet_owner_id, pet_id, direction.clone());
-        let inserted_id: i32 = diesel::insert_into(likes::likes)
+        let inserted_id: LikeId = diesel::insert_into(likes::likes)
             .values(&new_like)
             .returning(likes::id)
             .get_result(conn)?;
@@ -81,12 +81,12 @@ pub fn create_like(
                     )
                 })?;
 
-            // Find the reciprocal like (pet owner liked this of our pets)
+            // Check if reciprocal like already exists
             let reciprocal: Like = likes::likes
                 .filter(
-                    likes::user_id
-                        .eq(pet_owner_id)
-                        .and(likes::pet_id.eq(recip_pet_id))
+                    likes::pet_id
+                        .eq(recip_pet_id)
+                        .and(likes::user_id.eq(pet_owner_id))
                         .and(likes::direction.eq(LikeDirection::Like)),
                 )
                 .first(conn)
@@ -97,17 +97,14 @@ pub fn create_like(
                 })?;
 
             // Determine which like_id is smaller for the constraint like_id_a < like_id_b
-            let (a, b) = if reciprocal.id.as_int() < inserted_id {
-                (reciprocal.id.as_int(), inserted_id)
+            let (a, b) = if reciprocal.id < inserted_id {
+                (reciprocal.id, inserted_id)
             } else {
-                (inserted_id, reciprocal.id.as_int())
+                (inserted_id, reciprocal.id)
             };
 
             // Insert into matches table
-            let new_match = NewMatch::new(
-                crate::models::likes::LikeId::try_from(a as u32).unwrap(),
-                crate::models::likes::LikeId::try_from(b as u32).unwrap(),
-            );
+            let new_match = NewMatch::new(a, b);
             diesel::insert_into(matches::matches)
                 .values(&new_match)
                 .execute(conn)?;

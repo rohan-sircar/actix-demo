@@ -52,6 +52,7 @@ impl FromStr for LikeDirection {
     Eq,
     Hash,
     PartialEq,
+    PartialOrd,
     Deserialize,
     Display,
     Into,
@@ -130,9 +131,9 @@ pub struct Like {
 #[derive(Debug, Clone, Insertable)]
 #[diesel(table_name = likes)]
 pub struct NewLike {
-    pub user_id: i32,
-    pub pet_owner_id: i32,
-    pub pet_id: i32,
+    pub user_id: UserId,
+    pub pet_owner_id: UserId,
+    pub pet_id: PetId,
     pub direction: LikeDirection,
 }
 
@@ -144,9 +145,9 @@ impl NewLike {
         direction: LikeDirection,
     ) -> Self {
         Self {
-            user_id: user_id.as_uint() as i32,
-            pet_owner_id: pet_owner_id.as_uint() as i32,
-            pet_id: pet_id.as_uint() as i32,
+            user_id,
+            pet_owner_id,
+            pet_id,
             direction,
         }
     }
@@ -231,8 +232,8 @@ pub struct Match {
 #[derive(Debug, Clone, Insertable)]
 #[diesel(table_name = crate::schema::matches)]
 pub struct NewMatch {
-    pub like_id_a: i32,
-    pub like_id_b: i32,
+    pub like_id_a: LikeId,
+    pub like_id_b: LikeId,
     pub matched_at: chrono::NaiveDateTime,
 }
 
@@ -241,8 +242,8 @@ impl NewMatch {
         use chrono::Utc;
         let ts = Utc::now().naive_utc();
         Self {
-            like_id_a: like_id_a.as_int(),
-            like_id_b: like_id_b.as_int(),
+            like_id_a,
+            like_id_b,
             matched_at: ts,
         }
     }
@@ -304,9 +305,9 @@ mod test {
         let pet_id = PetId::try_from(3u32).unwrap();
         let new_like =
             NewLike::new(user_id, pet_owner_id, pet_id, LikeDirection::Like);
-        assert_eq!(new_like.user_id, 1);
-        assert_eq!(new_like.pet_owner_id, 2);
-        assert_eq!(new_like.pet_id, 3);
+        assert_eq!(new_like.user_id, UserId::try_from(1u32).unwrap());
+        assert_eq!(new_like.pet_owner_id, UserId::try_from(2u32).unwrap());
+        assert_eq!(new_like.pet_id, PetId::try_from(3u32).unwrap());
     }
 
     #[test]
