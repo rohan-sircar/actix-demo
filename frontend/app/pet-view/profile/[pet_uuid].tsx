@@ -4,7 +4,6 @@ import {
   View,
   Text,
   TouchableOpacity,
-  Image as RNImage,
   ScrollView,
   Modal,
   Pressable,
@@ -12,11 +11,13 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { useMutation } from '@tanstack/react-query';
 
-import { petApi, likesApi, getImageUrl } from '~/app/lib/api';
+import { petApi, likesApi } from '~/app/lib/api';
 import { useColorScheme } from '~/lib/useColorScheme';
 import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
+import { AuthenticatedImage } from '~/app/components/AuthenticatedImage';
 import type { PublicPet, PetImage } from '~/app/models/pets';
 
 const getAgeFromDob = (dob: string) => {
@@ -54,7 +55,7 @@ export default function PetFullProfileScreen() {
 
   const [pet, setPet] = useState<PublicPet | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [previewImageUuid, setPreviewImageUuid] = useState<string | null>(null);
 
   const fetchPet = async () => {
     try {
@@ -123,19 +124,20 @@ export default function PetFullProfileScreen() {
     );
   }
 
-  const heroUrl = pet.primary_image ? getImageUrl(pet.primary_image.uuid, 'medium') : undefined;
   const secondaryColor = colors.grey;
   const badgeBg = isDarkColorScheme ? colors.grey5 : `${accentSet.bgSubtle}80`;
   const badgeColor = accentSet.base;
+  const heroImageUuid = pet.primary_image?.uuid;
 
   return (
     <ScrollView className="flex-1" style={{ backgroundColor: colors.background }}>
       {/* Hero Image */}
       <View style={{ position: 'relative' }}>
-        {heroUrl ? (
-          <TouchableOpacity onPress={() => setPreviewImage(heroUrl)} activeOpacity={0.9}>
-            <RNImage
-              source={{ uri: heroUrl }}
+        {heroImageUuid ? (
+          <TouchableOpacity onPress={() => setPreviewImageUuid(heroImageUuid)} activeOpacity={0.9}>
+            <AuthenticatedImage
+              imageUuid={heroImageUuid}
+              variant="medium"
               style={{ width: '100%', aspectRatio: 1, maxHeight: 400 }}
               resizeMode="cover"
             />
@@ -408,15 +410,18 @@ export default function PetFullProfileScreen() {
       </View>
 
       {/* Image Preview Modal */}
-      <Modal visible={previewImage !== null} transparent animationType="fade">
-        <Pressable className="flex-1 items-center justify-center bg-black/90" onPress={() => setPreviewImage(null)}>
-          <View style={{ width: '100%', height: '100%' }}>
-            <RNImage
-              source={{ uri: previewImage || '' }}
-              style={{ width: '100%', height: '100%' }}
-              resizeMode="contain"
-            />
-          </View>
+      <Modal visible={previewImageUuid !== null} transparent animationType="fade">
+        <Pressable className="flex-1 items-center justify-center bg-black/90" onPress={() => setPreviewImageUuid(null)}>
+          {previewImageUuid && (
+            <View style={{ width: '100%', height: '100%' }}>
+              <AuthenticatedImage
+                imageUuid={previewImageUuid}
+                variant="original"
+                style={{ width: '100%', height: '100%' }}
+                resizeMode="contain"
+              />
+            </View>
+          )}
         </Pressable>
       </Modal>
     </ScrollView>

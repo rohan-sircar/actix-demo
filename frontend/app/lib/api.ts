@@ -70,10 +70,8 @@ api.interceptors.response.use(
 );
 
 export const getImageUrl = (imageUuid: string, variant: 'thumbnail' | 'medium' | 'original' = 'medium'): string => {
-  const token = useAuthStore.getState().token;
   const baseUrl = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8800';
-  const url = `${baseUrl}/api/v1/private/pets/images/${imageUuid}/${variant}`;
-  return token ? `${url}?token=${token}` : url;
+  return `${baseUrl}/api/v1/private/pets/images/${imageUuid}/${variant}`;
 };
 
 export const petApi = {

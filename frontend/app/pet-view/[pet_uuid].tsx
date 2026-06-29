@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Platform, View, ActivityIndicator, Text, StyleSheet, Alert, Image, TouchableOpacity, ScrollView } from 'react-native';
+import { Platform, View, ActivityIndicator, Text, StyleSheet, Alert, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import { petApi, likesApi, getImageUrl } from '~/app/lib/api';
+import { AuthenticatedImage } from '~/app/components/AuthenticatedImage';
 import { useColorScheme } from '~/lib/useColorScheme';
 import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
 import { useAuthStore } from '~/app/stores/AuthStore';
@@ -290,8 +291,8 @@ export default function PetPhotoGalleryScreen() {
                   }}
                 >
                   {match.primary_image_uuid ? (
-                    <Image source={{ uri: getImageUrl(match.primary_image_uuid, 'thumbnail') }}
-                      style={{ width: 48, height: 48, borderRadius: 12, marginRight: 12 }} resizeMode="cover" />
+                    <AuthenticatedImage imageUuid={match.primary_image_uuid} variant="thumbnail"
+                      style={{ width: 48, height: 48, borderRadius: 12, marginRight: 12 }} />
                   ) : (
                     <View style={{ width: 48, height: 48, borderRadius: 12,
                       backgroundColor: accentSet.bgSubtle || '#f0e0d8',

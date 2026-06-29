@@ -1,11 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
-import { Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { useColorScheme } from '~/lib/useColorScheme';
 import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
-import { getImageUrl, likesApi } from '~/app/lib/api';
+import { likesApi } from '~/app/lib/api';
+import { AuthenticatedImage } from '~/app/components/AuthenticatedImage';
 import { useQuery } from '@tanstack/react-query';
 import type { LikeWithPet } from '~/app/models/pets';
 
@@ -28,7 +29,7 @@ function LikeItem({ like, colors, isDarkColorScheme, accentSet }: {
       className="flex-row items-center rounded-xl px-4 py-3"
       style={{ backgroundColor: isDarkColorScheme ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }}>
       {like.primary_image_uuid ? (
-        <Image source={{ uri: getImageUrl(like.primary_image_uuid, 'thumbnail') }} style={{ width: 56, height: 56, borderRadius: 14 }} resizeMode="cover" />
+        <AuthenticatedImage imageUuid={like.primary_image_uuid} variant="thumbnail" style={{ width: 56, height: 56, borderRadius: 14 }} />
       ) : (
         <View style={{ width: 56, height: 56, borderRadius: 14, backgroundColor: accentSet.bgSubtle || '#f0e0d8', justifyContent: 'center', alignItems: 'center' }}>
           <Ionicons name="paw" size={24} color={accentSet.base} />
@@ -46,7 +47,7 @@ function LikeItem({ like, colors, isDarkColorScheme, accentSet }: {
           }}
           className="flex-row items-center gap-2 pr-3">
           {like.liker!.avatar_url ? (
-            <Image source={{ uri: getImageUrl(like.liker!.avatar_url, 'thumbnail') }} style={{ width: 28, height: 28, borderRadius: 14 }} resizeMode="cover" />
+            <AuthenticatedImage imageUuid={like.liker!.avatar_url} variant="thumbnail" style={{ width: 28, height: 28, borderRadius: 14 }} />
           ) : (
             <Ionicons name="person-circle" size={28} color={colors.grey} />
           )}

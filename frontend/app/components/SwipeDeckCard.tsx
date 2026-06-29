@@ -6,7 +6,6 @@ import {
   ScrollView as ScrollViewNative,
   StyleSheet,
   Platform,
-  Image as RNImage,
   Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,7 +22,8 @@ import Animated, {
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import type { PublicPet, PetImage } from '~/app/models/pets';
 import { getSpeciesIcon, getAgeFromDob } from '~/app/pet-view/gallery-utils';
-import { getImageUrl, petApi } from '~/app/lib/api';
+import { petApi } from '~/app/lib/api';
+import { AuthenticatedImage } from './AuthenticatedImage';
 
 const SWIPE_THRESHOLD = 100;
 const STAMP_THRESHOLD = 75;
@@ -52,6 +52,7 @@ interface Props {
   onFullProfile: () => void;
   isTopCard: boolean;
   stackIndex: number;
+  petIndex: number;
 }
 
 const shadowStyle = Platform.OS === 'ios'
@@ -76,6 +77,7 @@ export function SwipeDeckCard({
   onFullProfile,
   isTopCard,
   stackIndex,
+  petIndex,
 }: Props) {
   const [activeTab, setActiveTab] = useState('All');
   const [images, setImages] = useState<PetImage[]>([]);
@@ -114,12 +116,9 @@ export function SwipeDeckCard({
   }, [images.length]);
 
   const ageStr = pet.date_of_birth ? getAgeFromDob(pet.date_of_birth) : '';
-  const gradient = getGradientForPet(pet.id);
+  const gradient = getGradientForPet(petIndex);
 
   const currentImage = images[currentImageIndex] ?? pet.primary_image;
-  const imageUrl = currentImage
-    ? getImageUrl(currentImage.uuid, 'medium')
-    : undefined;
 
   const pills: { icon: string; label: string }[] = [];
   pills.push({ icon: getSpeciesIcon(pet.species), label: `${pet.species}${pet.breed ? ` · ${pet.breed}` : ''}` });
@@ -267,11 +266,11 @@ export function SwipeDeckCard({
       </View>
 
       <View style={styles.photoArea}>
-        {imageUrl ? (
-          <RNImage
-            source={{ uri: imageUrl }}
+        {currentImage ? (
+          <AuthenticatedImage
+            imageUuid={currentImage.uuid}
+            variant="medium"
             style={[styles.gradientBackground, { backgroundColor: gradient[0] }]}
-            resizeMethod="resize"
           />
         ) : (
           <View style={[styles.gradientBackground, { backgroundColor: gradient[0] }]}>

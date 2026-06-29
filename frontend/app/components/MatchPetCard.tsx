@@ -1,10 +1,10 @@
 import React from 'react';
-import { Platform, TouchableOpacity, View, Text, Image } from 'react-native';
+import { Platform, TouchableOpacity, View, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from '~/lib/useColorScheme';
 import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
 import type { MatchPetInfo } from '~/app/models/pets';
-import { getImageUrl } from '~/app/lib/api';
+import { AuthenticatedImage } from './AuthenticatedImage';
 
 const MatchPetCard: React.FC<{
   pet: MatchPetInfo;
@@ -13,10 +13,6 @@ const MatchPetCard: React.FC<{
   const { colors, isDarkColorScheme } = useColorScheme();
   const { accentColor } = useAccentColor();
   const accentSet = getAccentSet(accentColor);
-
-  const imageUrl = pet.primary_image_uuid
-    ? getImageUrl(pet.primary_image_uuid, 'medium')
-    : null;
 
   return (
     <TouchableOpacity
@@ -35,11 +31,11 @@ const MatchPetCard: React.FC<{
         elevation: 2,
       }}>
       <View style={{ height: Platform.OS === 'web' ? 210 : 200, backgroundColor: isDarkColorScheme ? colors.grey5 : `${accentSet.bgSubtle}90` }}>
-        {imageUrl ? (
-          <Image
-            source={{ uri: imageUrl }}
-            className="h-full w-full"
-            resizeMode="cover"
+        {pet.primary_image_uuid ? (
+          <AuthenticatedImage
+            imageUuid={pet.primary_image_uuid}
+            variant="medium"
+            style={{ width: '100%', height: '100%' }}
           />
         ) : (
           <View className="h-full w-full items-center justify-center">

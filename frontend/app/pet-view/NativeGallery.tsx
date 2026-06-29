@@ -3,13 +3,13 @@ import {
   View,
   Text,
   TouchableOpacity,
-  Image as RNImage,
   ScrollView as ScrollViewNative,
   StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { PublicPet, PetImage } from '~/app/models/pets';
-import { getImageUrl, getAgeFromDob, getSpeciesIcon } from './gallery-utils';
+import { getAgeFromDob, getSpeciesIcon } from './gallery-utils';
+import { AuthenticatedImage } from '~/app/components/AuthenticatedImage';
 
 interface Props {
   pet: PublicPet;
@@ -98,10 +98,10 @@ export function NativeGallery({ pet, images, colors, accentSet, isDarkColorSchem
       {/* Photo */}
       <View style={styles.photoArea}>
         {currentImage && (
-          <RNImage
-            source={{ uri: getImageUrl(currentImage.uuid, 'medium') }}
+          <AuthenticatedImage
+            imageUuid={currentImage.uuid}
+            variant="medium"
             style={styles.photo}
-            resizeMode="cover"
           />
         )}
 

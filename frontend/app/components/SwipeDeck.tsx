@@ -159,9 +159,10 @@ export function SwipeDeck({ colors, accentSet, isDarkColorScheme }: Props) {
             isDarkColorScheme={isDarkColorScheme}
             onLike={handleLike}
             onDislike={handleDislike}
-            onFullProfile={handleFullProfile}
+            onFullProfile={() => router.push({ pathname: '/(tabs)/pet-profiles/[pet_uuid]', params: { pet_uuid: pet.pet_uuid } })}
             isTopCard={isTop}
             stackIndex={index}
+            petIndex={visibleCards.length - 1 - reverseIndex}
           />
         );
       })}

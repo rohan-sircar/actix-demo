@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { Image, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { useColorScheme } from '~/lib/useColorScheme';
-import { getImageUrl, likesApi } from '~/app/lib/api';
+import { likesApi } from '~/app/lib/api';
+import { AuthenticatedImage } from '~/app/components/AuthenticatedImage';
 import { useQuery } from '@tanstack/react-query';
 import type { MatchWithPets } from '~/app/models/pets';
 import MatchPetCard from '~/app/components/MatchPetCard';
@@ -35,7 +36,7 @@ function MatchRow({ match, colors, isDarkColorScheme }: {
       <View className="px-4 pt-4 pb-3">
         <View className="flex-row items-center gap-2">
           {match.other_owner_avatar_url ? (
-            <Image source={{ uri: getImageUrl(match.other_owner_avatar_url, 'thumbnail') }} style={{ width: 28, height: 28, borderRadius: 14 }} resizeMode="cover" />
+            <AuthenticatedImage imageUuid={match.other_owner_avatar_url} variant="thumbnail" style={{ width: 28, height: 28, borderRadius: 14 }} />
           ) : (
             <Ionicons name="person-circle" size={28} color={colors.grey} />
           )}

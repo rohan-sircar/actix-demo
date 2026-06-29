@@ -1,11 +1,11 @@
 import React from 'react';
-import { Platform, View, Text, Pressable, TouchableOpacity, Image } from 'react-native';
+import { Platform, View, Text, Pressable, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from '~/lib/useColorScheme';
 import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
 import type { Pet } from '~/app/models/pets';
-import { getImageUrl } from '~/app/lib/api';
+import { AuthenticatedImage } from './AuthenticatedImage';
 
 const PrivatePetCard: React.FC<{
   pet_uuid: string;
@@ -20,10 +20,6 @@ const PrivatePetCard: React.FC<{
   const { accentColor } = useAccentColor();
   const accentSet = getAccentSet(accentColor);
   const secondaryColor = colors.grey;
-
-  const imageUrl = primary_image
-    ? getImageUrl(primary_image.uuid, 'medium')
-    : null;
 
   const label = breed ? `${species} · ${breed}` : species;
 
@@ -44,11 +40,11 @@ const PrivatePetCard: React.FC<{
         elevation: 2,
       }}>
       <View style={{ height: Platform.OS === 'web' ? 210 : 200, backgroundColor: isDarkColorScheme ? colors.grey5 : `${accentSet.bgSubtle}90` }}>
-        {imageUrl ? (
-          <Image
-            source={{ uri: imageUrl }}
-            className="h-full w-full"
-            resizeMode="cover"
+        {primary_image ? (
+          <AuthenticatedImage
+            imageUuid={primary_image.uuid}
+            variant="medium"
+            style={{ width: '100%', height: '100%' }}
           />
         ) : (
           <View className="h-full w-full items-center justify-center">

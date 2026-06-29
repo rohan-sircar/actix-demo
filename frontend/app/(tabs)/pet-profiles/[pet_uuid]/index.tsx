@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useLayoutEffect, useState } from 'react';
-import { ActivityIndicator, View, Text, Image as RNImage, ScrollView, TouchableOpacity, Modal, Pressable } from 'react-native';
+import { ActivityIndicator, View, Text, ScrollView, TouchableOpacity, Modal, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 
-import api, { petImageApi, getImageUrl } from '~/app/lib/api';
+import api, { petImageApi } from '~/app/lib/api';
+import { AuthenticatedImage } from '~/app/components/AuthenticatedImage';
 import { useColorScheme } from '~/lib/useColorScheme';
 import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
 import * as Style from '~/app/styles/Styles';
@@ -137,8 +138,6 @@ export default function PetProfileEditScreen() {
     );
   }
 
-  const imageUrl = pet.primary_image ? getImageUrl(pet.primary_image.uuid, 'medium') : undefined;
-
   return (
     <ScrollView className="flex-1" style={{ backgroundColor: colors.background }}>
       {/* Profile Header Card */}
@@ -147,16 +146,16 @@ export default function PetProfileEditScreen() {
           <TouchableOpacity
             onPress={() => pet.primary_image && setPreviewImage(true)}
             disabled={!pet.primary_image}>
-            {imageUrl ? (
-              <RNImage
-                source={{ uri: imageUrl }}
+            {pet.primary_image ? (
+              <AuthenticatedImage
+                imageUuid={pet.primary_image.uuid}
+                variant="medium"
                 style={{
                   width: 160,
                   height: 160,
                   borderRadius: 80,
                   marginBottom: 16,
                 }}
-                resizeMode="cover"
               />
             ) : (
               <View
@@ -318,10 +317,10 @@ export default function PetProfileEditScreen() {
       <Modal visible={previewImage} transparent animationType="fade">
         <Pressable className="flex-1 items-center justify-center bg-black/80" onPress={() => setPreviewImage(false)}>
           <View style={{ width: '85%', maxWidth: 400, borderRadius: 16, overflow: 'hidden', backgroundColor: colors.card }}>
-            <RNImage
-              source={{ uri: pet.primary_image ? getImageUrl(pet.primary_image.uuid, 'medium') : '' }}
+            <AuthenticatedImage
+              imageUuid={pet.primary_image?.uuid}
+              variant="medium"
               style={{ width: '100%', aspectRatio: 1 }}
-              resizeMode="cover"
             />
           </View>
         </Pressable>
