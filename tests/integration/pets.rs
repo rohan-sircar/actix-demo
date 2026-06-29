@@ -514,10 +514,12 @@ mod pet_profiles_api {
     #[actix_rt::test]
     async fn get_traits_success() {
         let ctx = TestContext::new(None).await;
+        let token = register_and_login(&ctx, "owner_x", "test123").await;
 
         let mut resp = ctx
             .test_server
-            .get("/api/v1/pets/traits")
+            .get("/api/v1/private/pets/traits")
+            .with_token(&token)
             .send()
             .await
             .unwrap();
@@ -559,10 +561,10 @@ mod pet_profiles_api {
             .unwrap()
             .to_string();
 
-        // Get public view (no auth needed)
         let mut resp = ctx
             .test_server
-            .get(format!("/api/v1/pets/{}", pet_uuid))
+            .get(format!("/api/v1/private/pets/{}", pet_uuid))
+            .with_token(&token)
             .send()
             .await
             .unwrap();
@@ -577,10 +579,12 @@ mod pet_profiles_api {
     #[actix_rt::test]
     async fn public_pet_returns_404_for_nonexistent() {
         let ctx = TestContext::new(None).await;
+        let token = register_and_login(&ctx, "petowner12", "test123").await;
 
         let resp = ctx
             .test_server
-            .get("/api/v1/pets/00000000-0000-0000-0000-000000000000")
+            .get("/api/v1/private/pets/00000000-0000-0000-0000-000000000000")
+            .with_token(&token)
             .send()
             .await
             .unwrap();
@@ -641,7 +645,8 @@ mod pet_profiles_api {
         // Fetch the public pet
         let mut resp = ctx
             .test_server
-            .get(format!("/api/v1/pets/{}", pet_uuid))
+            .get(format!("/api/v1/private/pets/{}", pet_uuid))
+            .with_token(&token)
             .send()
             .await
             .unwrap();

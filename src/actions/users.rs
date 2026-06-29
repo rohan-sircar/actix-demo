@@ -434,6 +434,91 @@ pub fn insert_new_user(
     })
 }
 
+pub fn insert_new_user_with_roles(
+    nu: NewUser,
+    roles: &[RoleEnum],
+    hash_cost: u32,
+    user_ids_cache: &InstrumentedRedisCache<String, Vec<UserId>>,
+    conn: &mut DbConnection,
+) -> Result<(UserId, UserWithRoles), DomainError> {
+    use crate::schema::roles::dsl as roles_schema;
+    use crate::schema::users::dsl as users;
+    use crate::schema::users_roles::dsl as users_roles;
+
+    let nu = {
+        let mut nu2 = nu;
+        let hash = hash(nu2.password.as_str(), hash_cost)?;
+        nu2.password = Password::parse_string(hash).map_err(|err| {
+            DomainError::new_field_validation_error(err.to_string())
+        })?;
+        nu2
+    };
+
+    conn.transaction(|conn| {
+        let email_taken: i64 = users::users
+            .count()
+            .filter(users::email.eq(&nu.email))
+            .filter(users::deleted_at.is_null())
+            .get_result(conn)?;
+
+        if email_taken > 0 {
+            return Err(DomainError::new_field_validation_error(format!(
+                "Email '{}' is already registered",
+                nu.email
+            )));
+        }
+
+        diesel::insert_into(users::users)
+            .values(&nu)
+            .execute(conn)?;
+
+        let user = users::users
+            .select((
+                users::id,
+                users::username,
+                users::created_at,
+                users::deleted_at,
+                users::user_uuid,
+                users::email_verified,
+            ))
+            .filter(users::username.eq(nu.username))
+            .filter(users::deleted_at.is_null())
+            .first::<User>(conn)?;
+
+        for role in roles {
+            let role_id = roles_schema::roles
+                .select(roles_schema::id)
+                .filter(roles_schema::role_name.eq(role))
+                .first::<RoleId>(conn)?;
+
+            diesel::insert_into(users_roles::users_roles)
+                .values(NewUserRole {
+                    user_id: user.id,
+                    role_id,
+                })
+                .execute(conn)?;
+        }
+
+        let roles = get_roles_for_user(&user.id, conn)?;
+
+        let user_with_roles = (
+            user.id,
+            UserWithRoles {
+                username: user.username,
+                created_at: user.created_at,
+                user_uuid: user.user_uuid,
+                roles,
+            },
+        );
+
+        if let Err(e) = user_ids_cache.remove(&"user_ids".to_owned()) {
+            tracing::error!(error = %e, "Failed to invalidate user IDs cache");
+        }
+
+        Ok(user_with_roles)
+    })
+}
+
 pub fn insert_new_regular_user(
     nu: NewUser,
     hash_cost: u32,

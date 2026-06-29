@@ -371,9 +371,11 @@ mod tests {
                 .await
                 .unwrap();
 
-                let mut resp = ctx
+                // let admin_token = ctx._token;
+
+                let mut resp = ctx 
                     .test_server
-                    .get(format!("/api/v1/profiles/{}", user_uuid))
+                    .get(format!("/api/v1/private/profiles/{}", user_uuid))
                     .with_token(&admin_token)
                     .send()
                     .await

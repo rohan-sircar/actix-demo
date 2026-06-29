@@ -516,15 +516,13 @@ pub async fn delete_my_account(
 pub async fn get_public_profile(
     _req: HttpRequest,
     app_data: web::Data<AppData>,
-    user_id: web::Path<String>,
+    user_id: web::Path<UserUuid>,
 ) -> Result<HttpResponse, DomainError> {
-    let uuid = UserUuid::from_str(&user_id.into_inner()).map_err(|err| {
-        DomainError::new_bad_input_error(format!("Invalid UserUuid: {err}"))
-    })?;
+    let user_id = user_id.into_inner();
     let res = web::block(move || {
         let pool = &app_data.pool;
         let mut conn = pool.get()?;
-        actions::users::get_public_profile(&uuid, &mut conn)
+        actions::users::get_public_profile(&user_id, &mut conn)
     })
     .await??;
 
