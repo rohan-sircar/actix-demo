@@ -107,6 +107,18 @@ export function SwipeDeckCard({
     return () => { cancelled = true; };
   }, [pet.pet_uuid]);
 
+  const translationX = useSharedValue(0);
+  const translationY = useSharedValue(0);
+  const isAnimating = useSharedValue(false);
+  const entryScale = useSharedValue(0.95);
+  const entryOpacity = useSharedValue(0);
+
+  useEffect(() => {
+    const delay = stackIndex * 80;
+    entryScale.value = withDelay(delay, withSpring(1, { damping: 12, stiffness: 200 }));
+    entryOpacity.value = withDelay(delay, withTiming(1, { duration: 300 }));
+  }, []);
+
   const goToPrevImage = useCallback(() => {
     setCurrentImageIndex((i) => (i === 0 ? images.length - 1 : i - 1));
   }, [images.length]);
@@ -154,18 +166,6 @@ export function SwipeDeckCard({
   const jsOnDislike = useCallback(() => {
     onDislike();
   }, [onDislike]);
-
-  const translationX = useSharedValue(0);
-  const translationY = useSharedValue(0);
-  const isAnimating = useSharedValue(false);
-  const entryScale = useSharedValue(0.95);
-  const entryOpacity = useSharedValue(0);
-
-  useEffect(() => {
-    const delay = stackIndex * 80;
-    entryScale.value = withDelay(delay, withSpring(1, { damping: 12, stiffness: 200 }));
-    entryOpacity.value = withDelay(delay, withTiming(1, { duration: 300 }));
-  }, []);
 
   const panGesture = Gesture.Pan()
     .minDistance(5)
