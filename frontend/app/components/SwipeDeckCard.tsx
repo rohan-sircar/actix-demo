@@ -115,6 +115,19 @@ export function SwipeDeckCard({
     setCurrentImageIndex((i) => (i === images.length - 1 ? 0 : i + 1));
   }, [images.length]);
 
+  const handleImageTap = useCallback((e: any) => {
+    if (imagesLengthRef.current <= 1) return;
+    // If the card moved, the swipe gesture consumed this touch
+    if (Math.abs(translationX.value) > 3) return;
+    const screenWidth = Dimensions.get('window').width;
+    const x = e.nativeEvent.pageX;
+    if (x < screenWidth * 0.35) {
+      goToPrevImage();
+    } else if (x > screenWidth * 0.65) {
+      goToNextImage();
+    }
+  }, [goToPrevImage, goToNextImage, translationX]);
+
   const ageStr = pet.date_of_birth ? getAgeFromDob(pet.date_of_birth) : '';
   const gradient = getGradientForPet(petIndex);
 
@@ -166,19 +179,6 @@ export function SwipeDeckCard({
       if (!isTopCard || isAnimating.value) return;
       const tx = e.translationX;
       const vx = e.velocityX;
-      const absTx = Math.abs(tx);
-      // Detect tap: minimal movement (< 15px) on left/right side
-      if (absTx < 15 && imagesLengthRef.current > 1) {
-        const screenWidth = Dimensions.get('window').width;
-        if (e.absoluteX < screenWidth * 0.35) {
-          runOnJS(goToPrevImage)();
-        } else if (e.absoluteX > screenWidth * 0.65) {
-          runOnJS(goToNextImage)();
-        }
-        translationX.value = withSpring(0);
-        translationY.value = withSpring(0);
-        return;
-      }
       if (tx > SWIPE_THRESHOLD || (tx > 50 && vx > 1000)) {
         isAnimating.value = true;
         translationX.value = withSequence(
@@ -271,6 +271,7 @@ export function SwipeDeckCard({
             imageUuid={currentImage.uuid}
             variant="medium"
             style={[styles.gradientBackground, { backgroundColor: gradient[0] }]}
+            pointerEvents="none"
           />
         ) : (
           <View style={[styles.gradientBackground, { backgroundColor: gradient[0] }]}>
@@ -281,6 +282,15 @@ export function SwipeDeckCard({
               </Text>
             </View>
           </View>
+        )}
+
+        {/* Tap overlay for image navigation */}
+        {imagesLengthRef.current > 1 && (
+          <TouchableOpacity
+            style={styles.tapOverlay}
+            activeOpacity={0}
+            onPress={handleImageTap}
+          />
         )}
 
         <View style={styles.dotsContainer}>
@@ -429,6 +439,14 @@ const styles = StyleSheet.create({
   },
   photoArea: {
     flex: 1,
+  },
+  tapOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 5,
   },
   gradientBackground: {
     width: '100%',

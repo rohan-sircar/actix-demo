@@ -7,6 +7,7 @@ interface Props {
   variant?: 'thumbnail' | 'medium' | 'original';
   style?: object;
   resizeMode?: 'cover' | 'contain' | 'stretch';
+  pointerEvents?: 'box-none' | 'none' | 'box-only' | 'auto';
 }
 
 const CONTENT_FIT_MAP: Record<string, 'contain' | 'cover' | 'fill'> = {
@@ -15,7 +16,7 @@ const CONTENT_FIT_MAP: Record<string, 'contain' | 'cover' | 'fill'> = {
   stretch: 'fill',
 };
 
-export function AuthenticatedImage({ imageUuid, variant = 'medium', style, resizeMode = 'cover' }: Props) {
+export function AuthenticatedImage({ imageUuid, variant = 'medium', style, resizeMode = 'cover', pointerEvents }: Props) {
   const token = useAuthStore(s => s.token);
 
   if (!imageUuid) {
@@ -31,6 +32,7 @@ export function AuthenticatedImage({ imageUuid, variant = 'medium', style, resiz
       style={style}
       contentFit={CONTENT_FIT_MAP[resizeMode] || 'cover'}
       transition={200}
+      pointerEvents={pointerEvents}
     />
   );
 }

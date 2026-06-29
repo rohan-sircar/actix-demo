@@ -49,12 +49,12 @@ export function SwipeDeck({ colors, accentSet, isDarkColorScheme }: Props) {
       try {
         setLoading(true);
         const pets: PublicPet[] = [];
-        for (let i = 0; i < STACK_DEPTH && i < MAX_PETS; i++) {
+        for (let i = 0; i < MAX_PETS && pets.length < STACK_DEPTH; i++) {
           const pet = await discoverApi.next();
-          if (pet) {
+          if (pet && !pets.some((p) => p.pet_uuid === pet.pet_uuid)) {
             pets.push(pet);
             fetchCountRef.current++;
-          } else {
+          } else if (!pet) {
             break;
           }
         }

@@ -1,10 +1,11 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useRef } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   ScrollView as ScrollViewNative,
   StyleSheet,
+  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { PublicPet, PetImage } from '~/app/models/pets';
@@ -34,14 +35,16 @@ export function NativeGallery({ pet, images, colors, accentSet, isDarkColorSchem
     ? [{ id: 0, uuid: pet.primary_image.uuid, format: 'jpeg' as const, is_primary: true, sort_order: 0, created_at: '' }]
     : [];
   const allImages = images.length > 0 ? images : fallbackImages;
+  const imagesLenRef = useRef(allImages.length);
+  imagesLenRef.current = allImages.length;
 
   const goToPrev = useCallback(() => {
-    setCurrentIndex((i) => (i === 0 ? allImages.length - 1 : i - 1));
-  }, [allImages.length]);
+    setCurrentIndex((i) => (i === 0 ? imagesLenRef.current - 1 : i - 1));
+  }, []);
 
   const goToNext = useCallback(() => {
-    setCurrentIndex((i) => (i === allImages.length - 1 ? 0 : i + 1));
-  }, [allImages.length]);
+    setCurrentIndex((i) => (i === imagesLenRef.current - 1 ? 0 : i + 1));
+  }, []);
 
   const ageStr = pet.date_of_birth ? getAgeFromDob(pet.date_of_birth) : null;
 
@@ -105,18 +108,19 @@ export function NativeGallery({ pet, images, colors, accentSet, isDarkColorSchem
           />
         )}
 
-        {/* Left tap zone */}
+        {/* Tap overlay - sits above native image surface */}
         <TouchableOpacity
-          style={styles.tapZoneLeft}
+          style={styles.tapOverlay}
           activeOpacity={1}
-          onPress={goToPrev}
-        />
-
-        {/* Right tap zone */}
-        <TouchableOpacity
-          style={styles.tapZoneRight}
-          activeOpacity={1}
-          onPress={goToNext}
+          onPress={(e) => {
+            if (imagesLenRef.current <= 1) return;
+            const { width } = Dimensions.get('window');
+            if (e.nativeEvent.pageX < width * 0.5) {
+              goToPrev();
+            } else {
+              goToNext();
+            }
+          }}
         />
 
         {/* Page dots - top center */}
@@ -253,21 +257,13 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  tapZoneLeft: {
+  tapOverlay: {
     position: 'absolute',
     top: 0,
     left: 0,
-    width: '50%',
-    height: '100%',
-    zIndex: 5,
-  },
-  tapZoneRight: {
-    position: 'absolute',
-    top: 0,
     right: 0,
-    width: '50%',
-    height: '100%',
-    zIndex: 5,
+    bottom: 0,
+    zIndex: 6,
   },
   dotsContainer: {
     position: 'absolute',
@@ -277,7 +273,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 6,
+    zIndex: 7,
+    pointerEvents: 'box-none',
   },
   infoOverlay: {
     position: 'absolute',
@@ -287,7 +284,7 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
     paddingHorizontal: 16,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    zIndex: 6,
+    zIndex: 7,
   },
   pillsContainer: {
     flexDirection: 'row',
