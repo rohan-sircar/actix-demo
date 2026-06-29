@@ -581,7 +581,10 @@ mod pet_images_api {
 
         let mut resp = ctx
             .test_server
-            .get(format!("/api/v1/private/pets/images/{}/thumbnail", image_uuid))
+            .get(format!(
+                "/api/v1/private/pets/images/{}/thumbnail",
+                image_uuid
+            ))
             .with_token(&token)
             .send()
             .await

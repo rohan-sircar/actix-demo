@@ -443,7 +443,13 @@ pub fn insert_new_regular_user(
     user_ids_cache: &InstrumentedRedisCache<String, Vec<UserId>>,
     conn: &mut DbConnection,
 ) -> Result<(UserId, UserWithRoles), DomainError> {
-    insert_new_user_with_roles(nu, &[RoleEnum::RoleUser], hash_cost, user_ids_cache, conn)
+    insert_new_user_with_roles(
+        nu,
+        &[RoleEnum::RoleUser],
+        hash_cost,
+        user_ids_cache,
+        conn,
+    )
 }
 
 /// Update the authenticated user's profile fields.
