@@ -549,7 +549,8 @@ mod pet_images_api {
 
         let mut resp = ctx
             .test_server
-            .get(format!("/api/v1/pets/images/{}", image_uuid))
+            .get(format!("/api/v1/private/pets/images/{}", image_uuid))
+            .with_token(&token)
             .send()
             .await
             .unwrap();
@@ -580,7 +581,8 @@ mod pet_images_api {
 
         let mut resp = ctx
             .test_server
-            .get(format!("/api/v1/pets/images/{}/thumbnail", image_uuid))
+            .get(format!("/api/v1/private/pets/images/{}/thumbnail", image_uuid))
+            .with_token(&token)
             .send()
             .await
             .unwrap();
@@ -617,9 +619,10 @@ mod pet_images_api {
         let resp = ctx
             .test_server
             .get(format!(
-                "/api/v1/pets/images/{}/invalid_variant",
+                "/api/v1/private/pets/images/{}/invalid_variant",
                 image_uuid
             ))
+            .with_token(&token)
             .send()
             .await
             .unwrap();
