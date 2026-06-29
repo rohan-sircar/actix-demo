@@ -152,7 +152,7 @@ pub async fn github_callback(
 
     // Find or create user
     let app_data_clone = app_data.clone();
-    let (user, _is_new) = web::block(move || {
+    let ((uid, user), _is_new) = web::block(move || {
         let pool = &app_data_clone.pool;
         let mut conn = pool.get()?;
         find_or_create_oauth_user(
@@ -168,7 +168,7 @@ pub async fn github_callback(
     .await??;
 
     // Issue JWT and session
-    issue_oauth_session(app_data, user, redirect_url).await
+    issue_oauth_session(app_data, (uid, user), redirect_url).await
 }
 
 #[utoipa::path(
@@ -261,7 +261,7 @@ pub async fn google_callback(
 
     // Find or create user
     let app_data_clone = app_data.clone();
-    let (user, _is_new) = web::block(move || {
+    let ((uid, user), _is_new) = web::block(move || {
         let pool = &app_data_clone.pool;
         let mut conn = pool.get()?;
         find_or_create_oauth_user(
@@ -277,7 +277,7 @@ pub async fn google_callback(
     .await??;
 
     // Issue JWT and session
-    issue_oauth_session(app_data, user, None).await
+    issue_oauth_session(app_data, (uid, user), None).await
 }
 
 async fn create_oauth_session(
@@ -331,14 +331,18 @@ async fn create_oauth_session(
 
 async fn issue_oauth_session(
     app_data: Data<AppData>,
-    user: crate::models::users::UserWithRoles,
+    user: (
+        crate::models::users::UserId,
+        crate::models::users::UserWithRoles,
+    ),
     redirect_url: Option<String>,
 ) -> Result<HttpResponse, DomainError> {
-    let (token, _session_info) = create_oauth_session(&user, &app_data).await?;
+    let (token, _session_info) =
+        create_oauth_session(&user.1, &app_data).await?;
 
     tracing::info!(
-        user_id = %user.id,
-        username = %user.username,
+        user_id = %user.0,
+        username = %user.1.username,
         "OAuth login successful"
     );
 
@@ -409,7 +413,7 @@ pub async fn github_exchange(
     // Find or create user
     let email_clone = email.clone();
     let app_data_clone = app_data.clone();
-    let (user, _is_new) = web::block(move || {
+    let ((uid, user), _is_new) = web::block(move || {
         let pool = &app_data_clone.pool;
         let mut conn = pool.get()?;
         find_or_create_oauth_user(
@@ -427,7 +431,7 @@ pub async fn github_exchange(
     let (token, _session_info) = create_oauth_session(&user, &app_data).await?;
 
     let auth_user = AuthUser {
-        id: user.id.as_uint() as i32,
+        id: uid.as_uint() as i32,
         username: user.username.as_str().to_string(),
         email: email.as_str().to_string(),
     };
@@ -479,7 +483,7 @@ pub async fn google_exchange(
     // Find or create user
     let email_clone = email.clone();
     let app_data_clone = app_data.clone();
-    let (user, _is_new) = web::block(move || {
+    let ((uid, user), _is_new) = web::block(move || {
         let pool = &app_data_clone.pool;
         let mut conn = pool.get()?;
         find_or_create_oauth_user(
@@ -497,7 +501,7 @@ pub async fn google_exchange(
     let (token, _session_info) = create_oauth_session(&user, &app_data).await?;
 
     let auth_user = AuthUser {
-        id: user.id.as_uint() as i32,
+        id: uid.as_uint() as i32,
         username: user.username.as_str().to_string(),
         email: email.as_str().to_string(),
     };

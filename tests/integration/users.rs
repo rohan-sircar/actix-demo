@@ -46,11 +46,9 @@ mod tests {
             assert_eq!(resp.status(), StatusCode::OK);
             let body: Vec<UserWithRoles> = resp.json().await.unwrap();
             let user = body.first().unwrap();
-            assert_eq!(user.id.as_uint(), 1);
             assert_eq!(user.username.as_str(), "admin");
             assert_eq!(user.roles, vec![RoleEnum::RoleAdmin]);
             let user = body.get(1).unwrap();
-            assert_eq!(user.id.as_uint(), 2);
             assert_eq!(user.username.as_str(), "user1");
             assert_eq!(user.roles, vec![RoleEnum::RoleUser]);
         }

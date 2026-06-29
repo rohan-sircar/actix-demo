@@ -264,7 +264,6 @@ pub struct User {
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 pub struct UserWithRoles {
-    pub id: UserId,
     pub username: Username,
     pub created_at: chrono::NaiveDateTime,
     pub user_uuid: UserUuid,
@@ -274,7 +273,6 @@ pub struct UserWithRoles {
 impl UserWithRoles {
     pub fn from_user(user: &User, roles: &[RoleEnum]) -> UserWithRoles {
         UserWithRoles {
-            id: user.id,
             username: user.username.clone(),
             created_at: user.created_at,
             user_uuid: user.user_uuid,
@@ -619,7 +617,11 @@ mod test {
         ).unwrap();
         let roles = vec![RoleEnum::RoleUser];
         let ur = UserWithRoles::from_user(&user, &roles);
-        assert_eq!(ur.id.0 as u32, 1);
+        assert_eq!(
+            ur.user_uuid.0.to_string(),
+            "00000000-0000-0000-0000-000000000001"
+        );
+        assert_eq!(ur.username.0, "chewbacca");
     }
 
     #[test]

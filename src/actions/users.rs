@@ -57,20 +57,21 @@ pub fn get_roles_for_user(
 pub fn get_roles_for_users(
     users: Vec<User>,
     conn: &mut DbConnection,
-) -> Result<Vec<UserWithRoles>, DomainError> {
+) -> Result<Vec<(UserId, UserWithRoles)>, DomainError> {
     users
         .into_iter()
         .map(|user| {
-            get_roles_for_user(&user.id, conn)
-                .map(|roles| UserWithRoles::from_user(&user, &roles))
+            let id = user.id;
+            get_roles_for_user(&id, conn)
+                .map(|roles| (id, UserWithRoles::from_user(&user, &roles)))
         })
-        .collect::<Result<Vec<UserWithRoles>, DomainError>>()
+        .collect::<Result<Vec<(UserId, UserWithRoles)>, DomainError>>()
 }
 
 pub fn find_user_by_uuid(
     uuid: &UserUuid,
     conn: &mut DbConnection,
-) -> Result<Option<UserWithRoles>, DomainError> {
+) -> Result<Option<(UserId, UserWithRoles)>, DomainError> {
     use crate::schema::users::dsl as users;
 
     conn.transaction(|conn| {
@@ -93,7 +94,10 @@ pub fn find_user_by_uuid(
             .transpose()?;
 
         Ok(mb_user.map(|user| {
-            UserWithRoles::from_user(&user, &roles.unwrap_or_default())
+            (
+                user.id,
+                UserWithRoles::from_user(&user, &roles.unwrap_or_default()),
+            )
         }))
     })
 }
@@ -102,7 +106,7 @@ pub fn find_user_by_uuid(
 pub fn find_active_user_by_uuid(
     uuid: &UserUuid,
     conn: &mut DbConnection,
-) -> Result<Option<UserWithRoles>, DomainError> {
+) -> Result<Option<(UserId, UserWithRoles)>, DomainError> {
     use crate::schema::users::dsl as users;
 
     conn.transaction(|conn| {
@@ -126,7 +130,10 @@ pub fn find_active_user_by_uuid(
             .transpose()?;
 
         Ok(mb_user.map(|user| {
-            UserWithRoles::from_user(&user, &roles.unwrap_or_default())
+            (
+                user.id,
+                UserWithRoles::from_user(&user, &roles.unwrap_or_default()),
+            )
         }))
     })
 }
@@ -134,7 +141,7 @@ pub fn find_active_user_by_uuid(
 pub fn find_user_by_name(
     user_name: &Username,
     conn: &mut DbConnection,
-) -> Result<Option<UserWithRoles>, DomainError> {
+) -> Result<Option<(UserId, UserWithRoles)>, DomainError> {
     use crate::schema::users::dsl as users;
 
     conn.transaction(|conn| {
@@ -160,13 +167,12 @@ pub fn find_user_by_name(
         let mb_user_with_roles = m! {
             user <- mb_user;
             roles <- roles;
-            Some(UserWithRoles {
-                id: user.id,
+            Some((user.id, UserWithRoles {
                 username: user.username,
                 created_at: user.created_at,
                 user_uuid: user.user_uuid,
                 roles,
-            })
+            }))
         };
 
         Ok(mb_user_with_roles)
@@ -214,7 +220,7 @@ pub fn get_user_auth_details(
 pub fn get_all_users(
     pagination: &Pagination,
     conn: &mut DbConnection,
-) -> Result<Vec<UserWithRoles>, DomainError> {
+) -> Result<Vec<(UserId, UserWithRoles)>, DomainError> {
     use crate::schema::users::dsl as users;
 
     conn.transaction(|conn| {
@@ -284,7 +290,7 @@ pub fn search_users(
     query: &str,
     pagination: &Pagination,
     conn: &mut DbConnection,
-) -> Result<Vec<UserWithRoles>, DomainError> {
+) -> Result<Vec<(UserId, UserWithRoles)>, DomainError> {
     use crate::schema::users::dsl as users;
 
     conn.transaction(|conn| {
@@ -352,7 +358,7 @@ pub fn insert_new_user(
     hash_cost: u32,
     user_ids_cache: &InstrumentedRedisCache<String, Vec<UserId>>,
     conn: &mut DbConnection,
-) -> Result<UserWithRoles, DomainError> {
+) -> Result<(UserId, UserWithRoles), DomainError> {
     use crate::schema::roles::dsl as roles;
     use crate::schema::users::dsl as users;
     use crate::schema::users_roles::dsl as users_roles;
@@ -409,13 +415,15 @@ pub fn insert_new_user(
 
         let roles = get_roles_for_user(&user.id, conn)?;
 
-        let user_with_roles = UserWithRoles {
-            id: user.id,
-            username: user.username,
-            created_at: user.created_at,
-            user_uuid: user.user_uuid,
-            roles,
-        };
+        let user_with_roles = (
+            user.id,
+            UserWithRoles {
+                username: user.username,
+                created_at: user.created_at,
+                user_uuid: user.user_uuid,
+                roles,
+            },
+        );
 
         // Invalidate the cache since we've added a new user
         if let Err(e) = user_ids_cache.remove(&"user_ids".to_owned()) {
@@ -431,7 +439,7 @@ pub fn insert_new_regular_user(
     hash_cost: u32,
     user_ids_cache: &InstrumentedRedisCache<String, Vec<UserId>>,
     conn: &mut DbConnection,
-) -> Result<UserWithRoles, DomainError> {
+) -> Result<(UserId, UserWithRoles), DomainError> {
     insert_new_user(nu, RoleEnum::RoleUser, hash_cost, user_ids_cache, conn)
 }
 
@@ -440,7 +448,7 @@ pub fn update_user_profile(
     uuid: &UserUuid,
     updates: UpdateUserProfile,
     conn: &mut DbConnection,
-) -> Result<UserWithRoles, DomainError> {
+) -> Result<(UserId, UserWithRoles), DomainError> {
     use crate::schema::users::dsl as users;
 
     conn.transaction(|conn| {
@@ -550,7 +558,7 @@ pub fn update_user_profile(
 
         let roles = get_roles_for_user(&existing_id, conn)?;
 
-        Ok(UserWithRoles::from_user(&user, &roles))
+        Ok((existing_id, UserWithRoles::from_user(&user, &roles)))
     })
 }
 
@@ -669,7 +677,7 @@ pub fn find_or_create_oauth_user(
     _hash_cost: u32,
     user_ids_cache: &InstrumentedRedisCache<String, Vec<UserId>>,
     conn: &mut DbConnection,
-) -> Result<(UserWithRoles, bool), DomainError> {
+) -> Result<((UserId, UserWithRoles), bool), DomainError> {
     use crate::schema::users::dsl as users;
 
     conn.transaction(|conn| {
@@ -692,13 +700,15 @@ pub fn find_or_create_oauth_user(
         if let Some(user) = existing_oauth {
             let roles = get_roles_for_user(&user.id, conn)?;
             return Ok((
-                UserWithRoles {
-                    id: user.id,
-                    username: user.username,
-                    created_at: user.created_at,
-                    user_uuid: user.user_uuid,
-                    roles,
-                },
+                (
+                    user.id,
+                    UserWithRoles {
+                        username: user.username,
+                        created_at: user.created_at,
+                        user_uuid: user.user_uuid,
+                        roles,
+                    },
+                ),
                 false,
             ));
         }
@@ -751,13 +761,15 @@ pub fn find_or_create_oauth_user(
 
                 let roles = get_roles_for_user(&uid, conn)?;
                 return Ok((
-                    UserWithRoles {
-                        id: uid,
-                        username,
-                        created_at,
-                        user_uuid,
-                        roles,
-                    },
+                    (
+                        uid,
+                        UserWithRoles {
+                            username,
+                            created_at,
+                            user_uuid,
+                            roles,
+                        },
+                    ),
                     false,
                 ));
             }
@@ -846,13 +858,15 @@ pub fn find_or_create_oauth_user(
         }
 
         Ok((
-            UserWithRoles {
-                id: user.id,
-                username: user.username,
-                created_at: user.created_at,
-                user_uuid: user.user_uuid,
-                roles,
-            },
+            (
+                user.id,
+                UserWithRoles {
+                    username: user.username,
+                    created_at: user.created_at,
+                    user_uuid: user.user_uuid,
+                    roles,
+                },
+            ),
             true,
         ))
     })

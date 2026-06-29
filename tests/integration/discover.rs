@@ -55,8 +55,8 @@ mod discover {
             )
             .unwrap();
 
-            let user1_uid = UserId::try_from(user1.id.as_uint()).unwrap();
-            let user2_uid = UserId::try_from(user2.id.as_uint()).unwrap();
+            let user1_uid = UserId::try_from(user1.0.as_uint()).unwrap();
+            let user2_uid = UserId::try_from(user2.0.as_uint()).unwrap();
 
             let create_pet = CreatePet {
                 name: PetName::new("TestDog".to_string()).unwrap(),
