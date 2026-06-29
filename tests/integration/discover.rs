@@ -126,7 +126,6 @@ mod discover {
                 index_names
             );
 
-
             #[derive(diesel::deserialize::QueryableByName, Debug)]
             struct FkInfo {
                 #[diesel(sql_type = diesel::sql_types::Text)]

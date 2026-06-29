@@ -110,6 +110,8 @@ impl TryFrom<u32> for LikeId {
 pub struct CreateLike {
     pub pet_uuid: PetUuid,
     pub direction: LikeDirection,
+    #[serde(default)]
+    pub reciprocal_pet_uuid: Option<PetUuid>,
 }
 
 /// Queryable model for a like record
@@ -186,6 +188,8 @@ pub struct LikeWithPet {
 pub struct PetInteractionResponse {
     pub interacted: bool,
     pub direction: Option<LikeDirection>,
+    #[serde(default)]
+    pub potential_matches: Vec<MatchPetInfo>,
 }
 
 /// Minimal pet info for match display
@@ -210,7 +214,6 @@ pub struct MatchWithPets {
     pub other_owner_avatar_url: Option<String>,
     /// UUID of the other user
     pub other_user_uuid: crate::models::users::UserUuid,
-    pub is_match: bool,
     pub matched_at: Option<chrono::NaiveDateTime>,
 }
 
@@ -323,5 +326,31 @@ mod test {
         let response = LikeResponse::from((&like, &pet_uuid));
         assert_eq!(response.id.as_uint(), 1);
         assert_eq!(response.direction, LikeDirection::Like);
+    }
+
+    #[test]
+    fn create_like_deserializes_with_reciprocal_pet_uuid() {
+        let json = r#"{"pet_uuid": "550e8400-e29b-41d4-a716-446655440000", "direction": "like", "reciprocal_pet_uuid": "660e8400-e29b-41d4-a716-446655440001"}"#;
+        let like = serde_json::from_str::<CreateLike>(json);
+        assert!(like.is_ok());
+        let like = like.unwrap();
+        assert_eq!(
+            like.reciprocal_pet_uuid,
+            Some(
+                PetUuid::try_from(
+                    "660e8400-e29b-41d4-a716-446655440001".to_string()
+                )
+                .unwrap()
+            )
+        );
+    }
+
+    #[test]
+    fn create_like_deserializes_without_reciprocal_pet_uuid() {
+        let json = r#"{"pet_uuid": "550e8400-e29b-41d4-a716-446655440000", "direction": "like"}"#;
+        let like = serde_json::from_str::<CreateLike>(json);
+        assert!(like.is_ok());
+        let like = like.unwrap();
+        assert!(like.reciprocal_pet_uuid.is_none());
     }
 }

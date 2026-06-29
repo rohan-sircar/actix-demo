@@ -292,10 +292,7 @@ pub async fn check_pet_interaction(
                 &user_id, &pet_uuid, &mut conn,
             )?;
 
-            Ok(PetInteractionResponse {
-                interacted: interaction.is_some(),
-                direction: interaction.clone(),
-            })
+            Ok(interaction)
         })
         .await??;
 

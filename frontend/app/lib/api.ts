@@ -129,8 +129,12 @@ export const discoverApi = {
 };
 
 export const likesApi = {
-  async create(petUuid: string, direction: 'like' | 'dislike'): Promise<import('~/app/models/pets').LikeRecord> {
-    const response = await api.post('/api/v1/private/likes', { pet_uuid: petUuid, direction });
+  async create(petUuid: string, direction: 'like' | 'dislike', reciprocalPetUuid?: string): Promise<import('~/app/models/pets').LikeRecord> {
+    const body: { pet_uuid: string; direction: 'like' | 'dislike'; reciprocal_pet_uuid?: string } = { pet_uuid: petUuid, direction };
+    if (reciprocalPetUuid) {
+      body.reciprocal_pet_uuid = reciprocalPetUuid;
+    }
+    const response = await api.post('/api/v1/private/likes', body);
     return response.data;
   },
 
@@ -149,7 +153,7 @@ export const likesApi = {
     return response.data;
   },
 
-  async checkInteraction(petUuid: string): Promise<{ interacted: boolean; direction: 'like' | 'dislike' | null }> {
+  async checkInteraction(petUuid: string): Promise<import('~/app/models/pets').PetInteractionResponse> {
     const response = await api.get(`/api/v1/private/likes/check/${petUuid}`);
     return response.data;
   },

@@ -16,6 +16,8 @@ fn main() {
 
     // Delete in reverse dependency order to avoid foreign key violations
     let tables = [
+        ("matches", "match records"),
+        ("likes", "likes"),
         ("pet_images", "images"),
         ("pet_personality_traits", "trait assignments"),
         ("pets", "pets"),

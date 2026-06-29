@@ -2,25 +2,27 @@ use diesel::prelude::*;
 
 use crate::errors::DomainError;
 use crate::models::likes::{
-    CreateLike, Like, LikeDirection, LikeResponse, LikeWithPet, Match, NewLike,
-    NewMatch,
+    CreateLike, Like, LikeDirection, LikeResponse, LikeWithPet, MatchPetInfo,
+    NewLike, NewMatch, PetInteractionResponse,
 };
 use crate::models::pets::{PetId, PetImageUuid, PetName, PetSpecies, PetUuid};
 use crate::models::users::UserId;
 use crate::types::DbConnection;
 
-/// Creates a like or dislike for a pet. Detects mutual matches.
+/// Creates a like or dislike for a pet. Creates a match if an explicit reciprocal_pet_uuid is provided.
 pub fn create_like(
     user_id: &UserId,
     create: CreateLike,
     conn: &mut DbConnection,
 ) -> Result<LikeResponse, DomainError> {
     use crate::schema::likes::dsl as likes;
+    use crate::schema::matches::dsl as matches;
     use crate::schema::pets::dsl as pets;
 
     let CreateLike {
         pet_uuid,
         direction,
+        reciprocal_pet_uuid,
     } = create;
 
     conn.transaction::<_, DomainError, _>(|conn| {
@@ -56,45 +58,59 @@ pub fn create_like(
             .returning(likes::id)
             .get_result(conn)?;
 
-        // Check for mutual match (only for "like" direction)
-        if direction == LikeDirection::Like {
-            use crate::schema::matches::dsl as matches;
+        // Create match if an explicit reciprocal_pet_uuid was provided
+        if let Some(recip_pet_uuid) = reciprocal_pet_uuid {
             use crate::schema::pets::dsl::{
-                id as pet_id_col, pets, user_id as owner_col,
+                id as recip_pet_id_col, pet_uuid, pets as recip_pets,
+                user_id as recip_user_id,
             };
 
-            // Find a reciprocal like from the pet owner (one of their pets liked by current user)
-            let reciprocal: Result<Like, _> = likes::likes
+            // Verify the reciprocal pet belongs to the current user
+            let recip_pet_id: PetId = recip_pets
+                .select(recip_pet_id_col)
+                .filter(
+                    pet_uuid
+                        .eq(&recip_pet_uuid)
+                        .and(recip_user_id.eq(*user_id)),
+                )
+                .first(conn)
+                .map_err(|_| {
+                    DomainError::new_bad_input_error(
+                        "Reciprocal pet not found or does not belong to you"
+                            .to_string(),
+                    )
+                })?;
+
+            // Find the reciprocal like (pet owner liked this of our pets)
+            let reciprocal: Like = likes::likes
                 .filter(
                     likes::user_id
                         .eq(pet_owner_id)
-                        .and(
-                            likes::pet_id.eq_any(
-                                pets.select(pet_id_col)
-                                    .filter(owner_col.eq(*user_id)),
-                            ),
-                        )
+                        .and(likes::pet_id.eq(recip_pet_id))
                         .and(likes::direction.eq(LikeDirection::Like)),
                 )
-                .first(conn);
+                .first(conn)
+                .map_err(|_| {
+                    DomainError::new_bad_input_error(
+                        "No matching reciprocal like found".to_string(),
+                    )
+                })?;
 
-            if let Ok(recip) = reciprocal {
-                // Determine which like_id is smaller for the constraint like_id_a < like_id_b
-                let (a, b) = if recip.id.as_int() < inserted_id {
-                    (recip.id.as_int(), inserted_id)
-                } else {
-                    (inserted_id, recip.id.as_int())
-                };
+            // Determine which like_id is smaller for the constraint like_id_a < like_id_b
+            let (a, b) = if reciprocal.id.as_int() < inserted_id {
+                (reciprocal.id.as_int(), inserted_id)
+            } else {
+                (inserted_id, reciprocal.id.as_int())
+            };
 
-                // Insert into matches table
-                let new_match = NewMatch::new(
-                    crate::models::likes::LikeId::try_from(a as u32).unwrap(),
-                    crate::models::likes::LikeId::try_from(b as u32).unwrap(),
-                );
-                diesel::insert_into(matches::matches)
-                    .values(&new_match)
-                    .execute(conn)?;
-            }
+            // Insert into matches table
+            let new_match = NewMatch::new(
+                crate::models::likes::LikeId::try_from(a as u32).unwrap(),
+                crate::models::likes::LikeId::try_from(b as u32).unwrap(),
+            );
+            diesel::insert_into(matches::matches)
+                .values(&new_match)
+                .execute(conn)?;
         }
 
         // Fetch the inserted like
@@ -230,17 +246,17 @@ fn fetch_liker_info(
 }
 
 /// Checks if a user has already interacted with a specific pet (liked/disliked).
-/// Returns Some(direction) if interaction exists, None otherwise.
+/// Returns interaction status and potential reciprocal match pets.
 pub fn get_pet_interaction(
     user_id: &UserId,
     pet_uuid: &PetUuid,
     conn: &mut DbConnection,
-) -> Result<Option<LikeDirection>, DomainError> {
+) -> Result<PetInteractionResponse, DomainError> {
     use crate::schema::likes::dsl as likes;
     use crate::schema::pets::dsl as pets;
 
-    let pet_id: PetId = pets::pets
-        .select(pets::id)
+    let (pet_id, pet_owner_id): (PetId, UserId) = pets::pets
+        .select((pets::id, pets::user_id))
         .filter(pets::pet_uuid.eq(pet_uuid))
         .first(conn)?;
 
@@ -249,7 +265,48 @@ pub fn get_pet_interaction(
         .first(conn)
         .optional()?;
 
-    Ok(interaction.map(|like| like.direction))
+    // Find potential reciprocal matches: pets owned by current user that pet_owner has liked
+    let potential_matches: Vec<MatchPetInfo> = {
+        use crate::schema::pets::dsl::{
+            id as my_pet_id_col, pets as my_pets, user_id as my_owner_id_col,
+        };
+
+        let recip_like_rows: Vec<Like> = likes::likes
+            .filter(
+                likes::user_id
+                    .eq(pet_owner_id)
+                    .and(
+                        likes::pet_id.eq_any(
+                            my_pets
+                                .select(my_pet_id_col)
+                                .filter(my_owner_id_col.eq(*user_id)),
+                        ),
+                    )
+                    .and(likes::direction.eq(LikeDirection::Like)),
+            )
+            .load(conn)?;
+
+        recip_like_rows
+            .into_iter()
+            .filter_map(|like| match fetch_pet_with_image(&like.pet_id, conn) {
+                Ok((p_uuid, p_name, p_species, p_image)) => {
+                    Some(MatchPetInfo {
+                        pet_uuid: p_uuid,
+                        pet_name: p_name,
+                        species: p_species,
+                        primary_image_uuid: p_image.map(|u| u.to_string()),
+                    })
+                }
+                Err(_) => None,
+            })
+            .collect()
+    };
+
+    Ok(PetInteractionResponse {
+        interacted: interaction.is_some(),
+        direction: interaction.map(|like| like.direction),
+        potential_matches,
+    })
 }
 
 /// Returns mutual matches with both pets involved for the current user.
@@ -258,34 +315,68 @@ pub fn list_matches_with_pets(
     conn: &mut DbConnection,
 ) -> Result<Vec<crate::models::likes::MatchWithPets>, DomainError> {
     use crate::schema::likes::dsl as likes;
-    use crate::schema::matches::dsl as matches;
 
-    // Load all matches ordered by matched_at
-    let all_matches: Vec<Match> = matches::matches
-        .order(matches::matched_at.desc())
+    // Get the user's like IDs to filter matches at the SQL level
+    let user_like_ids: Vec<crate::models::likes::LikeId> = likes::likes
+        .filter(likes::user_id.eq(*user_id))
+        .select(likes::id)
         .load(conn)?;
+
+    // Short-circuit if user has no likes
+    if user_like_ids.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    // Load only matches involving this user via SQL IN filter
+    use crate::models::likes::{Like, LikeId, Match};
+    use crate::schema::matches::dsl as matches_dsl;
+
+    let user_matches: Vec<Match> = matches_dsl::matches
+        .filter(
+            matches_dsl::like_id_a
+                .eq_any(&user_like_ids)
+                .or(matches_dsl::like_id_b.eq_any(&user_like_ids)),
+        )
+        .order(matches_dsl::matched_at.desc())
+        .load(conn)?;
+
+    // Batch-load all likes involved in the user's matches
+    let like_ids: Vec<LikeId> = user_matches
+        .iter()
+        .flat_map(|m| [m.like_id_a, m.like_id_b])
+        .collect();
+    let likes_map: std::collections::HashMap<LikeId, Like> =
+        if like_ids.is_empty() {
+            std::collections::HashMap::new()
+        } else {
+            likes::likes
+                .filter(likes::id.eq_any(&like_ids))
+                .load(conn)?
+                .into_iter()
+                .map(|l: Like| (l.id, l))
+                .collect()
+        };
 
     let mut result = Vec::new();
 
-    for match_row in all_matches {
-        // Fetch both likes
-        let like_a: Result<Like, _> = likes::likes
-            .filter(likes::id.eq(match_row.like_id_a))
-            .first(conn);
+    for match_row in &user_matches {
+        let like_a = match likes_map.get(&match_row.like_id_a) {
+            Some(l) => l.clone(),
+            None => continue,
+        };
+        let like_b = match likes_map.get(&match_row.like_id_b) {
+            Some(l) => l.clone(),
+            None => continue,
+        };
 
-        let like_b: Result<Like, _> = likes::likes
-            .filter(likes::id.eq(match_row.like_id_b))
-            .first(conn);
-
-        let (current_like, other_like) = match (like_a, like_b) {
-            (Ok(a), Ok(b)) if a.user_id == *user_id => (a, b),
-            (Ok(a), Ok(b)) if b.user_id == *user_id => (b, a),
-            _ => continue, // Current user not involved in this match
+        let (current_like, other_like) = match (&like_a, &like_b) {
+            (a, b) if a.user_id == *user_id => (a, b),
+            (a, b) if b.user_id == *user_id => (b, a),
+            _ => continue,
         };
 
         let other_user_id = other_like.pet_owner_id;
 
-        // The pet the current user liked (other person's pet)
         let their_pet = match fetch_pet_with_image(&other_like.pet_id, conn) {
             Ok(p) => p,
             Err(_) => continue,
@@ -297,7 +388,6 @@ pub fn list_matches_with_pets(
             primary_image_uuid: their_pet.3.map(|u| u.to_string()),
         };
 
-        // The pet the other person liked (current user's pet)
         let my_pet = match fetch_pet_with_image(&current_like.pet_id, conn) {
             Ok(p) => p,
             Err(_) => continue,
@@ -320,7 +410,6 @@ pub fn list_matches_with_pets(
             other_owner_name: other_owner.display_name,
             other_owner_avatar_url: other_owner.avatar_url,
             other_user_uuid: other_owner.user_uuid,
-            is_match: true,
             matched_at: Some(match_row.matched_at),
         });
     }

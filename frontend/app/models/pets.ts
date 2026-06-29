@@ -113,3 +113,9 @@ export interface DiscoverQuery {
   limit?: number;
   offset?: number;
 }
+
+export interface PetInteractionResponse {
+  interacted: boolean;
+  direction: 'like' | 'dislike' | null;
+  potential_matches: MatchPetInfo[];
+}
