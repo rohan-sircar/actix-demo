@@ -37,18 +37,18 @@ mod discover {
                     .unwrap(),
             };
 
-            let user1 = actix_demo::actions::users::insert_new_user(
+            let user1 = actix_demo::actions::users::insert_new_user_with_roles(
                 new_user1,
-                RoleEnum::RoleUser,
+                &[RoleEnum::RoleUser],
                 ctx.app_data.config.hash_cost,
                 &ctx.app_data.user_ids_cache,
                 &mut conn,
             )
             .unwrap();
 
-            let user2 = actix_demo::actions::users::insert_new_user(
+            let user2 = actix_demo::actions::users::insert_new_user_with_roles(
                 new_user2,
-                RoleEnum::RoleUser,
+                &[RoleEnum::RoleUser],
                 ctx.app_data.config.hash_cost,
                 &ctx.app_data.user_ids_cache,
                 &mut conn,
