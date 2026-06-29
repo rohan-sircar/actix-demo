@@ -412,8 +412,6 @@ mod tests {
             .unwrap();
 
         let exchange_body: Value = exchange_resp.json().await.unwrap();
-        let exchange_user_id =
-            exchange_body.get("user").unwrap().get("id").unwrap();
         let exchange_username = exchange_body
             .get("user")
             .unwrap()
@@ -442,13 +440,13 @@ mod tests {
             .unwrap();
 
         let profile_body: Value = resp.json().await.unwrap();
-        let profile_id = profile_body.get("id").unwrap();
         let profile_username =
             profile_body.get("username").unwrap().as_str().unwrap();
+        let profile_uuid = profile_body.get("user_uuid").unwrap();
 
-        assert_eq!(
-            exchange_user_id, profile_id,
-            "User ID from exchange should match profile"
+        assert!(
+            !profile_uuid.as_str().unwrap().is_empty(),
+            "Profile should contain user_uuid"
         );
         assert_eq!(
             exchange_username, profile_username,

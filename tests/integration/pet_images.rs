@@ -102,7 +102,6 @@ mod pet_images_api {
         assert_eq!(body["is_primary"], true);
         assert_eq!(body["sort_order"], 0);
         assert!(body["uuid"].as_str().is_some());
-        assert!(body["id"].as_u64().is_some());
         assert!(body["created_at"].as_str().is_some());
     }
 

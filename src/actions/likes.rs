@@ -108,6 +108,43 @@ pub fn create_like(
             diesel::insert_into(matches::matches)
                 .values(&new_match)
                 .execute(conn)?;
+        } else {
+            // Auto-detect reciprocal likes: check if pet_owner has liked any of user_id's pets
+            use crate::schema::pets::dsl::{
+                id as my_pet_id_col, pets as my_pets, user_id as my_owner_id,
+            };
+
+            let my_pet_ids: Vec<PetId> = my_pets
+                .select(my_pet_id_col)
+                .filter(my_owner_id.eq(*user_id))
+                .load(conn)?;
+
+            if !my_pet_ids.is_empty() {
+                use crate::schema::likes::dsl as likes_dsl;
+
+                let reciprocal_like: Option<Like> = likes_dsl::likes
+                    .filter(
+                        likes_dsl::pet_id
+                            .eq_any(&my_pet_ids)
+                            .and(likes_dsl::user_id.eq(pet_owner_id))
+                            .and(likes_dsl::direction.eq(LikeDirection::Like)),
+                    )
+                    .first(conn)
+                    .optional()?;
+
+                if let Some(reciprocal) = reciprocal_like {
+                    let (a, b) = if reciprocal.id < inserted_id {
+                        (reciprocal.id, inserted_id)
+                    } else {
+                        (inserted_id, reciprocal.id)
+                    };
+
+                    let new_match = NewMatch::new(a, b);
+                    let _ = diesel::insert_into(matches::matches)
+                        .values(&new_match)
+                        .execute(conn);
+                }
+            }
         }
 
         // Fetch the inserted like

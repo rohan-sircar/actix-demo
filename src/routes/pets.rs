@@ -140,7 +140,7 @@ pub async fn create_pet(
 ) -> Result<HttpResponse, DomainError> {
     let user_uuid = crate::utils::extract_user_uuid_from_header(req.headers())?;
 
-    let public_pet = web::block(move || {
+    let (_pet_id, public_pet) = web::block(move || {
         let pool = &app_data.pool;
         let mut conn = pool.get()?;
         let user_id =
