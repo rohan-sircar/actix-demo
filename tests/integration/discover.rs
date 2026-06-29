@@ -7,7 +7,7 @@ mod discover {
 
     mod schema_test {
         use actix_demo::models::likes::{Like, LikeDirection, NewLike};
-        use actix_demo::models::pets::{CreatePet, PetId, PetName, PetSpecies};
+        use actix_demo::models::pets::{CreatePet, PetName, PetSpecies};
         use actix_demo::models::roles::RoleEnum;
         use actix_demo::models::users::{
             Email, NewUser, Password, UserId, Username,
@@ -70,12 +70,10 @@ mod discover {
                 traits: vec![],
             };
 
-            let pet_result = actix_demo::actions::pets::create_pet(
+            let (pet_id, _pet_result) = actix_demo::actions::pets::create_pet(
                 &user2_uid, create_pet, &mut conn,
             )
             .unwrap();
-
-            let pet_id = PetId::try_from(pet_result.id.as_uint()).unwrap();
 
             let new_like =
                 NewLike::new(user1_uid, user2_uid, pet_id, LikeDirection::Like);

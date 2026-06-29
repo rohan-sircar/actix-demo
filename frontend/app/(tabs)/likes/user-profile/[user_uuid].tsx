@@ -64,7 +64,7 @@ export default function PublicUserProfileScreen() {
           </Text>
 
           <View className="flex-row items-center">
-            <Avatar userId={null} avatarUrl={null} size={64} style={{ marginRight: 16 }} />
+            <Avatar userUuid={null} avatarUrl={null} size={64} style={{ marginRight: 16 }} />
             <View className="flex-1">
               <Text className="text-lg font-bold" style={{ color: colors.text }}>
                 {profile.display_name || 'Pet Owner'}

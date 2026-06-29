@@ -33,7 +33,7 @@ const FetchUserDetails = () => {
       {user && (
         <View className="rounded-lg bg-blue-50 p-3">
           <Text className="text-sm text-blue-800">
-            Currently logged in as: {user.username} (ID: {user.id})
+            Currently logged in as: {user.username} (UUID: {user.user_uuid})
           </Text>
         </View>
       )}

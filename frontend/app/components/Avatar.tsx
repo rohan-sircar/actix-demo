@@ -5,7 +5,7 @@ import { Image, StyleSheet, View } from 'react-native';
 import USERS from '../../data/users';
 
 type AvatarProps = {
-  userId?: number | null;
+  userUuid?: string | null;
   avatarUrl?: string | null;
   style?: any;
   size?: number;
@@ -31,7 +31,7 @@ const styles = StyleSheet.create({
   },
 });
 
-const AvatarComponent: React.FC<AvatarProps> = ({ userId, avatarUrl, style, size = 36 }) => {
+const AvatarComponent: React.FC<AvatarProps> = ({ userUuid, avatarUrl, style, size = 36 }) => {
   const SIZING = {
     height: size,
     width: size,
@@ -45,7 +45,7 @@ const AvatarComponent: React.FC<AvatarProps> = ({ userId, avatarUrl, style, size
     );
   }
 
-  const user = userId != null ? USERS[userId] : undefined;
+  const user = userUuid != null ? USERS.find((u) => u.userId.toString() === userUuid.slice(-1)) : undefined;
 
   return (
     <View style={style}>

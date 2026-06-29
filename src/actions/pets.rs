@@ -3,9 +3,9 @@ use diesel::prelude::*;
 
 use crate::errors::DomainError;
 use crate::models::pets::{
-    CreatePet, ImageId, NewPetTrait, PersonalityTrait, Pet, PetId, PetImage,
-    PetTrait, PetUuid, PublicPet, PublicPetImage, PublicPetOwner, TraitId,
-    TraitName, UpdatePet,
+    CreatePet, NewPetTrait, PersonalityTrait, Pet, PetId, PetImage, PetTrait,
+    PetUuid, PublicPet, PublicPetImage, PublicPetOwner, TraitId, TraitName,
+    UpdatePet,
 };
 use crate::models::users::UserId;
 use crate::types::DbConnection;
@@ -43,7 +43,7 @@ pub fn create_pet(
     user_id: &UserId,
     create: CreatePet,
     conn: &mut DbConnection,
-) -> Result<PublicPet, DomainError> {
+) -> Result<(PetId, PublicPet), DomainError> {
     use crate::schema::pets::dsl as pets;
 
     let pet_uuid = uuid::Uuid::new_v4();
@@ -111,7 +111,10 @@ pub fn create_pet(
     let primary_image = fetch_primary_image(pet_id, conn)?;
 
     let owner = minimal_owner(&pet.user_id, conn);
-    Ok(PublicPet::new(&pet, traits, primary_image.as_ref(), owner))
+    Ok((
+        pet_id,
+        PublicPet::new(&pet, traits, primary_image.as_ref(), owner),
+    ))
 }
 
 pub fn get_pet(
@@ -590,7 +593,7 @@ pub fn upload_pet_image(
 
     let new_image_uuid = uuid::Uuid::new_v4();
 
-    let (image_id, is_primary, sort_order) = conn
+    let (_image_id, is_primary, sort_order) = conn
         .transaction::<_, DomainError, _>(|conn| {
             let pet = pets::pets
                 .filter(pets::pet_uuid.eq(pet_uuid))
@@ -656,12 +659,6 @@ pub fn upload_pet_image(
 
     Ok((
         PublicPetImage {
-            id: ImageId::try_from(image_id as u32).map_err(|e| {
-                DomainError::new_internal_error(format!(
-                    "Invalid image ID: {}",
-                    e
-                ))
-            })?,
             uuid: crate::models::pets::PetImageUuid::new(new_image_uuid),
             format: "webp".to_string(),
             is_primary,

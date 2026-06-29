@@ -113,7 +113,7 @@ export default function ProfileScreen() {
           </Text>
 
           <View className="flex-row items-center">
-            <Avatar userId={user.id} size={64} style={{ marginRight: 16 }} />
+            <Avatar userUuid={user.user_uuid} size={64} style={{ marginRight: 16 }} />
             <View className="flex-1">
               <Text className="text-lg font-bold" style={{ color: colors.text }}>
                 {profile.display_name || user.username}

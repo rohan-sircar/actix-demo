@@ -546,7 +546,6 @@ pub struct PublicPetOwner {
 /// Public-facing pet view (with owner info)
 #[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct PublicPet {
-    pub id: PetId,
     pub pet_uuid: PetUuid,
     pub name: PetName,
     pub species: PetSpecies,
@@ -569,7 +568,6 @@ impl PublicPet {
         owner: PublicPetOwner,
     ) -> Self {
         PublicPet {
-            id: pet.id,
             pet_uuid: pet.pet_uuid,
             name: pet.name.clone(),
             species: pet.species.clone(),
@@ -737,7 +735,6 @@ pub struct PetImage {
 /// Response model for pet image (public view)
 #[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct PublicPetImage {
-    pub id: ImageId,
     pub uuid: PetImageUuid,
     pub format: String,
     pub is_primary: bool,
@@ -748,7 +745,6 @@ pub struct PublicPetImage {
 impl From<&PetImage> for PublicPetImage {
     fn from(image: &PetImage) -> Self {
         PublicPetImage {
-            id: image.id,
             uuid: image.uuid,
             format: image.format.clone(),
             is_primary: image.is_primary,
@@ -942,7 +938,10 @@ mod test {
                 pets_owned: 0,
             },
         );
-        assert_eq!(public.id, PetId(1));
+        assert_eq!(
+            public.pet_uuid.0.to_string(),
+            "550e8400-e29b-41d4-a716-446655440000"
+        );
         assert_eq!(public.name.inner(), "Buddy");
         assert_eq!(public.species.inner(), "dog");
         assert_eq!(public.breed, Some(PetBreed("Labrador".to_string())));

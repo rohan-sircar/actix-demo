@@ -31,7 +31,7 @@ const CounterControls = () => {
             Email: {user.email}
           </Text>
           <Text className="mb-3 text-center text-base" style={{ color: colors.text }}>
-            User ID: {user.id}
+            User UUID: {user.user_uuid}
           </Text>
         </>
       ) : (
