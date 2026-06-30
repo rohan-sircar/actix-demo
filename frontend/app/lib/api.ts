@@ -69,7 +69,22 @@ api.interceptors.response.use(
   }
 );
 
+export const getImageUrl = (imageUuid: string, variant: 'thumbnail' | 'medium' | 'original' = 'medium'): string => {
+  const baseUrl = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8800';
+  return `${baseUrl}/api/v1/private/pets/images/${imageUuid}/${variant}`;
+};
+
 export const petApi = {
+  async getPet(petUuid: string): Promise<import('~/app/models/pets').PublicPet> {
+    const response = await api.get(`/api/v1/private/pets/${petUuid}`);
+    return response.data;
+  },
+
+  async getImages(petUuid: string): Promise<import('~/app/models/pets').PetImage[]> {
+    const response = await api.get(`/api/v1/private/pets/${petUuid}/images`);
+    return response.data;
+  },
+
   async updatePet(petUuid: string, data: {
     name?: string;
     species?: string;
@@ -79,7 +94,7 @@ export const petApi = {
     weight?: number | null;
     color_markings?: string | null;
     description?: string | null;
-    traits?: string[];
+    traits?: Array<{ id: number; name: string }>;
   }): Promise<{
     id: number;
     pet_uuid: string;
@@ -91,10 +106,71 @@ export const petApi = {
     weight?: number | null;
     color_markings?: string | null;
     description?: string | null;
-    traits?: string[];
+    traits?: Array<{ id: number; name: string }>;
     primary_image: { id: number; uuid: string; format: string; is_primary: boolean; sort_order: number; created_at: string } | null;
   }> {
     const response = await api.patch(`/api/v1/private/user/pets/${petUuid}`, data);
+    return response.data;
+  },
+};
+
+export const discoverApi = {
+  async next(): Promise<import('~/app/models/pets').PublicPet | null> {
+    const response = await api.get('/api/v1/private/discover/next');
+    return response.data;
+  },
+
+  async list(query: import('~/app/models/pets').DiscoverQuery): Promise<import('~/app/models/pets').PaginatedResponse<import('~/app/models/pets').PublicPet>> {
+    const response = await api.get('/api/v1/private/discover/pets', { params: query });
+    return response.data;
+  },
+};
+
+export const likesApi = {
+  async create(petUuid: string, direction: 'like' | 'dislike', reciprocalPetUuid?: string): Promise<import('~/app/models/pets').LikeRecord> {
+    const body: { pet_uuid: string; direction: 'like' | 'dislike'; reciprocal_pet_uuid?: string } = { pet_uuid: petUuid, direction };
+    if (reciprocalPetUuid) {
+      body.reciprocal_pet_uuid = reciprocalPetUuid;
+    }
+    const response = await api.post('/api/v1/private/likes', body);
+    return response.data;
+  },
+
+  async listSent(): Promise<import('~/app/models/pets').LikeWithPet[]> {
+    const response = await api.get('/api/v1/private/likes/sent');
+    return response.data;
+  },
+
+  async listReceived(): Promise<import('~/app/models/pets').LikeWithPet[]> {
+    const response = await api.get('/api/v1/private/likes/received');
+    return response.data;
+  },
+
+  async listMatchesWithPets(): Promise<import('~/app/models/pets').MatchWithPets[]> {
+    const response = await api.get('/api/v1/private/matches-with-pets');
+    return response.data;
+  },
+
+  async checkInteraction(petUuid: string): Promise<import('~/app/models/pets').PetInteractionResponse> {
+    const response = await api.get(`/api/v1/private/likes/check/${petUuid}`);
+    return response.data;
+  },
+};
+
+export const profileApi = {
+  async get(): Promise<import('~/app/models/pets').UserProfile> {
+    const response = await api.get('/api/v1/private/user/profile');
+    return response.data;
+  },
+};
+
+export const usersApi = {
+  async listPublicPets(userUuid: string): Promise<import('~/app/models/pets').PublicPet[]> {
+    const response = await api.get(`/api/v1/private/users/${userUuid}/pets`);
+    return response.data;
+  },
+  async getPublicProfile(userUuid: string): Promise<import('~/app/models/pets').UserProfile> {
+    const response = await api.get(`/api/v1/private/profiles/${userUuid}`);
     return response.data;
   },
 };

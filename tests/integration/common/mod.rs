@@ -552,14 +552,14 @@ pub async fn app_data(
                     .run_pending_migrations(migrations)
                     .map_err(|e| anyhow::anyhow!(e)) // Convert error to anyhow::Error
                     .context("Error running migrations")?;
-                actix_demo::actions::users::insert_new_user(
+                actix_demo::actions::users::insert_new_user_with_roles(
                     NewUser {
                         username: Username::parse_str(DEFAULT_USER)?,
                         password: Password::parse_str(DEFAULT_USER)?,
                         email: Email::try_from("admin@example.com".to_string())
                             .unwrap(),
                     },
-                    RoleEnum::RoleAdmin,
+                    &[RoleEnum::RoleAdmin, RoleEnum::RoleUser],
                     config.hash_cost,
                     &user_ids_cache,
                     &mut conn,

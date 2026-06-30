@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 
 import Avatar from '../../components/Avatar';
@@ -9,9 +9,9 @@ import * as Style from '~/app/styles/Styles';
 import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
 import { useColorScheme } from '~/lib/useColorScheme';
 import { useAuthStore, UserResponse } from '~/app/stores/AuthStore';
-import api from '~/app/lib/api';
+import api, { profileApi } from '~/app/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { Pet } from '~/app/models/pets';
+import type { Pet, UserProfile as UserProfileType } from '~/app/models/pets';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -31,11 +31,19 @@ export default function ProfileScreen() {
   const [location, setLocation] = useState('');
   const [website, setWebsite] = useState('');
 
-  const { data: user, isLoading } = useQuery({
+  const { data: user, isLoading: userLoading } = useQuery({
     queryKey: ['user'],
     queryFn: async () => {
       const res = await api.get<UserResponse>('/api/v1/private/user');
       return res.data;
+    },
+  });
+
+  const { data: userProfile, isLoading: profileLoading } = useQuery({
+    queryKey: ['user-profile'],
+    queryFn: async () => {
+      const res = await profileApi.get();
+      return res;
     },
   });
 
@@ -64,9 +72,12 @@ export default function ProfileScreen() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['user'] });
+      queryClient.invalidateQueries({ queryKey: ['user-profile'] });
       setIsEditing(false);
     },
   });
+
+  const isLoading = userLoading || profileLoading;
 
   if (isLoading) {
     return (
@@ -78,14 +89,14 @@ export default function ProfileScreen() {
 
   if (!user) return null;
 
-  const profile = user.profile || {};
+  const profile: UserProfileType = userProfile || { display_name: null, bio: null, location: null, website_url: null, social_github: null, social_twitter: null };
 
   const handleSave = () => {
     const updates: Record<string, string> = {};
     if (displayName) updates.display_name = displayName;
     if (bio) updates.bio = bio;
     if (location) updates.location = location;
-    if (website) updates.website = website;
+    if (website) updates.website_url = website;
     if (Object.keys(updates).length > 0) {
       updateProfileMutation.mutate(updates);
     } else {
@@ -95,14 +106,14 @@ export default function ProfileScreen() {
 
   return (
     <View className="w-full flex-1" style={{ backgroundColor: colors.background }}>
-      <View className="w-full flex-1 px-4 pb-4 pt-2">
+      <ScrollView className="w-full" showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 16, paddingBottom: 80 }}>
         <View className="mb-4">
           <Text className="mb-4 text-2xl font-bold" style={{ color: colors.text }}>
             My Profile
           </Text>
 
           <View className="flex-row items-center">
-            <Avatar userId={user.id} size={64} style={{ marginRight: 16 }} />
+            <Avatar userUuid={user.user_uuid} size={64} style={{ marginRight: 16 }} />
             <View className="flex-1">
               <Text className="text-lg font-bold" style={{ color: colors.text }}>
                 {profile.display_name || user.username}
@@ -144,7 +155,7 @@ export default function ProfileScreen() {
               />
               <TextInput
                 placeholder="Website"
-                value={website || profile.website || ''}
+                value={website || profile.website_url || ''}
                 onChangeText={setWebsite}
                 className="h-11 rounded-xl border px-3"
                 style={Style.inputStyle(isDarkColorScheme, accentSet)}
@@ -179,38 +190,79 @@ export default function ProfileScreen() {
           )}
         </View>
 
-        {profile.bio ? (
-          <>
-            <Text className="mb-1.5 font-semibold" style={{ color: colors.text }}>
-              About me
-            </Text>
-            <Text className="mb-3 text-sm leading-relaxed" style={{ color: colors.grey }}>
-              {profile.bio}
-            </Text>
-          </>
-        ) : null}
+        {/* Row 1: About Me + Stats */}
+        <View className="flex-row flex-wrap gap-4" style={{ width: '100%' }}>
+          {(profile.bio || profile.location || profile.website_url) && (
+            <View style={{ width: '48%', borderRadius: 16, backgroundColor: colors.card, borderWidth: 1, borderColor: isDarkColorScheme ? colors.grey4 : '#e8e8e8', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 3 }}>
+              <View className="px-5 py-4">
+                {profile.bio && (
+                  <>
+                    <Text className="mb-2 text-xs font-bold uppercase tracking-wider" style={{ color: accentSet.base }}>
+                      About Me
+                    </Text>
+                    <Text className="text-sm leading-relaxed" style={{ color: colors.grey }}>
+                      {profile.bio}
+                    </Text>
+                  </>
+                )}
+                {(profile.location || profile.website_url) && (
+                  <View className="mt-3 flex-row flex-wrap gap-2">
+                    {profile.location && (
+                      <View className="flex-row items-center gap-1.5 rounded-full bg-black/10 px-3.5 py-2" style={{ backgroundColor: isDarkColorScheme ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }}>
+                        <Ionicons name="location" size={15} color={accentSet.base} />
+                        <Text className="text-sm font-medium" style={{ color: colors.text }}>
+                          {profile.location}
+                        </Text>
+                      </View>
+                    )}
+                    {profile.website_url && (
+                      <View className="flex-row items-center gap-1.5 rounded-full bg-black/10 px-3.5 py-2" style={{ backgroundColor: isDarkColorScheme ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }}>
+                        <Ionicons name="globe" size={15} color={accentSet.base} />
+                        <Text className="text-sm font-medium" style={{ color: colors.text }}>
+                          {profile.website_url}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                )}
+              </View>
+            </View>
+          )}
 
-        {(profile.location || profile.website) && (
-          <View className="mb-4 flex-row flex-wrap gap-4">
-            {profile.location && (
-              <Text className="text-sm" style={{ color: colors.grey }}>
-                <Ionicons name="location" size={16} color={colors.grey} /> {profile.location}
+          <View style={{ width: profile.bio || profile.location || profile.website_url ? '48%' : '100%', borderRadius: 16, backgroundColor: colors.card, borderWidth: 1, borderColor: isDarkColorScheme ? colors.grey4 : '#e8e8e8', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 3 }}>
+            <View className="px-5 py-5">
+              <Text className="mb-3 text-xs font-bold uppercase tracking-wider text-center" style={{ color: accentSet.base }}>
+                My Stats
               </Text>
-            )}
-            {profile.website && (
-              <Text className="text-sm" style={{ color: colors.grey }}>
-                <Ionicons name="globe" size={16} color={colors.grey} /> {profile.website}
-              </Text>
-            )}
+              <View className="flex-row justify-center">
+                <StatTile title="Pets" value={String(pets?.length ?? 0)} />
+              </View>
+            </View>
           </View>
-        )}
-
-        <View
-          className="mt-2 flex-row justify-between rounded-xl border-x border-b border-t px-4 py-5"
-          style={{ borderColor: colors.grey5, backgroundColor: colors.card }}>
-          <StatTile title="Pets" value={String(pets?.length ?? 0)} />
         </View>
-      </View>
+
+        {/* Row 2: Likes & Matches navigation */}
+        <View className="mt-4 flex-row gap-4">
+          <TouchableOpacity
+            onPress={() => router.push('../likes')}
+            className="flex-1 items-center rounded-xl py-3.5"
+            style={{ backgroundColor: accentSet.base }}>
+            <View className="flex-row items-center gap-2">
+              <Ionicons name="heart-outline" size={18} color="#fff" />
+              <Text className="font-semibold text-white">View Likes</Text>
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => router.push('../matches')}
+            className="flex-1 items-center rounded-xl py-3.5"
+            style={{ backgroundColor: isDarkColorScheme ? '#3d2a22' : accentSet.bgSubtle }}>
+            <View className="flex-row items-center gap-2">
+              <Ionicons name="heart" size={18} color={accentSet.base} />
+              <Text className="font-semibold" style={{ color: colors.text }}>View Matches</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
     </View>
   );
 }

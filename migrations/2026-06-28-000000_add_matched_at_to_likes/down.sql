@@ -1,0 +1,1 @@
+ALTER TABLE likes DROP COLUMN IF EXISTS matched_at;

@@ -3,7 +3,7 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 use validators::prelude::*;
 
-use crate::schema::pet_personality_traits;
+use crate::{models::users::UserUuid, schema::pet_personality_traits};
 use derive_more::{Display, Into};
 use diesel_derive_enum::DbEnum;
 use std::str::FromStr;
@@ -171,6 +171,21 @@ impl TryFrom<u32> for TraitId {
     }
 }
 
+/// Validator for personality trait name
+#[derive(Validator, Debug, Clone, DieselNewType, PartialEq, Eq, ToSchema)]
+#[validator(line(char_length(min = 2, max = 100)))]
+pub struct TraitName(String);
+
+impl TraitName {
+    pub fn new(value: String) -> Result<Self, String> {
+        Self::parse_string(&value).map_err(|e| e.to_string())
+    }
+
+    pub fn inner(&self) -> &str {
+        &self.0
+    }
+}
+
 /// Validator for pet name
 #[derive(Validator, Debug, Clone, DieselNewType, PartialEq, Eq, ToSchema)]
 #[validator(line(char_length(min = 2, max = 100)))]
@@ -310,15 +325,15 @@ pub struct CreatePet {
     pub color_markings: Option<PetColorMarkings>,
     pub description: Option<PetDescription>,
     #[serde(default)]
-    pub traits: Vec<String>,
+    pub traits: Vec<TraitName>,
 }
 
 /// Diesel insertable model for pet_personality_traits junction
 #[derive(Debug, Clone, Insertable)]
 #[diesel(table_name = pet_personality_traits)]
 pub struct NewPetTrait {
-    pub pet_id: i32,
-    pub trait_id: i32,
+    pub pet_id: PetId,
+    pub trait_id: TraitId,
 }
 
 /// Queryable model for personality trait
@@ -326,7 +341,7 @@ pub struct NewPetTrait {
 #[diesel(table_name = personality_traits)]
 pub struct PersonalityTrait {
     pub id: TraitId,
-    pub name: String,
+    pub name: TraitName,
     pub created_at: chrono::NaiveDateTime,
 }
 
@@ -334,7 +349,7 @@ pub struct PersonalityTrait {
 #[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct PetTrait {
     pub id: TraitId,
-    pub name: String,
+    pub name: TraitName,
 }
 
 /// Queryable model for a pet with all fields
@@ -367,7 +382,7 @@ pub struct UpdatePet {
     pub weight: Option<Option<PetWeight>>,
     pub color_markings: Option<Option<PetColorMarkings>>,
     pub description: Option<Option<PetDescription>>,
-    pub traits: Option<Vec<String>>,
+    pub traits: Option<Vec<TraitName>>,
     #[serde(skip, default)]
     pub _sent_fields: std::collections::HashSet<String>,
 }
@@ -485,7 +500,9 @@ impl<'de> Deserialize<'de> for UpdatePet {
                             traits = Some(
                                 arr.iter()
                                     .filter_map(|v| {
-                                        v.as_str().map(String::from)
+                                        v.as_str().and_then(|s| {
+                                            TraitName::new(s.to_string()).ok()
+                                        })
                                     })
                                     .collect(),
                             );
@@ -517,10 +534,18 @@ impl UpdatePet {
     }
 }
 
-/// Public-facing pet view (without owner info)
+/// Public-facing pet owner info
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct PublicPetOwner {
+    pub user_uuid: UserUuid,
+    pub display_name: Option<crate::models::users::DisplayName>,
+    pub avatar_url: Option<String>,
+    pub pets_owned: u32,
+}
+
+/// Public-facing pet view (with owner info)
 #[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct PublicPet {
-    pub id: PetId,
     pub pet_uuid: PetUuid,
     pub name: PetName,
     pub species: PetSpecies,
@@ -532,6 +557,7 @@ pub struct PublicPet {
     pub description: Option<PetDescription>,
     pub traits: Vec<PetTrait>,
     pub primary_image: Option<PublicPetImage>,
+    pub owner: PublicPetOwner,
 }
 
 impl PublicPet {
@@ -539,9 +565,9 @@ impl PublicPet {
         pet: &Pet,
         traits: Vec<PetTrait>,
         primary_image: Option<&PetImage>,
+        owner: PublicPetOwner,
     ) -> Self {
         PublicPet {
-            id: pet.id,
             pet_uuid: pet.pet_uuid,
             name: pet.name.clone(),
             species: pet.species.clone(),
@@ -553,6 +579,7 @@ impl PublicPet {
             description: pet.description.clone(),
             traits,
             primary_image: primary_image.map(PublicPetImage::from),
+            owner,
         }
     }
 }
@@ -582,6 +609,56 @@ impl ImageId {
 
     pub fn as_int(&self) -> i32 {
         self.0
+    }
+}
+
+/// Newtype for pet image UUID
+#[derive(
+    Debug,
+    Clone,
+    Eq,
+    Hash,
+    PartialEq,
+    Deserialize,
+    Display,
+    Into,
+    Serialize,
+    DieselNewType,
+    Copy,
+    ToSchema,
+)]
+pub struct PetImageUuid(Uuid);
+
+impl PetImageUuid {
+    pub fn new(value: Uuid) -> Self {
+        PetImageUuid(value)
+    }
+
+    pub fn as_uuid(&self) -> Uuid {
+        self.0
+    }
+}
+
+impl From<PetImageUuid> for String {
+    fn from(s: PetImageUuid) -> String {
+        s.0.to_string()
+    }
+}
+
+impl FromStr for PetImageUuid {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Uuid::parse_str(s)
+            .map(PetImageUuid)
+            .map_err(|e| format!("invalid UUID format: {}", e))
+    }
+}
+
+impl TryFrom<String> for PetImageUuid {
+    type Error = String;
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        value.parse::<PetImageUuid>()
     }
 }
 
@@ -644,8 +721,8 @@ impl PetImageVariant {
 #[diesel(table_name = pet_images)]
 pub struct PetImage {
     pub id: ImageId,
-    pub uuid: Uuid,
-    pub pet_id: i32,
+    pub uuid: PetImageUuid,
+    pub pet_id: PetId,
     pub thumbnail_key: String,
     pub medium_key: String,
     pub original_key: String,
@@ -658,8 +735,7 @@ pub struct PetImage {
 /// Response model for pet image (public view)
 #[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct PublicPetImage {
-    pub id: ImageId,
-    pub uuid: Uuid,
+    pub uuid: PetImageUuid,
     pub format: String,
     pub is_primary: bool,
     pub sort_order: i32,
@@ -669,7 +745,6 @@ pub struct PublicPetImage {
 impl From<&PetImage> for PublicPetImage {
     fn from(image: &PetImage) -> Self {
         PublicPetImage {
-            id: image.id,
             uuid: image.uuid,
             format: image.format.clone(),
             is_primary: image.is_primary,
@@ -713,7 +788,13 @@ mod test {
         assert!(pet.date_of_birth.is_some());
         assert!(pet.gender.is_some());
         assert_eq!(pet.weight, Some(PetWeight(30.5)));
-        assert_eq!(pet.traits, vec!["playful", "loyal"]);
+        assert_eq!(
+            pet.traits,
+            vec![
+                TraitName::new("playful".to_string()).unwrap(),
+                TraitName::new("loyal".to_string()).unwrap(),
+            ]
+        );
     }
 
     #[test]
@@ -774,7 +855,10 @@ mod test {
         assert!(update.should_update("traits"));
         assert_eq!(
             update.traits,
-            Some(vec!["calm".to_string(), "independent".to_string()])
+            Some(vec![
+                TraitName::new("calm".to_string()).unwrap(),
+                TraitName::new("independent".to_string()).unwrap(),
+            ])
         );
     }
 
@@ -832,16 +916,32 @@ mod test {
         let traits = vec![
             PetTrait {
                 id: TraitId::try_from(1u32).unwrap(),
-                name: "playful".to_string(),
+                name: TraitName::new("playful".to_string()).unwrap(),
             },
             PetTrait {
                 id: TraitId::try_from(2u32).unwrap(),
-                name: "loyal".to_string(),
+                name: TraitName::new("loyal".to_string()).unwrap(),
             },
         ];
 
-        let public = PublicPet::new(&pet, traits, None);
-        assert_eq!(public.id, PetId(1));
+        let public = PublicPet::new(
+            &pet,
+            traits,
+            None,
+            PublicPetOwner {
+                user_uuid: crate::models::users::UserUuid::try_from(
+                    "550e8400-e29b-41d4-a716-446655440000".to_string(),
+                )
+                .unwrap(),
+                display_name: None,
+                avatar_url: None,
+                pets_owned: 0,
+            },
+        );
+        assert_eq!(
+            public.pet_uuid.0.to_string(),
+            "550e8400-e29b-41d4-a716-446655440000"
+        );
         assert_eq!(public.name.inner(), "Buddy");
         assert_eq!(public.species.inner(), "dog");
         assert_eq!(public.breed, Some(PetBreed("Labrador".to_string())));

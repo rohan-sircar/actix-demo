@@ -1,5 +1,6 @@
 import { Tabs } from 'expo-router';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { Icon } from '@roninoss/icons';
 import React from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -98,10 +99,34 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="swipe"
+        options={{
+          tabBarIcon: ({ color }) => <FontAwesome name="heart" size={22} color={color} />,
+          title: 'Swipe',
+          ...(!isAuthenticated ? hiddenTabOptions : {}),
+        }}
+      />
+      <Tabs.Screen
         name="discover"
         options={{
           tabBarIcon: ({ color }) => <FontAwesome name="compass" size={22} color={color} />,
           title: 'Discover',
+        }}
+      />
+      <Tabs.Screen
+        name="likes"
+        options={{
+          tabBarIcon: ({ color }) => <Ionicons name="heart-outline" size={24} color={color} />,
+          title: 'Likes',
+          ...(!isAuthenticated ? hiddenTabOptions : {}),
+        }}
+      />
+      <Tabs.Screen
+        name="matches"
+        options={{
+          tabBarIcon: ({ color }) => <Ionicons name="heart" size={24} color={color} />,
+          title: 'Matches',
+          ...(!isAuthenticated ? hiddenTabOptions : {}),
         }}
       />
       <Tabs.Screen

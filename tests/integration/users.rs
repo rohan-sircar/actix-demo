@@ -46,11 +46,12 @@ mod tests {
             assert_eq!(resp.status(), StatusCode::OK);
             let body: Vec<UserWithRoles> = resp.json().await.unwrap();
             let user = body.first().unwrap();
-            assert_eq!(user.id.as_uint(), 1);
             assert_eq!(user.username.as_str(), "admin");
-            assert_eq!(user.roles, vec![RoleEnum::RoleAdmin]);
+            assert_eq!(
+                user.roles,
+                vec![RoleEnum::RoleAdmin, RoleEnum::RoleUser]
+            );
             let user = body.get(1).unwrap();
-            assert_eq!(user.id.as_uint(), 2);
             assert_eq!(user.username.as_str(), "user1");
             assert_eq!(user.roles, vec![RoleEnum::RoleUser]);
         }
@@ -373,9 +374,11 @@ mod tests {
                 .await
                 .unwrap();
 
+                // let admin_token = ctx._token;
+
                 let mut resp = ctx
                     .test_server
-                    .get(format!("/api/v1/profiles/{}", user_uuid))
+                    .get(format!("/api/v1/private/profiles/{}", user_uuid))
                     .with_token(&admin_token)
                     .send()
                     .await

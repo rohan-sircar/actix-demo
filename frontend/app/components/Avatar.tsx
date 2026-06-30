@@ -5,7 +5,8 @@ import { Image, StyleSheet, View } from 'react-native';
 import USERS from '../../data/users';
 
 type AvatarProps = {
-  userId: number;
+  userUuid?: string | null;
+  avatarUrl?: string | null;
   style?: any;
   size?: number;
 };
@@ -30,18 +31,28 @@ const styles = StyleSheet.create({
   },
 });
 
-const AvatarComponent: React.FC<AvatarProps> = ({ userId, style, size = 36 }) => {
+const AvatarComponent: React.FC<AvatarProps> = ({ userUuid, avatarUrl, style, size = 36 }) => {
   const SIZING = {
     height: size,
     width: size,
   };
 
+  if (avatarUrl) {
+    return (
+      <View style={style}>
+        <Image source={{ uri: avatarUrl }} style={[styles.avatar, SIZING]} />
+      </View>
+    );
+  }
+
+  const user = userUuid != null ? USERS.find((u) => u.userId.toString() === userUuid.slice(-1)) : undefined;
+
   return (
     <View style={style}>
-      {USERS[userId]?.avatar ? (
-        <Image source={USERS[userId].avatar} style={[styles.avatar, SIZING]} />
+      {user?.avatar ? (
+        <Image source={user.avatar} style={[styles.avatar, SIZING]} />
       ) : (
-        <View style={[styles.avatar, SIZING, { backgroundColor: USERS[userId].color }]}>
+        <View style={[styles.avatar, SIZING, { backgroundColor: user?.color || '#ccc' }]}>
           <Ionicons
             name="person-circle-outline"
             size={(size * 2) / 3}

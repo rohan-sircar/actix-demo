@@ -15,7 +15,7 @@ import { useColorScheme } from '~/lib/useColorScheme';
 import { useAuthStore } from '../../stores/AuthStore';
 import { useQuery } from '@tanstack/react-query';
 import api from '~/app/lib/api';
-import type { UserResponse } from '../../stores/AuthStore';
+import type { ProfileData, UserResponse } from '../../stores/AuthStore';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -29,10 +29,10 @@ export default function SettingsScreen() {
     }
   }, [isAuthenticated, router]);
 
-  const { data: userData } = useQuery<UserResponse, Error>({
+  const { data: profileData } = useQuery<ProfileData, Error>({
     queryKey: ['user'],
     queryFn: async () => {
-      const res = await api.get<UserResponse>('/api/v1/private/user');
+      const res = await api.get<ProfileData>('/api/v1/private/user/profile');
       return res.data;
     },
     enabled: !!isAuthenticated,
@@ -48,7 +48,7 @@ export default function SettingsScreen() {
   });
 
   const accentSet = getAccentSet(accentColor);
-  const profile = userData?.profile || {};
+  const profile = profileData;
   const sessionCount = Object.keys(sessionsMap || {}).length;
 
   const handleLogout = () => {
@@ -103,7 +103,7 @@ export default function SettingsScreen() {
       keyboardShouldPersistTaps="handled">
       {/* Account Info Card */}
       <SettingsCard>
-        <View className="flex-row items-center mb-3 mt-2 pt-2">
+        <View className="mb-3 mt-2 flex-row items-center pt-2">
           <View
             style={{
               width: 56,
@@ -115,9 +115,9 @@ export default function SettingsScreen() {
             }}>
             <FontAwesome name="user" size={26} color={accentSet.base} />
           </View>
-          <View className="flex-1 ml-4">
+          <View className="ml-4 flex-1">
             <Text className="text-lg font-bold" style={{ color: colors.text }}>
-              {profile.display_name || user?.username || 'User'}
+              {profile?.display_name || user?.username || 'User'}
             </Text>
             <Text className="text-sm" style={{ color: colors.grey }}>
               @{user?.username}
@@ -125,7 +125,7 @@ export default function SettingsScreen() {
           </View>
         </View>
         {user?.email ? (
-          <Text className="text-sm mb-2" style={{ color: colors.grey }}>
+          <Text className="mb-2 text-sm" style={{ color: colors.grey }}>
             {user.email}
           </Text>
         ) : null}
@@ -140,7 +140,7 @@ export default function SettingsScreen() {
           title="Accent Color"
           subtitle="Choose your preferred color theme"
           rightContent={
-            <View className="flex-row flex-wrap gap-1.5 justify-end" style={{ maxWidth: 140 }}>
+            <View className="flex-row flex-wrap justify-end gap-1.5" style={{ maxWidth: 140 }}>
               {(['coral', 'green', 'orange', 'peach', 'rose', 'teal'] as const).map((color) => (
                 <TouchableOpacity
                   key={color}
@@ -227,7 +227,11 @@ export default function SettingsScreen() {
           icon="monitor"
           faIcon="desktop"
           title="Active Sessions"
-          subtitle={sessionCount > 0 ? `${sessionCount} device${sessionCount > 1 ? 's' : ''} logged in` : 'No active sessions'}
+          subtitle={
+            sessionCount > 0
+              ? `${sessionCount} device${sessionCount > 1 ? 's' : ''} logged in`
+              : 'No active sessions'
+          }
           onPress={navigateToSessions}
           rightContent={<FontAwesome name="chevron-right" size={14} color={colors.grey2} />}
         />
@@ -268,7 +272,9 @@ export default function SettingsScreen() {
           faIcon="info-circle"
           title="About PetMatch"
           subtitle="Version 1.0.0"
-          onPress={() => Alert.alert('PetMatch', 'PetMatch v1.0.0\n\nConnect with pets in your area.')}
+          onPress={() =>
+            Alert.alert('PetMatch', 'PetMatch v1.0.0\n\nConnect with pets in your area.')
+          }
           rightContent={<FontAwesome name="chevron-right" size={14} color={colors.grey2} />}
         />
         <SettingsRow

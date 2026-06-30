@@ -396,6 +396,73 @@ pub fn configure_app(
                                     web::get().to(routes::users::get_user),
                                 ),
                         ),
+                    )
+                    // discover endpoints
+                    .route(
+                        "/discover/next",
+                        web::get().to(routes::discover::discover_next),
+                    )
+                    .route(
+                        "/discover/pets",
+                        web::get().to(routes::discover::discover_pets),
+                    )
+                    .route(
+                        "/likes",
+                        web::post().to(routes::discover::create_like),
+                    )
+                    .route(
+                        "/likes/sent",
+                        web::get().to(routes::discover::list_likes_sent),
+                    )
+                    .route(
+                        "/likes/received",
+                        web::get().to(routes::discover::list_likes_received),
+                    )
+                    .route(
+                        "/matches-with-pets",
+                        web::get().to(routes::discover::list_matches_with_pets),
+                    )
+                    .route(
+                        "/likes/check/{pet_uuid}",
+                        web::get().to(routes::discover::check_pet_interaction),
+                    )
+                    .route(
+                        "/messages",
+                        web::post().to(routes::discover::stub_messages),
+                    )
+                    .route(
+                        "/reports",
+                        web::post().to(routes::discover::stub_reports),
+                    )
+                    // user profile endpoints (moved from public)
+                    .route(
+                        "/profiles/{user_id}",
+                        web::get().to(routes::users::get_public_profile),
+                    )
+                    // pet endpoints (moved from public)
+                    .route(
+                        "/pets/traits",
+                        web::get().to(routes::pets::get_traits),
+                    )
+                    .route(
+                        "/pets/{pet_uuid}",
+                        web::get().to(routes::pets::get_public_pet),
+                    )
+                    .route(
+                        "/pets/{pet_uuid}/images",
+                        web::get().to(routes::pets::get_pet_images),
+                    )
+                    .route(
+                        "/pets/images/{image_uuid}",
+                        web::get().to(routes::pets::get_public_pet_image),
+                    )
+                    .route(
+                        "/pets/images/{image_uuid}/{variant}",
+                        web::get().to(routes::pets::get_pet_image_variant),
+                    )
+                    .route(
+                        "/users/{user_uuid}/pets",
+                        web::get().to(routes::pets::list_user_pets),
                     ),
             )
             // public api
@@ -415,34 +482,6 @@ pub fn configure_app(
                     .route(
                         "/avatars/{user_id}",
                         web::get().to(routes::users::get_user_avatar),
-                    )
-                    .route(
-                        "/profiles/{user_id}",
-                        web::get().to(routes::users::get_public_profile),
-                    )
-                    .route(
-                        "/pets/traits",
-                        web::get().to(routes::pets::get_traits),
-                    )
-                    .route(
-                        "/pets/{pet_uuid}",
-                        web::get().to(routes::pets::get_public_pet),
-                    )
-                    .route(
-                        "/pets/images/{image_uuid}",
-                        web::get().to(routes::pets::get_public_pet_image),
-                    )
-                    .route(
-                        "/pets/images/{image_uuid}/{variant}",
-                        web::get().to(routes::pets::get_pet_image_variant),
-                    )
-                    .service(
-                        web::scope("/users")
-                            .route("", web::get().to(routes::users::get_users))
-                            .route(
-                                "/{user_id}",
-                                web::get().to(routes::users::get_user),
-                            ),
                     ),
             );
     })
@@ -475,6 +514,7 @@ pub fn configure_app(
         routes::users::delete_my_account,
         routes::pets::get_traits,
         routes::pets::get_public_pet,
+        routes::pets::get_pet_images,
         routes::pets::create_pet,
         routes::pets::list_pets,
         routes::pets::get_pet,
@@ -486,6 +526,7 @@ pub fn configure_app(
         routes::pets::set_primary_pet_image,
         routes::pets::get_public_pet_image,
         routes::pets::get_pet_image_variant,
+        routes::pets::list_user_pets,
         routes::command::handle_run_command,
         routes::command::handle_get_job,
         routes::command::handle_get_job_metrics,
@@ -499,6 +540,15 @@ pub fn configure_app(
         routes::auth::exchange,
         routes::healthcheck::healthcheck,
         routes::misc::build_info_req,
+        routes::discover::discover_next,
+        routes::discover::discover_pets,
+        routes::discover::create_like,
+        routes::discover::list_likes_sent,
+        routes::discover::list_likes_received,
+        routes::discover::list_matches_with_pets,
+        routes::discover::check_pet_interaction,
+        routes::discover::stub_messages,
+        routes::discover::stub_reports,
     ),
     components(
         schemas(
@@ -544,6 +594,7 @@ pub fn configure_app(
             models::pets::CreatePet,
             models::pets::UpdatePet,
             models::pets::PublicPet,
+            models::pets::PublicPetOwner,
             models::pets::PetTrait,
             models::pets::PersonalityTrait,
             models::pets::PetGender,
@@ -552,6 +603,12 @@ pub fn configure_app(
             models::pets::PublicPetImage,
             models::pets::PetImageVariant,
             models::pets::UploadPetImageRequest,
+            models::likes::LikeDirection,
+            models::likes::LikeId,
+            models::likes::CreateLike,
+            models::likes::LikeResponse,
+            models::likes::MatchWithPets,
+            models::likes::MatchPetInfo,
         ),
     ),
     tags(
@@ -561,6 +618,8 @@ pub fn configure_app(
         (name = "oauth", description = "OAuth 2.0 endpoints"),
         (name = "command", description = "Background job execution"),
         (name = "public", description = "Public endpoints"),
+        (name = "discover", description = "Discovery and swipe endpoints"),
+        (name = "likes", description = "Likes and matches endpoints"),
     ),
 )]
 pub struct ApiDoc;

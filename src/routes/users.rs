@@ -11,7 +11,7 @@ use crate::models::misc::Pagination;
 use crate::models::roles::RoleEnum;
 use crate::models::users::{
     CreateProfile, NewUser, PublicProfile, UpdateProfile, UpdateUserProfile,
-    UserUuid,
+    UserUuid, UserWithRoles,
 };
 use crate::services::email::tokens;
 use crate::{actions, utils};
@@ -25,7 +25,7 @@ use crate::{errors::DomainError, AppData};
         ("user_id" = String, Path, description = "User UUID"),
     ),
     responses(
-        (status = 200, description = "User found", body = User),
+        (status = 200, description = "User found", body = UserWithRoles),
         (status = 404, description = "User not found", body = ErrorResponseString),
     ),
 )]
@@ -48,7 +48,7 @@ pub async fn get_user(
     })
     .await??;
     let _ = tracing::debug!("{:?}", res);
-    if let Some(user) = res {
+    if let Some((_uid, user)) = res {
         let _ = tracing::info!("Found user");
         Ok(HttpResponse::Ok().json(user))
     } else {
@@ -71,7 +71,7 @@ pub async fn get_user(
         ("q" = Option<String>, Query, description = "Search query"),
     ),
     responses(
-        (status = 200, description = "List of users", body = Vec<User>),
+        (status = 200, description = "List of users", body = Vec<UserWithRoles>),
         (status = 401, description = "Missing or invalid auth token", body = ErrorResponseString),
     ),
 )]
@@ -97,6 +97,7 @@ pub async fn get_users(
     let _ = tracing::info!("Found {} users", users.len());
     let _ = tracing::debug!("{:?}", users);
 
+    let users: Vec<UserWithRoles> = users.into_iter().map(|(_, u)| u).collect();
     Ok(HttpResponse::Ok().json(users))
 }
 
@@ -106,7 +107,7 @@ pub async fn get_users(
     tag = "users",
     request_body = NewUser,
     responses(
-        (status = 201, description = "User created successfully", body = User),
+        (status = 201, description = "User created successfully", body = UserWithRoles),
         (status = 400, description = "Bad input", body = ErrorResponseString),
     ),
 )]
@@ -125,7 +126,7 @@ pub async fn add_user(
     let pool_clone = app_data.pool.clone();
     let ttl_secs = app_data.config.email_token_ttl_verification_secs;
 
-    let user = web::block(move || {
+    let (uid, user) = web::block(move || {
         let pool = &app_data.pool;
         let user_ids_cache = &app_data.user_ids_cache;
         let mut conn = pool.get()?;
@@ -139,7 +140,7 @@ pub async fn add_user(
     })
     .await??;
 
-    let uid: i32 = user.id.as_uint() as i32;
+    let uid: i32 = uid.as_uint() as i32;
     let user_name = user.username.as_str().to_string();
 
     tokio::spawn(async move {
@@ -173,7 +174,7 @@ pub async fn add_user(
         }
     });
 
-    let _ = tracing::info!("Created user with id={}", user.id);
+    let _ = tracing::info!("Created user with id={}", uid);
     let _ = tracing::debug!("{:?}", user);
 
     Ok(HttpResponse::Created().json(user))
@@ -328,7 +329,7 @@ pub async fn get_user_avatar(
     path = "/api/v1/private/user",
     tag = "users",
     responses(
-        (status = 200, description = "User profile", body = User),
+        (status = 200, description = "User profile", body = UserWithRoles),
         (status = 401, description = "Missing or invalid auth token", body = ErrorResponseString),
     ),
 )]
@@ -348,7 +349,7 @@ pub async fn get_my_profile(
     .await??;
 
     match res {
-        Some(user) => Ok(HttpResponse::Ok().json(user)),
+        Some((_uid, user)) => Ok(HttpResponse::Ok().json(user)),
         None => {
             let err = DomainError::new_entity_does_not_exist_error(
                 "User not found".to_string(),
@@ -364,7 +365,7 @@ pub async fn get_my_profile(
     tag = "users",
     request_body = UpdateUserProfile,
     responses(
-        (status = 200, description = "Profile updated successfully", body = User),
+        (status = 200, description = "Profile updated successfully", body = UserWithRoles),
         (status = 400, description = "Bad input", body = ErrorResponseString),
         (status = 401, description = "Missing or invalid auth token", body = ErrorResponseString),
     ),
@@ -389,7 +390,7 @@ pub async fn update_my_profile(
     let mailer = app_data.mailer.clone();
     let pool_clone = app_data.pool.clone();
     let ttl_secs = app_data.config.email_token_ttl_verification_secs;
-    let user = web::block(move || {
+    let (uid, user) = web::block(move || {
         let pool = &app_data.pool;
         let mut conn = pool.get()?;
         actions::users::update_user_profile(&user_uuid, form.0, &mut conn)
@@ -397,7 +398,7 @@ pub async fn update_my_profile(
     .await??;
 
     if has_email {
-        let uid: i32 = user.id.as_uint() as i32;
+        let uid: i32 = uid.as_uint() as i32;
         let user_name = user.username.as_str().to_string();
         let email = email_update.unwrap();
 
@@ -498,7 +499,7 @@ pub async fn delete_my_account(
 
 #[utoipa::path(
     get,
-    path = "/api/v1/profiles/{user_id}",
+    path = "/api/v1/private/profiles/{user_id}",
     tag = "users",
     params(
         ("user_id" = String, Path, description = "User UUID"),
@@ -506,21 +507,22 @@ pub async fn delete_my_account(
     responses(
         (status = 200, description = "Public profile found", body = PublicProfile),
         (status = 404, description = "Profile not found", body = ErrorResponseString),
+        (status = 401, description = "Missing auth", body = ErrorResponseString),
     ),
 )]
 /// Get a user's public profile.
+#[protect("RoleEnum::RoleUser", ty = RoleEnum)]
 #[tracing::instrument(level = "info", skip_all, fields(user_uuid))]
 pub async fn get_public_profile(
+    _req: HttpRequest,
     app_data: web::Data<AppData>,
-    user_id: web::Path<String>,
+    user_id: web::Path<UserUuid>,
 ) -> Result<HttpResponse, DomainError> {
-    let uuid = UserUuid::from_str(&user_id.into_inner()).map_err(|err| {
-        DomainError::new_bad_input_error(format!("Invalid UserUuid: {err}"))
-    })?;
+    let user_id = user_id.into_inner();
     let res = web::block(move || {
         let pool = &app_data.pool;
         let mut conn = pool.get()?;
-        actions::users::get_public_profile(&uuid, &mut conn)
+        actions::users::get_public_profile(&user_id, &mut conn)
     })
     .await??;
 

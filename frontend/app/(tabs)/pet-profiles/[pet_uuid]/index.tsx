@@ -1,17 +1,15 @@
 import React, { useCallback, useEffect, useLayoutEffect, useState } from 'react';
-import { ActivityIndicator, View, Text, Image as RNImage, ScrollView, TouchableOpacity, Modal, Pressable } from 'react-native';
+import { ActivityIndicator, View, Text, ScrollView, TouchableOpacity, Modal, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 
-import api from '~/app/lib/api';
-import { petImageApi } from '~/app/lib/api';
+import api, { petImageApi } from '~/app/lib/api';
+import { AuthenticatedImage } from '~/app/components/AuthenticatedImage';
 import { useColorScheme } from '~/lib/useColorScheme';
 import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
 import * as Style from '~/app/styles/Styles';
 import type { Pet, PetImage } from '~/app/models/pets';
-
-const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8800';
 
 const detectMimeTypeFromUri = async (uri: string, _fallback?: string): Promise<string> => {
   const lower = uri.toLowerCase();
@@ -33,10 +31,6 @@ const detectMimeTypeFromUri = async (uri: string, _fallback?: string): Promise<s
   if (lower.includes('.webp')) return 'image/webp';
   if (lower.includes('.gif')) return 'image/gif';
   return 'image/jpeg';
-};
-
-const getImageUrl = (imageUuid: string, variant: 'thumbnail' | 'medium' | 'original' = 'thumbnail'): string => {
-  return `${API_BASE}/api/v1/pets/images/${imageUuid}/${variant}`;
 };
 
 const getAgeFromDob = (dob: string) => {
@@ -144,8 +138,6 @@ export default function PetProfileEditScreen() {
     );
   }
 
-  const imageUrl = pet.primary_image ? getImageUrl(pet.primary_image.uuid, 'medium') : undefined;
-
   return (
     <ScrollView className="flex-1" style={{ backgroundColor: colors.background }}>
       {/* Profile Header Card */}
@@ -154,16 +146,16 @@ export default function PetProfileEditScreen() {
           <TouchableOpacity
             onPress={() => pet.primary_image && setPreviewImage(true)}
             disabled={!pet.primary_image}>
-            {imageUrl ? (
-              <RNImage
-                source={{ uri: imageUrl }}
+            {pet.primary_image ? (
+              <AuthenticatedImage
+                imageUuid={pet.primary_image.uuid}
+                variant="medium"
                 style={{
                   width: 160,
                   height: 160,
                   borderRadius: 80,
                   marginBottom: 16,
                 }}
-                resizeMode="cover"
               />
             ) : (
               <View
@@ -207,6 +199,16 @@ export default function PetProfileEditScreen() {
             <Ionicons name="images" size={16} color={accentSet.base} />
             <Text className="mt-0.5 text-xs font-semibold" style={{ color: accentSet.base }}>
               Manage Photos
+            </Text>
+          </TouchableOpacity>
+          <View className="w-3" />
+          <TouchableOpacity
+            onPress={() => router.push(`/pet-view-preview/${pet_uuid}`)}
+            className="flex-1 items-center justify-center rounded-xl"
+            style={{ backgroundColor: isDarkColorScheme ? colors.grey5 : accentSet.bgSubtle, paddingVertical: 8 }}>
+            <Ionicons name="eye" size={16} color={accentSet.base} />
+            <Text className="mt-0.5 text-xs font-semibold" style={{ color: accentSet.base }}>
+              Public Profile
             </Text>
           </TouchableOpacity>
         </View>
@@ -299,13 +301,13 @@ export default function PetProfileEditScreen() {
               Traits
             </Text>
             <View className="flex-row flex-wrap gap-2">
-              {pet.traits.map((trait) => (
-                <View key={trait} className="rounded-full px-3.5 py-2" style={{ backgroundColor: badgeBg }}>
-                  <Text className="text-sm font-semibold" style={{ color: badgeColor }}>
-                    {trait}
-                  </Text>
-                </View>
-              ))}
+{pet.traits.map((trait) => (
+  <View key={trait.id} className="rounded-full px-3.5 py-2" style={{ backgroundColor: badgeBg }}>
+    <Text className="text-sm font-semibold" style={{ color: badgeColor }}>
+      {trait.name}
+    </Text>
+  </View>
+))}
             </View>
           </View>
         </View>
@@ -315,10 +317,10 @@ export default function PetProfileEditScreen() {
       <Modal visible={previewImage} transparent animationType="fade">
         <Pressable className="flex-1 items-center justify-center bg-black/80" onPress={() => setPreviewImage(false)}>
           <View style={{ width: '85%', maxWidth: 400, borderRadius: 16, overflow: 'hidden', backgroundColor: colors.card }}>
-            <RNImage
-              source={{ uri: pet.primary_image ? getImageUrl(pet.primary_image.uuid, 'medium') : '' }}
+            <AuthenticatedImage
+              imageUuid={pet.primary_image?.uuid}
+              variant="medium"
               style={{ width: '100%', aspectRatio: 1 }}
-              resizeMode="cover"
             />
           </View>
         </Pressable>

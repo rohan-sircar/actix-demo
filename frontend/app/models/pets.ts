@@ -1,3 +1,8 @@
+export interface PetTrait {
+  id: number;
+  name: string;
+}
+
 export interface PetImage {
   id: number;
   uuid: string;
@@ -18,6 +23,99 @@ export interface Pet {
   weight?: number | null;
   color_markings?: string | null;
   description?: string | null;
-  traits?: string[];
+  traits?: PetTrait[];
   primary_image: PetImage | null;
+}
+
+export interface OwnerInfo {
+  user_uuid: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  pets_owned: number;
+}
+
+export interface PublicPet {
+  id: number;
+  pet_uuid: string;
+  name: string;
+  species: string;
+  breed?: string | null;
+  date_of_birth?: string | null;
+  gender?: string | null;
+  weight?: number | null;
+  color_markings?: string | null;
+  description?: string | null;
+  traits?: PetTrait[];
+  primary_image: PetImage | null;
+  owner: OwnerInfo;
+}
+
+export interface LikeRecord {
+  like_id: number;
+  user_uuid: string;
+  pet_owner_uuid: string;
+  pet_uuid: string;
+  direction: 'like' | 'dislike';
+  created_at: string;
+}
+
+export interface LikerInfo {
+  user_uuid: string;
+  display_name: string | null;
+  avatar_url: string | null;
+}
+
+export interface MatchPetInfo {
+  pet_uuid: string;
+  pet_name: string;
+  species: string;
+  primary_image_uuid: string | null;
+}
+
+export interface MatchWithPets {
+  liked_pet: MatchPetInfo;
+  liked_by_other_pet: MatchPetInfo;
+  other_owner_name: string | null;
+  other_owner_avatar_url: string | null;
+  other_user_uuid: string;
+  is_match: boolean;
+  matched_at: string | null;
+}
+
+export interface LikeWithPet {
+  pet_uuid: string;
+  pet_name: string;
+  species: string;
+  primary_image_uuid: string | null;
+  created_at: string;
+  liker: LikerInfo | null;
+}
+
+export interface PaginatedResponse<T> {
+  pets: T[];
+  total_count: number;
+}
+
+export interface UserProfile {
+  display_name: string | null;
+  bio: string | null;
+  location: string | null;
+  website_url: string | null;
+  social_github: string | null;
+  social_twitter: string | null;
+}
+
+export interface DiscoverQuery {
+  species?: string;
+  gender?: string;
+  age_min?: number;
+  age_max?: number;
+  limit?: number;
+  offset?: number;
+}
+
+export interface PetInteractionResponse {
+  interacted: boolean;
+  direction: 'like' | 'dislike' | null;
+  potential_matches: MatchPetInfo[];
 }

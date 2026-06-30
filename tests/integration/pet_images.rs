@@ -102,7 +102,6 @@ mod pet_images_api {
         assert_eq!(body["is_primary"], true);
         assert_eq!(body["sort_order"], 0);
         assert!(body["uuid"].as_str().is_some());
-        assert!(body["id"].as_u64().is_some());
         assert!(body["created_at"].as_str().is_some());
     }
 
@@ -550,7 +549,8 @@ mod pet_images_api {
 
         let mut resp = ctx
             .test_server
-            .get(format!("/api/v1/pets/images/{}", image_uuid))
+            .get(format!("/api/v1/private/pets/images/{}", image_uuid))
+            .with_token(&token)
             .send()
             .await
             .unwrap();
@@ -581,7 +581,11 @@ mod pet_images_api {
 
         let mut resp = ctx
             .test_server
-            .get(format!("/api/v1/pets/images/{}/thumbnail", image_uuid))
+            .get(format!(
+                "/api/v1/private/pets/images/{}/thumbnail",
+                image_uuid
+            ))
+            .with_token(&token)
             .send()
             .await
             .unwrap();
@@ -618,9 +622,10 @@ mod pet_images_api {
         let resp = ctx
             .test_server
             .get(format!(
-                "/api/v1/pets/images/{}/invalid_variant",
+                "/api/v1/private/pets/images/{}/invalid_variant",
                 image_uuid
             ))
+            .with_token(&token)
             .send()
             .await
             .unwrap();

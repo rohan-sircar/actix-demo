@@ -7,7 +7,6 @@ import {
   Alert,
   Modal,
   Pressable,
-  Image as RNImage,
   ScrollView,
 } from 'react-native';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -15,13 +14,12 @@ import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 
-import api from '~/app/lib/api';
-import { petImageApi } from '~/app/lib/api';
+import api, { petImageApi } from '~/app/lib/api';
+import { AuthenticatedImage } from '~/app/components/AuthenticatedImage';
 import { useColorScheme } from '~/lib/useColorScheme';
 import { getAccentSet, useAccentColor } from '~/lib/useAccentColor';
 import type { PetImage } from '~/app/models/pets';
 
-const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8800';
 const MAX_IMAGES = 10;
 const GAP = 12;
 const COLUMNS = 3;
@@ -46,10 +44,6 @@ const detectMimeTypeFromUri = async (uri: string, _fallback?: string): Promise<s
   if (lower.includes('.webp')) return 'image/webp';
   if (lower.includes('.gif')) return 'image/gif';
   return 'image/jpeg';
-};
-
-const getImageUrl = (imageUuid: string, variant: 'thumbnail' | 'medium' | 'original' = 'medium'): string => {
-  return `${API_BASE}/api/v1/pets/images/${imageUuid}/${variant}`;
 };
 
 export default function ImageGalleryScreen() {
@@ -236,10 +230,10 @@ export default function ImageGalleryScreen() {
                     borderColor: image.is_primary && !editMode ? accentSet.base : 'transparent',
                     backgroundColor: colors.grey + '33',
                   }}>
-                    <RNImage
-                      source={{ uri: getImageUrl(image.uuid, 'medium') }}
+                    <AuthenticatedImage
+                      imageUuid={image.uuid}
+                      variant="medium"
                       style={{ width: '100%', height: '100%' }}
-                      resizeMode="cover"
                     />
                   {image.is_primary && !editMode && (
                     <View
@@ -285,10 +279,10 @@ export default function ImageGalleryScreen() {
       <Modal visible={previewImage !== null} transparent animationType="fade">
         <Pressable className="flex-1 items-center justify-center bg-black/80" onPress={() => setPreviewImage(null)}>
           <View style={{ width: '85%', maxWidth: 400, borderRadius: 16, overflow: 'hidden', backgroundColor: colors.card }}>
-            <RNImage
-              source={{ uri: previewImage ? getImageUrl(previewImage.uuid, 'medium') : '' }}
+            <AuthenticatedImage
+              imageUuid={previewImage?.uuid}
+              variant="medium"
               style={{ width: '100%', aspectRatio: 1 }}
-              resizeMode="cover"
             />
             {previewImage && !previewImage.is_primary && !editMode && (
               <TouchableOpacity

@@ -27,16 +27,22 @@ pub(crate) struct PublicImageVariantPath {
 
 #[utoipa::path(
     get,
-    path = "/api/v1/pets/traits",
+    path = "/api/v1/private/pets/traits",
     tag = "pets",
     responses(
         (status = 200, description = "List of personality traits", body = Vec<crate::models::pets::PersonalityTrait>),
+        (status = 401, description = "Missing auth", body = DomainError),
     ),
 )]
+#[protect("RoleEnum::RoleUser", ty = RoleEnum)]
 #[tracing::instrument(level = "info", skip_all)]
 pub async fn get_traits(
+    req: HttpRequest,
     app_data: web::Data<AppData>,
 ) -> Result<HttpResponse, DomainError> {
+    let _user_uuid =
+        crate::utils::extract_user_uuid_from_header(req.headers())?;
+
     let traits = web::block(move || {
         let pool = &app_data.pool;
         let mut conn = pool.get()?;
@@ -49,7 +55,7 @@ pub async fn get_traits(
 
 #[utoipa::path(
     get,
-    path = "/api/v1/pets/{pet_uuid}",
+    path = "/api/v1/private/pets/{pet_uuid}",
     tag = "pets",
     params(
         ("pet_uuid" = crate::models::pets::PetUuid, Path, description = "Pet UUID"),
@@ -57,13 +63,18 @@ pub async fn get_traits(
     responses(
         (status = 200, description = "Pet found", body = crate::models::pets::PublicPet),
         (status = 404, description = "Pet not found", body = DomainError),
+        (status = 401, description = "Missing auth", body = DomainError),
     ),
 )]
+#[protect("RoleEnum::RoleUser", ty = RoleEnum)]
 #[tracing::instrument(level = "info", skip_all, fields(pet_uuid))]
 pub async fn get_public_pet(
+    req: HttpRequest,
     app_data: web::Data<AppData>,
     pet_uuid: web::Path<crate::models::pets::PetUuid>,
 ) -> Result<HttpResponse, DomainError> {
+    let _user_uuid =
+        crate::utils::extract_user_uuid_from_header(req.headers())?;
     let pet_uuid = pet_uuid.into_inner();
 
     let pet = web::block(move || {
@@ -74,6 +85,39 @@ pub async fn get_public_pet(
     .await??;
 
     Ok(HttpResponse::Ok().json(pet))
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/private/pets/{pet_uuid}/images",
+    tag = "pets",
+    params(
+        ("pet_uuid" = crate::models::pets::PetUuid, Path, description = "Pet UUID"),
+    ),
+    responses(
+        (status = 200, description = "List of pet images", body = Vec<crate::models::pets::PublicPetImage>),
+        (status = 401, description = "Missing auth", body = DomainError),
+        (status = 404, description = "Pet not found", body = DomainError),
+    ),
+)]
+#[tracing::instrument(level = "info", skip_all, fields(pet_uuid))]
+pub async fn get_pet_images(
+    req: HttpRequest,
+    app_data: web::Data<AppData>,
+    pet_uuid: web::Path<crate::models::pets::PetUuid>,
+) -> Result<HttpResponse, DomainError> {
+    let _user_uuid =
+        crate::utils::extract_user_uuid_from_header(req.headers())?;
+    let pet_uuid = pet_uuid.into_inner();
+
+    let images = web::block(move || {
+        let pool = &app_data.pool;
+        let mut conn = pool.get()?;
+        crate::actions::pets::list_others_pets_images(&pet_uuid, &mut conn)
+    })
+    .await??;
+
+    Ok(HttpResponse::Ok().json(images))
 }
 
 #[utoipa::path(
@@ -96,7 +140,7 @@ pub async fn create_pet(
 ) -> Result<HttpResponse, DomainError> {
     let user_uuid = crate::utils::extract_user_uuid_from_header(req.headers())?;
 
-    let public_pet = web::block(move || {
+    let (_pet_id, public_pet) = web::block(move || {
         let pool = &app_data.pool;
         let mut conn = pool.get()?;
         let user_id =
@@ -407,7 +451,9 @@ pub async fn list_pet_images(
         let mut conn = pool.get()?;
         let user_id =
             crate::actions::users::get_user_id_by_uuid(&user_uuid, &mut conn)?;
-        crate::actions::pets::list_pet_images(&pet_uuid, &user_id, &mut conn)
+        crate::actions::pets::list_own_pet_images(
+            &pet_uuid, &user_id, &mut conn,
+        )
     })
     .await??;
 
@@ -525,7 +571,7 @@ pub async fn set_primary_pet_image(
 
 #[utoipa::path(
     get,
-    path = "/api/v1/pets/images/{image_uuid}",
+    path = "/api/v1/private/pets/images/{image_uuid}",
     tag = "pets",
     params(
         ("image_uuid" = uuid::Uuid, Path, description = "Image UUID"),
@@ -533,13 +579,18 @@ pub async fn set_primary_pet_image(
     responses(
         (status = 200, description = "Image metadata", body = crate::models::pets::PublicPetImage),
         (status = 404, description = "Image not found", body = DomainError),
+        (status = 401, description = "Missing auth", body = DomainError),
     ),
 )]
+#[protect("RoleEnum::RoleUser", ty = RoleEnum)]
 #[tracing::instrument(level = "info", skip_all, fields(image_uuid))]
 pub async fn get_public_pet_image(
+    req: HttpRequest,
     app_data: web::Data<AppData>,
     image_uuid: web::Path<uuid::Uuid>,
 ) -> Result<HttpResponse, DomainError> {
+    let _user_uuid =
+        crate::utils::extract_user_uuid_from_header(req.headers())?;
     let image_uuid = image_uuid.into_inner();
 
     let image = web::block(move || -> Result<Option<crate::models::pets::PetImage>, crate::errors::DomainError> {
@@ -574,7 +625,7 @@ pub async fn get_public_pet_image(
 
 #[utoipa::path(
     get,
-    path = "/api/v1/pets/images/{image_uuid}/{variant}",
+    path = "/api/v1/private/pets/images/{image_uuid}/{variant}",
     tag = "pets",
     params(
         ("image_uuid" = uuid::Uuid, Path, description = "Image UUID"),
@@ -583,13 +634,18 @@ pub async fn get_public_pet_image(
     responses(
         (status = 200, description = "Image stream"),
         (status = 404, description = "Image not found", body = DomainError),
+        (status = 401, description = "Missing auth", body = DomainError),
     ),
 )]
+#[protect("RoleEnum::RoleUser", ty = RoleEnum)]
 #[tracing::instrument(level = "info", skip_all, fields(image_uuid, variant))]
 pub async fn get_pet_image_variant(
+    req: HttpRequest,
     app_data: web::Data<AppData>,
     path: web::Path<PublicImageVariantPath>,
 ) -> Result<HttpResponse, DomainError> {
+    let _user_uuid =
+        crate::utils::extract_user_uuid_from_header(req.headers())?;
     let PublicImageVariantPath {
         image_uuid,
         variant,
@@ -699,13 +755,26 @@ pub async fn get_pet_image_variant(
         .bucket(&app_data.config.minio.bucket_name)
         .key(&object_key)
         .send()
-        .await
-        .map_err(|err| {
-            DomainError::new_internal_error(format!(
+        .await;
+
+    let object = match object {
+        Ok(obj) => obj,
+        Err(err) => {
+            let err_str = err.to_string();
+            if err_str.contains("NoSuchKey")
+                || err_str.contains("NotFound")
+                || err_str.contains("404")
+            {
+                return Err(DomainError::new_entity_does_not_exist_error(
+                    format!("Image not found: {}", object_key),
+                ));
+            }
+            return Err(DomainError::new_internal_error(format!(
                 "Failed to get object: {}",
                 err
-            ))
-        })?;
+            )));
+        }
+    };
 
     let reader = object.body.into_async_read();
     let stream = tokio_util::io::ReaderStream::new(reader);
@@ -713,4 +782,30 @@ pub async fn get_pet_image_variant(
     Ok(HttpResponse::Ok()
         .content_type(content_type)
         .streaming(stream))
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/private/users/{user_uuid}/pets",
+    tag = "pets",
+    params(
+        ("user_uuid" = crate::models::users::UserUuid, Path, description = "User UUID"),
+    ),
+    responses(
+        (status = 200, description = "List of user's public pets", body = Vec<PublicPet>),
+        (status = 404, description = "User not found", body = DomainError),
+    ),
+)]
+pub async fn list_user_pets(
+    app_data: web::Data<AppData>,
+    user_uuid: web::Path<crate::models::users::UserUuid>,
+) -> Result<HttpResponse, DomainError> {
+    let pets = web::block(move || {
+        let pool = &app_data.pool;
+        let mut conn = pool.get()?;
+        crate::actions::pets::list_public_pets_by_user(&user_uuid, &mut conn)
+    })
+    .await??;
+
+    Ok(HttpResponse::Ok().json(pets))
 }

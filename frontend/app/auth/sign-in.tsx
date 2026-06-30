@@ -44,7 +44,7 @@ const LoginScreen = () => {
     formState: { errors },
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { username: 'testuser1', password: 'password2' },
+    defaultValues: { username: 'petowner2', password: 'password123' },
   });
 
   const onSubmit = async (data: LoginFormData) => {
